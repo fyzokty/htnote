@@ -2,14 +2,57 @@ import { create } from "zustand";
 
 import { useSettingsStore } from "@/stores/settingsStore";
 
+export interface ToastAction {
+  labelKey: string;
+  onClick: () => void;
+}
+
+export interface ToastInput {
+  kind: "info" | "success" | "error";
+  messageKey: string;
+  params?: Record<string, string | number>;
+  action?: ToastAction;
+}
+
+export interface Toast extends ToastInput {
+  id: number;
+}
+
+const toastTimers = new Map<number, ReturnType<typeof setTimeout>>();
+let nextToastId = 0;
+
 interface UiState {
   sidebarVisible: boolean;
   setSidebarVisible: (visible: boolean) => void;
   toggleSidebar: () => void;
+  toasts: Toast[];
+  pushToast: (toast: ToastInput) => number;
+  dismissToast: (id: number) => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
   sidebarVisible: true,
+  toasts: [],
+  pushToast: (input) => {
+    const id = ++nextToastId;
+    const toast = { ...input, id };
+    const toasts = [...get().toasts, toast];
+    if (toasts.length > 3) {
+      const oldest = toasts.shift();
+      if (oldest) {
+        clearTimeout(toastTimers.get(oldest.id));
+        toastTimers.delete(oldest.id);
+      }
+    }
+    set({ toasts });
+    toastTimers.set(id, setTimeout(() => get().dismissToast(id), input.kind === "error" ? 8000 : 4000));
+    return id;
+  },
+  dismissToast: (id) => {
+    clearTimeout(toastTimers.get(id));
+    toastTimers.delete(id);
+    set((state) => ({ toasts: state.toasts.filter((toast) => toast.id !== id) }));
+  },
   setSidebarVisible: (visible) => set({ sidebarVisible: visible }),
   toggleSidebar: () => {
     const visible = !get().sidebarVisible;

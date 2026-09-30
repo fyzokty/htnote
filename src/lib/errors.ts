@@ -27,3 +27,17 @@ export function isAppError(value: unknown): value is AppError {
     typeof candidate.message === "string"
   );
 }
+
+export function toErrorMessageKey(err: unknown): string {
+  if (typeof err === "object" && err !== null && "code" in err &&
+    appErrorCodes.some((code) => code === err.code)) {
+    return `errors.${err.code}`;
+  }
+  return "errors.UNKNOWN";
+}
+
+export function notifyError(err: unknown): void {
+  console.error(err);
+  useUiStore.getState().pushToast({ kind: "error", messageKey: toErrorMessageKey(err) });
+}
+import { useUiStore } from "@/stores/uiStore";
