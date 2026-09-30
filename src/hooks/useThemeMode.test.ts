@@ -75,4 +75,16 @@ describe("useThemeMode", () => {
     expect(onChange).toBeUndefined();
     expect(document.documentElement).toHaveClass("dark");
   });
+
+  it("uses the loaded setting instead of a stale cached mode on first render", () => {
+    localStorage.setItem("htnote.themeMode", "dark");
+    document.documentElement.classList.add("dark");
+    useSettingsStore.setState({ settings: { ...settings, theme: "light" } });
+
+    render(createElement(ModeDisplay));
+
+    expect(screen.getByText("light")).toBeInTheDocument();
+    expect(document.documentElement).not.toHaveClass("dark");
+    expect(localStorage.getItem("htnote.themeMode")).toBe("light");
+  });
 });

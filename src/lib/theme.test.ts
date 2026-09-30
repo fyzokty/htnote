@@ -12,7 +12,9 @@ describe("getNoteThemeVars", () => {
     expect(Object.keys(light)).toEqual(keys);
     expect(Object.keys(dark)).toEqual(keys);
     expect(light["--ht-bg"]).toBe("#f9fafb");
-    expect(dark["--ht-bg"]).toBe("#0f172a");
+    expect(dark["--ht-bg"]).toBe("#1e1e1e");
+    expect(dark["--ht-text"]).toBe("#f0f0f0");
+    expect(dark["--ht-accent"]).toBe("#3b82f6");
     expect(light["--ht-text"]).not.toBe(dark["--ht-text"]);
     expect(light["--ht-font"]).toBe(dark["--ht-font"]);
   });

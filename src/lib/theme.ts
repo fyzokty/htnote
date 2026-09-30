@@ -16,9 +16,9 @@ const noteColors: Record<ThemeMode, Record<string, string>> = {
     "--ht-code-bg": "#f3f4f6",
   },
   dark: {
-    "--ht-bg": "#0f172a",
-    "--ht-text": "#f1f5f9",
-    "--ht-accent": "#6366f1",
+    "--ht-bg": "#1e1e1e",
+    "--ht-text": "#f0f0f0",
+    "--ht-accent": "#3b82f6",
     "--ht-font": noteFont,
     "--ht-muted": "#94a3b8",
     "--ht-border": "#334155",
