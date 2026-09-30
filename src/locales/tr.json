@@ -1,0 +1,10 @@
+{
+  "common": { "appName": "HTNote", "loading": "Yükleniyor..." },
+  "sidebar": { "label": "Kenar çubuğu", "newNote": "+ Not", "newFolder": "+ Klasör", "search": "Ara", "quickFilter": "Hızlı filtre", "quickFilterPlaceholder": "Hızlı filtre...", "empty": "Henüz not veya klasör yok.", "trash": "Çöp Kutusu", "settings": "Ayarlar", "resize": "Kenar çubuğunu yeniden boyutlandır", "hide": "Kenar çubuğunu gizle", "show": "Kenar çubuğunu göster" },
+  "tabs": { "label": "Sekmeler", "new": "Yeni sekme" },
+  "viewer": { "workspace": "Çalışma alanı", "empty": "Bir not seçin veya yeni not oluşturun" },
+  "editor": {},
+  "errors": { "settingsLoad": "Ayarlar yüklenemedi.", "NOTE_NOT_FOUND": "Not bulunamadı.", "NAME_CONFLICT": "Bu ad zaten kullanılıyor.", "INVALID_NAME": "Geçersiz ad.", "IO_ERROR": "Dosya işlemi başarısız oldu.", "PATH_OUTSIDE_ROOT": "Yol not klasörünün dışında.", "INVALID_NOTE": "Geçersiz not.", "UNKNOWN": "Bilinmeyen hata." },
+  "dialogs": {},
+  "settings": { "theme": "Tema", "system": "Sistem", "light": "Açık", "dark": "Koyu", "language": "Dil", "turkish": "Türkçe", "english": "İngilizce" }
+}

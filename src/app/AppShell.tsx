@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { FilePlus2, FolderPlus, Menu, NotebookPen, Plus, Search, Settings2, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
+import { resolveLanguage } from "@/i18n/language";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useUiStore } from "@/stores/uiStore";
 
 const clampWidth = (width: number) => Math.min(480, Math.max(200, width));
 
 export function AppShell() {
+  const { t } = useTranslation();
   const settings = useSettingsStore((state) => state.settings);
   const updateSettings = useSettingsStore((state) => state.update);
   const sidebarVisible = useUiStore((state) => state.sidebarVisible);
@@ -70,37 +73,37 @@ export function AppShell() {
         <aside
           className="relative flex h-full min-h-0 shrink-0 flex-col border-r border-app-border bg-app-surface"
           style={{ width: sidebarWidth }}
-          aria-label="Kenar çubuğu"
+          aria-label={t("sidebar.label")}
         >
           <div className="flex h-14 shrink-0 items-center gap-2 border-b border-app-border px-4">
             <NotebookPen className="size-5 text-app-accent" aria-hidden />
-            <h1 className="text-lg font-semibold">HTNote</h1>
+            <h1 className="text-lg font-semibold">{t("common.appName")}</h1>
           </div>
           <div className="shrink-0 space-y-3 p-3">
             <div className="flex gap-1">
               <button type="button" disabled className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-accent px-2 py-2 text-xs font-medium text-app-accent-text disabled:cursor-default">
-                <FilePlus2 className="size-4 shrink-0" aria-hidden /> + Not
+                <FilePlus2 className="size-4 shrink-0" aria-hidden /> {t("sidebar.newNote")}
               </button>
               <button type="button" disabled className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-subtle px-2 py-2 text-xs font-medium disabled:cursor-default">
-                <FolderPlus className="size-4 shrink-0" aria-hidden /> + Klasör
+                <FolderPlus className="size-4 shrink-0" aria-hidden /> {t("sidebar.newFolder")}
               </button>
               <button type="button" disabled className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-subtle px-2 py-2 text-xs font-medium disabled:cursor-default">
-                <Search className="size-4 shrink-0" aria-hidden /> Ara
+                <Search className="size-4 shrink-0" aria-hidden /> {t("sidebar.search")}
               </button>
             </div>
-            <input type="search" aria-label="Hızlı filtre" placeholder="Hızlı filtre..." className="w-full rounded-md border border-app-border bg-app-bg px-3 py-2 text-sm outline-none focus:border-app-accent" />
+            <input type="search" aria-label={t("sidebar.quickFilter")} placeholder={t("sidebar.quickFilterPlaceholder")} className="w-full rounded-md border border-app-border bg-app-bg px-3 py-2 text-sm outline-none focus:border-app-accent" />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto px-3 py-6 text-center text-sm text-app-muted">
-            Henüz not veya klasör yok.
+            {t("sidebar.empty")}
           </div>
           <div className="shrink-0 border-t border-app-border p-2">
             <button type="button" disabled className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm disabled:cursor-default">
-              <Trash2 className="size-4" aria-hidden /> Çöp Kutusu
+              <Trash2 className="size-4" aria-hidden /> {t("sidebar.trash")}
             </button>
             <button type="button" disabled className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm disabled:cursor-default">
-              <Settings2 className="size-4" aria-hidden /> Ayarlar
+              <Settings2 className="size-4" aria-hidden /> {t("sidebar.settings")}
             </button>
-            <div className="mt-2 flex gap-1 border-t border-app-border pt-2" role="group" aria-label="Tema">
+            <div className="mt-2 flex gap-1 border-t border-app-border pt-2" role="group" aria-label={t("settings.theme")}>
               {(["system", "light", "dark"] as const).map((theme) => (
                 <button
                   key={theme}
@@ -109,14 +112,27 @@ export function AppShell() {
                   onClick={() => void updateSettings({ theme }).catch(() => {})}
                   className={`flex-1 rounded-md px-1 py-2 text-xs focus-visible:outline-2 focus-visible:outline-app-accent ${settings?.theme === theme ? "bg-app-accent text-app-accent-text" : "bg-app-subtle text-app-text hover:bg-app-border"}`}
                 >
-                  {{ system: "Sistem", light: "Açık", dark: "Koyu" }[theme]}
+                  {t(`settings.${theme}`)}
+                </button>
+              ))}
+            </div>
+            <div className="mt-2 flex gap-1" role="group" aria-label={t("settings.language")}>
+              {(["tr", "en"] as const).map((language) => (
+                <button
+                  key={language}
+                  type="button"
+                  aria-pressed={resolveLanguage(settings?.language, navigator.language) === language}
+                  onClick={() => void updateSettings({ language }).catch(() => {})}
+                  className={`flex-1 rounded-md px-1 py-2 text-xs focus-visible:outline-2 focus-visible:outline-app-accent ${resolveLanguage(settings?.language, navigator.language) === language ? "bg-app-accent text-app-accent-text" : "bg-app-subtle text-app-text hover:bg-app-border"}`}
+                >
+                  {language === "tr" ? t("settings.turkish") : t("settings.english")}
                 </button>
               ))}
             </div>
           </div>
           <div
             role="separator"
-            aria-label="Kenar çubuğunu yeniden boyutlandır"
+            aria-label={t("sidebar.resize")}
             aria-orientation="vertical"
             aria-valuemin={200}
             aria-valuemax={480}
@@ -131,18 +147,18 @@ export function AppShell() {
       )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-app-border bg-app-surface px-3">
-          <button type="button" onClick={toggleSidebar} aria-label={sidebarVisible ? "Kenar çubuğunu gizle" : "Kenar çubuğunu göster"} className="rounded-md p-2 text-app-muted hover:bg-app-subtle focus-visible:outline-2 focus-visible:outline-app-accent">
+          <button type="button" onClick={toggleSidebar} aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")} className="rounded-md p-2 text-app-muted hover:bg-app-subtle focus-visible:outline-2 focus-visible:outline-app-accent">
             <Menu className="size-5" aria-hidden />
           </button>
-          <span className="text-sm text-app-muted">Sekmeler</span>
-          <button type="button" disabled aria-label="Yeni sekme" className="ml-auto rounded-md p-2 text-app-muted disabled:cursor-default">
+          <span className="text-sm text-app-muted">{t("tabs.label")}</span>
+          <button type="button" disabled aria-label={t("tabs.new")} className="ml-auto rounded-md p-2 text-app-muted disabled:cursor-default">
             <Plus className="size-4" aria-hidden />
           </button>
         </header>
-        <section className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden p-6 text-center" aria-label="Çalışma alanı">
+        <section className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden p-6 text-center" aria-label={t("viewer.workspace")}>
           <div className="flex flex-col items-center gap-3 text-app-muted">
             <NotebookPen className="size-10 text-app-accent" aria-hidden />
-            <p>Bir not seçin veya yeni not oluşturun</p>
+            <p>{t("viewer.empty")}</p>
           </div>
         </section>
       </div>
