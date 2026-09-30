@@ -1,5 +1,7 @@
 # HTNote 📝
 
+[![CI](https://github.com/fyzokty/htnote/actions/workflows/ci.yml/badge.svg)](https://github.com/fyzokty/htnote/actions/workflows/ci.yml)
+
 > **HTML Temelli, İnteraktif ve Yerel-Öncelikli (Local-First) Masaüstü Not Alma Uygulaması**
 
 HTNote; kullanıcıların notlarını açık standart olan **HTML, CSS ve JavaScript** ekosisteminde saklayan, modern, hafif ve tamamen internetsiz (offline) çalışan masaüstü not alma uygulamasıdır. Sıradan not defterlerinden farklı olarak notların içerisinde JavaScript çalıştırabilir, interaktif araçlar, hesaplamalar, ses kayıtları ve dinamik tablolar barındırabilirsiniz.
