@@ -2,3 +2,36 @@
 
 /* Koyu tema, <html> üzerindeki `dark` sınıfıyla etkinleşir (D02, T108). */
 @custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --app-bg: #f9fafb;
+  --app-surface: #ffffff;
+  --app-text: #111827;
+  --app-muted: #6b7280;
+  --app-border: #e5e7eb;
+  --app-subtle: #f3f4f6;
+  --app-accent: #4f46e5;
+  --app-accent-text: #ffffff;
+}
+
+:root.dark {
+  --app-bg: #0f172a;
+  --app-surface: #1e293b;
+  --app-text: #f1f5f9;
+  --app-muted: #94a3b8;
+  --app-border: #334155;
+  --app-subtle: #334155;
+  --app-accent: #6366f1;
+  --app-accent-text: #ffffff;
+}
+
+@theme inline {
+  --color-app-bg: var(--app-bg);
+  --color-app-surface: var(--app-surface);
+  --color-app-text: var(--app-text);
+  --color-app-muted: var(--app-muted);
+  --color-app-border: var(--app-border);
+  --color-app-subtle: var(--app-subtle);
+  --color-app-accent: var(--app-accent);
+  --color-app-accent-text: var(--app-accent-text);
+}

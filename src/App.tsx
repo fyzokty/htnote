@@ -1,11 +1,13 @@
 import { useEffect } from "react";
 
 import { AppShell } from "@/app/AppShell";
+import { useThemeMode } from "@/hooks/useThemeMode";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 function App() {
   const status = useSettingsStore((state) => state.status);
   const load = useSettingsStore((state) => state.load);
+  useThemeMode();
 
   useEffect(() => {
     void load().catch(() => {});
@@ -13,7 +15,7 @@ function App() {
 
   if (status !== "ready") {
     return (
-      <main className="flex h-screen items-center justify-center bg-slate-900 text-slate-100">
+      <main className="flex h-screen items-center justify-center bg-app-bg text-app-text">
         {status === "error" ? "Ayarlar yüklenemedi." : "Yükleniyor..."}
       </main>
     );
