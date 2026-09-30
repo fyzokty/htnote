@@ -20,6 +20,26 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@tauri-apps/api/core",
+              importNames: ["invoke"],
+              message: "invoke yalnızca src/lib/ipc.ts üzerinden çağrılmalı.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["src/lib/ipc.ts", "src/lib/**/*.test.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": "off",
+    },
   },
   {
     // Node ortamında çalışan araç script'leri

@@ -1,3 +1,7 @@
+mod commands;
+pub mod error;
+mod state;
+
 /// Uygulama sürümü; tek kaynak `Cargo.toml`'dur.
 pub fn app_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
@@ -7,6 +11,8 @@ pub fn app_version() -> &'static str {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(state::AppState::default())
+        .invoke_handler(tauri::generate_handler![commands::app_info])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
