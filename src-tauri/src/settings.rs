@@ -1,5 +1,5 @@
 use std::fs::{self, File};
-use std::io::{ErrorKind, Write};
+use std::io::{self, ErrorKind, Write};
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -95,7 +95,7 @@ pub fn load_settings(config_dir: &Path) -> Result<Settings, AppError> {
         Ok(content) => match serde_json::from_str(&content) {
             Ok(settings) => Ok(settings),
             Err(_) => {
-                fs::rename(&path, config_dir.join("settings.json.bak"))?;
+                replace_file(&path, &config_dir.join("settings.json.bak"))?;
                 let settings = Settings::default();
                 save_settings_atomic(config_dir, &settings)?;
                 Ok(settings)
@@ -118,8 +118,41 @@ pub fn save_settings_atomic(config_dir: &Path, settings: &Settings) -> Result<()
     file.write_all(b"\n")?;
     file.sync_all()?;
     drop(file);
-    fs::rename(temporary, config_dir.join("settings.json"))?;
+    replace_file(&temporary, &config_dir.join("settings.json"))?;
     Ok(())
+}
+
+#[cfg(not(windows))]
+fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
+    fs::rename(source, destination)
+}
+
+#[cfg(windows)]
+fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+
+    #[link(name = "kernel32")]
+    extern "system" {
+        fn MoveFileExW(source: *const u16, destination: *const u16, flags: u32) -> i32;
+    }
+
+    const MOVEFILE_REPLACE_EXISTING: u32 = 0x1;
+    const MOVEFILE_WRITE_THROUGH: u32 = 0x8;
+    let source: Vec<u16> = source.as_os_str().encode_wide().chain(Some(0)).collect();
+    let destination: Vec<u16> = destination.as_os_str().encode_wide().chain(Some(0)).collect();
+    // Geçici dosya aynı dizindedir; Windows'ta mevcut hedef tek taşıma işleminde değiştirilir.
+    let result = unsafe {
+        MoveFileExW(
+            source.as_ptr(),
+            destination.as_ptr(),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    };
+    if result == 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
 }
 
 pub fn resolve_root_dir(settings: &Settings, fallback: &Path) -> Result<PathBuf, AppError> {
@@ -161,6 +194,20 @@ mod tests {
         fs::write(dir.path().join("settings.json"), "not json").unwrap();
         assert_eq!(load_settings(dir.path()).unwrap(), Settings::default());
         assert_eq!(fs::read_to_string(dir.path().join("settings.json.bak")).unwrap(), "not json");
+    }
+
+    #[test]
+    fn repeated_corruption_replaces_previous_backup() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("settings.json");
+        fs::write(&path, "first invalid file").unwrap();
+        load_settings(dir.path()).unwrap();
+        fs::write(&path, "second invalid file").unwrap();
+        assert_eq!(load_settings(dir.path()).unwrap(), Settings::default());
+        assert_eq!(
+            fs::read_to_string(dir.path().join("settings.json.bak")).unwrap(),
+            "second invalid file"
+        );
     }
 
     #[test]
