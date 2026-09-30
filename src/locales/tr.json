@@ -4,7 +4,9 @@
   "tabs": { "label": "Sekmeler", "new": "Yeni sekme" },
   "viewer": { "workspace": "Çalışma alanı", "empty": "Bir not seçin veya yeni not oluşturun" },
   "editor": {},
-  "errors": { "settingsLoad": "Ayarlar yüklenemedi.", "NOTE_NOT_FOUND": "Not bulunamadı.", "NAME_CONFLICT": "Bu ad zaten kullanılıyor.", "INVALID_NAME": "Geçersiz ad.", "IO_ERROR": "Dosya işlemi başarısız oldu.", "PATH_OUTSIDE_ROOT": "Yol not klasörünün dışında.", "INVALID_NOTE": "Geçersiz not.", "UNKNOWN": "Bilinmeyen hata." },
+  "errors": { "settingsLoad": "Ayarlar yüklenemedi.", "NOTE_NOT_FOUND": "Not bulunamadı.", "NAME_CONFLICT": "Bu ad zaten kullanılıyor.", "INVALID_NAME": "Geçersiz ad.", "IO_ERROR": "Dosya işlemi başarısız oldu.", "PATH_OUTSIDE_ROOT": "Yol not klasörünün dışında.", "JSON_ERROR": "Veri okunamadı.", "INTERNAL": "Uygulama hatası oluştu.", "INVALID_NOTE": "Geçersiz not.", "UNKNOWN": "Bilinmeyen hata." },
+  "toast": { "dismiss": "Bildirimi kapat" },
+  "errorBoundary": { "title": "Bir şeyler ters gitti", "description": "Uygulamayı yeniden yüklemeyi deneyin.", "reload": "Yeniden yükle" },
   "dialogs": {},
   "settings": { "theme": "Tema", "system": "Sistem", "light": "Açık", "dark": "Koyu", "language": "Dil", "turkish": "Türkçe", "english": "İngilizce" }
 }
