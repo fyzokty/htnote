@@ -1,0 +1,11 @@
+# Depoda tüm metin dosyaları LF ile tutulur (global core.autocrlf ayarından bağımsız).
+* text=auto eol=lf
+
+# İkili dosyalar
+*.png binary
+*.jpg binary
+*.ico binary
+*.icns binary
+*.mp3 binary
+*.mp4 binary
+*.woff2 binary

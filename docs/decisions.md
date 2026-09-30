@@ -203,6 +203,9 @@
   içerik bölgesi ayrıştırıcısı, TipTap round-trip ve kısayol registry'si mutlaka test edilir.
 - **E2E:** WebdriverIO + `tauri-driver` (Windows, msedgedriver). Güvenlik izolasyonu testleri ve smoke senaryoları.
   `npm run test:e2e` ile çalışır. orch'un görev başı doğrulamasına **dahil değildir** (yavaş). CI'da ve faz sonlarında çalışır.
+- **Uygulamayı çalıştırarak doğrulama:** Agent'lar ve otomasyon `tauri dev`'i **kullanmaz** (süresiz çalışır).
+  Bunun yerine `npm run smoke:app` kullanılır: debug build alır, uygulamayı başlatır, ana pencerenin açıldığını
+  doğrular, kısa süre kararlılığını izler ve uygulamayı kendisi kapatır (süre sınırlı, çıkış kodu 0/1).
 - `kind: UI` görevlerde orch politikası gereği test yazılmaz. Mantık bu yüzden UI'dan ayrı, test edilebilir modüllerde tutulur.
 
 ## D21 — Doğrulama komutları (orch `commands.json`)

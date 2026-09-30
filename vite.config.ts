@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
@@ -14,6 +15,14 @@ export default defineConfig(() => ({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
+  },
+
+  test: {
+    environment: "jsdom",
+    setupFiles: ["./src/test/setup.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
+    // vi.spyOn/vi.fn mock'ları her testten sonra orijinal haline döner.
+    restoreMocks: true,
   },
 
   // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
