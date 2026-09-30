@@ -6,6 +6,20 @@ import type { KeyInput, Platform, ShortcutId } from "@/lib/shortcuts/registry";
 const base: KeyInput = { key: "", ctrl: false, shift: false, alt: false, meta: false };
 
 describe("matchShortcut", () => {
+  it("D09 HTNOTE_SHORTCUT payload'ını code olmadan eşleştirir", () => {
+    const payload: KeyInput = {
+      key: "N",
+      ctrl: true,
+      shift: true,
+      alt: false,
+      meta: false,
+    };
+
+    expect(matchShortcut(payload, "windows")).toBe("newFolder");
+    expect(matchShortcut({ ...payload, key: "\\", shift: false }, "windows")).toBe("toggleSidebar");
+    expect(matchShortcut({ ...payload, ctrl: false, meta: true }, "mac")).toBe("newFolder");
+  });
+
   it.each<{ name: string; platform: Platform; input: Partial<KeyInput>; expected: ShortcutId | null }>([
     { name: "Windows Ctrl+N", platform: "windows", input: { key: "n", code: "KeyN", ctrl: true }, expected: "newNote" },
     { name: "macOS Cmd+N", platform: "mac", input: { key: "n", code: "KeyN", meta: true }, expected: "newNote" },
