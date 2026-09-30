@@ -1,0 +1,8 @@
+# Task runtime data and logs stay local.
+logs/*
+!logs/.gitkeep
+runtime/tasks/*
+!runtime/tasks/.gitkeep
+
+# Tek kullanımlık routing override'ı; görev açılınca görev klasörüne taşınır.
+policies/routing.override.json

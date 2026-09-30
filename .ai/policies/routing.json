@@ -1,0 +1,37 @@
+{
+  "roles": {
+    "context": {
+      "chain": [
+        "gemini-3.8-flash-medium",
+        "gpt-6-luna"
+      ],
+      "writes": false
+    },
+    "implement": {
+      "chain": [
+        "gpt-6-sol@medium"
+      ],
+      "writes": true
+    },
+    "analyze": {
+      "chain": [
+        "gpt-6-luna"
+      ],
+      "writes": false
+    },
+    "test_gap": {
+      "chain": [
+        "gpt-6-luna"
+      ],
+      "writes": false
+    },
+    "review": {
+      "chain": [
+        "gemini-3.8-flash-high",
+        "gpt-6-luna"
+      ],
+      "writes": false
+    }
+  },
+  "levels": {}
+}

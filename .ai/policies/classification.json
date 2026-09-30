@@ -1,0 +1,50 @@
+{
+  "levels": ["TRIVIAL", "SMALL", "NORMAL", "COMPLEX", "CRITICAL"],
+  "rules": {
+    "TRIVIAL": "Purely mechanical, text/UI/value/typo or equivalent low-risk single-point change.",
+    "SMALL": "Small logic/behavior change with no architecture decision.",
+    "NORMAL": "New feature or multi-layer change within existing architecture.",
+    "COMPLEX": "Cross-system or architecture-significant change requiring technical planning.",
+    "CRITICAL": "Risk-triggered task regardless of complexity."
+  },
+  "uncertainty_policy": "ESCALATE_ONE_LEVEL",
+  "user_complexity_override": true,
+  "allow_risk_downgrade_by_user": false,
+  "task_kinds": {
+    "UI": "Visual/layout/styling/copy change in the presentation layer only: widgets, screens, styles, paddings, colors, texts, icons, animations. No business logic, no data layer, no API contract change.",
+    "LOGIC": "Business logic, data, network, storage, state management or build configuration change.",
+    "MIXED": "Both a UI change and a logic change in the same task."
+  },
+  "pipelines": {
+    "TRIVIAL": {
+      "spec": "none",
+      "on_validation_fail": "retry",
+      "test_gap_analysis": false,
+      "review": "never"
+    },
+    "SMALL": {
+      "spec": "brief",
+      "on_validation_fail": "analyze_then_retry",
+      "test_gap_analysis": false,
+      "review": "if_risk_area"
+    },
+    "NORMAL": {
+      "spec": "brief+context",
+      "on_validation_fail": "analyze_then_retry",
+      "test_gap_analysis": false,
+      "review": "always"
+    },
+    "COMPLEX": {
+      "spec": "brief+context",
+      "on_validation_fail": "analyze_then_retry",
+      "test_gap_analysis": true,
+      "review": "always"
+    },
+    "CRITICAL": {
+      "spec": "brief+context",
+      "on_validation_fail": "analyze_then_retry",
+      "test_gap_analysis": true,
+      "review": "always"
+    }
+  }
+}

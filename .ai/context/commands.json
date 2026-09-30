@@ -1,0 +1,38 @@
+{
+  "format": {
+    "command": "npx prettier --write .",
+    "required_for": [
+      "TRIVIAL",
+      "SMALL",
+      "NORMAL",
+      "COMPLEX",
+      "CRITICAL"
+    ]
+  },
+  "analyze": {
+    "command": "npm run verify:analyze",
+    "required_for": [
+      "TRIVIAL",
+      "SMALL",
+      "NORMAL",
+      "COMPLEX",
+      "CRITICAL"
+    ]
+  },
+  "test": {
+    "command": "npm run verify:test",
+    "required_for": [
+      "SMALL",
+      "NORMAL",
+      "COMPLEX",
+      "CRITICAL"
+    ]
+  },
+  "build": {
+    "command": "npm run verify:build",
+    "required_for": [
+      "COMPLEX",
+      "CRITICAL"
+    ]
+  }
+}

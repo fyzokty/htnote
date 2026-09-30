@@ -1,0 +1,39 @@
+{
+  "stage_retry_limit": 1,
+  "process_retry_limit": 1,
+  "create_task_branch": true,
+  "require_clean_worktree": true,
+  "human_intervention_resets_stage_retry": true,
+  "approval": {
+    "plan": ["NORMAL", "COMPLEX", "CRITICAL"],
+    "final": ["CRITICAL", "HIGH"]
+  },
+  "orchestrator_guidance_limit": 2,
+  "context_view_max_bytes": 12000,
+  "commit_after_each_stage": true,
+  "skip_validation_steps": ["format"],
+  "ui_policy": {
+    "skip_test_authoring": true,
+    "skip_validation_steps": ["test"],
+    "skip_test_gap_analysis": true,
+    "reviewer_ignores_missing_tests": true
+  },
+  "github": {
+    "enabled": true,
+    "base_branch": null,
+    "create_issue": true,
+    "issue_labels": [],
+    "push_after_each_commit": true,
+    "pr_merge_method": "merge",
+    "delete_branch_after_merge": true,
+    "local_auto_merge": false
+  },
+  "agent_call_budgets": {
+    "context": 2,
+    "implementation": 3,
+    "tester": 2,
+    "reviewer": 2
+  },
+  "diff_embed_max_bytes": 80000,
+  "error_excerpt_max_bytes": 4000
+}
