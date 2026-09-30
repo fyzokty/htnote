@@ -1,0 +1,31 @@
+# Geliştirme planlama dosyaları (yerel, repoya girmez; orch temiz worktree ister)
+tasks/
+
+# Node / Vite
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Test çıktıları
+coverage/
+test-results/
+e2e/.artifacts/
+
+# Loglar
+logs/
+*.log
+npm-debug.log*
+
+# Editör / OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+*.suo
+*.sw?

@@ -1,0 +1,4 @@
+@import "tailwindcss";
+
+/* Koyu tema, <html> üzerindeki `dark` sınıfıyla etkinleşir (D02, T108). */
+@custom-variant dark (&:where(.dark, .dark *));
