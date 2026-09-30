@@ -4,6 +4,9 @@ import { FilePlus2, FolderPlus, Menu, NotebookPen, Plus, Search, Settings2, Tras
 import { useTranslation } from "react-i18next";
 
 import { resolveLanguage } from "@/i18n/language";
+import { installShortcutListener } from "@/lib/shortcuts/manager";
+import { formatShortcut } from "@/lib/shortcuts/registry";
+import { useShortcut } from "@/lib/shortcuts/useShortcut";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -21,6 +24,9 @@ export function AppShell() {
   const widthRef = useRef(sidebarWidth);
   const draggingRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useShortcut("toggleSidebar", toggleSidebar);
+  useEffect(() => installShortcutListener(), []);
 
   const savedVisible = settings?.sidebarVisible;
   useEffect(() => {
@@ -147,7 +153,7 @@ export function AppShell() {
       )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex h-14 shrink-0 items-center gap-3 border-b border-app-border bg-app-surface px-3">
-          <button type="button" onClick={toggleSidebar} aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")} className="rounded-md p-2 text-app-muted hover:bg-app-subtle focus-visible:outline-2 focus-visible:outline-app-accent">
+          <button type="button" onClick={toggleSidebar} title={formatShortcut("toggleSidebar")} aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")} className="rounded-md p-2 text-app-muted hover:bg-app-subtle focus-visible:outline-2 focus-visible:outline-app-accent">
             <Menu className="size-5" aria-hidden />
           </button>
           <span className="text-sm text-app-muted">{t("tabs.label")}</span>
