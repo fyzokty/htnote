@@ -64,7 +64,7 @@ fn scan(html: &str) -> Found {
     let title_found = Rc::clone(&found);
     let meta_found = Rc::clone(&found);
     let css_found = Rc::clone(&found);
-    let _ = rewrite_str(
+    if let Err(error) = rewrite_str(
         html,
         Settings {
             element_content_handlers: vec![
@@ -90,7 +90,9 @@ fn scan(html: &str) -> Found {
             ],
             ..Settings::default()
         },
-    );
+    ) {
+        panic!("HTML taraması başarısız: {error}");
+    }
     Rc::try_unwrap(found).unwrap_or_else(|_| unreachable!()).into_inner()
 }
 
@@ -122,7 +124,7 @@ pub fn sync_head(html: &str, meta: &NoteMetadata, has_css: bool, has_js: bool) -
                 ..Settings::default()
             },
         )
-        .unwrap_or_else(|_| html.to_owned());
+        .unwrap_or_else(|error| panic!("HTML iskeleti oluşturulamadı: {error}"));
         return sync_head(&repaired, meta, has_css, has_js);
     }
 
@@ -143,6 +145,7 @@ pub fn sync_head(html: &str, meta: &NoteMetadata, has_css: bool, has_js: bool) -
     let mut seen_title = false;
     let mut seen_meta = [false; 3];
     let mut seen_css = false;
+    let mut seen_body = false;
     rewrite_str(
         html,
         Settings {
@@ -170,7 +173,7 @@ pub fn sync_head(html: &str, meta: &NoteMetadata, has_css: bool, has_js: bool) -
                             } else {
                                 seen_meta[index] = true;
                                 if el.get_attribute("content").as_deref() != Some(value.as_str()) {
-                                    el.set_attribute("content", value)?;
+                                    el.set_attribute("content", &escape_html(value))?;
                                 }
                             }
                             break;
@@ -199,16 +202,17 @@ pub fn sync_head(html: &str, meta: &NoteMetadata, has_css: bool, has_js: bool) -
                     Ok(())
                 }),
                 element!("body", move |el| {
-                    if has_js {
+                    if has_js && !seen_body {
                         el.append("<script src=\"./script.js\"></script>", ContentType::Html);
                     }
+                    seen_body = true;
                     Ok(())
                 }),
             ],
             ..Settings::default()
         },
     )
-    .unwrap_or_else(|_| html.to_owned())
+    .unwrap_or_else(|error| panic!("HTML head senkronizasyonu başarısız: {error}"))
 }
 
 #[cfg(test)]
