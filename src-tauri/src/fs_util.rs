@@ -1,25 +1,57 @@
 use std::ffi::OsString;
-use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::{self, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+use uuid::Uuid;
 
 use crate::error::AppError;
 
 pub(crate) fn write_file_atomic(path: &Path, bytes: &[u8]) -> Result<(), AppError> {
-    let mut temporary_name: OsString = path.as_os_str().to_owned();
-    temporary_name.push(".tmp");
-    let temporary = std::path::PathBuf::from(temporary_name);
-    let mut file = File::create(&temporary)?;
+    let (temporary, mut file) = loop {
+        let mut temporary_name: OsString = path.as_os_str().to_owned();
+        temporary_name.push(format!(".{}.tmp", Uuid::new_v4()));
+        let temporary = PathBuf::from(temporary_name);
+        match OpenOptions::new().write(true).create_new(true).open(&temporary) {
+            Ok(file) => break (TemporaryFile(temporary), file),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error.into()),
+        }
+    };
     file.write_all(bytes)?;
     file.sync_all()?;
     drop(file);
-    replace_file(&temporary, path)?;
+    replace_file(&temporary.0, path)?;
     Ok(())
+}
+
+struct TemporaryFile(PathBuf);
+
+impl Drop for TemporaryFile {
+    fn drop(&mut self) {
+        // Taşıma başarılıysa dosya artık yoktur; hata durumunda geçici dosya temizlenir.
+        let _ = std::fs::remove_file(&self.0);
+    }
 }
 
 #[cfg(not(windows))]
 pub(crate) fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
     std::fs::rename(source, destination)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn failed_replace_removes_temporary_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let destination = directory.path().join("metadata.json");
+        std::fs::create_dir(&destination).unwrap();
+
+        assert!(write_file_atomic(&destination, b"contents").is_err());
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
+    }
 }
 
 #[cfg(windows)]

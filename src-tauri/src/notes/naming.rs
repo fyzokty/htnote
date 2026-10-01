@@ -42,9 +42,10 @@ fn finish_name(name: &str) -> String {
     }
 }
 
+/// `existing` verilen adın varlığını büyük/küçük harfe duyarsız olarak sınamalıdır.
 pub fn unique_name(desired: &str, existing: impl Fn(&str) -> bool) -> String {
     let desired = sanitize_name(desired);
-    if !exists_case_insensitive(&desired, &existing) {
+    if !existing(&desired) {
         return desired;
     }
     for number in 2.. {
@@ -52,15 +53,11 @@ pub fn unique_name(desired: &str, existing: impl Fn(&str) -> bool) -> String {
         let base: String = desired.graphemes(true).take(MAX_NAME_LENGTH - suffix.len()).collect();
         let base = base.trim_end_matches([' ', '.']);
         let candidate = format!("{base}{suffix}");
-        if !exists_case_insensitive(&candidate, &existing) {
+        if !existing(&candidate) {
             return candidate;
         }
     }
     unreachable!()
-}
-
-fn exists_case_insensitive(name: &str, existing: &impl Fn(&str) -> bool) -> bool {
-    existing(name) || existing(&name.to_lowercase()) || existing(&name.to_uppercase())
 }
 
 pub fn normalize_tags(tags: Vec<String>) -> Vec<String> {
@@ -119,8 +116,10 @@ mod tests {
     #[test]
     fn unique_name_uses_suffixes_and_ignores_case() {
         let occupied = ["not", "not (2)"];
-        assert_eq!(unique_name("Not", |name| occupied.contains(&name)), "Not (3)");
+        assert_eq!(unique_name("Not", |name| occupied.iter().any(|item| item.eq_ignore_ascii_case(name))), "Not (3)");
         assert_eq!(unique_name(&"a".repeat(120), |name| name == "a".repeat(120)), format!("{} (2)", "a".repeat(116)));
+        assert_eq!(unique_name("Straße", |name| name.replace('ß', "ss").eq_ignore_ascii_case("STRASSE")), "Straße (2)");
+        assert_eq!(unique_name("Not", |name| name == "NOT"), "Not");
     }
 
     #[test]
