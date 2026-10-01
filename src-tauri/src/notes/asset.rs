@@ -21,7 +21,17 @@ pub struct AssetInfo {
 pub fn copy_asset(note_dir: &Path, source: &Path) -> Result<AssetInfo, AppError> {
     let name = source.file_name().and_then(|name| name.to_str())
         .ok_or_else(|| AppError::InvalidName(source.display().to_string()))?;
-    let bytes = fs::read(source)?;
+    let file = File::open(source)?;
+    let size = file.metadata()?.len();
+    if size > MAX_ASSET_BYTES as u64 {
+        return Err(AppError::PayloadTooLarge(size.try_into().unwrap_or(usize::MAX)));
+    }
+    // Okuma sırasında büyüyen kaynak dosya da bellek sınırını aşamaz.
+    let mut bytes = Vec::new();
+    file.take(MAX_ASSET_BYTES as u64 + 1).read_to_end(&mut bytes)?;
+    if bytes.len() > MAX_ASSET_BYTES {
+        return Err(AppError::PayloadTooLarge(bytes.len()));
+    }
     save_asset_bytes(note_dir, name, &bytes)
 }
 
@@ -34,12 +44,32 @@ pub fn save_asset_bytes(note_dir: &Path, suggested_name: &str, bytes: &[u8]) -> 
         Some((stem, extension)) if !stem.is_empty() && !extension.is_empty() => (stem, Some(extension)),
         _ => (file_name, None),
     };
+    if raw_stem.trim_matches(|ch: char| ch.is_whitespace() || ch == '.').is_empty()
+        || extension.is_some_and(|value| value.trim_matches(|ch: char| ch.is_whitespace() || ch == '.').is_empty()) {
+        return Err(AppError::InvalidName(suggested_name.into()));
+    }
     let stem = sanitize_name(raw_stem);
     let extension = extension.map(|extension| sanitize_name(extension).to_lowercase());
+    let note_dir = note_dir.canonicalize()?;
     let assets = note_dir.join("assets");
-    fs::create_dir_all(&assets)?;
-    // Sembolik bağ üzerinden not klasörü dışına yazılmasını engelleriz.
-    if fs::symlink_metadata(&assets)?.file_type().is_symlink() {
+    // create_dir_all mevcut sembolik bağları izler; yalnızca doğrulanmış not altında oluştururuz.
+    match fs::symlink_metadata(&assets) {
+        Ok(metadata) if metadata.file_type().is_symlink() || !metadata.is_dir() => {
+            return Err(AppError::PathOutsideRoot(assets.display().to_string()));
+        }
+        Ok(_) => {}
+        Err(error) if error.kind() == io::ErrorKind::NotFound => {
+            match fs::create_dir(&assets) {
+                Ok(()) => {}
+                Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
+                Err(error) => return Err(error.into()),
+            }
+        }
+        Err(error) => return Err(error.into()),
+    }
+    let metadata = fs::symlink_metadata(&assets)?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir()
+        || !assets.canonicalize()?.starts_with(&note_dir) {
         return Err(AppError::PathOutsideRoot(assets.display().to_string()));
     }
     let incoming_hash = Sha256::digest(bytes);
@@ -52,9 +82,7 @@ pub fn save_asset_bytes(note_dir: &Path, suggested_name: &str, bytes: &[u8]) -> 
         let target = assets.join(&name);
         match fs::symlink_metadata(&target) {
             Ok(metadata) => {
-                if !metadata.is_file() || metadata.file_type().is_symlink() {
-                    return Err(AppError::PathOutsideRoot(target.display().to_string()));
-                }
+                validate_existing_target(&target, &metadata)?;
                 if hash_file(&target)? == incoming_hash.as_slice() {
                     return Ok(asset_info(name));
                 }
@@ -64,6 +92,8 @@ pub fn save_asset_bytes(note_dir: &Path, suggested_name: &str, bytes: &[u8]) -> 
                     Ok(()) => return Ok(asset_info(name)),
                     Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {
                         // Aynı ad eşzamanlı oluşturulduysa içeriği tekrar karşılaştırırız.
+                        let metadata = fs::symlink_metadata(&target)?;
+                        validate_existing_target(&target, &metadata)?;
                         if hash_file(&target)? == incoming_hash.as_slice() {
                             return Ok(asset_info(name));
                         }
@@ -75,6 +105,13 @@ pub fn save_asset_bytes(note_dir: &Path, suggested_name: &str, bytes: &[u8]) -> 
         }
     }
     unreachable!()
+}
+
+fn validate_existing_target(path: &Path, metadata: &fs::Metadata) -> Result<(), AppError> {
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(AppError::PathOutsideRoot(path.display().to_string()));
+    }
+    Ok(())
 }
 
 fn hash_file(path: &Path) -> Result<Vec<u8>, AppError> {
@@ -162,6 +199,40 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         assert!(matches!(save_asset_bytes(dir.path(), "big.png", &vec![0; MAX_ASSET_BYTES + 1]), Err(AppError::PayloadTooLarge(_))));
         assert!(matches!(copy_asset(dir.path(), &dir.path().join("missing.png")), Err(AppError::Io(_))));
+        let source = dir.path().join("large.png");
+        File::create(&source).unwrap().set_len(MAX_ASSET_BYTES as u64 + 1).unwrap();
+        assert!(matches!(copy_asset(dir.path(), &source), Err(AppError::PayloadTooLarge(_))));
+        assert!(!dir.path().join("assets").exists());
+    }
+
+    #[test]
+    fn dot_only_name_is_invalid() {
+        let dir = tempfile::tempdir().unwrap();
+        for name in [".", "..", " . ", "image. "] {
+            assert!(matches!(save_asset_bytes(dir.path(), name, b"x"), Err(AppError::InvalidName(_))));
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlinked_assets_and_collision_are_rejected() {
+        use std::os::unix::fs::symlink;
+
+        let dir = tempfile::tempdir().unwrap();
+        let note = dir.path().join("note");
+        let outside = dir.path().join("outside");
+        fs::create_dir(&note).unwrap();
+        fs::create_dir(&outside).unwrap();
+        symlink(&outside, note.join("assets")).unwrap();
+        assert!(matches!(save_asset_bytes(&note, "asset.txt", b"x"), Err(AppError::PathOutsideRoot(_))));
+        assert!(!outside.join("asset.txt").exists());
+
+        fs::remove_file(note.join("assets")).unwrap();
+        fs::create_dir(note.join("assets")).unwrap();
+        let outside_file = outside.join("asset.txt");
+        fs::write(&outside_file, b"x").unwrap();
+        symlink(&outside_file, note.join("assets/asset.txt")).unwrap();
+        assert!(matches!(save_asset_bytes(&note, "asset.txt", b"x"), Err(AppError::PathOutsideRoot(_))));
     }
 
     #[test]
