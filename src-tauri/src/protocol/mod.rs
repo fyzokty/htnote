@@ -3,7 +3,7 @@ use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
 use percent_encoding::percent_decode_str;
-use tauri::http::{Request, Response, StatusCode};
+use tauri::http::{Request, Response, StatusCode, Uri};
 use tauri::{AppHandle, Manager, UriSchemeResponder};
 use uuid::Uuid;
 
@@ -72,6 +72,26 @@ fn parse_note_path(path: &str) -> Result<NoteRequest, StatusCode> {
         return Err(StatusCode::FORBIDDEN);
     }
     Ok(NoteRequest { id, relative: PathBuf::from(rel) })
+}
+
+fn parse_note_uri(uri: &Uri) -> Result<NoteRequest, StatusCode> {
+    #[cfg(any(windows, target_os = "android"))]
+    const EXPECTED_SCHEME: &str = "http";
+    #[cfg(not(any(windows, target_os = "android")))]
+    const EXPECTED_SCHEME: &str = "htnote-note";
+    #[cfg(any(windows, target_os = "android"))]
+    const EXPECTED_AUTHORITY: &str = "htnote-note.localhost";
+    #[cfg(not(any(windows, target_os = "android")))]
+    const EXPECTED_AUTHORITY: &str = "localhost";
+
+    if uri.scheme_str() != Some(EXPECTED_SCHEME)
+        || uri.authority().map(|authority| authority.as_str()) != Some(EXPECTED_AUTHORITY)
+    {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    // http::Uri yolu normalize etmez; bu değer özgün nokta segmentlerini korur.
+    let raw_path = uri.path_and_query().ok_or(StatusCode::FORBIDDEN)?.path();
+    parse_note_path(raw_path)
 }
 
 fn resolve_file(note_dir: &Path, relative: &Path) -> Result<PathBuf, StatusCode> {
@@ -172,7 +192,7 @@ fn serve(method: &str, note_dir: &Path, relative: &Path, range: Option<&str>) ->
 
 pub fn handle(app: &AppHandle, request: Request<Vec<u8>>, responder: UriSchemeResponder) {
     let method = request.method().as_str().to_owned();
-    let parsed = parse_note_path(request.uri().path());
+    let parsed = parse_note_uri(request.uri());
     let range = request.headers().get("range").and_then(|value| value.to_str().ok()).map(str::to_owned);
     let note_dir = match &parsed {
         Ok(parsed) => {
@@ -202,6 +222,39 @@ mod tests {
     use super::*;
 
     const ID: &str = "123e4567-e89b-12d3-a456-426614174000";
+    const OTHER_ID: &str = "123e4567-e89b-12d3-a456-426614174001";
+
+    #[cfg(any(windows, target_os = "android"))]
+    const ORIGIN: &str = "http://htnote-note.localhost";
+    #[cfg(not(any(windows, target_os = "android")))]
+    const ORIGIN: &str = "htnote-note://localhost";
+
+    fn request_uri(url: &str) -> Uri {
+        Request::builder().uri(url).body(Vec::<u8>::new()).unwrap().uri().clone()
+    }
+
+    #[test]
+    fn request_uris_preserve_and_reject_traversal() {
+        for segment in ["..", "%2e%2e", ".%2e", "%2e."] {
+            let path = format!("/{ID}/{segment}/{OTHER_ID}/index.html");
+            let uri = request_uri(&format!("{ORIGIN}{path}"));
+            assert_eq!(uri.path(), path);
+            assert_eq!(parse_note_uri(&uri).err(), Some(StatusCode::FORBIDDEN));
+        }
+        let valid = request_uri(&format!("{ORIGIN}/{ID}/assets/x.png"));
+        assert_eq!(parse_note_uri(&valid).unwrap().relative, Path::new("assets/x.png"));
+    }
+
+    #[test]
+    fn rejects_other_authorities() {
+        for url in [
+            format!("http://evil.localhost/{ID}/index.html"),
+            format!("htnote-note://evil.localhost/{ID}/index.html"),
+            format!("{ORIGIN}:1234/{ID}/index.html"),
+        ] {
+            assert_eq!(parse_note_uri(&request_uri(&url)).err(), Some(StatusCode::FORBIDDEN), "{url}");
+        }
+    }
 
     #[test]
     fn paths_and_attacks() {
@@ -235,14 +288,20 @@ mod tests {
         assert_eq!(full.status, StatusCode::OK);
         assert_eq!(full.body, b"abcdef");
         assert!(full.headers.contains(&("Content-Type", "text/html; charset=utf-8".into())));
+        for (name, value) in [("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff"), ("Accept-Ranges", "bytes")] {
+            assert!(full.headers.contains(&(name, value.into())));
+        }
         let partial = serve("GET", dir.path(), Path::new("index.html"), Some("bytes=2-3"));
         assert_eq!(partial.status, StatusCode::PARTIAL_CONTENT);
         assert_eq!(partial.body, b"cd");
         assert!(partial.headers.contains(&("Content-Range", "bytes 2-3/6".into())));
+        assert!(partial.headers.contains(&("Accept-Ranges", "bytes".into())));
         assert!(serve("HEAD", dir.path(), Path::new("index.html"), None).body.is_empty());
         assert_eq!(serve("POST", dir.path(), Path::new("index.html"), None).status, StatusCode::METHOD_NOT_ALLOWED);
         assert_eq!(serve("GET", dir.path(), Path::new("missing"), None).status, StatusCode::NOT_FOUND);
-        assert_eq!(serve("GET", dir.path(), Path::new("index.html"), Some("bytes=20-")).status, StatusCode::RANGE_NOT_SATISFIABLE);
+        let invalid_range = serve("GET", dir.path(), Path::new("index.html"), Some("bytes=20-"));
+        assert_eq!(invalid_range.status, StatusCode::RANGE_NOT_SATISFIABLE);
+        assert!(invalid_range.headers.contains(&("Accept-Ranges", "bytes".into())));
     }
 
     #[cfg(unix)]
