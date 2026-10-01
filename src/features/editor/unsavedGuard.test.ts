@@ -70,14 +70,18 @@ describe("unsaved guard", () => {
     expect(clear).toHaveBeenCalledOnce();
   });
 
-  it("does not apply an open dialog's decision to a note absent from its list", async () => {
+  it("queues a close request for notes absent from the open dialog", async () => {
     dirty("a"); dirty("b");
     mockIPC((command) => command === "save_note" ? { contentHash: "new" } : undefined);
     const first = resolveUnsaved(["a"]);
-    expect(await resolveUnsaved(["b"])).toEqual(new Set());
+    const second = resolveUnsaved(["a", "b"]);
     expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["a"]);
     decide("save");
     expect(await first).toEqual(new Set(["a"]));
+    await vi.waitFor(() => expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["b"]));
     expect(useTabsStore.getState().isDirty("b")).toBe(true);
+    decide("discard");
+    expect(await second).toEqual(new Set(["a", "b"]));
+    expect(useTabsStore.getState().isDirty("b")).toBe(false);
   });
 });

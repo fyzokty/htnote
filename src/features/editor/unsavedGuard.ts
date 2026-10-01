@@ -6,6 +6,7 @@ import { useUiStore } from "@/stores/uiStore";
 export type UnsavedDecision = "save" | "discard" | "cancel";
 let pending: Promise<UnsavedDecision> | null = null;
 let pendingIds = new Set<string>();
+let activeResolution: Promise<Set<string>> | null = null;
 let onDiscardRecoveryDraft: (noteId: string) => void | Promise<void> = () => {};
 
 export function setDiscardRecoveryDraftHook(callback: (noteId: string) => void | Promise<void>) {
@@ -41,12 +42,29 @@ export async function discardTab(noteId: string): Promise<boolean> {
 }
 
 // Başarılı notları döndürür; başarısız olanların taslakları korunur.
-export async function resolveUnsaved(noteIds: string[]): Promise<Set<string>> {
+export function resolveUnsaved(noteIds: string[]): Promise<Set<string>> {
+  const resolution = resolveUnsavedInternal(noteIds);
+  if (!activeResolution) {
+    activeResolution = resolution;
+    void resolution.then(() => {
+      if (activeResolution === resolution) activeResolution = null;
+    }, () => {
+      if (activeResolution === resolution) activeResolution = null;
+    });
+  }
+  return resolution;
+}
+
+async function resolveUnsavedInternal(noteIds: string[]): Promise<Set<string>> {
   for (const id of noteIds) flushEditor(id);
   const dirty = [...new Set(noteIds)].filter((id) => useTabsStore.getState().isDirty(id));
   if (!dirty.length) return new Set(noteIds);
-  // Açık diyaloğun kapsamı dışındaki notlar, kullanıcı görmeden işleme alınmaz.
-  if (pending && dirty.some((id) => !pendingIds.has(id))) return new Set();
+  // Açık diyaloğun kapsamı dışındaki notlar, önceki işlem tamamlandıktan sonra sorulur.
+  if (pending && dirty.some((id) => !pendingIds.has(id))) {
+    if (activeResolution) await activeResolution;
+    else await pending;
+    return resolveUnsaved(noteIds);
+  }
   const decision = await requestUnsavedDecision(dirty);
   if (decision === "cancel") return new Set();
   const resolved = new Set(noteIds.filter((id) => !dirty.includes(id)));
