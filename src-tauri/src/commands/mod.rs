@@ -398,8 +398,10 @@ mod tests {
         let tree = tauri::async_runtime::block_on(scan_and_replace(&state)).unwrap();
         assert!(matches!(&tree[..], [TreeNode::Note { id, .. }] if *id == metadata.id));
         assert_eq!(state.note_index.read().unwrap().rel_path(metadata.id), Some("Not"));
+        assert_eq!(state.search_index.read().unwrap().search("Not", 10)[0].id, metadata.id);
         std::fs::remove_dir_all(note).unwrap();
         assert!(tauri::async_runtime::block_on(scan_and_replace(&state)).unwrap().is_empty());
         assert!(state.note_index.read().unwrap().resolve(metadata.id).is_none());
+        assert!(state.search_index.read().unwrap().search("Not", 10).is_empty());
     }
 }

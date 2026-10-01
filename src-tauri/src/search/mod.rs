@@ -129,7 +129,11 @@ pub fn reindex_notes(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, id
         ids.iter().filter_map(|id| index.by_id.get(id).and_then(|note| index.resolve(*id).map(|dir| (note.clone(), dir)))).collect::<Vec<_>>()
     };
     let loaded = notes.into_iter().map(|(note, dir)| {
-        let html = std::fs::read_to_string(dir.join("index.html"))?;
+        let html = match std::fs::read_to_string(dir.join("index.html")) {
+            Ok(html) => html,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+            Err(error) => return Err(error.into()),
+        };
         Ok::<_, AppError>((note, html))
     }).collect::<Result<Vec<_>, _>>()?;
     let mut search = search.write().map_err(|error| AppError::Internal(error.to_string()))?;
