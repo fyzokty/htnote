@@ -95,4 +95,49 @@ describe("useEditSession", () => {
     expect(doc().draft?.html).toContain("Unsaved");
     expect(useUiStore.getState().toasts.slice(-1)[0]?.messageKey).toBe("editor.session.conflict");
   });
+
+  it("keeps edits made while saving and uses the new hash for the next save", async () => {
+    let completeSave!: (value: { contentHash: string; metadata: typeof note.metadata }) => void;
+    const firstSave = new Promise<{ contentHash: string; metadata: typeof note.metadata }>((resolve) => { completeSave = resolve; });
+    const hashes: string[] = [];
+    mockIPC((command, args) => {
+      if (command === "read_note") return note;
+      if (command === "save_note") {
+        hashes.push((args as { payload: { expectedHash: string } }).payload.expectedHash);
+        return hashes.length === 1 ? firstSave : { contentHash: "latest", metadata: note.metadata };
+      }
+    });
+    const { result } = renderHook(() => useEditSession("a"));
+    await act(async () => { await result.current.enter(); });
+    act(() => result.current.onVisualChange("<p>Saved snapshot</p>"));
+    let pending!: Promise<boolean>;
+    act(() => { pending = result.current.save(false); });
+    act(() => result.current.onVisualChange("<p>Newer edit</p>"));
+    await act(async () => { completeSave({ contentHash: "new", metadata: note.metadata }); await pending; });
+    expect(doc()).toMatchObject({ mode: "visual", dirty: true, base: { contentHash: "new" } });
+    expect(doc().draft?.html).toContain("Newer edit");
+    await act(async () => { await result.current.save(true); });
+    expect(hashes).toEqual(["old", "new"]);
+  });
+
+  it("offers save, discard, and stay in edit mode for dirty Ctrl+E", async () => {
+    mockIPC((command) => command === "read_note" ? note : command === "save_note" ? { contentHash: "new", metadata: note.metadata } : undefined);
+    const confirm = vi.spyOn(window, "confirm");
+    const { result } = renderHook(() => useEditSession("a"));
+    await act(async () => { await result.current.enter(); });
+    act(() => result.current.onVisualChange("<p>Changed</p>"));
+    confirm.mockReturnValueOnce(false).mockReturnValueOnce(false);
+    await act(async () => { await result.current.toggleEdit(); });
+    expect(doc().mode).toBe("visual");
+    confirm.mockReturnValueOnce(false).mockReturnValueOnce(true);
+    await act(async () => { await result.current.toggleEdit(); });
+    expect(doc().mode).toBe("view");
+    await act(async () => { await result.current.enter(); });
+    act(() => result.current.onVisualChange("<p>Saved</p>"));
+    confirm.mockReturnValueOnce(true);
+    await act(async () => { await result.current.toggleEdit(); });
+    expect(doc()).toMatchObject({ mode: "view", base: { contentHash: "new" } });
+    expect(confirm).toHaveBeenCalledTimes(5);
+    confirm.mockRestore();
+  });
 });

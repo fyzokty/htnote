@@ -93,7 +93,7 @@ export function NoteViewer() {
           <div className="flex shrink-0 items-center gap-1">
             <button type="button" disabled aria-label={t("viewer.favorite")} title={t("viewer.favorite")} className="rounded p-2 text-app-muted"><Star className="size-4" aria-hidden /></button>
             <button type="button" disabled aria-label={t("viewer.export")} title={t("viewer.export")} className="rounded p-2 text-app-muted"><Download className="size-4" aria-hidden /></button>
-            <button type="button" onClick={() => { void session.toggleEdit(); }} className="flex items-center gap-1 rounded bg-app-subtle px-3 py-2 text-sm text-app-muted"><Pencil className="size-4" aria-hidden />{t("viewer.edit")}</button>
+            {tabs.find((tab) => tab.noteId === activeId)?.doc.mode === "view" && <button type="button" onClick={() => { void session.toggleEdit(); }} className="flex items-center gap-1 rounded bg-app-subtle px-3 py-2 text-sm text-app-muted"><Pencil className="size-4" aria-hidden />{t("viewer.edit")}</button>}
           </div>
         </div>
       )}

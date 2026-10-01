@@ -94,8 +94,13 @@ export function useEditSession(noteId: string | null) {
       useTabsStore.getState().cancelEdit(noteId!);
       clearPreview();
     } else {
-      // T409 ortak diyaloğu gelene kadar onay, değişiklikleri atıp çıkmayı seçtirir.
-      cancel();
+      // T409 ortak diyaloğu gelene kadar iki onay üç çıkış seçeneğini sunar.
+      if (window.confirm(t("editor.session.saveConfirm"))) {
+        await save(false);
+      } else if (window.confirm(t("editor.session.exitWithoutSavingConfirm"))) {
+        useTabsStore.getState().cancelEdit(noteId!);
+        clearPreview();
+      }
     }
   }
 
