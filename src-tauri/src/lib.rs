@@ -81,6 +81,37 @@ mod tests {
         assert_eq!(conf["version"].as_str(), Some(app_version()));
     }
 
+    /// Not origin'i capability kapsamına girmemeli; iframe ve IPC kaynakları açıkça sınırlanmalı.
+    #[test]
+    fn main_capability_and_csp_are_isolated() {
+        let capability: serde_json::Value =
+            serde_json::from_str(include_str!("../capabilities/main.json")).expect("geçerli capability JSON");
+        let conf: serde_json::Value =
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("geçerli Tauri JSON");
+
+        assert!(capability.get("remote").is_none());
+        assert_eq!(capability["windows"], serde_json::json!(["main"]));
+        let permissions = capability["permissions"].as_array().expect("izin listesi");
+        for permission in permissions {
+            let identifier = permission.as_str().or_else(|| permission["identifier"].as_str()).expect("izin kimliği");
+            assert!(!identifier.contains('*'), "joker izin: {identifier}");
+        }
+
+        let csp = conf["app"]["security"]["csp"].as_str().expect("üretim CSP");
+        let directives: std::collections::HashMap<_, _> = csp
+            .split(';')
+            .map(|directive| {
+                let (name, value) = directive.trim().split_once(' ').expect("CSP direktifi");
+                (name, value)
+            })
+            .collect();
+        assert_eq!(directives.get("frame-src"), Some(&"http://htnote-note.localhost htnote-note:"));
+        assert_eq!(directives.get("connect-src"), Some(&"ipc: http://ipc.localhost"));
+        assert_eq!(directives.get("script-src"), Some(&"'self'"));
+        assert!(!csp.contains("'unsafe-eval'"));
+        assert!(!csp.contains("script-src 'self' 'unsafe-inline'"));
+    }
+
     #[test]
     fn startup_populates_note_index() {
         let root = tempfile::tempdir().unwrap();

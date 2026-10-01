@@ -22,7 +22,10 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http://htnote-note.localhost htnote-note:; media-src 'self' data: blob: http://htnote-note.localhost htnote-note:; frame-src http://htnote-note.localhost htnote-note:; connect-src ipc: http://ipc.localhost",
+      "devCsp": "default-src 'self'; script-src 'self' 'unsafe-eval' http://localhost:1420; style-src 'self' 'unsafe-inline' http://localhost:1420; img-src 'self' data: blob: http://htnote-note.localhost htnote-note:; media-src 'self' data: blob: http://htnote-note.localhost htnote-note:; frame-src http://htnote-note.localhost htnote-note:; connect-src ipc: http://ipc.localhost http://localhost:1420 ws://localhost:1420",
+      "dangerousDisableAssetCspModification": ["style-src"],
+      "freezePrototype": false
     }
   },
   "bundle": {
