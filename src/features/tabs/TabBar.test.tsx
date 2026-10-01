@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TabBar } from "@/features/tabs/TabBar";
@@ -28,7 +28,9 @@ describe("TabBar", () => {
     expect(beta).toHaveAttribute("aria-selected", "true");
     fireEvent.click(alpha);
     expect(alpha).toHaveAttribute("aria-selected", "true");
-    useTreeStore.setState({ tree: [{ type: "folder", relPath: "folder", name: "folder", children: [{ ...notes[0], title: "Renamed" }, notes[1]] }] });
+    act(() => {
+      useTreeStore.setState({ tree: [{ type: "folder", relPath: "folder", name: "folder", children: [{ ...notes[0], title: "Renamed" }, notes[1]] }] });
+    });
     expect(screen.getByRole("tab", { name: "Renamed" })).toHaveAttribute("title", "Renamed");
   });
 
@@ -52,18 +54,18 @@ describe("TabBar", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Diğerlerini Kapat" }));
     await waitFor(() => expect(screen.queryByRole("tab", { name: "Beta" })).not.toBeInTheDocument());
     fireEvent.contextMenu(screen.getByRole("tab", { name: "Alpha" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Kapat" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: /^KapatCtrl\+W$/ }));
     await waitFor(() => expect(screen.queryByRole("tab", { name: "Alpha" })).not.toBeInTheDocument());
     reveal.mockRestore();
   });
 
   it("navigates and closes the active tab through shortcuts", async () => {
     render(<TabBar />);
-    expect(dispatchShortcut("nextTab")).toBe(true);
+    act(() => { expect(dispatchShortcut("nextTab")).toBe(true); });
     expect(screen.getByRole("tab", { name: "Alpha" })).toHaveAttribute("aria-selected", "true");
-    expect(dispatchShortcut("prevTab")).toBe(true);
+    act(() => { expect(dispatchShortcut("prevTab")).toBe(true); });
     expect(screen.getByRole("tab", { name: "Beta" })).toHaveAttribute("aria-selected", "true");
-    expect(dispatchShortcut("closeTab")).toBe(true);
+    act(() => { expect(dispatchShortcut("closeTab")).toBe(true); });
     await waitFor(() => expect(screen.queryByRole("tab", { name: "Beta" })).not.toBeInTheDocument());
   });
 });
