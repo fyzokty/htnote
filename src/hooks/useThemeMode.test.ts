@@ -15,6 +15,7 @@ const settings: Settings = {
   openTabs: [],
   activeTab: null,
   expandedFolders: [],
+  onboardingDone: false,
 };
 
 function ModeDisplay() {

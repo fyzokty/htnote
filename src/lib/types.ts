@@ -15,9 +15,10 @@ export interface Settings {
   openTabs: string[];
   activeTab: string | null;
   expandedFolders: string[];
+  onboardingDone: boolean;
 }
 
-export type SettingsPatch = Partial<Settings>;
+export type SettingsPatch = Partial<Omit<Settings, "onboardingDone">>;
 
 export interface FolderNode {
   type: "folder";
