@@ -56,6 +56,10 @@ pub struct Settings {
     pub language: Option<Language>,
     pub sidebar_width: u32,
     pub sidebar_visible: bool,
+    #[serde(default = "default_editor_split_ratio")]
+    pub editor_split_ratio: u8,
+    #[serde(default = "default_editor_live_preview")]
+    pub editor_live_preview: bool,
     #[serde(default)]
     pub open_tabs: Vec<String>,
     #[serde(default)]
@@ -74,6 +78,8 @@ impl Default for Settings {
             language: None,
             sidebar_width: 260,
             sidebar_visible: true,
+            editor_split_ratio: default_editor_split_ratio(),
+            editor_live_preview: default_editor_live_preview(),
             open_tabs: Vec::new(),
             active_tab: None,
             expanded_folders: Vec::new(),
@@ -92,6 +98,8 @@ pub struct SettingsPatch {
     pub language: Option<Option<Language>>,
     pub sidebar_width: Option<u32>,
     pub sidebar_visible: Option<bool>,
+    pub editor_split_ratio: Option<u8>,
+    pub editor_live_preview: Option<bool>,
     pub open_tabs: Option<Vec<String>>,
     #[serde(default, deserialize_with = "nullable_field")]
     pub active_tab: Option<Option<String>>,
@@ -106,6 +114,14 @@ where
     Option::<T>::deserialize(deserializer).map(Some)
 }
 
+fn default_editor_split_ratio() -> u8 {
+    50
+}
+
+fn default_editor_live_preview() -> bool {
+    true
+}
+
 pub fn apply_patch(settings: &Settings, patch: SettingsPatch) -> Settings {
     Settings {
         root_dir: patch.root_dir.unwrap_or_else(|| settings.root_dir.clone()),
@@ -113,6 +129,8 @@ pub fn apply_patch(settings: &Settings, patch: SettingsPatch) -> Settings {
         language: patch.language.unwrap_or_else(|| settings.language.clone()),
         sidebar_width: patch.sidebar_width.unwrap_or(settings.sidebar_width),
         sidebar_visible: patch.sidebar_visible.unwrap_or(settings.sidebar_visible),
+        editor_split_ratio: patch.editor_split_ratio.unwrap_or(settings.editor_split_ratio).clamp(20, 80),
+        editor_live_preview: patch.editor_live_preview.unwrap_or(settings.editor_live_preview),
         open_tabs: patch.open_tabs.unwrap_or_else(|| settings.open_tabs.clone()),
         active_tab: patch.active_tab.unwrap_or_else(|| settings.active_tab.clone()),
         expanded_folders: patch
@@ -213,6 +231,21 @@ mod tests {
         value.as_object_mut().unwrap().remove("onboardingDone");
         let settings: Settings = serde_json::from_value(value).unwrap();
         assert!(!settings.onboarding_done);
+    }
+
+    #[test]
+    fn split_settings_default_and_clamp() {
+        let mut value = serde_json::to_value(Settings::default()).unwrap();
+        let object = value.as_object_mut().unwrap();
+        object.remove("editorSplitRatio");
+        object.remove("editorLivePreview");
+        let settings: Settings = serde_json::from_value(value).unwrap();
+        assert_eq!(settings.editor_split_ratio, 50);
+        assert!(settings.editor_live_preview);
+        let patch: SettingsPatch = serde_json::from_str(r#"{"editorSplitRatio":99,"editorLivePreview":false}"#).unwrap();
+        let changed = apply_patch(&settings, patch);
+        assert_eq!(changed.editor_split_ratio, 80);
+        assert!(!changed.editor_live_preview);
     }
 
     #[test]

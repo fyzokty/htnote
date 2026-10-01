@@ -47,6 +47,26 @@ describe("useShortcut", () => {
 });
 
 describe("capture listener", () => {
+  it("kod editöründe uygulama kısayollarını yakalar, düzenleme tuşlarını geçirir", () => {
+    const calls = { save: vi.fn(), edit: vi.fn(), close: vi.fn() };
+    function CodeSubscribers() {
+      useShortcut("save", calls.save);
+      useShortcut("toggleEdit", calls.edit);
+      useShortcut("closeTab", calls.close);
+      return createElement("div", { contentEditable: true, role: "textbox" });
+    }
+    const view = render(createElement(CodeSubscribers));
+    removeListener = installShortcutListener();
+    const editor = view.getByRole("textbox");
+    for (const key of ["s", "e", "w", "f", "z", "b"]) {
+      const event = new KeyboardEvent("keydown", { key, code: `Key${key.toUpperCase()}`, ctrlKey: true, bubbles: true, cancelable: true });
+      editor.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(["s", "e", "w"].includes(key));
+    }
+    expect(calls.save).toHaveBeenCalledOnce();
+    expect(calls.edit).toHaveBeenCalledOnce();
+    expect(calls.close).toHaveBeenCalledOnce();
+  });
   it("leaves Ctrl+B/I/U to the focused editor", () => {
     const handler = vi.fn();
     render(createElement(Subscriber, { handler }));
