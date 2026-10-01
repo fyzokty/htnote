@@ -56,42 +56,51 @@ fn parse_note_path(path: &str) -> Result<NoteRequest, StatusCode> {
     // Yalnızca bir kez decode edilir; ikinci kez çözülecek yüzde dizileri dosya adıdır.
     let decoded = percent_decode_str(rel).decode_utf8().map_err(|_| StatusCode::FORBIDDEN)?;
     let rel = decoded.as_ref();
+    let nested_trailing_slash = rel.ends_with('/');
+    let last_segment = rel.split('/').count() - 1;
     if rel.starts_with('/')
         || rel.contains('\\')
         || rel.contains(':')
         || rel.contains('\0')
-        || rel.split('/').any(|part| {
+        || rel.split('/').enumerate().any(|(index, part)| {
             let dots: String = part.chars().map(|ch| match ch {
                 '\u{ff0e}' | '\u{2024}' | '\u{fe52}' => '.',
                 _ => ch,
             }).collect();
-            part.is_empty() || dots == "." || dots == ".."
+            (part.is_empty() && !(nested_trailing_slash && index == last_segment)) || dots == "." || dots == ".."
         })
         || Path::new(rel).is_absolute()
     {
         return Err(StatusCode::FORBIDDEN);
     }
+    if nested_trailing_slash {
+        return Err(StatusCode::NOT_FOUND);
+    }
     Ok(NoteRequest { id, relative: PathBuf::from(rel) })
 }
 
 fn parse_note_uri(uri: &Uri) -> Result<NoteRequest, StatusCode> {
-    #[cfg(any(windows, target_os = "android"))]
-    const EXPECTED_SCHEME: &str = "http";
-    #[cfg(not(any(windows, target_os = "android")))]
-    const EXPECTED_SCHEME: &str = "htnote-note";
-    #[cfg(any(windows, target_os = "android"))]
-    const EXPECTED_AUTHORITY: &str = "htnote-note.localhost";
-    #[cfg(not(any(windows, target_os = "android")))]
-    const EXPECTED_AUTHORITY: &str = "localhost";
-
-    if uri.scheme_str() != Some(EXPECTED_SCHEME)
-        || uri.authority().map(|authority| authority.as_str()) != Some(EXPECTED_AUTHORITY)
-    {
+    // Tauri platforma göre mutlak URI veya yalnızca yol iletebilir.
+    if let Some(scheme) = uri.scheme_str() {
+        let host = uri.host().ok_or(StatusCode::FORBIDDEN)?;
+        let known_origin = (scheme.eq_ignore_ascii_case("http") && host.eq_ignore_ascii_case("htnote-note.localhost"))
+            || (scheme.eq_ignore_ascii_case("htnote-note") && host.eq_ignore_ascii_case("localhost"));
+        if !known_origin {
+            return Err(StatusCode::FORBIDDEN);
+        }
+    } else if uri.authority().is_some() {
         return Err(StatusCode::FORBIDDEN);
     }
     // http::Uri yolu normalize etmez; bu değer özgün nokta segmentlerini korur.
     let raw_path = uri.path_and_query().ok_or(StatusCode::FORBIDDEN)?.path();
     parse_note_path(raw_path)
+}
+
+fn parse_request(method: &str, uri: &Uri) -> Result<NoteRequest, StatusCode> {
+    if method != "GET" && method != "HEAD" {
+        return Err(StatusCode::METHOD_NOT_ALLOWED);
+    }
+    parse_note_uri(uri)
 }
 
 fn resolve_file(note_dir: &Path, relative: &Path) -> Result<PathBuf, StatusCode> {
@@ -192,7 +201,7 @@ fn serve(method: &str, note_dir: &Path, relative: &Path, range: Option<&str>) ->
 
 pub fn handle(app: &AppHandle, request: Request<Vec<u8>>, responder: UriSchemeResponder) {
     let method = request.method().as_str().to_owned();
-    let parsed = parse_note_uri(request.uri());
+    let parsed = parse_request(&method, request.uri());
     let range = request.headers().get("range").and_then(|value| value.to_str().ok()).map(str::to_owned);
     let note_dir = match &parsed {
         Ok(parsed) => {
@@ -202,7 +211,7 @@ pub fn handle(app: &AppHandle, request: Request<Vec<u8>>, responder: UriSchemeRe
         Err(_) => None,
     };
     tauri::async_runtime::spawn_blocking(move || {
-        let response = if method != "GET" && method != "HEAD" {
+        let response = if parsed.as_ref().err() == Some(&StatusCode::METHOD_NOT_ALLOWED) {
             let mut response = Served::new(StatusCode::METHOD_NOT_ALLOWED);
             response.header("Allow", "GET, HEAD");
             response
@@ -224,10 +233,7 @@ mod tests {
     const ID: &str = "123e4567-e89b-12d3-a456-426614174000";
     const OTHER_ID: &str = "123e4567-e89b-12d3-a456-426614174001";
 
-    #[cfg(any(windows, target_os = "android"))]
     const ORIGIN: &str = "http://htnote-note.localhost";
-    #[cfg(not(any(windows, target_os = "android")))]
-    const ORIGIN: &str = "htnote-note://localhost";
 
     fn request_uri(url: &str) -> Uri {
         Request::builder().uri(url).body(Vec::<u8>::new()).unwrap().uri().clone()
@@ -246,14 +252,33 @@ mod tests {
     }
 
     #[test]
+    fn accepts_platform_request_uri_forms() {
+        for url in [
+            format!("http://htnote-note.localhost/{ID}/index.html"),
+            format!("http://HTNOTE-NOTE.LOCALHOST:80/{ID}/index.html"),
+            format!("htnote-note://localhost/{ID}/index.html"),
+            format!("htnote-note://LOCALHOST:1234/{ID}/index.html"),
+            format!("/{ID}/index.html"),
+        ] {
+            assert_eq!(parse_note_uri(&request_uri(&url)).unwrap().relative, Path::new("index.html"), "{url}");
+        }
+    }
+
+    #[test]
     fn rejects_other_authorities() {
         for url in [
             format!("http://evil.localhost/{ID}/index.html"),
             format!("htnote-note://evil.localhost/{ID}/index.html"),
-            format!("{ORIGIN}:1234/{ID}/index.html"),
         ] {
             assert_eq!(parse_note_uri(&request_uri(&url)).err(), Some(StatusCode::FORBIDDEN), "{url}");
         }
+    }
+
+    #[test]
+    fn unsupported_method_precedes_uri_validation() {
+        let malformed = request_uri("http://evil.localhost/invalid/%2e%2e");
+        assert_eq!(parse_request("POST", &malformed).err(), Some(StatusCode::METHOD_NOT_ALLOWED));
+        assert_eq!(parse_request("GET", &malformed).err(), Some(StatusCode::FORBIDDEN));
     }
 
     #[test]
@@ -262,9 +287,13 @@ mod tests {
             assert!(parse_note_path(&path).is_ok(), "{path}");
         }
         assert_eq!(parse_note_path(&format!("/{ID}")).unwrap().relative, Path::new("index.html"));
+        assert_eq!(parse_note_path(&format!("/{ID}/")).unwrap().relative, Path::new("index.html"));
+        assert_eq!(parse_note_path(&format!("/{ID}/assets/")).err(), Some(StatusCode::NOT_FOUND));
         for path in ["../other/index.html", "%2e%2e/other", "..%5c..%5cWindows", "%2fabs", "C:/x", "%5c%5c%3f%5c", "a//b", "a/%00"] {
             assert_eq!(parse_note_path(&format!("/{ID}/{path}")).err(), Some(StatusCode::FORBIDDEN), "{path}");
         }
+        assert_eq!(parse_note_path(&format!("/{ID}/assets//")).err(), Some(StatusCode::FORBIDDEN));
+        assert_eq!(parse_note_path(&format!("/{ID}/../")).err(), Some(StatusCode::FORBIDDEN));
         assert_eq!(parse_note_path(&format!("/{ID}/%252e%252e")).unwrap().relative, Path::new("%2e%2e"));
         assert_eq!(parse_note_path(&format!("/{ID}/．．/x")).err(), Some(StatusCode::FORBIDDEN));
         assert_eq!(parse_note_path("/unknown/x").err(), Some(StatusCode::NOT_FOUND));
