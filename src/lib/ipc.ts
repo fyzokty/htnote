@@ -18,4 +18,10 @@ export const ipc = {
   getNoteTree(): Promise<TreeNode[]> {
     return invoke<TreeNode[]>("get_note_tree");
   },
+  createNote(parentRelPath: string, title?: string): Promise<TreeNode> {
+    return invoke<TreeNode>("create_note", { parentRelPath, title: title ?? null });
+  },
+  createFolder(parentRelPath: string, name: string): Promise<TreeNode> {
+    return invoke<TreeNode>("create_folder", { parentRelPath, name });
+  },
 };

@@ -31,3 +31,23 @@ describe("ipc.getNoteTree", () => {
     expect(handler).toHaveBeenCalledWith("get_note_tree", {});
   });
 });
+
+describe("ipc creation commands", () => {
+  it("createNote sends its parent and optional title", async () => {
+    const node = { type: "note", id: "id", title: "Fikir", relPath: "Fikir", isFavorite: false, tags: [], updatedAt: "date" };
+    const handler = vi.fn(() => node);
+    mockIPC(handler);
+    await expect(ipc.createNote("", "Fikir")).resolves.toEqual(node);
+    expect(handler).toHaveBeenCalledWith("create_note", { parentRelPath: "", title: "Fikir" });
+    await ipc.createNote("Alt");
+    expect(handler).toHaveBeenCalledWith("create_note", { parentRelPath: "Alt", title: null });
+  });
+
+  it("createFolder sends its parent and name", async () => {
+    const node = { type: "folder", name: "Alt", relPath: "Alt", children: [] };
+    const handler = vi.fn(() => node);
+    mockIPC(handler);
+    await expect(ipc.createFolder("", "Alt")).resolves.toEqual(node);
+    expect(handler).toHaveBeenCalledWith("create_folder", { parentRelPath: "", name: "Alt" });
+  });
+});
