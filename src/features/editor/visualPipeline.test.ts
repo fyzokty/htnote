@@ -66,12 +66,30 @@ describe("visualPipeline", () => {
     const loaded = loadForVisual(full);
     expect(loaded.ok).toBe(true);
     if (!loaded.ok) return;
-    const saved = saveFromVisual(loaded, loaded.editorHtml + "<p>New</p>");
+    const editor = new Editor({ extensions: createVisualExtensions(""), content: loaded.editorHtml });
+    editor.commands.insertContentAt(editor.state.doc.content.size, "<p>New</p>");
+    const saved = saveFromVisual(loaded, editor.getHTML());
+    editor.destroy();
+    expect(saved.slice(0, loaded.before.length)).toBe(loaded.before);
+    expect(saved.slice(-loaded.after.length)).toBe(loaded.after);
     expect(saved).toBe(loaded.before + "<canvas></canvas><p>New</p>" + loaded.after);
     expect(saved).not.toContain("htnote-raw");
   });
 
   it("removes a deleted raw block", () => {
-    expect(unwrapRawBlocks("<p>Kept</p>")).toBe("<p>Kept</p>");
+    const editor = new Editor({
+      extensions: createVisualExtensions(""),
+      content: wrapRawBlocks("<p>Before</p><canvas id='removed'></canvas><p>Kept</p>"),
+    });
+    let rawPosition: number | undefined;
+    editor.state.doc.descendants((node, position) => {
+      if (node.type.name === "htmlBlock") rawPosition = position;
+    });
+    expect(rawPosition).toBeDefined();
+    editor.commands.deleteRange({ from: rawPosition!, to: rawPosition! + 1 });
+    const result = unwrapRawBlocks(editor.getHTML());
+    editor.destroy();
+    expect(result).toBe("<p>Before</p><p>Kept</p>");
+    expect(result).not.toContain("canvas");
   });
 });
