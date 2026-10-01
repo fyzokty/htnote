@@ -32,6 +32,18 @@ describe("ipc.getNoteTree", () => {
   });
 });
 
+describe("ipc.searchNotes", () => {
+  it("passes query and optional limit", async () => {
+    const response = { results: [], indexing: true };
+    const handler = vi.fn(() => response);
+    mockIPC(handler);
+    await expect(ipc.searchNotes("İstanbul")).resolves.toEqual(response);
+    expect(handler).toHaveBeenCalledWith("search_notes", { query: "İstanbul", limit: null });
+    await ipc.searchNotes("ılık", 5);
+    expect(handler).toHaveBeenCalledWith("search_notes", { query: "ılık", limit: 5 });
+  });
+});
+
 describe("ipc.saveNote", () => {
   it("sends the note id and content payload", async () => {
     const result = { metadata: { title: "Not" }, contentHash: "hash" };

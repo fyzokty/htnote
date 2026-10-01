@@ -10,6 +10,7 @@ use crate::notes::rename;
 use crate::notes::save::{self, SaveNoteInput, SaveNoteOutput};
 use crate::index::scan::IndexedNote;
 use crate::settings::{self, Settings, SettingsPatch};
+use crate::search::{self, SearchNotesResult};
 use crate::state::AppState;
 use tauri::{Manager, State};
 use std::sync::atomic::Ordering;
@@ -56,6 +57,7 @@ pub fn update_settings(patch: SettingsPatch, app: tauri::AppHandle, state: State
         index.root = root;
         index.replace_all(result);
         drop(index);
+        search::start_build(&state);
         crate::watcher::start_for_app(&state, app)?;
     }
     Ok(updated)
@@ -75,6 +77,13 @@ pub fn get_note_origin(state: State<'_, AppState>) -> Result<String, AppError> {
 #[tauri::command]
 pub async fn get_note_tree(app: tauri::AppHandle) -> Result<Vec<TreeNode>, AppError> {
     scan_and_replace(&app.state::<AppState>()).await
+}
+
+#[tauri::command]
+pub fn search_notes(state: State<'_, AppState>, query: String, limit: Option<usize>) -> Result<SearchNotesResult, AppError> {
+    let results = state.search_index.read().map_err(|error| AppError::Internal(error.to_string()))?
+        .search(&query, limit.unwrap_or(100));
+    Ok(SearchNotesResult { results, indexing: state.search_indexing.load(Ordering::Acquire) })
 }
 
 #[tauri::command]
@@ -157,6 +166,8 @@ fn save_note_in_state(
     let dir = index.resolve(id).ok_or_else(|| AppError::NotFound(id.to_string()))?;
     let result = save(&dir, payload)?;
     index.upsert(IndexedNote { rel_path: indexed.rel_path, metadata: result.metadata.clone() });
+    drop(index);
+    search::reindex_notes(&state.note_index, &state.search_index, &[id], &[])?;
     state.last_saved_hashes.lock().map_err(|error| AppError::Internal(error.to_string()))?
         .insert(id, result.content_hash.clone());
     Ok(result)
@@ -195,7 +206,9 @@ pub async fn create_note(app: tauri::AppHandle, parent_rel_path: String, title: 
     let (node, indexed) = tauri::async_runtime::spawn_blocking(move || {
         create::create_note_in(&root, &parent_rel_path, title.as_deref())
     }).await.map_err(|error| AppError::Internal(error.to_string()))??;
+    let id = indexed.metadata.id;
     state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?.upsert(indexed);
+    search::reindex_notes(&state.note_index, &state.search_index, &[id], &[])?;
     Ok(node)
 }
 
@@ -215,6 +228,8 @@ pub async fn rename_note(app: tauri::AppHandle, id: uuid::Uuid, new_title: Strin
         let note = index.by_id.get(&id).cloned().ok_or_else(|| AppError::NotFound(id.to_string()))?;
         let (node, _) = rename::rename_note_in(&index.root, &note, &new_title)?;
         index.refresh_readonly()?;
+        drop(index);
+        search::reindex_notes(&state.note_index, &state.search_index, &[id], &[])?;
         Ok(node)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
@@ -226,6 +241,8 @@ pub async fn rename_folder(app: tauri::AppHandle, rel_path: String, new_name: St
         let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
         let node = rename::rename_folder_in(&index.root, &rel_path, &new_name)?;
         index.refresh_readonly()?;
+        drop(index);
+        reindex_all(&state)?;
         Ok(node)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
@@ -237,6 +254,8 @@ pub async fn move_item(app: tauri::AppHandle, rel_path: String, target_folder_re
         let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
         let new_rel = rename::move_item_in(&index.root, &rel_path, &target_folder_rel_path)?;
         index.refresh_readonly()?;
+        drop(index);
+        reindex_all(&state)?;
         Ok(new_rel)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
@@ -259,7 +278,17 @@ async fn scan_and_replace(state: &AppState) -> Result<Vec<TreeNode>, AppError> {
         .await.map_err(|error| AppError::Internal(error.to_string()))??;
     let tree = result.tree.clone();
     state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?.replace_all(result);
+    reindex_all(state)?;
     Ok(tree)
+}
+
+fn reindex_all(state: &AppState) -> Result<(), AppError> {
+    let ids = state.note_index.read().map_err(|error| AppError::Internal(error.to_string()))?
+        .by_id.keys().copied().collect::<Vec<_>>();
+    state.search_index.write().map_err(|error| AppError::Internal(error.to_string()))?.clear();
+    search::reindex_notes(&state.note_index, &state.search_index, &ids, &[])?;
+    state.search_indexing.store(false, Ordering::Release);
+    Ok(())
 }
 
 #[cfg(test)]
@@ -370,8 +399,10 @@ mod tests {
         let tree = tauri::async_runtime::block_on(scan_and_replace(&state)).unwrap();
         assert!(matches!(&tree[..], [TreeNode::Note { id, .. }] if *id == metadata.id));
         assert_eq!(state.note_index.read().unwrap().rel_path(metadata.id), Some("Not"));
+        assert_eq!(state.search_index.read().unwrap().search("Not", 10)[0].id, metadata.id);
         std::fs::remove_dir_all(note).unwrap();
         assert!(tauri::async_runtime::block_on(scan_and_replace(&state)).unwrap().is_empty());
         assert!(state.note_index.read().unwrap().resolve(metadata.id).is_none());
+        assert!(state.search_index.read().unwrap().search("Not", 10).is_empty());
     }
 }
