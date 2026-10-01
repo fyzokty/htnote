@@ -37,6 +37,7 @@
 }
 
 .htnote-visual-editor { color: var(--app-text); background: var(--app-surface); }
+.htnote-drop-target { outline: 2px dashed var(--app-accent) !important; outline-offset: -3px; }
 .htnote-editor-toolbar { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.5rem; border-bottom: 1px solid var(--app-border); }
 .htnote-editor-toolbar button, .htnote-editor-toolbar select, .htnote-editor-link input { padding: 0.35rem; border: 1px solid var(--app-border); border-radius: 0.25rem; background: var(--app-surface); color: var(--app-text); }
 .htnote-editor-toolbar button[aria-pressed="true"] { background: var(--app-accent); color: var(--app-accent-text); }
