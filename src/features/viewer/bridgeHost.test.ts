@@ -13,6 +13,7 @@ import { useUiStore } from "@/stores/uiStore";
 vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn().mockResolvedValue(undefined) }));
 
 const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const otherId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const missingId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const frame = { postMessage: vi.fn() } as unknown as Window;
 const otherFrame = { postMessage: vi.fn() } as unknown as Window;
@@ -77,6 +78,25 @@ it("limits external opens independently per frame for one second", () => {
   expect(allow(frame)).toBe(false);
   vi.advanceTimersByTime(1);
   expect(allow(frame)).toBe(true);
+});
+
+it("opens an internal link in a new tab and selects the linked note", () => {
+  useTreeStore.setState({ tree: [
+    { type: "note", id: otherId, title: "First", relPath: "First", isFavorite: false, tags: [], updatedAt: "2026-01-01T00:00:00Z" },
+    { type: "note", id, title: "Linked", relPath: "Linked", isFavorite: false, tags: [], updatedAt: "2026-01-01T00:00:00Z" },
+  ] });
+  useTabsStore.getState().openNote(otherId);
+  const unregister = registerFrame(otherId, frame);
+  const dispose = installBridgeHost();
+  try {
+    window.dispatchEvent(message({ type: "HTNOTE_OPEN_NOTE", id }));
+    expect(useTabsStore.getState().tabs.map((tab) => tab.noteId)).toEqual([otherId, id]);
+    expect(useTabsStore.getState().activeId).toBe(id);
+    expect(useTreeStore.getState().selected).toEqual({ kind: "note", id });
+  } finally {
+    dispose();
+    unregister();
+  }
 });
 
 it("handles registered messages and resends theme on settings change", () => {
