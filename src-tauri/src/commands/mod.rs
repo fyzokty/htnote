@@ -3,6 +3,7 @@ use serde::Serialize;
 use crate::error::AppError;
 use crate::index::scan::{self, TreeNode};
 use crate::notes::create;
+use crate::notes::rename;
 use crate::settings::{self, Settings, SettingsPatch};
 use crate::state::AppState;
 use tauri::{Manager, State};
@@ -65,6 +66,52 @@ pub async fn create_folder(app: tauri::AppHandle, parent_rel_path: String, name:
         .map_err(|error| AppError::Internal(error.to_string()))?.clone();
     tauri::async_runtime::spawn_blocking(move || create::create_folder_in(&root, &parent_rel_path, &name))
         .await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn rename_note(app: tauri::AppHandle, id: uuid::Uuid, new_title: String) -> Result<TreeNode, AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
+        let note = index.by_id.get(&id).cloned().ok_or_else(|| AppError::NotFound(id.to_string()))?;
+        let (node, _) = rename::rename_note_in(&index.root, &note, &new_title)?;
+        index.refresh_readonly()?;
+        Ok(node)
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn rename_folder(app: tauri::AppHandle, rel_path: String, new_name: String) -> Result<TreeNode, AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
+        let node = rename::rename_folder_in(&index.root, &rel_path, &new_name)?;
+        index.refresh_readonly()?;
+        Ok(node)
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn move_item(app: tauri::AppHandle, rel_path: String, target_folder_rel_path: String) -> Result<String, AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
+        let new_rel = rename::move_item_in(&index.root, &rel_path, &target_folder_rel_path)?;
+        index.refresh_readonly()?;
+        Ok(new_rel)
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn reveal_in_explorer(app: tauri::AppHandle, rel_path: String) -> Result<(), AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let root = state.root_dir.read().map_err(|error| AppError::Internal(error.to_string()))?;
+        let path = crate::index::resolve_in_root(&root, &rel_path)?;
+        if !path.exists() { return Err(AppError::NotFound(rel_path)); }
+        tauri_plugin_opener::reveal_item_in_dir(&path)
+            .map_err(|error| AppError::Io(std::io::Error::other(error)))
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
 
 async fn scan_and_replace(state: &AppState) -> Result<Vec<TreeNode>, AppError> {

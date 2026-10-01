@@ -3,6 +3,7 @@ export const appErrorCodes = [
   "NOT_A_FOLDER",
   "NAME_CONFLICT",
   "INVALID_NAME",
+  "INVALID_MOVE",
   "PATH_OUTSIDE_ROOT",
   "IO_ERROR",
   "JSON_ERROR",

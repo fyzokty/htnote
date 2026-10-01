@@ -38,7 +38,11 @@ pub fn run() {
             commands::get_root_dir,
             commands::get_note_tree,
             commands::create_note,
-            commands::create_folder
+            commands::create_folder,
+            commands::rename_note,
+            commands::rename_folder,
+            commands::move_item,
+            commands::reveal_in_explorer
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

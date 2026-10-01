@@ -4,7 +4,7 @@
   "tabs": { "label": "Tabs", "new": "New tab" },
   "viewer": { "workspace": "Workspace", "empty": "Select a note or create a new one" },
   "editor": {},
-  "errors": { "settingsLoad": "Settings could not be loaded.", "NOTE_NOT_FOUND": "Note not found.", "NOT_A_FOLDER": "Cannot create inside a note.", "NAME_CONFLICT": "This name is already in use.", "INVALID_NAME": "Invalid name.", "IO_ERROR": "File operation failed.", "PATH_OUTSIDE_ROOT": "Path is outside the note folder.", "JSON_ERROR": "Data could not be read.", "INTERNAL": "An application error occurred.", "INVALID_NOTE": "Invalid note.", "UNKNOWN": "Unknown error." },
+  "errors": { "settingsLoad": "Settings could not be loaded.", "NOTE_NOT_FOUND": "Note not found.", "NOT_A_FOLDER": "Cannot create inside a note.", "NAME_CONFLICT": "This name is already in use.", "INVALID_NAME": "Invalid name.", "INVALID_MOVE": "A folder cannot be moved into itself.", "IO_ERROR": "File operation failed.", "PATH_OUTSIDE_ROOT": "Path is outside the note folder.", "JSON_ERROR": "Data could not be read.", "INTERNAL": "An application error occurred.", "INVALID_NOTE": "Invalid note.", "UNKNOWN": "Unknown error." },
   "toast": { "dismiss": "Dismiss notification" },
   "errorBoundary": { "title": "Something went wrong", "description": "Try reloading the application.", "reload": "Reload" },
   "dialogs": {},

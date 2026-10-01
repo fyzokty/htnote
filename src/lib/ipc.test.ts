@@ -51,3 +51,18 @@ describe("ipc creation commands", () => {
     expect(handler).toHaveBeenCalledWith("create_folder", { parentRelPath: "", name: "Alt" });
   });
 });
+
+describe("ipc rename and move commands", () => {
+  it("sends rename and move arguments", async () => {
+    const handler = vi.fn(() => "moved/path");
+    mockIPC(handler);
+    await ipc.renameNote("id", "New title");
+    expect(handler).toHaveBeenCalledWith("rename_note", { id: "id", newTitle: "New title" });
+    await ipc.renameFolder("old", "New");
+    expect(handler).toHaveBeenCalledWith("rename_folder", { relPath: "old", newName: "New" });
+    await expect(ipc.moveItem("old", "target")).resolves.toBe("moved/path");
+    expect(handler).toHaveBeenCalledWith("move_item", { relPath: "old", targetFolderRelPath: "target" });
+    await ipc.revealInExplorer("moved/path");
+    expect(handler).toHaveBeenCalledWith("reveal_in_explorer", { relPath: "moved/path" });
+  });
+});
