@@ -1,13 +1,19 @@
 use std::fs::File;
+use std::cell::Cell;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use percent_encoding::percent_decode_str;
+use lol_html::{element, rewrite_str, Settings};
 use tauri::http::{Request, Response, StatusCode, Uri};
 use tauri::{AppHandle, Manager, UriSchemeResponder};
 use uuid::Uuid;
 
 use crate::state::AppState;
+
+const BRIDGE_JS: &str = include_str!("../../../src/bridge/bridge.js");
+const BRIDGE_TAG: &str = "<script src=\"/__htnote/bridge.js\"></script>";
 
 struct NoteRequest {
     id: Uuid,
@@ -79,7 +85,7 @@ fn parse_note_path(path: &str) -> Result<NoteRequest, StatusCode> {
     Ok(NoteRequest { id, relative: PathBuf::from(rel) })
 }
 
-fn parse_note_uri(uri: &Uri) -> Result<NoteRequest, StatusCode> {
+fn valid_origin(uri: &Uri) -> Result<(), StatusCode> {
     // Tauri platforma göre mutlak URI veya yalnızca yol iletebilir.
     if let Some(scheme) = uri.scheme_str() {
         let host = uri.host().ok_or(StatusCode::FORBIDDEN)?;
@@ -91,9 +97,77 @@ fn parse_note_uri(uri: &Uri) -> Result<NoteRequest, StatusCode> {
     } else if uri.authority().is_some() {
         return Err(StatusCode::FORBIDDEN);
     }
+    Ok(())
+}
+
+fn parse_note_uri(uri: &Uri) -> Result<NoteRequest, StatusCode> {
+    valid_origin(uri)?;
     // http::Uri yolu normalize etmez; bu değer özgün nokta segmentlerini korur.
     let raw_path = uri.path_and_query().ok_or(StatusCode::FORBIDDEN)?.path();
     parse_note_path(raw_path)
+}
+
+fn serve_bridge(method: &str) -> Served {
+    if method != "GET" && method != "HEAD" {
+        let mut response = Served::new(StatusCode::METHOD_NOT_ALLOWED);
+        response.header("Allow", "GET, HEAD");
+        return response;
+    }
+    let mut response = Served::new(StatusCode::OK);
+    response.header("Content-Type", "application/javascript; charset=utf-8");
+    response.header("Content-Length", BRIDGE_JS.len().to_string());
+    if method == "GET" {
+        response.body = BRIDGE_JS.as_bytes().to_vec();
+    }
+    response
+}
+
+fn bridge_response(method: &str, uri: &Uri) -> Option<Served> {
+    if uri.path() != "/__htnote/bridge.js" {
+        return None;
+    }
+    Some(match valid_origin(uri) {
+        Ok(()) => serve_bridge(method),
+        Err(status) => Served::new(status),
+    })
+}
+
+fn fallback_position(html: &str) -> usize {
+    let mut position = if html.starts_with('\u{feff}') { '\u{feff}'.len_utf8() } else { 0 };
+    let rest = &html[position..];
+    if rest.get(..9).is_some_and(|prefix| prefix.eq_ignore_ascii_case("<!doctype")) {
+        if let Some(end) = rest.find('>') {
+            position += end + 1;
+        }
+    }
+    position
+}
+
+fn inject_bridge(body: &[u8]) -> Vec<u8> {
+    let html = String::from_utf8_lossy(body);
+    let found_head = Rc::new(Cell::new(false));
+    let matched = Rc::clone(&found_head);
+    let rewritten = rewrite_str(
+        &html,
+        Settings {
+            element_content_handlers: vec![element!("head", move |head| {
+                matched.set(true);
+                head.prepend(BRIDGE_TAG, lol_html::html_content::ContentType::Html);
+                Ok(())
+            })],
+            ..Settings::default()
+        },
+    );
+    if found_head.get() {
+        if let Ok(result) = rewritten {
+            return result.into_bytes();
+        }
+    }
+    // Head eksik veya HTML bozuksa BOM/DOCTYPE sonrasına ekle.
+    let position = fallback_position(&html);
+    let mut result = html.into_owned();
+    result.insert_str(position, BRIDGE_TAG);
+    result.into_bytes()
 }
 
 fn parse_request(method: &str, uri: &Uri) -> Result<NoteRequest, StatusCode> {
@@ -161,6 +235,22 @@ fn serve(method: &str, note_dir: &Path, relative: &Path, range: Option<&str>) ->
         Ok(metadata) => metadata.len(),
         Err(_) => return Served::new(StatusCode::NOT_FOUND),
     };
+    let mime = mime_guess::from_path(&file_path).first_or_octet_stream();
+    let is_html = mime.essence_str() == "text/html";
+    if is_html {
+        let mut body = Vec::new();
+        if file.read_to_end(&mut body).is_err() {
+            return Served::new(StatusCode::NOT_FOUND);
+        }
+        let injected = inject_bridge(&body);
+        let mut response = Served::new(StatusCode::OK);
+        response.header("Content-Type", "text/html; charset=utf-8");
+        response.header("Content-Length", injected.len().to_string());
+        if method == "GET" {
+            response.body = injected;
+        }
+        return response;
+    }
     let selected = match range {
         Some(value) => match parse_range(value, len) {
             Ok(selected) => Some(selected),
@@ -173,7 +263,6 @@ fn serve(method: &str, note_dir: &Path, relative: &Path, range: Option<&str>) ->
         None => None,
     };
     let mut response = Served::new(if selected.is_some() { StatusCode::PARTIAL_CONTENT } else { StatusCode::OK });
-    let mime = mime_guess::from_path(&file_path).first_or_octet_stream();
     let mut content_type = mime.essence_str().to_string();
     if matches!(content_type.as_str(), "text/html" | "text/css" | "text/javascript" | "application/javascript") {
         content_type.push_str("; charset=utf-8");
@@ -201,6 +290,10 @@ fn serve(method: &str, note_dir: &Path, relative: &Path, range: Option<&str>) ->
 
 pub fn handle(app: &AppHandle, request: Request<Vec<u8>>, responder: UriSchemeResponder) {
     let method = request.method().as_str().to_owned();
+    if let Some(response) = bridge_response(&method, request.uri()) {
+        responder.respond(response.into_response());
+        return;
+    }
     let parsed = parse_request(&method, request.uri());
     let range = request.headers().get("range").and_then(|value| value.to_str().ok()).map(str::to_owned);
     let note_dir = match &parsed {
@@ -312,25 +405,98 @@ mod tests {
     #[test]
     fn serves_files_and_headers() {
         let dir = tempfile::tempdir().unwrap();
-        std::fs::write(dir.path().join("index.html"), "abcdef").unwrap();
-        let full = serve("GET", dir.path(), Path::new("index.html"), None);
+        std::fs::write(dir.path().join("asset.txt"), "abcdef").unwrap();
+        let full = serve("GET", dir.path(), Path::new("asset.txt"), None);
         assert_eq!(full.status, StatusCode::OK);
         assert_eq!(full.body, b"abcdef");
-        assert!(full.headers.contains(&("Content-Type", "text/html; charset=utf-8".into())));
+        assert!(full.headers.contains(&("Content-Type", "text/plain".into())));
         for (name, value) in [("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff"), ("Accept-Ranges", "bytes")] {
             assert!(full.headers.contains(&(name, value.into())));
         }
-        let partial = serve("GET", dir.path(), Path::new("index.html"), Some("bytes=2-3"));
+        let partial = serve("GET", dir.path(), Path::new("asset.txt"), Some("bytes=2-3"));
         assert_eq!(partial.status, StatusCode::PARTIAL_CONTENT);
         assert_eq!(partial.body, b"cd");
         assert!(partial.headers.contains(&("Content-Range", "bytes 2-3/6".into())));
         assert!(partial.headers.contains(&("Accept-Ranges", "bytes".into())));
-        assert!(serve("HEAD", dir.path(), Path::new("index.html"), None).body.is_empty());
-        assert_eq!(serve("POST", dir.path(), Path::new("index.html"), None).status, StatusCode::METHOD_NOT_ALLOWED);
+        assert!(serve("HEAD", dir.path(), Path::new("asset.txt"), None).body.is_empty());
+        assert_eq!(serve("POST", dir.path(), Path::new("asset.txt"), None).status, StatusCode::METHOD_NOT_ALLOWED);
         assert_eq!(serve("GET", dir.path(), Path::new("missing"), None).status, StatusCode::NOT_FOUND);
-        let invalid_range = serve("GET", dir.path(), Path::new("index.html"), Some("bytes=20-"));
+        let invalid_range = serve("GET", dir.path(), Path::new("asset.txt"), Some("bytes=20-"));
         assert_eq!(invalid_range.status, StatusCode::RANGE_NOT_SATISFIABLE);
         assert!(invalid_range.headers.contains(&("Accept-Ranges", "bytes".into())));
+    }
+
+    #[test]
+    fn injects_before_head_content_and_after_document_prefix() {
+        for input in [
+            "<html><head><script>user()</script></head></html>",
+            "<!DOCTYPE html><html><head><title>T</title></head></html>",
+            "<HTML><HEAD><SCRIPT>user()</SCRIPT></HEAD></HTML>",
+            "<!-- <head><script>fake()</script></head> --><html><head><script>user()</script></head></html>",
+        ] {
+            let result = String::from_utf8(inject_bridge(input.as_bytes())).unwrap();
+            let head_end = result.to_ascii_lowercase().rfind("<head>").unwrap() + 6;
+            assert!(result[head_end..].starts_with(BRIDGE_TAG));
+        }
+        for (input, prefix) in [
+            ("<html><body>hi</body></html>", ""),
+            ("<!DOCTYPE html><body>hi</body>", "<!DOCTYPE html>"),
+            ("\u{feff}<!DOCTYPE html><body>hi</body>", "\u{feff}<!DOCTYPE html>"),
+        ] {
+            let result = String::from_utf8(inject_bridge(input.as_bytes())).unwrap();
+            assert!(result.starts_with(&format!("{prefix}{BRIDGE_TAG}")));
+        }
+    }
+
+    #[test]
+    fn serves_bridge_and_full_html_for_ranges() {
+        let bridge = serve_bridge("GET");
+        assert_eq!(bridge.status, StatusCode::OK);
+        assert_eq!(bridge.body, BRIDGE_JS.as_bytes());
+        assert!(bridge.headers.contains(&("Content-Type", "application/javascript; charset=utf-8".into())));
+        assert!(bridge.headers.contains(&("X-Content-Type-Options", "nosniff".into())));
+        assert!(serve_bridge("HEAD").body.is_empty());
+        assert_eq!(serve_bridge("POST").status, StatusCode::METHOD_NOT_ALLOWED);
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("index.html"), "<head><title>T</title></head>").unwrap();
+        let served = serve("GET", dir.path(), Path::new("index.html"), Some("bytes=0-2"));
+        assert_eq!(served.status, StatusCode::OK);
+        assert!(String::from_utf8(served.body).unwrap().contains(BRIDGE_TAG));
+        assert!(!served.headers.iter().any(|(name, _)| *name == "Content-Range"));
+    }
+
+    #[test]
+    fn bridge_route_checks_note_origin() {
+        for url in [
+            "http://htnote-note.localhost/__htnote/bridge.js",
+            "htnote-note://localhost/__htnote/bridge.js",
+            "/__htnote/bridge.js",
+        ] {
+            let response = bridge_response("GET", &request_uri(url)).unwrap();
+            assert_eq!(response.status, StatusCode::OK, "{url}");
+            assert_eq!(response.body, BRIDGE_JS.as_bytes(), "{url}");
+        }
+        for url in [
+            "https://htnote-note.localhost/__htnote/bridge.js",
+            "http://evil.localhost/__htnote/bridge.js",
+            "htnote-note://evil.localhost/__htnote/bridge.js",
+            "http://localhost/__htnote/bridge.js",
+        ] {
+            assert_eq!(bridge_response("GET", &request_uri(url)).unwrap().status, StatusCode::FORBIDDEN, "{url}");
+        }
+        assert!(bridge_response("GET", &request_uri("http://htnote-note.localhost/other.js")).is_none());
+
+        let response = bridge_response("GET", &request_uri("http://htnote-note.localhost/__htnote/bridge.js"))
+            .unwrap()
+            .into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        for (name, value) in [
+            ("content-type", "application/javascript; charset=utf-8"),
+            ("cache-control", "no-store"),
+            ("x-content-type-options", "nosniff"),
+        ] {
+            assert_eq!(response.headers().get(name).unwrap(), value);
+        }
     }
 
     #[cfg(unix)]
