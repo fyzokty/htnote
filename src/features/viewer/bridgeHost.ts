@@ -23,6 +23,7 @@ const readyFrames = new Set<Window>();
 const pendingHighlights = new Map<string, string>();
 
 export function requestHighlight(noteId: string, query: string) {
+  if (useTabsStore.getState().tabs.find((tab) => tab.noteId === noteId)?.doc.mode !== "view") return;
   pendingHighlights.set(noteId, query);
   const frame = frames.get(noteId);
   if (frame && readyFrames.has(frame)) {
@@ -129,7 +130,9 @@ export function handleBridgeMessage(event: MessageEvent) {
       sendTheme(frame);
       for (const [noteId, candidate] of frames) {
         if (candidate !== frame || !pendingHighlights.has(noteId)) continue;
-        frame.postMessage({ type: "HTNOTE_HIGHLIGHT", query: pendingHighlights.get(noteId) }, getNoteOrigin());
+        if (useTabsStore.getState().tabs.find((tab) => tab.noteId === noteId)?.doc.mode === "view") {
+          frame.postMessage({ type: "HTNOTE_HIGHLIGHT", query: pendingHighlights.get(noteId) }, getNoteOrigin());
+        }
         pendingHighlights.delete(noteId);
       }
       break;

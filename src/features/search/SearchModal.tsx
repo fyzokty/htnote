@@ -3,7 +3,7 @@ import type { KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useSearch } from "@/features/search/useSearch";
-import { requestHighlight } from "@/features/viewer/bridgeHost";
+import { clearHighlight, requestHighlight } from "@/features/viewer/bridgeHost";
 import type { SearchResult } from "@/lib/types";
 import { useTabsStore } from "@/stores/tabsStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -21,9 +21,10 @@ export function SearchModal() {
   }, []);
 
   function open(result: SearchResult, background = false) {
-    const doc = useTabsStore.getState().tabs.find((tab) => tab.noteId === result.id)?.doc;
-    if (doc?.mode !== "visual" && doc?.mode !== "code") requestHighlight(result.id, query.trim());
     useTabsStore.getState().openNote(result.id, { activate: !background });
+    const doc = useTabsStore.getState().tabs.find((tab) => tab.noteId === result.id)?.doc;
+    clearHighlight(result.id);
+    if (doc?.mode === "view") requestHighlight(result.id, query.trim());
     if (!background) closeSearch();
   }
 
