@@ -1,4 +1,5 @@
 import { ipc } from "@/lib/ipc";
+import { deleteRecoveryDraft } from "@/features/editor/recoveryDrafts";
 import { useTabsStore } from "@/stores/tabsStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -30,6 +31,11 @@ export async function saveTab(noteId: string): Promise<boolean> {
       html: snapshot.html, css: snapshot.css ?? "", js: snapshot.js ?? "", expectedHash: doc.base.contentHash,
     });
     useTabsStore.getState().saveSucceeded(noteId, { ...snapshot, contentHash: result.contentHash });
+    await deleteRecoveryDraft(noteId);
+    if (useTabsStore.getState().isDirty(noteId)) {
+      // Kayıt sırasında yeni düzenleme geldiyse onun için yeniden zamanlayıcı kurulur.
+      useTabsStore.getState().updateDraft(noteId, {});
+    }
     return true;
   } catch (error) {
     useTabsStore.getState().saveFailed(noteId);

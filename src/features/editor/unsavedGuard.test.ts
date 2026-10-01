@@ -2,6 +2,7 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { discardTab, requestUnsavedDecision, resolveUnsaved, setDiscardRecoveryDraftHook } from "@/features/editor/unsavedGuard";
+import { deleteRecoveryDraft } from "@/features/editor/recoveryDrafts";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -22,6 +23,24 @@ beforeEach(() => {
 });
 
 describe("unsaved guard", () => {
+  it("deletes recovery drafts after save and discard", async () => {
+    dirty("a"); dirty("b");
+    const deleted: string[] = [];
+    mockIPC((command, args) => {
+      if (command === "save_note") return { contentHash: "new" };
+      if (command === "delete_draft") deleted.push((args as { id: string }).id);
+    });
+    const unregister = setDiscardRecoveryDraftHook(deleteRecoveryDraft);
+    try {
+      const saving = resolveUnsaved(["a"]); decide("save");
+      await saving;
+      const discarding = resolveUnsaved(["b"]); decide("discard");
+      await discarding;
+      expect(deleted).toEqual(["a", "b"]);
+    } finally {
+      unregister();
+    }
+  });
   it("passes clean tabs without a dialog", async () => {
     useTabsStore.getState().openNote("a");
     expect(await resolveUnsaved(["a"])).toMatchObject({ resolved: new Set(["a"]), cancelled: false });

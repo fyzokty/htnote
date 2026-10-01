@@ -54,6 +54,22 @@ describe("ipc preview draft commands", () => {
   });
 });
 
+describe("ipc recovery draft commands", () => {
+  it("passes typed draft payloads and ids", async () => {
+    const handler = vi.fn((command: string) => command === "list_drafts" ? [] : undefined);
+    mockIPC(handler);
+    const payload = { html: "h", css: "c", js: "j", baseHash: "hash", savedAt: "2026-10-01T00:00:00Z" };
+    await ipc.writeDraft("id", payload);
+    await ipc.readDraft("id");
+    await ipc.deleteDraft("id");
+    await ipc.listDrafts();
+    expect(handler).toHaveBeenCalledWith("write_draft", { id: "id", payload });
+    expect(handler).toHaveBeenCalledWith("read_draft", { id: "id" });
+    expect(handler).toHaveBeenCalledWith("delete_draft", { id: "id" });
+    expect(handler).toHaveBeenCalledWith("list_drafts", {});
+  });
+});
+
 describe("ipc creation commands", () => {
   it("createNote sends its parent and optional title", async () => {
     const node = { type: "note", id: "id", title: "Fikir", relPath: "Fikir", isFavorite: false, tags: [], updatedAt: "date" };

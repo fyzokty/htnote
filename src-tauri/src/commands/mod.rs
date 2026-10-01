@@ -1,6 +1,7 @@
 use serde::Serialize;
 
 use crate::error::AppError;
+use crate::drafts::{self, DraftData};
 use crate::index::scan::{self, TreeNode};
 use crate::notes::create;
 use crate::notes::read::{self, NoteData};
@@ -90,6 +91,42 @@ pub async fn save_note(app: tauri::AppHandle, id: uuid::Uuid, payload: SaveNoteI
         let state = app.state::<AppState>();
         save_note_in_state(&state, id, payload, |dir, input| save::save_note_dir(dir, input, chrono::Utc::now()))
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct WriteDraftInput {
+    html: String,
+    css: String,
+    js: String,
+    base_hash: String,
+    saved_at: chrono::DateTime<chrono::Utc>,
+}
+
+#[tauri::command]
+pub async fn write_draft(app: tauri::AppHandle, id: uuid::Uuid, payload: WriteDraftInput) -> Result<(), AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = app.state::<AppState>().drafts_dir.clone();
+        drafts::write_draft_in(&dir, &DraftData { id, html: payload.html, css: payload.css, js: payload.js, base_hash: payload.base_hash, saved_at: payload.saved_at })
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn read_draft(app: tauri::AppHandle, id: uuid::Uuid) -> Result<DraftData, AppError> {
+    tauri::async_runtime::spawn_blocking(move || drafts::read_draft_in(&app.state::<AppState>().drafts_dir, id))
+        .await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn delete_draft(app: tauri::AppHandle, id: uuid::Uuid) -> Result<(), AppError> {
+    tauri::async_runtime::spawn_blocking(move || drafts::delete_draft_in(&app.state::<AppState>().drafts_dir, id))
+        .await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn list_drafts(app: tauri::AppHandle) -> Result<Vec<DraftData>, AppError> {
+    tauri::async_runtime::spawn_blocking(move || drafts::list_drafts_in(&app.state::<AppState>().drafts_dir))
+        .await.map_err(|error| AppError::Internal(error.to_string()))?
 }
 
 fn save_note_in_state(

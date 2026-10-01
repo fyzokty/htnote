@@ -1,4 +1,5 @@
 mod commands;
+mod drafts;
 mod onboarding;
 mod protocol;
 mod note_server;
@@ -33,7 +34,9 @@ pub fn run() {
                 settings.clone()
             };
             let root_dir = settings::resolve_root_dir(&root_settings, &documents)?;
-            let state = state::AppState::new(config_dir, settings, root_dir.clone());
+            let drafts_dir = app.path().app_data_dir()?.join("drafts");
+            std::fs::create_dir_all(&drafts_dir)?;
+            let state = state::AppState::with_drafts_dir(config_dir, drafts_dir, settings, root_dir.clone());
             if let Err(error) = onboarding::run(&state) {
                 eprintln!("Onboarding failed: {error}");
             }
@@ -58,6 +61,10 @@ pub fn run() {
             commands::get_note_tree,
             commands::read_note,
             commands::save_note,
+            commands::write_draft,
+            commands::read_draft,
+            commands::delete_draft,
+            commands::list_drafts,
             commands::set_preview_draft,
             commands::clear_preview_draft,
             commands::create_note,

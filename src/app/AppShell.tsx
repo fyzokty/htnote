@@ -5,6 +5,11 @@ import { useTranslation } from "react-i18next";
 
 import { installUnsavedWindowGuard } from "@/app/unsavedWindowGuard";
 import { UnsavedChangesDialog } from "@/components/ui/UnsavedChangesDialog";
+import { RecoveryDialog } from "@/features/editor/RecoveryDialog";
+import type { RecoveryCandidate } from "@/features/editor/RecoveryDialog";
+import { deleteRecoveryDraft, selectRecoveryCandidates, useDraftAutosave } from "@/features/editor/recoveryDrafts";
+import { extractContent } from "@/features/editor/contentRegion";
+import { setDiscardRecoveryDraftHook } from "@/features/editor/unsavedGuard";
 import { SidebarTree } from "@/features/tree/SidebarTree";
 import { TabBar } from "@/features/tabs/TabBar";
 import { NoteViewer } from "@/features/viewer/NoteViewer";
@@ -12,6 +17,7 @@ import { installBridgeHost } from "@/features/viewer/bridgeHost";
 import { startFsChangeSync } from "@/features/tree/fsChangeSync";
 import { useTreeActions } from "@/features/tree/useTreeActions";
 import { resolveLanguage } from "@/i18n/language";
+import { ipc } from "@/lib/ipc";
 import { installShortcutListener } from "@/lib/shortcuts/manager";
 import { formatShortcut } from "@/lib/shortcuts/registry";
 import { useShortcut } from "@/lib/shortcuts/useShortcut";
@@ -34,6 +40,9 @@ export function AppShell() {
   const setSidebarVisible = useUiStore((state) => state.setSidebarVisible);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
   const [dragWidth, setDragWidth] = useState<number | null>(null);
+  const [recoveryCandidates, setRecoveryCandidates] = useState<RecoveryCandidate[]>([]);
+  const unsavedDialog = useUiStore((state) => state.unsavedDialog);
+  useDraftAutosave();
   const sidebarWidth = dragWidth ?? clampWidth(settings?.sidebarWidth ?? 260);
   const widthRef = useRef(sidebarWidth);
   const draggingRef = useRef(false);
@@ -57,9 +66,24 @@ export function AppShell() {
     return installUnsavedWindowGuard();
   }, []);
   useEffect(() => startFsChangeSync(), []);
+  useEffect(() => setDiscardRecoveryDraftHook(deleteRecoveryDraft), []);
   useEffect(() => {
     void loadTree().then(() => {
       useTabsStore.getState().restore(useTreeStore.getState().flatNotes().map((note) => note.id));
+      void ipc.listDrafts().then(async (drafts) => {
+        const { candidates, toDelete } = selectRecoveryCandidates(drafts, useTreeStore.getState().tree, Date.now());
+        for (const id of toDelete) await deleteRecoveryDraft(id);
+        const checked = await Promise.all(candidates.map(async ({ draft, note }) => {
+          try {
+            const disk = await ipc.readNote(draft.id);
+            return { draft, note, diskChanged: draft.baseHash !== disk.contentHash };
+          } catch (error) {
+            console.warn("Could not check recovery draft", draft.id, error);
+            return { draft, note };
+          }
+        }));
+        setRecoveryCandidates(checked);
+      }).catch((error: unknown) => console.warn("Could not list recovery drafts", error));
     }).catch(() => {});
   }, [loadTree]);
   useEffect(() => useTreeStore.subscribe((state, previous) => {
@@ -113,9 +137,35 @@ export function AppShell() {
     }, 150);
   }
 
+  async function recoverDraft(id: string) {
+    try {
+      const draft = await ipc.readDraft(id);
+      const base = await ipc.readNote(id);
+      if (draft.baseHash !== base.contentHash && !recoveryCandidates.find((candidate) => candidate.draft.id === id)?.diskChanged) {
+        setRecoveryCandidates((previous) => previous.map((candidate) => candidate.draft.id === id ? { ...candidate, diskChanged: true } : candidate));
+        return;
+      }
+      const tabs = useTabsStore.getState();
+      tabs.openNote(id);
+      const current = useTabsStore.getState().tabs.find((tab) => tab.noteId === id)?.doc;
+      if (current?.mode !== "view") return;
+      tabs.enterEdit(id, base, "visual", extractContent(draft.html).ok);
+      tabs.updateDraft(id, { html: draft.html, css: draft.css, js: draft.js });
+      setRecoveryCandidates((previous) => previous.filter((candidate) => candidate.draft.id !== id));
+    } catch (error) {
+      console.warn("Could not recover draft", id, error);
+    }
+  }
+
+  async function ignoreDraft(id: string) {
+    await deleteRecoveryDraft(id);
+    setRecoveryCandidates((previous) => previous.filter((candidate) => candidate.draft.id !== id));
+  }
+
   return (
     <main className="flex h-screen min-h-0 w-full overflow-hidden bg-app-bg text-app-text">
       <UnsavedChangesDialog />
+      {!unsavedDialog && <RecoveryDialog candidates={recoveryCandidates} onRecover={(id) => void recoverDraft(id)} onIgnore={(id) => void ignoreDraft(id)} />}
       {sidebarVisible && (
         <aside
           className="relative flex h-full min-h-0 shrink-0 flex-col border-r border-app-border bg-app-surface"
