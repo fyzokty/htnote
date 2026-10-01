@@ -16,6 +16,7 @@ export function LivePreview({ noteId, html, css, js }: LivePreviewProps) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const scrollY = useRef(0);
   const mounted = useRef(false);
+  const draftNotes = useRef(new Set<string>());
 
   useEffect(() => {
     const frame = frameRef.current?.contentWindow;
@@ -24,14 +25,16 @@ export function LivePreview({ noteId, html, css, js }: LivePreviewProps) {
 
   useEffect(() => {
     mounted.current = true;
+    const notes = draftNotes.current;
     return () => {
       mounted.current = false;
       scrollY.current = 0;
-      void ipc.clearPreviewDraft(noteId).catch(() => {});
+      for (const id of notes) void ipc.clearPreviewDraft(id).catch(() => {});
     };
-  }, [noteId]);
+  }, []);
 
   useEffect(() => {
+    draftNotes.current.add(noteId);
     let current = true;
     const timer = window.setTimeout(() => {
       void ipc.setPreviewDraft(noteId, { html, css, js }).then((rev) => {
