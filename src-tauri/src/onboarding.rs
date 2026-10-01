@@ -1,5 +1,5 @@
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::error::AppError;
 use crate::fs_util::write_file_atomic;
@@ -83,9 +83,30 @@ pub fn run(state: &AppState) -> Result<(), AppError> {
         return Ok(());
     }
     let root = state.root_dir.read().map_err(|error| AppError::Internal(error.to_string()))?;
-    if root_is_empty(&root)? {
+    let marker = root.join(".htnote-onboarding-in-progress");
+    let empty = root_is_empty(&root)?;
+    if marker.exists() && !empty {
+        // Geri alma başarısız olduysa kısmi notları tamamlanmış sayma.
+        return Err(AppError::Internal("Incomplete onboarding examples remain in the note root".into()));
+    }
+    if empty {
         let language = settings.language.clone().unwrap_or_else(system_language);
-        create_examples(&root, &language)?;
+        write_file_atomic(&marker, b"")?;
+        let mut updated = settings.clone();
+        updated.onboarding_done = true;
+        let result = with_example_rollback(|created| {
+            create_examples(&root, &language, created)?;
+            save_settings_atomic(&state.config_dir, &updated)
+        });
+        if let Err(error) = result {
+            if root_is_empty(&root).unwrap_or(false) {
+                let _ = fs::remove_file(&marker);
+            }
+            return Err(error);
+        }
+        *settings = updated;
+        fs::remove_file(&marker)?;
+        return Ok(());
     }
     let mut updated = settings.clone();
     updated.onboarding_done = true;
@@ -94,10 +115,24 @@ pub fn run(state: &AppState) -> Result<(), AppError> {
     Ok(())
 }
 
-fn create_examples(root: &Path, language: &Language) -> Result<(), AppError> {
+fn with_example_rollback(action: impl FnOnce(&mut Vec<PathBuf>) -> Result<(), AppError>) -> Result<(), AppError> {
+    let mut created = Vec::new();
+    if let Err(error) = action(&mut created) {
+        for path in created.iter().rev() {
+            fs::remove_dir_all(path).map_err(|rollback| {
+                AppError::Internal(format!("Onboarding failed: {error}; rollback failed for {}: {rollback}", path.display()))
+            })?;
+        }
+        return Err(error);
+    }
+    Ok(())
+}
+
+fn create_examples(root: &Path, language: &Language, created: &mut Vec<PathBuf>) -> Result<(), AppError> {
     let templates = templates(language);
     let (_, mut interactive) = create_note_in(root, "", Some(templates.interactive_title))?;
     let interactive_dir = root.join(&interactive.rel_path);
+    created.push(interactive_dir.clone());
     interactive.metadata.has_custom_css = true;
     interactive.metadata.has_custom_js = true;
     write_file_atomic(&interactive_dir.join("style.css"), templates.css.as_bytes())?;
@@ -107,6 +142,7 @@ fn create_examples(root: &Path, language: &Language) -> Result<(), AppError> {
     write_metadata_atomic(&interactive_dir.join("metadata.json"), &interactive.metadata)?;
 
     let (_, welcome) = create_note_in(root, "", Some(templates.welcome_title))?;
+    created.push(root.join(&welcome.rel_path));
     let html = templates.welcome.replace("{{NOTE_ID}}", &interactive.metadata.id.to_string());
     let html = sync_head(&html, &welcome.metadata, false, false);
     write_file_atomic(&root.join(&welcome.rel_path).join("index.html"), html.as_bytes())?;
@@ -174,5 +210,50 @@ mod tests {
         run(&state).unwrap();
         let metadata = read_metadata(&root.join("Interactive Note Example/metadata.json")).unwrap();
         assert!(fs::read_to_string(root.join("Welcome to HTNote/index.html")).unwrap().contains(&format!("htnote://note/{}", metadata.id)));
+    }
+
+    #[test]
+    fn failed_example_write_rolls_back_and_allows_retry() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("notes");
+        fs::create_dir(&root).unwrap();
+        let result = with_example_rollback(|created| {
+            let (_, note) = create_note_in(&root, "", Some("Partial"))?;
+            created.push(root.join(note.rel_path));
+            Err(AppError::Internal("simulated template write failure".into()))
+        });
+        assert!(result.is_err());
+        assert!(root_is_empty(&root).unwrap());
+        let state = state(&root, Language::En);
+        run(&state).unwrap();
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 2);
+    }
+
+    #[test]
+    fn failed_settings_save_rolls_back_both_examples() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("notes");
+        fs::create_dir(&root).unwrap();
+        let state = state(&root, Language::En);
+        fs::write(&state.config_dir, "blocks settings directory").unwrap();
+        assert!(run(&state).is_err());
+        assert!(root_is_empty(&root).unwrap());
+        assert!(!root.join(".htnote-onboarding-in-progress").exists());
+        assert!(!state.settings.lock().unwrap().onboarding_done);
+        fs::remove_file(&state.config_dir).unwrap();
+        run(&state).unwrap();
+        assert_eq!(fs::read_dir(&root).unwrap().count(), 2);
+    }
+
+    #[test]
+    fn incomplete_marker_prevents_silent_completion() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("notes");
+        fs::create_dir(&root).unwrap();
+        fs::write(root.join(".htnote-onboarding-in-progress"), "").unwrap();
+        fs::create_dir(root.join("Partial")).unwrap();
+        let state = state(&root, Language::En);
+        assert!(run(&state).is_err());
+        assert!(!state.settings.lock().unwrap().onboarding_done);
     }
 }
