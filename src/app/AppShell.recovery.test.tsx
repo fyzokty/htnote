@@ -47,3 +47,26 @@ it("restores draft content as a dirty edit against the current disk base", async
   expect(commands).toContain("read_draft");
   await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
 });
+
+it("warns before recovery when the note changes after the initial disk check", async () => {
+  let readCount = 0;
+  mockIPC((command) => {
+    if (command === "list_drafts") return [{ id: "a", html: "draft html", css: "", js: "", baseHash: "old-hash", savedAt: "2026-10-01T00:00:00Z" }];
+    if (command === "read_draft") return { id: "a", html: "draft html", css: "", js: "", baseHash: "old-hash", savedAt: "2026-10-01T00:00:00Z" };
+    if (command === "read_note") {
+      readCount += 1;
+      return { html: "disk html", css: "", js: "", contentHash: readCount === 1 ? "old-hash" : "new-hash" };
+    }
+  });
+
+  render(<AppShell />);
+  expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  expect(screen.queryByText(/diskte değişti/)).not.toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Kurtar" }));
+  expect(await screen.findByText(/diskte değişti/)).toBeInTheDocument();
+  expect(useTabsStore.getState().isDirty("a")).toBe(false);
+
+  fireEvent.click(screen.getByRole("button", { name: "Kurtar" }));
+  await waitFor(() => expect(useTabsStore.getState().isDirty("a")).toBe(true));
+  expect(useTabsStore.getState().tabs.find((tab) => tab.noteId === "a")?.doc.base?.contentHash).toBe("new-hash");
+});

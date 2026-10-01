@@ -141,6 +141,10 @@ export function AppShell() {
     try {
       const draft = await ipc.readDraft(id);
       const base = await ipc.readNote(id);
+      if (draft.baseHash !== base.contentHash && !recoveryCandidates.find((candidate) => candidate.draft.id === id)?.diskChanged) {
+        setRecoveryCandidates((previous) => previous.map((candidate) => candidate.draft.id === id ? { ...candidate, diskChanged: true } : candidate));
+        return;
+      }
       const tabs = useTabsStore.getState();
       tabs.openNote(id);
       const current = useTabsStore.getState().tabs.find((tab) => tab.noteId === id)?.doc;
