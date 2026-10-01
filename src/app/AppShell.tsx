@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { SidebarTree } from "@/features/tree/SidebarTree";
 import { TabBar } from "@/features/tabs/TabBar";
+import { NoteViewer } from "@/features/viewer/NoteViewer";
 import { startFsChangeSync } from "@/features/tree/fsChangeSync";
 import { useTreeActions } from "@/features/tree/useTreeActions";
 import { resolveLanguage } from "@/i18n/language";
@@ -186,11 +187,8 @@ export function AppShell() {
           </button>
           <TabBar />
         </header>
-        <section className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden p-6 text-center" aria-label={t("viewer.workspace")}>
-          <div className="flex flex-col items-center gap-3 text-app-muted">
-            <NotebookPen className="size-10 text-app-accent" aria-hidden />
-            <p>{t("viewer.empty")}</p>
-          </div>
+        <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden" aria-label={t("viewer.workspace")}>
+          <NoteViewer />
         </section>
       </div>
     </main>

@@ -3,6 +3,7 @@ use serde::Serialize;
 use crate::error::AppError;
 use crate::index::scan::{self, TreeNode};
 use crate::notes::create;
+use crate::notes::read::{self, NoteData};
 use crate::notes::rename;
 use crate::settings::{self, Settings, SettingsPatch};
 use crate::state::AppState;
@@ -64,6 +65,22 @@ pub fn get_root_dir(state: State<'_, AppState>) -> Result<String, AppError> {
 #[tauri::command]
 pub async fn get_note_tree(app: tauri::AppHandle) -> Result<Vec<TreeNode>, AppError> {
     scan_and_replace(&app.state::<AppState>()).await
+}
+
+#[tauri::command]
+pub async fn read_note(app: tauri::AppHandle, id: uuid::Uuid) -> Result<NoteData, AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let dir = resolve_note_dir(&state, id)?;
+        read::read_note_dir(&dir)
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+fn resolve_note_dir(state: &AppState, id: uuid::Uuid) -> Result<std::path::PathBuf, AppError> {
+    state.note_index.read()
+        .map_err(|error| AppError::Internal(error.to_string()))?
+        .resolve(id)
+        .ok_or_else(|| AppError::NotFound(id.to_string()))
 }
 
 #[tauri::command]
@@ -144,6 +161,14 @@ async fn scan_and_replace(state: &AppState) -> Result<Vec<TreeNode>, AppError> {
 mod tests {
     use super::*;
     use crate::notes::model::{write_metadata_atomic, NoteMetadata};
+
+    #[test]
+    fn unknown_note_id_is_not_found() {
+        let root = tempfile::tempdir().unwrap();
+        let state = AppState::new(root.path().to_path_buf(), Settings::default(), root.path().to_path_buf());
+        let id = uuid::Uuid::new_v4();
+        assert!(matches!(resolve_note_dir(&state, id), Err(AppError::NotFound(value)) if value == id.to_string()));
+    }
 
     #[test]
     fn command_scan_replaces_index() {

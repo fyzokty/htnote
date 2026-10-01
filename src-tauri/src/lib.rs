@@ -50,6 +50,7 @@ pub fn run() {
             commands::update_settings,
             commands::get_root_dir,
             commands::get_note_tree,
+            commands::read_note,
             commands::create_note,
             commands::create_folder,
             commands::rename_note,

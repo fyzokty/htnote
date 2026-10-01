@@ -22,6 +22,11 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
+      "no-restricted-syntax": [
+        "error",
+        { selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']", message: "Not içeriği ana DOM'a eklenemez." },
+        { selector: "JSXAttribute[name.name=/^(srcDoc|srcdoc)$/]", message: "Not iframe'i srcdoc kullanamaz." },
+      ],
       "no-restricted-imports": [
         "error",
         {
