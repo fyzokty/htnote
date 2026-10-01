@@ -1,9 +1,14 @@
-import { memo, useCallback, useLayoutEffect, useRef } from "react";
+import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { ChevronDown, ChevronRight, FileText, Folder } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { ContextMenu } from "@/components/ui/ContextMenu";
+import type { ContextMenuItem } from "@/components/ui/ContextMenu";
+import { InlineRename } from "@/features/tree/InlineRename";
 import { nextVisibleNode, visibleNodes } from "@/features/tree/treeNavigation";
+import { useTreeActions } from "@/features/tree/useTreeActions";
+import { formatShortcut } from "@/lib/shortcuts/registry";
 import type { TreeKey } from "@/features/tree/treeNavigation";
 import type { TreeNode, TreeSelection } from "@/lib/types";
 import { useTreeStore } from "@/stores/treeStore";
@@ -15,9 +20,13 @@ interface RowProps {
   selected: boolean;
   tabbable: boolean;
   onSelect: (node: TreeNode) => void;
+  onMenu: (node: TreeNode, x: number, y: number, trigger: HTMLElement) => void;
+  renaming: boolean;
+  onRename: (node: TreeNode, name: string) => void;
+  onCancelRename: () => void;
 }
 
-const TreeRow = memo(function TreeRow({ node, depth, expanded, selected, tabbable, onSelect }: RowProps) {
+const TreeRow = memo(function TreeRow({ node, depth, expanded, selected, tabbable, onSelect, onMenu, renaming, onRename, onCancelRename }: RowProps) {
   const { t } = useTranslation();
   const isFolder = node.type === "folder";
   return (
@@ -30,12 +39,20 @@ const TreeRow = memo(function TreeRow({ node, depth, expanded, selected, tabbabl
       tabIndex={tabbable ? 0 : -1}
       data-tree-key={isFolder ? `folder:${node.relPath}` : `note:${node.id}`}
       onClick={(event) => { event.currentTarget.focus(); onSelect(node); }}
+      onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onMenu(node, event.clientX, event.clientY, event.currentTarget); }}
+      onKeyDown={(event) => {
+        if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
+          event.preventDefault(); event.stopPropagation();
+          const rect = event.currentTarget.getBoundingClientRect();
+          onMenu(node, rect.left, rect.bottom, event.currentTarget);
+        }
+      }}
       className={`flex min-w-0 cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-app-accent ${selected ? "bg-app-accent text-app-accent-text" : "text-app-text hover:bg-app-subtle"}`}
       style={{ paddingLeft: depth * 16 + 4 }}
     >
       {isFolder ? (expanded ? <ChevronDown className="size-4 shrink-0" aria-hidden /> : <ChevronRight className="size-4 shrink-0" aria-hidden />) : <span className="size-4 shrink-0" />}
       {isFolder ? <Folder className="size-4 shrink-0" aria-hidden /> : <FileText className="size-4 shrink-0" aria-hidden />}
-      <span className="truncate">{isFolder ? node.name : node.title}</span>
+      {renaming ? <InlineRename name={isFolder ? node.name : node.title} label={t("tree.rename")} onConfirm={(name) => onRename(node, name)} onCancel={onCancelRename} /> : <span className="truncate">{isFolder ? node.name : node.title}</span>}
     </div>
   );
 });
@@ -53,6 +70,10 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const selected = useTreeStore((state) => state.selected);
   const select = useTreeStore((state) => state.select);
   const toggle = useTreeStore((state) => state.toggle);
+  const renamingRelPath = useTreeStore((state) => state.renamingRelPath);
+  const setRenaming = useTreeStore((state) => state.setRenaming);
+  const { createNote, createFolder, renameNode, revealNode } = useTreeActions(onOpenNote);
+  const [menu, setMenu] = useState<{ node: TreeNode; x: number; y: number; trigger: HTMLElement } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const pendingFocusKey = useRef<string | null>(null);
   const rows = visibleNodes(tree, expanded);
@@ -79,6 +100,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   }, [select, toggle, onOpenNote]);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if ((event.target as HTMLElement).closest("input, [role=menu]")) return;
     const keys: TreeKey[] = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
     if (event.key !== "Enter" && !keys.includes(event.key as TreeKey)) return;
     event.preventDefault();
@@ -104,11 +126,25 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     select(next.node.type === "folder" ? { kind: "folder", relPath: next.node.relPath } : { kind: "note", id: next.node.id });
   }
 
+  function openMenu(node: TreeNode, x: number, y: number, trigger: HTMLElement) {
+    select(node.type === "folder" ? { kind: "folder", relPath: node.relPath } : { kind: "note", id: node.id });
+    setMenu({ node, x, y, trigger });
+  }
+
+  const menuItems: ContextMenuItem[] = menu ? [
+    { id: "newNote", label: t("tree.newNote"), shortcut: formatShortcut("newNote"), onSelect: () => void createNote(menu.node.type === "folder" ? menu.node.relPath : undefined) },
+    ...(menu.node.type === "folder" ? [{ id: "newFolder", label: t("tree.newFolder"), shortcut: formatShortcut("newFolder"), onSelect: () => void createFolder(menu.node.relPath) }] : []),
+    { id: "rename", label: t("tree.rename"), shortcut: formatShortcut("rename"), onSelect: () => setRenaming(menu.node.relPath) },
+    { id: "reveal", label: t("tree.reveal"), onSelect: () => void revealNode(menu.node) },
+    { id: "trash", label: t("tree.trash"), disabled: true, onSelect: () => {} },
+  ] : [];
+
   return (
     <div ref={rootRef} role="tree" aria-label={t("tree.label")} tabIndex={rows.length === 0 ? 0 : -1} onKeyDown={onKeyDown} className="min-h-0 flex-1 overflow-y-auto px-3 py-2 outline-none">
       {tree.length === 0 ? <p className="py-4 text-center text-sm text-app-muted">{t("tree.empty")}</p> : rows.map(({ node, depth }) => (
-        <TreeRow key={node.type === "folder" ? `folder:${node.relPath}` : `note:${node.id}`} node={node} depth={depth} expanded={node.type === "folder" && expanded.has(node.relPath)} selected={isSelected(node, selected)} tabbable={selectedVisible ? isSelected(node, selected) : node === rows[0].node} onSelect={choose} />
+        <TreeRow key={node.type === "folder" ? `folder:${node.relPath}` : `note:${node.id}`} node={node} depth={depth} expanded={node.type === "folder" && expanded.has(node.relPath)} selected={isSelected(node, selected)} tabbable={selectedVisible ? isSelected(node, selected) : node === rows[0].node} onSelect={choose} onMenu={openMenu} renaming={renamingRelPath === node.relPath} onRename={(item, name) => void renameNode(item, name)} onCancelRename={() => setRenaming(null)} />
       ))}
+      {menu && <ContextMenu items={menuItems} x={menu.x} y={menu.y} trigger={menu.trigger} onClose={() => setMenu(null)} />}
     </div>
   );
 }

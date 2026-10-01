@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { nextVisibleNode, visibleNodes } from "@/features/tree/treeNavigation";
+import { nextVisibleNode, resolveCreateTarget, visibleNodes } from "@/features/tree/treeNavigation";
 import type { TreeNode } from "@/lib/types";
 
 const note = (id: string): TreeNode => ({ type: "note", id, title: id, relPath: id, isFavorite: false, tags: [], updatedAt: "" });
@@ -12,6 +12,13 @@ const folder: TreeNode = { type: "folder", name: "A", relPath: "A", children: [c
 const tree = [folder, sibling];
 
 describe("tree navigation", () => {
+  it("resolves creation parents for folders, notes and stale selections", () => {
+    expect(resolveCreateTarget(null, tree)).toBe("");
+    expect(resolveCreateTarget({ kind: "folder", relPath: "A" }, tree)).toBe("A");
+    expect(resolveCreateTarget({ kind: "note", id: "sibling" }, tree)).toBe("");
+    expect(resolveCreateTarget({ kind: "note", id: "deep" }, tree)).toBe("A/Nested");
+    expect(resolveCreateTarget({ kind: "note", id: "missing" }, tree)).toBe("");
+  });
   it("skips closed descendants and clamps vertical movement", () => {
     const expanded = new Set<string>();
     expect(visibleNodes(tree, expanded).map(({ node }) => node)).toEqual([folder, sibling]);

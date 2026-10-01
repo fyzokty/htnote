@@ -9,6 +9,10 @@ interface TreeState {
   loading: boolean;
   selected: TreeSelection | null;
   expanded: Set<string>;
+  renamingRelPath: string | null;
+  setRenaming: (relPath: string | null) => void;
+  revealFolder: (relPath: string) => void;
+  movePathPrefix: (oldPath: string, newPath: string) => void;
   load: () => Promise<void>;
   refresh: () => Promise<void>;
   toggle: (relPath: string) => void;
@@ -64,6 +68,22 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   loading: false,
   selected: null,
   expanded: new Set<string>(),
+  renamingRelPath: null,
+  setRenaming(renamingRelPath) { set({ renamingRelPath }); },
+  revealFolder(relPath) {
+    const parts = relPath.split("/");
+    const expanded = new Set(get().expanded);
+    for (let index = 1; index < parts.length; index++) expanded.add(parts.slice(0, index).join("/"));
+    set({ expanded, selected: { kind: "folder", relPath } });
+    persist(expanded);
+  },
+  movePathPrefix(oldPath, newPath) {
+    const move = (path: string) => path === oldPath ? newPath : path.startsWith(`${oldPath}/`) ? `${newPath}${path.slice(oldPath.length)}` : path;
+    const expanded = new Set([...get().expanded].map(move));
+    const selected = get().selected;
+    set({ expanded, selected: selected?.kind === "folder" ? { kind: "folder", relPath: move(selected.relPath) } : selected });
+    persist(expanded);
+  },
   load() {
     if (inFlight) return inFlight;
     set({ loading: true });
@@ -167,5 +187,5 @@ export function resetTreeStoreForTests() {
   loaded = false;
   inFlight = null;
   pendingRefresh = null;
-  useTreeStore.setState({ tree: [], loading: false, selected: null, expanded: new Set<string>() });
+  useTreeStore.setState({ tree: [], loading: false, selected: null, expanded: new Set<string>(), renamingRelPath: null });
 }

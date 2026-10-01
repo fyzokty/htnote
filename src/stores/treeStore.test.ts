@@ -18,6 +18,12 @@ beforeEach(() => {
 });
 
 describe("treeStore", () => {
+  it("moves expanded paths and folder selection after rename", () => {
+    useTreeStore.setState({ tree, expanded: new Set(["A", "A/B"]), selected: { kind: "folder", relPath: "A/B" } });
+    useTreeStore.getState().movePathPrefix("A", "Renamed");
+    expect([...useTreeStore.getState().expanded]).toEqual(["Renamed", "Renamed/B"]);
+    expect(useTreeStore.getState().selected).toEqual({ kind: "folder", relPath: "Renamed/B" });
+  });
   it("seeds saved expansion when refresh is the first tree request", async () => {
     useSettingsStore.setState({ settings, status: "ready" });
     mockIPC((command) => command === "get_note_tree" ? tree : undefined);
