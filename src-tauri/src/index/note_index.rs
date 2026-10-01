@@ -143,4 +143,29 @@ mod tests {
         assert_eq!(index.rel_path(note.metadata.id), Some("a/b/note"));
         assert!(tree_has_path(&index.tree, "a/b/note"));
     }
+
+    #[test]
+    fn readonly_refresh_after_mutation_tolerates_unrelated_repair_needed_metadata() {
+        let root = tempfile::tempdir().unwrap();
+        let (_, note) = create_note_in(root.path(), "", Some("old")).unwrap();
+        let (_, unrelated) = create_note_in(root.path(), "", Some("other")).unwrap();
+        let metadata_path = root.path().join("other/metadata.json");
+        let mut value: serde_json::Value = serde_json::from_slice(&std::fs::read(&metadata_path).unwrap()).unwrap();
+        value.as_object_mut().unwrap().remove("title");
+        let damaged_bytes = serde_json::to_vec(&value).unwrap();
+        std::fs::write(&metadata_path, &damaged_bytes).unwrap();
+
+        let mut index = NoteIndex::new(root.path().to_path_buf());
+        index.refresh_readonly().unwrap();
+        rename_note_in(root.path(), index.by_id.get(&note.metadata.id).unwrap(), "new").unwrap();
+        index.refresh_readonly().unwrap();
+
+        assert_eq!(index.rel_path(note.metadata.id), Some("new"));
+        assert_eq!(index.resolve(note.metadata.id), Some(root.path().canonicalize().unwrap().join("new")));
+        assert_eq!(index.by_id[&note.metadata.id].metadata.title, "new");
+        assert!(tree_has_path(&index.tree, "new"));
+        assert!(!tree_has_path(&index.tree, "old"));
+        assert_eq!(index.rel_path(unrelated.metadata.id), Some("other"));
+        assert_eq!(std::fs::read(metadata_path).unwrap(), damaged_bytes);
+    }
 }

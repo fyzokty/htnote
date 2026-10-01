@@ -104,12 +104,11 @@ fn scan_dir(root: &Path, dir: &Path, notes: &mut Vec<IndexedNote>, repairs: &mut
             repair = Some(RepairKind::DuplicateId);
         }
         if let Some(kind) = repair {
-            if !repair_metadata {
-                return Err(AppError::Internal(format!("Metadata requires repair: {rel_path}")));
+            if repair_metadata {
+                let backup = backup_metadata(&metadata_path, &original)?;
+                write_metadata_atomic(&metadata_path, &metadata)?;
+                repairs.push(Repair { rel_path: rel_path.clone(), kind, backup_path: backup.file_name().unwrap_or_default().to_string_lossy().into_owned() });
             }
-            let backup = backup_metadata(&metadata_path, &original)?;
-            write_metadata_atomic(&metadata_path, &metadata)?;
-            repairs.push(Repair { rel_path: rel_path.clone(), kind, backup_path: backup.file_name().unwrap_or_default().to_string_lossy().into_owned() });
         }
         tree.push(TreeNode::Note { id: metadata.id, title: metadata.title.clone(), rel_path: rel_path.clone(), is_favorite: metadata.is_favorite, tags: metadata.tags.clone(), updated_at: metadata.updated_at });
         notes.push(IndexedNote { rel_path, metadata });
@@ -240,7 +239,9 @@ mod tests {
         note(root.path(), "A", None);
         let path = root.path().join("A/metadata.json");
         let before = fs::read(&path).unwrap();
-        assert!(scan_readonly(root.path()).is_err());
+        let result = scan_readonly(root.path()).unwrap();
+        assert_eq!(result.notes.len(), 1);
+        assert_eq!(result.notes[0].metadata.title, "A");
         assert_eq!(fs::read(&path).unwrap(), before);
         assert!(!path.with_file_name("metadata.json.bak").exists());
     }
