@@ -78,6 +78,10 @@
   not script'i `window.parent`'ın DOM'una veya `__TAURI__` / `__TAURI_INTERNALS__` nesnelerine erişemez.
 - Tauri capability'leri yalnızca ana pencereye ve uygulamanın kendi origin'ine tanımlanır; `htnote-note` origin'i hiçbir IPC iznine sahip değildir.
 - Ana uygulamanın CSP'si: `frame-src http://htnote-note.localhost htnote-note:` (diğer frame kaynakları kapalı).
+- Üretim CSP'si: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http://htnote-note.localhost htnote-note:; media-src 'self' data: blob: http://htnote-note.localhost htnote-note:; frame-src http://htnote-note.localhost htnote-note:; connect-src ipc: http://ipc.localhost`.
+  Tauri'nin stil nonce/hash eklemesi `unsafe-inline` ihtiyacını geçersiz kılmasın diye yalnızca `style-src` için asset CSP değişikliği kapatılır.
+  Ayrı `devCsp`, Vite'nin `http://localhost:1420` ve `ws://localhost:1420` HMR bağlantısına, geliştirme script'leri için `unsafe-eval` kullanımına izin verir.
+  `freezePrototype` şimdilik `false` tutulur; TipTap/CodeMirror eklendiğinde uyumluluk testiyle yeniden değerlendirilir.
 - Protokol handler kuralları: yalnızca indeksteki bir notun dizini altındaki dosyalar sunulur (canonicalize + prefix
   kontrolü, `..` reddi). Bilinmeyen id için 404. Audio/video seek için **HTTP Range** desteklenir. MIME `mime_guess` ile belirlenir.
 - **Bilinen kabul:** Tüm notlar aynı origin'i paylaşır. Bir notun script'i başka bir notun dosyalarını `fetch` edebilir
