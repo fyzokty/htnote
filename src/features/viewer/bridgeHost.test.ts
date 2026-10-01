@@ -2,7 +2,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createRateLimiter, installBridgeHost, parseBridgeMessage, registerFrame, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
-import { NOTE_ORIGIN } from "@/lib/noteUrl";
+import { initNoteOrigin } from "@/lib/noteUrl";
 import { subscribeShortcut } from "@/lib/shortcuts/manager";
 import type { Settings } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -15,6 +15,7 @@ vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn().mockResolvedValue
 const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const otherId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const missingId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const NOTE_ORIGIN = "http://127.0.0.1:54321";
 const frame = { postMessage: vi.fn() } as unknown as Window;
 const otherFrame = { postMessage: vi.fn() } as unknown as Window;
 
@@ -23,6 +24,7 @@ function message(data: unknown, source: Window = frame, origin = NOTE_ORIGIN): M
 }
 
 beforeEach(() => {
+  initNoteOrigin(NOTE_ORIGIN);
   resetBridgeHostForTests();
   resetTabsStoreForTests();
   resetTreeStoreForTests();

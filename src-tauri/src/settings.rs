@@ -7,6 +7,31 @@ use serde::{Deserialize, Serialize};
 use crate::error::AppError;
 use crate::fs_util::{replace_file, write_file_atomic};
 
+#[cfg(debug_assertions)]
+fn directory_override(name: &str) -> Option<PathBuf> {
+    std::env::var_os(name).filter(|value| !value.is_empty()).map(PathBuf::from)
+}
+
+#[cfg(debug_assertions)]
+pub fn root_override() -> Option<PathBuf> {
+    directory_override("HTNOTE_ROOT_OVERRIDE")
+}
+
+#[cfg(not(debug_assertions))]
+pub fn root_override() -> Option<PathBuf> {
+    None
+}
+
+#[cfg(debug_assertions)]
+pub fn config_dir_override() -> Option<PathBuf> {
+    directory_override("HTNOTE_CONFIG_DIR_OVERRIDE")
+}
+
+#[cfg(not(debug_assertions))]
+pub fn config_dir_override() -> Option<PathBuf> {
+    None
+}
+
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Theme {
@@ -139,6 +164,21 @@ pub fn resolve_root_dir(settings: &Settings, fallback: &Path) -> Result<PathBuf,
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn overrides_are_only_active_in_debug_builds() {
+        let dir = tempdir().unwrap();
+        let name = "HTNOTE_TEST_ONLY_OVERRIDE";
+        std::env::set_var(name, dir.path());
+        #[cfg(debug_assertions)]
+        assert_eq!(directory_override(name), Some(dir.path().to_path_buf()));
+        #[cfg(not(debug_assertions))]
+        {
+            assert!(root_override().is_none());
+            assert!(config_dir_override().is_none());
+        }
+        std::env::remove_var(name);
+    }
 
     #[test]
     fn missing_file_creates_defaults() {

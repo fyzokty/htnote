@@ -32,3 +32,28 @@ jobs:
       - run: npm run verify:analyze
       - run: npm run verify:test
       - run: npm run verify:build
+
+  e2e:
+    needs: verify
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+      - run: npm ci
+      - name: Install tauri-driver
+        run: cargo install tauri-driver --locked
+      - name: Install WebView2-matched msedgedriver
+        shell: pwsh
+        run: |
+          cargo install --git https://github.com/chippers/msedgedriver-tool msedgedriver-tool
+          & "$env:USERPROFILE\.cargo\bin\msedgedriver-tool.exe"
+          $PWD.Path >> $env:GITHUB_PATH
+      - run: npm run test:e2e

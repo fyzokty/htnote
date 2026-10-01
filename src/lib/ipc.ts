@@ -15,6 +15,9 @@ export const ipc = {
   getRootDir(): Promise<string> {
     return invoke<string>("get_root_dir");
   },
+  getNoteOrigin(): Promise<string> {
+    return invoke<string>("get_note_origin");
+  },
   getNoteTree(): Promise<TreeNode[]> {
     return invoke<TreeNode[]>("get_note_tree");
   },

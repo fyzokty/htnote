@@ -1,6 +1,7 @@
 mod commands;
 mod onboarding;
 mod protocol;
+mod note_server;
 pub mod error;
 mod fs_util;
 pub mod index;
@@ -19,17 +20,19 @@ pub fn app_version() -> &'static str {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .register_asynchronous_uri_scheme_protocol("htnote-note", |context, request, responder| {
-            protocol::handle(context.app_handle(), request, responder);
-        })
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let config_dir = app.path().app_config_dir()?;
+            let config_dir = settings::config_dir_override().unwrap_or(app.path().app_config_dir()?);
             let settings = settings::load_settings(&config_dir)?;
             let documents = dirs::document_dir()
                 .or_else(dirs::home_dir)
                 .ok_or_else(|| error::AppError::Internal("No documents or home directory".into()))?;
-            let root_dir = settings::resolve_root_dir(&settings, &documents)?;
+            let root_settings = if let Some(root) = settings::root_override() {
+                settings::Settings { root_dir: Some(root.to_string_lossy().into_owned()), ..settings.clone() }
+            } else {
+                settings.clone()
+            };
+            let root_dir = settings::resolve_root_dir(&root_settings, &documents)?;
             let state = state::AppState::new(config_dir, settings, root_dir.clone());
             if let Err(error) = onboarding::run(&state) {
                 eprintln!("Onboarding failed: {error}");
@@ -37,6 +40,8 @@ pub fn run() {
             if let Err(error) = initial_scan(&state) {
                 eprintln!("Initial note scan failed: {error}");
             }
+            let origin = note_server::start(state.note_index.clone())?;
+            *state.note_origin.write().map_err(|error| error::AppError::Internal(error.to_string()))? = origin;
             app.manage(state);
             let managed = app.state::<state::AppState>();
             if let Err(error) = watcher::start_for_app(&managed, app.handle().clone()) {
@@ -49,6 +54,7 @@ pub fn run() {
             commands::get_settings,
             commands::update_settings,
             commands::get_root_dir,
+            commands::get_note_origin,
             commands::get_note_tree,
             commands::read_note,
             commands::create_note,
@@ -106,7 +112,7 @@ mod tests {
                 (name, value)
             })
             .collect();
-        assert_eq!(directives.get("frame-src"), Some(&"http://htnote-note.localhost htnote-note:"));
+        assert_eq!(directives.get("frame-src"), Some(&"http://127.0.0.1:*"));
         assert_eq!(directives.get("connect-src"), Some(&"ipc: http://ipc.localhost"));
         assert_eq!(directives.get("script-src"), Some(&"'self'"));
         assert!(!csp.contains("'unsafe-eval'"));

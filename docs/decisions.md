@@ -68,25 +68,25 @@
 - Linkler tarayıcıda (uygulama dışında) çalışmaz; bu kabul edilmiştir.
 
 ## D08 — Görüntüleme izolasyonu (güvenlik) ⚠️
-- Notlar **özel URI protokolü** `htnote-note` ile sunulur. Tauri Windows'ta bu protokolü
-  `http://htnote-note.localhost/` altından sunar. URL yapısı: `http://htnote-note.localhost/<note-id>/<dosya-yolu>`.
+- Notlar `127.0.0.1` üzerinde rastgele portta dinleyen HTTP sunucusundan sunulur.
+  URL yapısı: `http://127.0.0.1:<port>/<note-id>/<dosya-yolu>`.
   Göreli `./assets/...`, `./style.css` ve `./script.js` yolları bu sayede doğal olarak çözülür.
 - `srcdoc` **kullanılmaz** (göreli yollar çözülemez). `dangerouslySetInnerHTML` **asla** kullanılmaz.
 - iframe: `sandbox="allow-scripts allow-forms allow-same-origin allow-modals"`. `allow-top-navigation*`, `allow-popups*`
   ve `allow-downloads` **verilmez**.
 - Notlar ana uygulamadan (`tauri.localhost`) **farklı bir origin**'dedir. Bu nedenle `allow-same-origin` sandbox'ı delmez;
   not script'i `window.parent`'ın DOM'una veya `__TAURI__` / `__TAURI_INTERNALS__` nesnelerine erişemez.
-- Tauri capability'leri yalnızca ana pencereye ve uygulamanın kendi origin'ine tanımlanır; `htnote-note` origin'i hiçbir IPC iznine sahip değildir.
-- Ana uygulamanın CSP'si: `frame-src http://htnote-note.localhost htnote-note:` (diğer frame kaynakları kapalı).
-- Üretim CSP'si: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http://htnote-note.localhost htnote-note:; media-src 'self' data: blob: http://htnote-note.localhost htnote-note:; frame-src http://htnote-note.localhost htnote-note:; connect-src ipc: http://ipc.localhost`.
+- Tauri 2.12 kayıtlı özel URI şemalarını `Origin::Local` sayıp alt iframe'e IPC enjekte ettiği için önceki `htnote-note` tasarımı güvenli değildi. HTTP not origin'i `Origin::Remote` sayılır; capability uzak origin tanımlamaz.
+- Ana uygulamanın CSP'si: `frame-src http://127.0.0.1:*` (diğer frame kaynakları kapalı).
+- Üretim CSP'si: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: http://127.0.0.1:*; media-src 'self' data: blob: http://127.0.0.1:*; frame-src http://127.0.0.1:*; connect-src ipc: http://ipc.localhost`.
   Tauri'nin stil nonce/hash eklemesi `unsafe-inline` ihtiyacını geçersiz kılmasın diye yalnızca `style-src` için asset CSP değişikliği kapatılır.
   Ayrı `devCsp`, Vite'nin `http://localhost:1420` ve `ws://localhost:1420` HMR bağlantısına, geliştirme script'leri için `unsafe-eval` kullanımına izin verir.
   `freezePrototype` şimdilik `false` tutulur; TipTap/CodeMirror eklendiğinde uyumluluk testiyle yeniden değerlendirilir.
-- Protokol handler kuralları: yalnızca indeksteki bir notun dizini altındaki dosyalar sunulur (canonicalize + prefix
+- HTTP sunucusu yalnızca loopback'e bağlanır ve `Host` başlığı dinlenen `127.0.0.1:<port>` ile tam eşleşmedikçe 403 döndürür. Yalnızca indeksteki bir notun dizini altındaki dosyalar sunulur (canonicalize + prefix
   kontrolü, `..` reddi). Bilinmeyen id için 404. Audio/video seek için **HTTP Range** desteklenir. MIME `mime_guess` ile belirlenir.
-- **Bilinen kabul:** Tüm notlar aynı origin'i paylaşır. Bir notun script'i başka bir notun dosyalarını `fetch` edebilir
+- **Bilinen kabul:** Loopback portuna diğer yerel süreçler ve tarayıcı sayfaları erişebilir; rastgele port, tam Host denetimi ve tahmin edilemez UUID v4 not kimlikleri kullanılır. Tüm notlar aynı origin'i paylaşır. Bir notun script'i başka bir notun dosyalarını `fetch` edebilir
   ve `localStorage`'ı paylaşır. Bridge, anahtar çakışmasını önlemek için `window.htnote.noteId` değerini sunar.
-- Canlı önizleme (taslak): `http://htnote-note.localhost/<note-id>/__draft/<rev>/index.html`. `__draft/<rev>/` altındaki
+- Canlı önizleme (taslak): `http://127.0.0.1:<port>/<note-id>/__draft/<rev>/index.html`. `__draft/<rev>/` altındaki
   `index.html`, `style.css` ve `script.js` bellekteki taslaktan, diğer her şey (assets) diskten sunulur. `rev` cache kırmak içindir.
 
 ## D09 — Bridge (köprü) script'i ve postMessage protokolü

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NoteViewer } from "@/features/viewer/NoteViewer";
 import { installBridgeHost, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
-import { NOTE_IFRAME_SANDBOX, NOTE_ORIGIN, noteUrl } from "@/lib/noteUrl";
+import { NOTE_IFRAME_SANDBOX, initNoteOrigin, noteUrl } from "@/lib/noteUrl";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
 
@@ -11,8 +11,10 @@ const notes = [
   { type: "note" as const, id: "a", title: "Alpha", relPath: "Alpha", isFavorite: false, tags: [], updatedAt: "2026-01-01T00:00:00Z" },
   { type: "note" as const, id: "b", title: "Beta", relPath: "Beta", isFavorite: false, tags: [], updatedAt: "2026-01-01T00:00:00Z" },
 ];
+const NOTE_ORIGIN = "http://127.0.0.1:54321";
 
 beforeEach(() => {
+  initNoteOrigin(NOTE_ORIGIN);
   resetBridgeHostForTests();
   resetTabsStoreForTests();
   resetTreeStoreForTests();
