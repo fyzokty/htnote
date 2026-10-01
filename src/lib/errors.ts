@@ -2,6 +2,7 @@ export const appErrorCodes = [
   "NOTE_NOT_FOUND",
   "NOT_A_FOLDER",
   "NAME_CONFLICT",
+  "CONFLICT",
   "INVALID_NAME",
   "INVALID_MOVE",
   "PATH_OUTSIDE_ROOT",

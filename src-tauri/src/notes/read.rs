@@ -38,21 +38,26 @@ fn hash_part(hasher: &mut Sha256, bytes: Option<&[u8]>) {
     }
 }
 
+pub(crate) fn content_hash(html: &[u8], css: Option<&[u8]>, js: Option<&[u8]>) -> String {
+    let mut hasher = Sha256::new();
+    hash_part(&mut hasher, Some(html));
+    hash_part(&mut hasher, css);
+    hash_part(&mut hasher, js);
+    format!("{:x}", hasher.finalize())
+}
+
 pub fn read_note_dir(dir: &Path) -> Result<NoteData, AppError> {
     let metadata = read_metadata(&resolve_in_root(dir, "metadata.json")?)?;
     let html_bytes = fs::read(resolve_in_root(dir, "index.html")?)?;
     let css_bytes = read_optional(dir, "style.css")?;
     let js_bytes = read_optional(dir, "script.js")?;
-    let mut hasher = Sha256::new();
-    hash_part(&mut hasher, Some(&html_bytes));
-    hash_part(&mut hasher, css_bytes.as_deref());
-    hash_part(&mut hasher, js_bytes.as_deref());
+    let content_hash = content_hash(&html_bytes, css_bytes.as_deref(), js_bytes.as_deref());
     Ok(NoteData {
         metadata,
         html: String::from_utf8(html_bytes).map_err(|error| AppError::Io(std::io::Error::other(error)))?,
         css: css_bytes.map(|bytes| String::from_utf8(bytes).map_err(|error| AppError::Io(std::io::Error::other(error)))).transpose()?,
         js: js_bytes.map(|bytes| String::from_utf8(bytes).map_err(|error| AppError::Io(std::io::Error::other(error)))).transpose()?,
-        content_hash: format!("{:x}", hasher.finalize()),
+        content_hash,
     })
 }
 

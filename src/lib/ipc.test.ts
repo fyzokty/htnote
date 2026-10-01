@@ -32,6 +32,17 @@ describe("ipc.getNoteTree", () => {
   });
 });
 
+describe("ipc.saveNote", () => {
+  it("sends the note id and content payload", async () => {
+    const result = { metadata: { title: "Not" }, contentHash: "hash" };
+    const handler = vi.fn(() => result);
+    mockIPC(handler);
+    const payload = { html: "<main></main>", css: "", js: "", expectedHash: null };
+    await expect(ipc.saveNote("note-id", payload)).resolves.toEqual(result);
+    expect(handler).toHaveBeenCalledWith("save_note", { id: "note-id", payload });
+  });
+});
+
 describe("ipc creation commands", () => {
   it("createNote sends its parent and optional title", async () => {
     const node = { type: "note", id: "id", title: "Fikir", relPath: "Fikir", isFavorite: false, tags: [], updatedAt: "date" };

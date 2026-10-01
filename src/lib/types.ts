@@ -57,6 +57,18 @@ export interface NoteData {
   contentHash: string;
 }
 
+export interface SaveNotePayload {
+  html: string;
+  css: string;
+  js: string;
+  expectedHash: string | null;
+}
+
+export interface SaveNoteResult {
+  metadata: NoteMetadata;
+  contentHash: string;
+}
+
 export type TreeNode = FolderNode | NoteNode;
 
 export interface FsChangePayload {

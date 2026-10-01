@@ -57,6 +57,7 @@ pub fn run() {
             commands::get_note_origin,
             commands::get_note_tree,
             commands::read_note,
+            commands::save_note,
             commands::create_note,
             commands::create_folder,
             commands::rename_note,

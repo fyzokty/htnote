@@ -46,6 +46,13 @@ describe("toErrorMessageKey", () => {
 });
 
 describe("notifyError", () => {
+  it("CONFLICT mesajını iki dilde çevirir", async () => {
+    expect(toErrorMessageKey({ code: "CONFLICT" })).toBe("errors.CONFLICT");
+    expect(i18n.t("errors.CONFLICT")).toBe("Not diskte değiştirildi. Yeniden yükleyin veya üzerine yazın.");
+    await i18n.changeLanguage("en");
+    expect(i18n.t("errors.CONFLICT")).toBe("The note changed on disk. Reload it or overwrite it.");
+  });
+
   it("hata ayrıntısını loglar ve çevrilebilir toast ekler", () => {
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
     const error = { code: "NAME_CONFLICT", message: "private detail" };

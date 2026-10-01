@@ -5,6 +5,8 @@ use crate::index::scan::{self, TreeNode};
 use crate::notes::create;
 use crate::notes::read::{self, NoteData};
 use crate::notes::rename;
+use crate::notes::save::{self, SaveNoteInput, SaveNoteOutput};
+use crate::index::scan::IndexedNote;
 use crate::settings::{self, Settings, SettingsPatch};
 use crate::state::AppState;
 use tauri::{Manager, State};
@@ -78,6 +80,21 @@ pub async fn read_note(app: tauri::AppHandle, id: uuid::Uuid) -> Result<NoteData
         let state = app.state::<AppState>();
         let dir = resolve_note_dir(&state, id)?;
         read::read_note_dir(&dir)
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn save_note(app: tauri::AppHandle, id: uuid::Uuid, payload: SaveNoteInput) -> Result<SaveNoteOutput, AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
+        let indexed = index.by_id.get(&id).cloned().ok_or_else(|| AppError::NotFound(id.to_string()))?;
+        let dir = index.resolve(id).ok_or_else(|| AppError::NotFound(id.to_string()))?;
+        let result = save::save_note_dir(&dir, payload, chrono::Utc::now())?;
+        index.upsert(IndexedNote { rel_path: indexed.rel_path, metadata: result.metadata.clone() });
+        state.last_saved_hashes.lock().map_err(|error| AppError::Internal(error.to_string()))?
+            .insert(id, result.content_hash.clone());
+        Ok(result)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
 
