@@ -11,6 +11,7 @@ import { installShortcutListener } from "@/lib/shortcuts/manager";
 import { formatShortcut } from "@/lib/shortcuts/registry";
 import { useShortcut } from "@/lib/shortcuts/useShortcut";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useTabsStore } from "@/stores/tabsStore";
 import { useTreeStore } from "@/stores/treeStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -21,8 +22,7 @@ export function AppShell() {
   const settings = useSettingsStore((state) => state.settings);
   const updateSettings = useSettingsStore((state) => state.update);
   const loadTree = useTreeStore((state) => state.load);
-  const selectTree = useTreeStore((state) => state.select);
-  const openNote = useCallback((id: string) => selectTree({ kind: "note", id }), [selectTree]);
+  const openNote = useCallback((id: string) => useTabsStore.getState().openNote(id), []);
   const { createNote, createFolder } = useTreeActions(openNote);
   const setRenaming = useTreeStore((state) => state.setRenaming);
   const sidebarVisible = useUiStore((state) => state.sidebarVisible);
@@ -47,8 +47,15 @@ export function AppShell() {
   useEffect(() => installShortcutListener(), []);
   useEffect(() => startFsChangeSync(), []);
   useEffect(() => {
-    void loadTree().catch(() => {});
+    void loadTree().then(() => {
+      useTabsStore.getState().restore(useTreeStore.getState().flatNotes().map((note) => note.id));
+    }).catch(() => {});
   }, [loadTree]);
+  useEffect(() => useTreeStore.subscribe((state, previous) => {
+    if (state.tree !== previous.tree && useTabsStore.getState().restored) {
+      useTabsStore.getState().replaceMissing(state.flatNotes().map((note) => note.id));
+    }
+  }), []);
 
   const savedVisible = settings?.sidebarVisible;
   useEffect(() => {

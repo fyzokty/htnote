@@ -1,0 +1,149 @@
+import { mockIPC } from "@tauri-apps/api/mocks";
+import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
+
+import type { Settings } from "@/lib/types";
+import { useSettingsStore } from "@/stores/settingsStore";
+import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
+import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
+
+const settings: Settings = {
+  rootDir: null, theme: "system", language: null, sidebarWidth: 260,
+  sidebarVisible: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false,
+};
+const ids = () => useTabsStore.getState().tabs.map((tab) => tab.noteId);
+
+beforeEach(() => {
+  vi.useFakeTimers();
+  resetTabsStoreForTests();
+  resetTreeStoreForTests();
+  useSettingsStore.setState({ settings, status: "ready" });
+  useTabsStore.getState().restore(["a", "b", "c", "d"]);
+});
+
+afterEach(() => {
+  resetTabsStoreForTests();
+  resetTreeStoreForTests();
+  vi.useRealTimers();
+});
+
+describe("tabsStore", () => {
+  it("opens once, reveals notes, and respects inactive opens", () => {
+    useTreeStore.setState({ tree: [
+      { type: "note", id: "a", title: "A", relPath: "A", isFavorite: false, tags: [], updatedAt: "" },
+      { type: "note", id: "b", title: "B", relPath: "B", isFavorite: false, tags: [], updatedAt: "" },
+    ] });
+    const store = useTabsStore.getState();
+    store.openNote("a");
+    expect(useTreeStore.getState().selected).toEqual({ kind: "note", id: "a" });
+    store.openNote("b", { activate: false });
+    expect(ids()).toEqual(["a", "b"]);
+    expect(useTabsStore.getState().activeId).toBe("a");
+    store.openNote("b");
+    store.openNote("b");
+    expect(ids()).toEqual(["a", "b"]);
+    expect(useTabsStore.getState().activeId).toBe("b");
+    expect(useTreeStore.getState().selected).toEqual({ kind: "note", id: "b" });
+  });
+
+  it("closes active tabs to the right, then left, then none", async () => {
+    const store = useTabsStore.getState();
+    for (const id of ["a", "b", "c"]) store.openNote(id);
+    store.activate("b");
+    expect(await store.close("b")).toBe(true);
+    expect(useTabsStore.getState().activeId).toBe("c");
+    expect(await store.close("c")).toBe(true);
+    expect(useTabsStore.getState().activeId).toBe("a");
+    expect(await store.close("a")).toBe(true);
+    expect(useTabsStore.getState().activeId).toBeNull();
+    expect(await store.close("missing")).toBe(false);
+  });
+
+  it("keeps active selection when closing an inactive tab", async () => {
+    const store = useTabsStore.getState();
+    store.openNote("a"); store.openNote("b");
+    await store.close("a");
+    expect(useTabsStore.getState().activeId).toBe("b");
+    store.activate("missing");
+    expect(useTabsStore.getState().activeId).toBe("b");
+  });
+
+  it("navigates cyclically and moves within clamped bounds", () => {
+    const store = useTabsStore.getState();
+    for (const id of ["a", "b", "c"]) store.openNote(id);
+    store.next(); expect(useTabsStore.getState().activeId).toBe("a");
+    store.prev(); expect(useTabsStore.getState().activeId).toBe("c");
+    store.move(0, 99); expect(ids()).toEqual(["b", "c", "a"]);
+    store.move(2, -5); expect(ids()).toEqual(["a", "b", "c"]);
+    store.move(-1, 1); store.move(1, 1); store.move(1, Number.NaN);
+    expect(ids()).toEqual(["a", "b", "c"]);
+    expect(useTabsStore.getState().activeId).toBe("c");
+  });
+
+  it("closes others while keeping guard vetoes", async () => {
+    const store = useTabsStore.getState();
+    for (const id of ["a", "b", "c"]) store.openNote(id);
+    const unregister = store.setBeforeCloseGuard((id) => id !== "a");
+    await store.closeOthers("b");
+    expect(ids()).toEqual(["a", "b"]);
+    expect(useTabsStore.getState().activeId).toBe("b");
+    expect(await store.close("a")).toBe(false);
+    unregister();
+    expect(await store.close("a")).toBe(true);
+  });
+
+  it("waits for an asynchronous close guard", async () => {
+    const store = useTabsStore.getState();
+    store.openNote("a");
+    store.setBeforeCloseGuard(async () => false);
+    expect(await store.close("a")).toBe(false);
+    expect(ids()).toEqual(["a"]);
+  });
+
+  it("removes missing tabs using the close selection rule", () => {
+    const store = useTabsStore.getState();
+    for (const id of ["a", "b", "c", "d"]) store.openNote(id);
+    store.activate("b");
+    store.replaceMissing(["a", "c"]);
+    expect(ids()).toEqual(["a", "c"]);
+    expect(useTabsStore.getState().activeId).toBe("c");
+    store.replaceMissing([]);
+    expect(useTabsStore.getState().activeId).toBeNull();
+  });
+
+  it("debounces persistence of the final state", async () => {
+    const updates: unknown[] = [];
+    mockIPC((command, args) => {
+      if (command === "update_settings") {
+        updates.push(args);
+        return { ...settings, openTabs: ["a", "b"], activeTab: "a" };
+      }
+      return undefined;
+    });
+    const store = useTabsStore.getState();
+    store.openNote("a"); store.openNote("b"); store.activate("a");
+    await vi.advanceTimersByTimeAsync(499);
+    expect(updates).toHaveLength(0);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(updates).toEqual([{ patch: { openTabs: ["a", "b"], activeTab: "a" } }]);
+  });
+
+  it("restores ordered known tabs and repairs the active id", () => {
+    resetTabsStoreForTests();
+    useSettingsStore.setState({ settings: { ...settings, openTabs: ["b", "gone", "a", "b"], activeTab: "gone" } });
+    const store = useTabsStore.getState();
+    store.restore(["a", "b"]);
+    expect(ids()).toEqual(["b", "a"]);
+    expect(useTabsStore.getState().activeId).toBe("b");
+    store.restore([]);
+    expect(ids()).toEqual(["b", "a"]);
+  });
+
+  it("does not overwrite saved tabs before restoration", async () => {
+    resetTabsStoreForTests();
+    const update = vi.spyOn(useSettingsStore.getState(), "update");
+    useTabsStore.getState().openNote("a");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(update).not.toHaveBeenCalled();
+    update.mockRestore();
+  });
+});

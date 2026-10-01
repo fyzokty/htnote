@@ -31,7 +31,9 @@ pub struct Settings {
     pub language: Option<Language>,
     pub sidebar_width: u32,
     pub sidebar_visible: bool,
+    #[serde(default)]
     pub open_tabs: Vec<String>,
+    #[serde(default)]
     pub active_tab: Option<String>,
     #[serde(default)]
     pub expanded_folders: Vec<String>,
@@ -152,6 +154,17 @@ mod tests {
         value.as_object_mut().unwrap().remove("expandedFolders");
         let settings: Settings = serde_json::from_value(value).unwrap();
         assert!(settings.expanded_folders.is_empty());
+    }
+
+    #[test]
+    fn missing_tab_fields_use_defaults() {
+        let mut value = serde_json::to_value(Settings::default()).unwrap();
+        let object = value.as_object_mut().unwrap();
+        object.remove("openTabs");
+        object.remove("activeTab");
+        let settings: Settings = serde_json::from_value(value).unwrap();
+        assert!(settings.open_tabs.is_empty());
+        assert_eq!(settings.active_tab, None);
     }
 
     #[test]
