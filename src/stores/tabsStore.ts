@@ -62,12 +62,12 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     const tabs = alreadyOpen
       ? current.tabs
       : [...current.tabs, { noteId: id }];
-    const activeId = alreadyOpen || activate ? id : current.activeId;
+    const activeId = activate ? id : current.activeId;
     if (tabs !== current.tabs || activeId !== current.activeId) {
       set({ tabs, activeId });
       persist(tabs, activeId);
     }
-    if (activeId === id) useTreeStore.getState().revealNote(id);
+    if (activate) useTreeStore.getState().revealNote(id);
   },
   async close(id) {
     if (!get().tabs.some((tab) => tab.noteId === id)) return false;

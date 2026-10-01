@@ -40,12 +40,19 @@ describe("tabsStore", () => {
     expect(useTabsStore.getState().activeId).toBe("a");
     expect(useTreeStore.getState().selected).toEqual({ kind: "note", id: "a" });
     store.openNote("b", { activate: false });
-    expect(useTabsStore.getState().activeId).toBe("b");
-    expect(useTreeStore.getState().selected).toEqual({ kind: "note", id: "b" });
+    expect(useTabsStore.getState().activeId).toBe("a");
+    expect(useTreeStore.getState().selected).toEqual({ kind: "note", id: "a" });
     store.openNote("b");
     expect(ids()).toEqual(["a", "b"]);
     expect(useTabsStore.getState().activeId).toBe("b");
     expect(useTreeStore.getState().selected).toEqual({ kind: "note", id: "b" });
+  });
+
+  it("leaves active and tree selection empty for a background first tab", () => {
+    useTabsStore.getState().openNote("a", { activate: false });
+    expect(ids()).toEqual(["a"]);
+    expect(useTabsStore.getState().activeId).toBeNull();
+    expect(useTreeStore.getState().selected).toBeNull();
   });
 
   it("closes active tabs to the right, then left, then none", async () => {
