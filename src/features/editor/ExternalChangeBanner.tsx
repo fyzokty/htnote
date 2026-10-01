@@ -60,9 +60,9 @@ export function ExternalChangeBanner({ noteId, doc }: { noteId: string; doc: Doc
       const result = await ipc.saveNote(created.id, {
         html: draft.html, css: draft.css ?? "", js: draft.js ?? "", expectedHash: blank.contentHash,
       });
+      if (!useTabsStore.getState().retargetTab(noteId, created.id, { ...draft, contentHash: result.contentHash })) return;
       await ipc.clearPreviewDraft(noteId);
       await deleteRecoveryDraft(noteId);
-      useTabsStore.getState().retargetTab(noteId, created.id, { ...draft, contentHash: result.contentHash });
       await useTreeStore.getState().refresh();
     } catch (error) { notifySaveError(error); }
     finally { setBusy(false); }

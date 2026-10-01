@@ -71,4 +71,30 @@ describe("ExternalChangeBanner", () => {
     expect(commands).toContain("delete_draft");
     expect(ipc.clearPreviewDraft).toHaveBeenCalledWith("a");
   });
+
+  it("closes the removed tab and activates an already-open destination", async () => {
+    const commands: string[] = [];
+    mockIPC((command) => {
+      commands.push(command);
+      if (command === "create_note") return created;
+      if (command === "read_note") return { ...old, contentHash: "blank-hash" };
+      if (command === "save_note") return { metadata: old.metadata, contentHash: "new-hash" };
+      if (command === "get_note_tree") return [created];
+    });
+    useTabsStore.getState().openNote("b");
+    useTabsStore.getState().enterEdit("b", { ...old, html: "stale" }, "code");
+    useTabsStore.getState().activate("a");
+    useTabsStore.getState().markRemoved("a", "A", "");
+
+    render(<ExternalChangeBanner noteId="a" doc={doc()!} />);
+    fireEvent.click(screen.getByRole("button", { name: "Farklı kaydet (yeni not olarak)" }));
+
+    await waitFor(() => expect(useTabsStore.getState().tabs.map((tab) => tab.noteId)).toEqual(["b"]));
+    expect(useTabsStore.getState().activeId).toBe("b");
+    expect(useTabsStore.getState().tabs[0].doc).toMatchObject({
+      base: { html: "mine", contentHash: "new-hash" }, draft: { html: "mine" }, dirty: false,
+    });
+    await waitFor(() => expect(commands).toContain("delete_draft"));
+    expect(ipc.clearPreviewDraft).toHaveBeenCalledWith("a");
+  });
 });

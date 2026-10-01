@@ -43,7 +43,7 @@ interface TabsState {
   loadFromDisk: (id: string, base: DocBase) => void;
   markRemoved: (id: string, title: string | null, parent: string) => void;
   handleRemoved: (id: string, title: string | null, parent: string) => "closed" | "marked" | "missing" | "saving";
-  retargetTab: (oldId: string, newId: string, newBase: DocBase) => void;
+  retargetTab: (oldId: string, newId: string, newBase: DocBase) => boolean;
   isDirty: (id: string) => boolean;
   anyDirty: () => boolean;
   setBeforeCloseGuard: (guard: BeforeCloseGuard) => () => void;
@@ -255,12 +255,18 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   },
   retargetTab(oldId, newId, newBase) {
     const current = get();
-    if (current.tabs.some((tab) => tab.noteId === newId)) return;
-    const tabs = current.tabs.map((tab) => tab.noteId === oldId
-      ? { noteId: newId, doc: loadFromDisk(tab.doc, newBase) } : tab);
-    const activeId = current.activeId === oldId ? newId : current.activeId;
+    if (!current.tabs.some((tab) => tab.noteId === oldId)) return false;
+    const destination = current.tabs.find((tab) => tab.noteId === newId);
+    const tabs = destination
+      ? current.tabs.filter((tab) => tab.noteId !== oldId).map((tab) => tab.noteId === newId
+        ? { ...tab, doc: tab.doc.dirty ? reloadBase(tab.doc, newBase) : loadFromDisk(tab.doc, newBase) } : tab)
+      : current.tabs.map((tab) => tab.noteId === oldId
+        ? { noteId: newId, doc: loadFromDisk(tab.doc, newBase) } : tab);
+    const activeId = newId;
     set({ tabs, activeId });
     persist(tabs, activeId);
+    useTreeStore.getState().revealNote(newId);
+    return true;
   },
   isDirty(id) {
     return get().tabs.find((tab) => tab.noteId === id)?.doc.dirty ?? false;
