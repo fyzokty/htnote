@@ -36,12 +36,9 @@
   }));
   record("invoke", invokeResults.every(Boolean));
 
-  const hostUrl = (() => {
-    try { return window.top.location.href; } catch { return null; }
-  })();
   try {
     window.top.location = "https://example.com";
-    record("topNavigation", hostUrl === null || window.top.location.href === hostUrl);
+    record("topNavigation", false);
   } catch {
     record("topNavigation", true);
   }

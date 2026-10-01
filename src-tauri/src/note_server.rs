@@ -87,6 +87,9 @@ mod tests {
         let (status, body) = request(&origin, host, "GET", &format!("/{id}/"), None);
         assert_eq!(status, 200);
         assert!(body.contains("/__htnote/bridge.js"));
+        let (head_status, head_response) = request(&origin, host, "HEAD", &format!("/{id}/"), None);
+        assert_eq!(head_status, 200);
+        assert_eq!(head_response.split_once("\r\n\r\n").unwrap().1, "");
         assert_eq!(request(&origin, host, "GET", &format!("/{id}/audio.bin"), Some("bytes=1-2")).0, 206);
         assert_eq!(request(&origin, host, "GET", &format!("/{id}/%2e%2e/x"), None).0, 403);
         assert_eq!(request(&origin, "evil.localhost", "GET", &format!("/{id}/"), None).0, 403);
