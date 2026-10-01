@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Download, Pencil, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { nextMounted } from "@/features/viewer/lru";
+import { registerFrame } from "@/features/viewer/bridgeHost";
 import { NOTE_IFRAME_SANDBOX, noteUrl } from "@/lib/noteUrl";
 import type { NoteNode, TreeNode } from "@/lib/types";
 import { useTabsStore } from "@/stores/tabsStore";
@@ -33,10 +34,16 @@ function relativeSaved(value: string, language: string, now: number): string {
 function NoteFrame({ id, active, title }: { id: string; active: boolean; title: string }) {
   const { t } = useTranslation();
   const [loaded, setLoaded] = useState(false);
+  const frameRef = useRef<HTMLIFrameElement>(null);
+  useEffect(() => {
+    const frame = frameRef.current?.contentWindow;
+    return frame ? registerFrame(id, frame) : undefined;
+  }, [id]);
   return (
     <div className="relative h-full w-full" hidden={!active}>
       {!loaded && <div role="progressbar" aria-label={t("viewer.loading")} className="absolute inset-x-0 top-0 z-10 h-0.5 animate-pulse bg-app-accent" />}
       <iframe
+        ref={frameRef}
         title={title}
         src={noteUrl(id)}
         sandbox={NOTE_IFRAME_SANDBOX}

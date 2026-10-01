@@ -1,8 +1,9 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NoteViewer } from "@/features/viewer/NoteViewer";
-import { NOTE_IFRAME_SANDBOX, noteUrl } from "@/lib/noteUrl";
+import { installBridgeHost, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
+import { NOTE_IFRAME_SANDBOX, NOTE_ORIGIN, noteUrl } from "@/lib/noteUrl";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
 
@@ -12,6 +13,7 @@ const notes = [
 ];
 
 beforeEach(() => {
+  resetBridgeHostForTests();
   resetTabsStoreForTests();
   resetTreeStoreForTests();
   useTreeStore.setState({ tree: notes });
@@ -44,5 +46,23 @@ describe("NoteViewer", () => {
     render(<NoteViewer />);
     expect(screen.getByText("Not bulunamadı")).toBeInTheDocument();
     expect(screen.queryByTitle("Alpha")).not.toBeInTheDocument();
+  });
+
+  it("registers mounted iframe windows and removes them on unmount", async () => {
+    const dispose = installBridgeHost();
+    const viewer = render(<NoteViewer />);
+    const frame = await screen.findByTitle("Alpha") as HTMLIFrameElement;
+    const post = vi.spyOn(frame.contentWindow!, "postMessage");
+    try {
+      window.dispatchEvent(new MessageEvent("message", { source: frame.contentWindow, origin: NOTE_ORIGIN, data: { type: "HTNOTE_READY" } }));
+      expect(post).toHaveBeenCalledWith(expect.objectContaining({ type: "HTNOTE_THEME" }), NOTE_ORIGIN);
+      viewer.unmount();
+      post.mockClear();
+      window.dispatchEvent(new MessageEvent("message", { source: frame.contentWindow, origin: NOTE_ORIGIN, data: { type: "HTNOTE_READY" } }));
+      expect(post).not.toHaveBeenCalled();
+    } finally {
+      dispose();
+      post.mockRestore();
+    }
   });
 });
