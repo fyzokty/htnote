@@ -36,7 +36,7 @@ describe("App", () => {
     });
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: "İngilizce" }));
-    expect(await screen.findByText("No notes or folders yet.")).toBeInTheDocument();
+    expect(await screen.findByText("No notes yet — start with + Note")).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Language" })).toBeInTheDocument();
   });
 });

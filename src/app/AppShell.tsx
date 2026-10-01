@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { FilePlus2, FolderPlus, Menu, NotebookPen, Plus, Search, Settings2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { SidebarTree } from "@/features/tree/SidebarTree";
 import { resolveLanguage } from "@/i18n/language";
 import { installShortcutListener } from "@/lib/shortcuts/manager";
 import { formatShortcut } from "@/lib/shortcuts/registry";
 import { useShortcut } from "@/lib/shortcuts/useShortcut";
 import { useSettingsStore } from "@/stores/settingsStore";
+import { useTreeStore } from "@/stores/treeStore";
 import { useUiStore } from "@/stores/uiStore";
 
 const clampWidth = (width: number) => Math.min(480, Math.max(200, width));
@@ -16,6 +18,9 @@ export function AppShell() {
   const { t } = useTranslation();
   const settings = useSettingsStore((state) => state.settings);
   const updateSettings = useSettingsStore((state) => state.update);
+  const loadTree = useTreeStore((state) => state.load);
+  const selectTree = useTreeStore((state) => state.select);
+  const openNote = useCallback((id: string) => selectTree({ kind: "note", id }), [selectTree]);
   const sidebarVisible = useUiStore((state) => state.sidebarVisible);
   const setSidebarVisible = useUiStore((state) => state.setSidebarVisible);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
@@ -27,6 +32,9 @@ export function AppShell() {
 
   useShortcut("toggleSidebar", toggleSidebar);
   useEffect(() => installShortcutListener(), []);
+  useEffect(() => {
+    void loadTree().catch(() => {});
+  }, [loadTree]);
 
   const savedVisible = settings?.sidebarVisible;
   useEffect(() => {
@@ -99,9 +107,7 @@ export function AppShell() {
             </div>
             <input type="search" aria-label={t("sidebar.quickFilter")} placeholder={t("sidebar.quickFilterPlaceholder")} className="w-full rounded-md border border-app-border bg-app-bg px-3 py-2 text-sm outline-none focus:border-app-accent" />
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 py-6 text-center text-sm text-app-muted">
-            {t("sidebar.empty")}
-          </div>
+          <SidebarTree onOpenNote={openNote} />
           <div className="shrink-0 border-t border-app-border p-2">
             <button type="button" disabled className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm disabled:cursor-default">
               <Trash2 className="size-4" aria-hidden /> {t("sidebar.trash")}
