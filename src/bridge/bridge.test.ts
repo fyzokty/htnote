@@ -146,10 +146,10 @@ describe("note bridge", () => {
     });
     hostMessage({ type: "HTNOTE_SCROLL_RESTORE", scrollY: 42 }, null);
     expect(scrollTo).not.toHaveBeenCalled();
-    hostMessage({ type: "HTNOTE_SCROLL_RESTORE", scrollY: 42 });
+    hostMessage({ type: "HTNOTE_SCROLL_RESTORE", scrollY: 42, token: "document-token" });
     expect(scrollTo).toHaveBeenCalledWith(0, 42);
     window.dispatchEvent(new Event("scroll"));
-    expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_SCROLL", scrollY: window.scrollY, path: location.pathname }, "*");
+    expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_SCROLL", scrollY: window.scrollY, path: location.pathname, token: "document-token" }, "*");
     frame.mockRestore();
     scrollTo.mockRestore();
   });

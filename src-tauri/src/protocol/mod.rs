@@ -55,6 +55,12 @@ fn parse_note_path(path: &str) -> Result<NoteRequest, StatusCode> {
     // Yalnızca bir kez decode edilir; ikinci kez çözülecek yüzde dizileri dosya adıdır.
     let decoded = percent_decode_str(rel).decode_utf8().map_err(|_| StatusCode::FORBIDDEN)?;
     let rel = decoded.as_ref();
+    validate_relative_path(rel)?;
+    Ok(NoteRequest { id, relative: PathBuf::from(rel) })
+}
+
+fn validate_relative_path(rel: &str) -> Result<(), StatusCode> {
+    if rel.is_empty() { return Err(StatusCode::NOT_FOUND); }
     let nested_trailing_slash = rel.ends_with('/');
     let last_segment = rel.split('/').count() - 1;
     if rel.starts_with('/')
@@ -75,7 +81,7 @@ fn parse_note_path(path: &str) -> Result<NoteRequest, StatusCode> {
     if nested_trailing_slash {
         return Err(StatusCode::NOT_FOUND);
     }
-    Ok(NoteRequest { id, relative: PathBuf::from(rel) })
+    Ok(())
 }
 
 
@@ -186,6 +192,12 @@ fn serve(method: &str, note_dir: &Path, relative: &Path, range: Option<&str>) ->
         response.header("Allow", "GET, HEAD");
         return response;
     }
+    // Normal notlar ve taslak asset'leri aynı kök-göreli ve canonicalize denetiminden geçer.
+    match relative.to_str().map(validate_relative_path) {
+        Some(Ok(())) => {},
+        Some(Err(status)) => return Served::new(status),
+        None => return Served::new(StatusCode::FORBIDDEN),
+    }
     let file_path = match resolve_file(note_dir, relative) {
         Ok(path) => path,
         Err(status) => return Served::new(status),
@@ -285,6 +297,7 @@ fn serve_draft(method: &str, dir: &Path, relative: &Path, range: Option<&str>, d
         return Served::new(StatusCode::NOT_FOUND);
     }
     let file = parts[2..].iter().collect::<PathBuf>();
+    if file.as_os_str().is_empty() { return Served::new(StatusCode::NOT_FOUND); }
     let (body, mime) = match parts.as_slice() {
         [_, _, name] if *name == "index.html" => (draft_html(draft), "text/html"),
         [_, _, name] if *name == "style.css" => (draft.css.as_bytes().to_vec(), "text/css"),
@@ -383,6 +396,7 @@ mod tests {
         let metadata = NoteMetadata::new("Note");
         write_metadata_atomic(&dir.join("metadata.json"), &metadata).unwrap();
         std::fs::write(dir.join("asset.txt"), "disk asset").unwrap();
+        std::fs::write(root.path().join("outside.txt"), "private").unwrap();
         let mut index = NoteIndex::new(root.path().to_path_buf());
         index.refresh_readonly().unwrap();
         let index = Arc::new(RwLock::new(index));
@@ -401,12 +415,18 @@ mod tests {
         assert_eq!(handle("GET", &format!("/{}/__draft/1/style.css", metadata.id), None, &index, &drafts).body, b"body { color: red }");
         assert_eq!(handle("GET", &format!("/{}/__draft/1/script.js", metadata.id), None, &index, &drafts).body, b"window.ok = true");
         assert_eq!(handle("GET", &format!("/{}/__draft/1/asset.txt", metadata.id), None, &index, &drafts).body, b"disk asset");
+        for path in [format!("/{}/__draft/1", metadata.id), format!("/{}/__draft/1/", metadata.id)] {
+            assert_eq!(handle("GET", &path, None, &index, &drafts).status, StatusCode::NOT_FOUND);
+        }
         for rev in ["invalid", "-1", "18446744073709551616"] {
             assert_eq!(handle("GET", &format!("/{}/__draft/{rev}/index.html", metadata.id), None, &index, &drafts).status, StatusCode::NOT_FOUND);
         }
         for path in ["../asset.txt", "%2e%2e/asset.txt", "%2fasset.txt", "/asset.txt", "%5casset.txt", "C:/asset.txt", "assets//asset.txt", "assets/.%2e/asset.txt", "index.html/../asset.txt"] {
             assert_eq!(handle("GET", &format!("/{}/__draft/1/{path}", metadata.id), None, &index, &drafts).status, StatusCode::FORBIDDEN);
         }
+        assert_eq!(handle("GET", &format!("/{}/__draft/1/../outside.txt", metadata.id), None, &index, &drafts).status, StatusCode::FORBIDDEN);
+        assert_eq!(serve("GET", &dir, Path::new("../outside.txt"), None).status, StatusCode::FORBIDDEN);
+        assert_eq!(serve("GET", &dir, root.path().join("outside.txt").as_path(), None).status, StatusCode::FORBIDDEN);
         assert_eq!(handle("GET", &format!("/{}/__draft/1/%2findex.html", metadata.id), None, &index, &drafts).status, StatusCode::FORBIDDEN);
         drafts.lock().unwrap().remove(&metadata.id);
         assert_eq!(handle("GET", &path, None, &index, &drafts).status, StatusCode::NOT_FOUND);
@@ -496,6 +516,8 @@ mod tests {
         std::fs::write(outside.path().join("secret"), "hidden").unwrap();
         std::os::unix::fs::symlink(outside.path().join("secret"), dir.path().join("link")).unwrap();
         assert_eq!(serve("GET", dir.path(), Path::new("link"), None).status, StatusCode::FORBIDDEN);
+        let draft = PreviewDraft { rev: 1, html: String::new(), css: String::new(), js: String::new() };
+        assert_eq!(serve_draft("GET", dir.path(), Path::new("__draft/1/link"), None, &draft).status, StatusCode::FORBIDDEN);
     }
 
     #[cfg(windows)]
@@ -506,6 +528,8 @@ mod tests {
         std::fs::write(outside.path().join("secret"), "hidden").unwrap();
         if std::os::windows::fs::symlink_file(outside.path().join("secret"), dir.path().join("link")).is_ok() {
             assert_eq!(serve("GET", dir.path(), Path::new("link"), None).status, StatusCode::FORBIDDEN);
+            let draft = PreviewDraft { rev: 1, html: String::new(), css: String::new(), js: String::new() };
+            assert_eq!(serve_draft("GET", dir.path(), Path::new("__draft/1/link"), None, &draft).status, StatusCode::FORBIDDEN);
         }
     }
 }

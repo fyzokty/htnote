@@ -15,6 +15,7 @@ export function LivePreview({ noteId, html, css, js }: LivePreviewProps) {
   const [src, setSrc] = useState<string>();
   const frameRef = useRef<HTMLIFrameElement>(null);
   const scrollY = useRef(0);
+  const scrollToken = useRef<string | undefined>(undefined);
   const mounted = useRef(false);
   const draftNotes = useRef(new Set<string>());
   const activeNoteId = useRef(noteId);
@@ -41,6 +42,7 @@ export function LivePreview({ noteId, html, css, js }: LivePreviewProps) {
       void ipc.clearPreviewDraft(activeNoteId.current).catch(() => {});
       activeNoteId.current = noteId;
       scrollY.current = 0;
+      scrollToken.current = undefined;
       setSrc(undefined);
     }
     draftNotes.current.add(noteId);
@@ -60,20 +62,32 @@ export function LivePreview({ noteId, html, css, js }: LivePreviewProps) {
   }, [noteId, html, css, js]);
 
   useEffect(() => {
+    scrollToken.current = undefined;
+  }, [frameSrc]);
+
+  useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       const frame = frameRef.current?.contentWindow;
       if (!frame) return;
       const message = parseBridgeMessage(event, frame, getNoteOrigin());
       // Aynı iframe yeni revizyonda yeniden kullanılır; eski belgeden kuyrukta kalan olaylar yok sayılır.
-      if (!message || !frameSrc || event.data?.path !== new URL(frameSrc).pathname) return;
-      if (message?.type === "HTNOTE_SCROLL") scrollY.current = message.scrollY;
-      if (message?.type === "HTNOTE_READY" && event.data?.noteId === noteId) {
-        frame.postMessage({ type: "HTNOTE_SCROLL_RESTORE", scrollY: scrollY.current }, getNoteOrigin());
-      }
+      if (!message || message.type !== "HTNOTE_SCROLL" || !frameSrc
+        || event.data?.path !== new URL(frameSrc).pathname
+        || event.data?.token !== scrollToken.current || !scrollToken.current) return;
+      scrollY.current = message.scrollY;
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [noteId, frameSrc]);
 
-  return <iframe key={noteId} ref={frameRef} title="Live preview" src={frameSrc ?? "about:blank"} sandbox={NOTE_IFRAME_SANDBOX} referrerPolicy="no-referrer" className="h-full w-full border-0" />;
+  const onLoad = () => {
+    const frame = frameRef.current;
+    if (!frame || !frameSrc || frame.src !== frameSrc) return;
+    // Yeni belge yüklendikten sonra üretilen işaret eski belgenin kuyruktaki mesajlarını dışlar.
+    const token = Array.from(crypto.getRandomValues(new Uint32Array(4)), (part) => part.toString(16).padStart(8, "0")).join("");
+    scrollToken.current = token;
+    frame.contentWindow?.postMessage({ type: "HTNOTE_SCROLL_RESTORE", scrollY: scrollY.current, token }, getNoteOrigin());
+  };
+
+  return <iframe key={noteId} ref={frameRef} title="Live preview" src={frameSrc ?? "about:blank"} onLoad={onLoad} sandbox={NOTE_IFRAME_SANDBOX} referrerPolicy="no-referrer" className="h-full w-full border-0" />;
 }
