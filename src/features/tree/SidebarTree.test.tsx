@@ -3,6 +3,7 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SidebarTree } from "@/features/tree/SidebarTree";
+import { handleQuickFilterKeyDown } from "@/features/tree/filterTree";
 import { preferTreeRow } from "@/features/tree/preferTreeRow";
 import { useTreeActions } from "@/features/tree/useTreeActions";
 import type { TreeNode } from "@/lib/types";
@@ -237,5 +238,42 @@ describe("SidebarTree keyboard focus", () => {
     });
     expect(screen.getByRole("treeitem", { name: "Klasör: A" })).toHaveAttribute("aria-selected", "true");
     expect(document.activeElement).toBe(outside);
+  });
+});
+
+describe("SidebarTree quick filter", () => {
+  it("clears with Escape and focuses the first result with ArrowDown", () => {
+    function FilterHarness() {
+      const query = useTreeStore((state) => state.filterQuery);
+      const setQuery = useTreeStore((state) => state.setFilterQuery);
+      return <aside><input aria-label="Quick filter" value={query} onChange={(event) => setQuery(event.target.value)} onKeyDown={(event) => handleQuickFilterKeyDown(event, () => setQuery(""))} /><SidebarTree onOpenNote={vi.fn()} /></aside>;
+    }
+    render(<FilterHarness />);
+    const input = screen.getByRole("textbox", { name: "Quick filter" });
+    fireEvent.change(input, { target: { value: "note" } });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(screen.getByRole("treeitem", { name: "Klasör: A" })).toHaveFocus();
+    fireEvent.keyDown(input, { key: "Escape" });
+    expect(input).toHaveValue("");
+  });
+
+  it("hides other branches, highlights matches, and restores expansion", () => {
+    useTreeStore.setState({ tree: [...tree, { type: "folder", name: "B", relPath: "B", children: [] }], expanded: new Set(["B"]) });
+    render(<SidebarTree onOpenNote={vi.fn()} />);
+    act(() => useTreeStore.getState().setFilterQuery("note"));
+    expect(screen.queryByRole("treeitem", { name: "Klasör: B" })).not.toBeInTheDocument();
+    expect(screen.getByRole("treeitem", { name: "Not: Note" }).querySelector("mark")).toHaveTextContent("Note");
+    expect(screen.getByRole("treeitem", { name: "Klasör: A" })).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(screen.getByRole("treeitem", { name: "Klasör: A" }));
+    expect(useTreeStore.getState().expanded).toEqual(new Set(["B"]));
+    act(() => useTreeStore.getState().setFilterQuery(""));
+    expect(screen.getByRole("treeitem", { name: "Klasör: A" })).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByRole("treeitem", { name: "Klasör: B" })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("shows a localized no-matches message", () => {
+    useTreeStore.getState().setFilterQuery("missing");
+    render(<SidebarTree onOpenNote={vi.fn()} />);
+    expect(screen.getByText("Eşleşme yok")).toBeInTheDocument();
   });
 });

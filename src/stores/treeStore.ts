@@ -9,6 +9,9 @@ interface TreeState {
   loading: boolean;
   selected: TreeSelection | null;
   expanded: Set<string>;
+  filterQuery: string;
+  filterExpandedOverride: Set<string>;
+  setFilterQuery: (query: string) => void;
   renamingRelPath: string | null;
   setRenaming: (relPath: string | null) => void;
   revealFolder: (relPath: string) => void;
@@ -68,6 +71,9 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   loading: false,
   selected: null,
   expanded: new Set<string>(),
+  filterQuery: "",
+  filterExpandedOverride: new Set<string>(),
+  setFilterQuery(filterQuery) { set({ filterQuery, filterExpandedOverride: filterQuery.trim() ? get().filterExpandedOverride : new Set<string>() }); },
   renamingRelPath: null,
   setRenaming(renamingRelPath) { set({ renamingRelPath }); },
   revealFolder(relPath) {
@@ -134,6 +140,13 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     return inFlight;
   },
   toggle(relPath) {
+    if (get().filterQuery.trim()) {
+      const override = new Set(get().filterExpandedOverride);
+      if (override.has(relPath)) override.delete(relPath);
+      else override.add(relPath);
+      set({ filterExpandedOverride: override });
+      return;
+    }
     const expanded = new Set(get().expanded);
     if (expanded.has(relPath)) expanded.delete(relPath);
     else expanded.add(relPath);
@@ -187,5 +200,5 @@ export function resetTreeStoreForTests() {
   loaded = false;
   inFlight = null;
   pendingRefresh = null;
-  useTreeStore.setState({ tree: [], loading: false, selected: null, expanded: new Set<string>(), renamingRelPath: null });
+  useTreeStore.setState({ tree: [], loading: false, selected: null, expanded: new Set<string>(), filterQuery: "", filterExpandedOverride: new Set<string>(), renamingRelPath: null });
 }
