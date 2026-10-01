@@ -359,6 +359,74 @@ mod tests {
     }
 
     #[test]
+    fn payload_reports_changes_removals_flags_and_camel_case() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let (_, removed_note) = create_note_in(root, "", Some("Removed")).unwrap();
+        let index = RwLock::new(NoteIndex::new(root.to_path_buf()));
+        apply_batch(root, &index, structural()).unwrap();
+
+        let empty = apply_batch(root, &index, Affected::default()).unwrap();
+        assert!(empty.is_empty());
+
+        fs::remove_dir_all(root.join("Removed")).unwrap();
+        let (_, added_note) = create_note_in(root, "", Some("Added")).unwrap();
+        let payload = apply_batch(root, &index, Affected {
+            structural: true,
+            trash_changed: true,
+            ..Default::default()
+        }).unwrap();
+        assert_eq!(payload.changed_note_ids, vec![added_note.metadata.id]);
+        assert_eq!(payload.removed_note_ids, vec![removed_note.metadata.id]);
+        assert!(payload.tree_changed);
+        assert!(payload.trash_changed);
+        assert!(!payload.is_empty());
+        assert_eq!(serde_json::to_value(&payload).unwrap(), serde_json::json!({
+            "changedNoteIds": [added_note.metadata.id],
+            "removedNoteIds": [removed_note.metadata.id],
+            "treeChanged": true,
+            "trashChanged": true,
+        }));
+    }
+
+    #[test]
+    fn replacing_watcher_observes_only_new_root() {
+        let first = tempfile::tempdir().unwrap();
+        let second = tempfile::tempdir().unwrap();
+        let index = Arc::new(RwLock::new(NoteIndex::new(first.path().to_path_buf())));
+        let (sender, receiver) = mpsc::channel();
+        let old_sender = sender.clone();
+        let mut watcher = Some(WatcherManager::start(first.path().to_path_buf(), Arc::clone(&index),
+            move |payload| { let _ = old_sender.send(payload); }));
+
+        // Ayar değişikliğindeki sıra: eski izleyiciyi durdur, indeksi değiştir, yenisini başlat.
+        drop(watcher.take());
+        {
+            let mut locked = index.write().unwrap();
+            locked.root = second.path().to_path_buf();
+            locked.replace_all(scan::scan(second.path()).unwrap());
+        }
+        watcher = Some(WatcherManager::start(second.path().to_path_buf(), Arc::clone(&index),
+            move |payload| { let _ = sender.send(payload); }));
+
+        let (_, old_note) = create_note_in(first.path(), "", Some("Old")).unwrap();
+        assert!(receiver.recv_timeout(Duration::from_millis(600)).is_err());
+        assert!(index.read().unwrap().resolve(old_note.metadata.id).is_none());
+
+        let (_, new_note) = create_note_in(second.path(), "", Some("New")).unwrap();
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let payload = loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            let event = receiver.recv_timeout(remaining).expect("new root event timeout");
+            if event.changed_note_ids.contains(&new_note.metadata.id) { break event; }
+        };
+        assert!(payload.tree_changed);
+        assert_eq!(index.read().unwrap().rel_path(new_note.metadata.id), Some("New"));
+        assert!(index.read().unwrap().resolve(old_note.metadata.id).is_none());
+        drop(watcher);
+    }
+
+    #[test]
     fn watcher_observes_file_operations() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().to_path_buf();
@@ -374,6 +442,16 @@ mod tests {
             }
             panic!("watcher index timeout");
         };
+        let wait_for_payload = |check: &dyn Fn(&FsChangePayload) -> bool| {
+            while Instant::now() < deadline {
+                if let Ok(payload) = receiver.recv_timeout(Duration::from_millis(50)) {
+                    if check(&payload) { return payload; }
+                }
+            }
+            panic!("watcher payload timeout");
+        };
+        let created = wait_for_payload(&|payload| payload.changed_note_ids.contains(&note.metadata.id));
+        assert!(created.tree_changed);
         wait_for(&|index| index.rel_path(note.metadata.id) == Some("Original"));
         fs::create_dir(root.join("Group")).unwrap();
         wait_for(&|index| index.tree.iter().any(|node| matches!(node,
@@ -385,10 +463,15 @@ mod tests {
         wait_for(&|index| index.by_id.len() == 2 && index.rel_path(note.metadata.id) == Some("Original"));
         let copy_id = index.read().unwrap().by_id.iter().find(|(_, item)| item.rel_path == "Copy").unwrap().0.to_owned();
         fs::rename(root.join("Original"), root.join("External")).unwrap();
+        let renamed = wait_for_payload(&|payload| payload.changed_note_ids.contains(&note.metadata.id)
+            && index.read().unwrap().rel_path(note.metadata.id) == Some("External"));
+        assert!(renamed.tree_changed);
         wait_for(&|index| index.rel_path(note.metadata.id) == Some("External"));
         fs::remove_dir_all(root.join("Copy")).unwrap();
         wait_for(&|index| index.rel_path(copy_id).is_none());
         fs::remove_dir_all(root.join("External")).unwrap();
+        let removed = wait_for_payload(&|payload| payload.removed_note_ids.contains(&note.metadata.id));
+        assert!(removed.tree_changed);
         wait_for(&|index| index.rel_path(note.metadata.id).is_none());
         drop(watcher);
     }
