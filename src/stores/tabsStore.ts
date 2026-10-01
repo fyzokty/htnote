@@ -1,0 +1,158 @@
+import { create } from "zustand";
+
+import { useSettingsStore } from "@/stores/settingsStore";
+import { useTreeStore } from "@/stores/treeStore";
+
+export interface Tab {
+  noteId: string;
+}
+
+export type BeforeCloseGuard = (noteId: string) => boolean | Promise<boolean>;
+
+interface TabsState {
+  tabs: Tab[];
+  activeId: string | null;
+  restored: boolean;
+  openNote: (id: string, options?: { activate?: boolean }) => void;
+  close: (id: string) => Promise<boolean>;
+  closeOthers: (id: string) => Promise<void>;
+  activate: (id: string) => void;
+  next: () => void;
+  prev: () => void;
+  move: (fromIndex: number, toIndex: number) => void;
+  replaceMissing: (existingIds: Iterable<string>) => void;
+  restore: (existingIds: Iterable<string>) => void;
+  setBeforeCloseGuard: (guard: BeforeCloseGuard) => () => void;
+}
+
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let beforeClose: BeforeCloseGuard = () => true;
+
+function persist(tabs: Tab[], activeId: string | null) {
+  if (!useTabsStore.getState().restored) return;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    if (useSettingsStore.getState().settings) {
+      void useSettingsStore.getState().update({
+        openTabs: tabs.map((tab) => tab.noteId),
+        activeTab: activeId,
+      }).catch(() => {});
+    }
+  }, 500);
+}
+
+function removeTab(tabs: Tab[], activeId: string | null, id: string) {
+  const index = tabs.findIndex((tab) => tab.noteId === id);
+  if (index < 0) return { tabs, activeId };
+  const remaining = tabs.filter((tab) => tab.noteId !== id);
+  const nextActive = activeId === id
+    ? (remaining[index] ?? remaining[index - 1])?.noteId ?? null
+    : activeId;
+  return { tabs: remaining, activeId: nextActive };
+}
+
+export const useTabsStore = create<TabsState>((set, get) => ({
+  tabs: [],
+  activeId: null,
+  restored: false,
+  openNote(id, { activate = true } = {}) {
+    const current = get();
+    const alreadyOpen = current.tabs.some((tab) => tab.noteId === id);
+    const tabs = alreadyOpen
+      ? current.tabs
+      : [...current.tabs, { noteId: id }];
+    const activeId = activate ? id : current.activeId;
+    if (tabs !== current.tabs || activeId !== current.activeId) {
+      set({ tabs, activeId });
+      persist(tabs, activeId);
+    }
+    if (activate) useTreeStore.getState().revealNote(id);
+  },
+  async close(id) {
+    if (!get().tabs.some((tab) => tab.noteId === id)) return false;
+    if (!await beforeClose(id)) return false;
+    const current = get();
+    const result = removeTab(current.tabs, current.activeId, id);
+    if (result.tabs === current.tabs) return false;
+    set(result);
+    persist(result.tabs, result.activeId);
+    if (result.activeId && result.activeId !== current.activeId) {
+      useTreeStore.getState().revealNote(result.activeId);
+    }
+    return true;
+  },
+  async closeOthers(id) {
+    if (!get().tabs.some((tab) => tab.noteId === id)) return;
+    for (const tab of [...get().tabs]) {
+      if (tab.noteId !== id) await get().close(tab.noteId);
+    }
+    get().activate(id);
+  },
+  activate(id) {
+    if (!get().tabs.some((tab) => tab.noteId === id)) return;
+    if (get().activeId !== id) {
+      set({ activeId: id });
+      persist(get().tabs, id);
+    }
+    useTreeStore.getState().revealNote(id);
+  },
+  next() {
+    const { tabs, activeId } = get();
+    if (!tabs.length) return;
+    const index = tabs.findIndex((tab) => tab.noteId === activeId);
+    get().activate(tabs[(index + 1) % tabs.length].noteId);
+  },
+  prev() {
+    const { tabs, activeId } = get();
+    if (!tabs.length) return;
+    const index = tabs.findIndex((tab) => tab.noteId === activeId);
+    get().activate(tabs[index < 0 ? tabs.length - 1 : (index + tabs.length - 1) % tabs.length].noteId);
+  },
+  move(fromIndex, toIndex) {
+    const tabs = [...get().tabs];
+    if (!Number.isInteger(fromIndex) || fromIndex < 0 || fromIndex >= tabs.length || !Number.isFinite(toIndex)) return;
+    const target = Math.max(0, Math.min(tabs.length - 1, Math.trunc(toIndex)));
+    if (fromIndex === target) return;
+    const [tab] = tabs.splice(fromIndex, 1);
+    tabs.splice(target, 0, tab);
+    set({ tabs });
+    persist(tabs, get().activeId);
+  },
+  replaceMissing(existingIds) {
+    const existing = new Set(existingIds);
+    const previousActive = get().activeId;
+    let { tabs, activeId } = get();
+    const previous = tabs;
+    for (const tab of previous) {
+      if (!existing.has(tab.noteId)) ({ tabs, activeId } = removeTab(tabs, activeId, tab.noteId));
+    }
+    if (tabs === previous) return;
+    set({ tabs, activeId });
+    persist(tabs, activeId);
+    if (activeId && activeId !== previousActive) useTreeStore.getState().revealNote(activeId);
+  },
+  restore(existingIds) {
+    if (get().restored) return;
+    const settings = useSettingsStore.getState().settings;
+    if (!settings) return;
+    const existing = new Set(existingIds);
+    const ids = [...new Set(settings.openTabs.filter((id) => existing.has(id)))];
+    const tabs = ids.map((noteId) => ({ noteId }));
+    const activeId = ids.includes(settings.activeTab ?? "") ? settings.activeTab : ids[0] ?? null;
+    set({ tabs, activeId, restored: true });
+    if (activeId) useTreeStore.getState().revealNote(activeId);
+    if (ids.length !== settings.openTabs.length || activeId !== settings.activeTab) persist(tabs, activeId);
+  },
+  setBeforeCloseGuard(guard) {
+    beforeClose = guard;
+    return () => { if (beforeClose === guard) beforeClose = () => true; };
+  },
+}));
+
+export function resetTabsStoreForTests() {
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = null;
+  beforeClose = () => true;
+  useTabsStore.setState({ tabs: [], activeId: null, restored: false });
+}
