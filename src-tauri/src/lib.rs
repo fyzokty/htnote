@@ -1,6 +1,7 @@
 mod commands;
 pub mod error;
 mod fs_util;
+pub mod index;
 pub mod notes;
 mod settings;
 mod state;
@@ -23,14 +24,22 @@ pub fn run() {
                 .or_else(dirs::home_dir)
                 .ok_or_else(|| error::AppError::Internal("No documents or home directory".into()))?;
             let root_dir = settings::resolve_root_dir(&settings, &documents)?;
-            app.manage(state::AppState::new(config_dir, settings, root_dir));
+            let state = state::AppState::new(config_dir, settings, root_dir.clone());
+            if root_dir.exists() {
+                match index::scan::scan(&root_dir) {
+                    Ok(result) => state.note_index.write().expect("index lock").replace_all(result),
+                    Err(error) => eprintln!("Initial note scan failed: {error}"),
+                }
+            }
+            app.manage(state);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
             commands::get_settings,
             commands::update_settings,
-            commands::get_root_dir
+            commands::get_root_dir,
+            commands::get_note_tree
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

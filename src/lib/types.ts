@@ -18,3 +18,22 @@ export interface Settings {
 }
 
 export type SettingsPatch = Partial<Settings>;
+
+export interface FolderNode {
+  type: "folder";
+  name: string;
+  relPath: string;
+  children: TreeNode[];
+}
+
+export interface NoteNode {
+  type: "note";
+  id: string;
+  title: string;
+  relPath: string;
+  isFavorite: boolean;
+  tags: string[];
+  updatedAt: string;
+}
+
+export type TreeNode = FolderNode | NoteNode;

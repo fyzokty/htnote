@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { AppInfo, Settings, SettingsPatch } from "@/lib/types";
+import type { AppInfo, Settings, SettingsPatch, TreeNode } from "@/lib/types";
 
 export const ipc = {
   appInfo(): Promise<AppInfo> {
@@ -14,5 +14,8 @@ export const ipc = {
   },
   getRootDir(): Promise<string> {
     return invoke<string>("get_root_dir");
+  },
+  getNoteTree(): Promise<TreeNode[]> {
+    return invoke<TreeNode[]>("get_note_tree");
   },
 };

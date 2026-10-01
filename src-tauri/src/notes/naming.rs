@@ -80,7 +80,7 @@ pub fn normalize_tags(tags: Vec<String>) -> Vec<String> {
         .collect()
 }
 
-fn turkish_lowercase(value: &str) -> String {
+pub(crate) fn turkish_lowercase(value: &str) -> String {
     let mut result = String::new();
     for ch in value.chars() {
         match ch {
