@@ -2,6 +2,7 @@ use serde::Serialize;
 
 use crate::error::AppError;
 use crate::index::scan::{self, TreeNode};
+use crate::notes::create;
 use crate::settings::{self, Settings, SettingsPatch};
 use crate::state::AppState;
 use tauri::{Manager, State};
@@ -45,6 +46,25 @@ pub fn get_root_dir(state: State<'_, AppState>) -> Result<String, AppError> {
 #[tauri::command]
 pub async fn get_note_tree(app: tauri::AppHandle) -> Result<Vec<TreeNode>, AppError> {
     scan_and_replace(&app.state::<AppState>()).await
+}
+
+#[tauri::command]
+pub async fn create_note(app: tauri::AppHandle, parent_rel_path: String, title: Option<String>) -> Result<TreeNode, AppError> {
+    let state = app.state::<AppState>();
+    let root = state.root_dir.read().map_err(|error| AppError::Internal(error.to_string()))?.clone();
+    let (node, indexed) = tauri::async_runtime::spawn_blocking(move || {
+        create::create_note_in(&root, &parent_rel_path, title.as_deref())
+    }).await.map_err(|error| AppError::Internal(error.to_string()))??;
+    state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?.upsert(indexed);
+    Ok(node)
+}
+
+#[tauri::command]
+pub async fn create_folder(app: tauri::AppHandle, parent_rel_path: String, name: String) -> Result<TreeNode, AppError> {
+    let root = app.state::<AppState>().root_dir.read()
+        .map_err(|error| AppError::Internal(error.to_string()))?.clone();
+    tauri::async_runtime::spawn_blocking(move || create::create_folder_in(&root, &parent_rel_path, &name))
+        .await.map_err(|error| AppError::Internal(error.to_string()))?
 }
 
 async fn scan_and_replace(state: &AppState) -> Result<Vec<TreeNode>, AppError> {

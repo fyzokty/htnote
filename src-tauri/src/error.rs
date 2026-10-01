@@ -5,6 +5,8 @@ use thiserror::Error;
 pub enum AppError {
     #[error("Note not found: {0}")]
     NotFound(String),
+    #[error("Not a folder: {0}")]
+    NotAFolder(String),
     #[error("Name conflict: {0}")]
     NameConflict(String),
     #[error("Invalid name: {0}")]
@@ -23,6 +25,7 @@ impl AppError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::NotFound(_) => "NOTE_NOT_FOUND",
+            Self::NotAFolder(_) => "NOT_A_FOLDER",
             Self::NameConflict(_) => "NAME_CONFLICT",
             Self::InvalidName(_) => "INVALID_NAME",
             Self::PathOutsideRoot(_) => "PATH_OUTSIDE_ROOT",
@@ -53,6 +56,7 @@ mod tests {
     fn each_variant_serializes_with_its_code_and_message() {
         let cases = [
             (AppError::NotFound("missing".into()), "NOTE_NOT_FOUND"),
+            (AppError::NotAFolder("note".into()), "NOT_A_FOLDER"),
             (AppError::NameConflict("used".into()), "NAME_CONFLICT"),
             (AppError::InvalidName("bad".into()), "INVALID_NAME"),
             (
