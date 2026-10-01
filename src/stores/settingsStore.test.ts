@@ -13,6 +13,7 @@ const defaults: Settings = {
   openTabs: [],
   activeTab: null,
   expandedFolders: [],
+  onboardingDone: false,
 };
 
 beforeEach(() => {

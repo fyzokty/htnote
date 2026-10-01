@@ -1,4 +1,5 @@
 mod commands;
+mod onboarding;
 pub mod error;
 mod fs_util;
 pub mod index;
@@ -26,6 +27,9 @@ pub fn run() {
                 .ok_or_else(|| error::AppError::Internal("No documents or home directory".into()))?;
             let root_dir = settings::resolve_root_dir(&settings, &documents)?;
             let state = state::AppState::new(config_dir, settings, root_dir.clone());
+            if let Err(error) = onboarding::run(&state) {
+                eprintln!("Onboarding failed: {error}");
+            }
             if let Err(error) = initial_scan(&state) {
                 eprintln!("Initial note scan failed: {error}");
             }

@@ -35,6 +35,8 @@ pub struct Settings {
     pub active_tab: Option<String>,
     #[serde(default)]
     pub expanded_folders: Vec<String>,
+    #[serde(default)]
+    pub onboarding_done: bool,
 }
 
 impl Default for Settings {
@@ -48,6 +50,7 @@ impl Default for Settings {
             open_tabs: Vec::new(),
             active_tab: None,
             expanded_folders: Vec::new(),
+            onboarding_done: false,
         }
     }
 }
@@ -88,6 +91,7 @@ pub fn apply_patch(settings: &Settings, patch: SettingsPatch) -> Settings {
         expanded_folders: patch
             .expanded_folders
             .unwrap_or_else(|| settings.expanded_folders.clone()),
+        onboarding_done: settings.onboarding_done,
     }
 }
 
@@ -148,6 +152,14 @@ mod tests {
         value.as_object_mut().unwrap().remove("expandedFolders");
         let settings: Settings = serde_json::from_value(value).unwrap();
         assert!(settings.expanded_folders.is_empty());
+    }
+
+    #[test]
+    fn missing_onboarding_flag_defaults_to_false() {
+        let mut value = serde_json::to_value(Settings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("onboardingDone");
+        let settings: Settings = serde_json::from_value(value).unwrap();
+        assert!(!settings.onboarding_done);
     }
 
     #[test]
