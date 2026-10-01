@@ -38,3 +38,4 @@ Driver output is also saved to `e2e/logs/tauri-driver.log`. CI prints the driver
 and WebView2 versions, launches the debug app directly with temporary root and
 config overrides, and uploads `e2e/logs/` on failure. The app startup diagnostic
 captures its stdout and stderr there as separate files.
+CI E2E is pinned to `windows-2022` until [runner image issue 14738](https://github.com/actions/runner-images/issues/14738) is resolved.
