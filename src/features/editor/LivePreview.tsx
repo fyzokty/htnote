@@ -53,12 +53,17 @@ export function LivePreview({ noteId, html, css, js }: LivePreviewProps) {
       const frame = frameRef.current?.contentWindow;
       if (!frame) return;
       const message = parseBridgeMessage(event, frame, getNoteOrigin());
+      // Aynı iframe yeni revizyonda yeniden kullanılır; eski belgeden kuyrukta kalan olaylar yok sayılır.
+      if (!message || !src || !src.startsWith(`${getNoteOrigin()}/${encodeURIComponent(noteId)}/__draft/`)
+        || event.data?.path !== new URL(src).pathname) return;
       if (message?.type === "HTNOTE_SCROLL") scrollY.current = message.scrollY;
-      if (message?.type === "HTNOTE_READY") frame.postMessage({ type: "HTNOTE_SCROLL_RESTORE", scrollY: scrollY.current }, getNoteOrigin());
+      if (message?.type === "HTNOTE_READY" && event.data?.noteId === noteId) {
+        frame.postMessage({ type: "HTNOTE_SCROLL_RESTORE", scrollY: scrollY.current }, getNoteOrigin());
+      }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, []);
+  }, [noteId, src]);
 
   return <iframe ref={frameRef} title="Live preview" src={src} sandbox={NOTE_IFRAME_SANDBOX} referrerPolicy="no-referrer" className="h-full w-full border-0" />;
 }

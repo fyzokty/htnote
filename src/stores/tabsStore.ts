@@ -5,6 +5,7 @@ import {
   saveSucceeded, switchMode, updateDraft,
 } from "@/features/editor/docState";
 import type { DocBase, DocDraft, DocState } from "@/features/editor/docState";
+import { ipc } from "@/lib/ipc";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTreeStore } from "@/stores/treeStore";
 
@@ -68,6 +69,12 @@ function removeTab(tabs: Tab[], activeId: string | null, id: string) {
   return { tabs: remaining, activeId: nextActive };
 }
 
+function clearClosedPreview(id: string) {
+  void ipc.clearPreviewDraft(id).catch((error: unknown) => {
+    console.warn("Could not clear preview draft for closed tab", id, error);
+  });
+}
+
 function updateTabDoc(tabs: Tab[], id: string, transition: (doc: DocState) => DocState): Tab[] {
   const index = tabs.findIndex((tab) => tab.noteId === id);
   if (index < 0) return tabs;
@@ -103,6 +110,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     if (result.tabs === current.tabs) return false;
     set(result);
     persist(result.tabs, result.activeId);
+    clearClosedPreview(id);
     if (result.activeId && result.activeId !== current.activeId) {
       useTreeStore.getState().revealNote(result.activeId);
     }
@@ -151,7 +159,10 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     let { tabs, activeId } = get();
     const previous = tabs;
     for (const tab of previous) {
-      if (!existing.has(tab.noteId)) ({ tabs, activeId } = removeTab(tabs, activeId, tab.noteId));
+      if (!existing.has(tab.noteId)) {
+        ({ tabs, activeId } = removeTab(tabs, activeId, tab.noteId));
+        clearClosedPreview(tab.noteId);
+      }
     }
     if (tabs === previous) return;
     set({ tabs, activeId });

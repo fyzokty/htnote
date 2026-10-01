@@ -278,24 +278,19 @@ fn draft_html(draft: &PreviewDraft) -> Vec<u8> {
     inject_bridge(html.as_bytes())
 }
 
-fn serve_draft(method: &str, id: Uuid, dir: &Path, relative: &Path, range: Option<&str>, draft: &PreviewDraft) -> Served {
+fn serve_draft(method: &str, dir: &Path, relative: &Path, range: Option<&str>, draft: &PreviewDraft) -> Served {
+    // parse_note_path tüm segmentleri doğrular; burada yalnızca taslak URL yapısı ayrıştırılır.
     let parts: Vec<_> = relative.iter().collect();
-    if parts.len() < 3 || parts[1].to_string_lossy().parse::<u64>().is_err() {
+    if parts.len() < 3 || parts[0] != "__draft" || parts[1].to_string_lossy().parse::<u64>().is_err() {
         return Served::new(StatusCode::NOT_FOUND);
     }
     let file = parts[2..].iter().collect::<PathBuf>();
-    let name = file.to_string_lossy();
-    let (body, mime) = match name.as_ref() {
-        "index.html" => (draft_html(draft), "text/html"),
-        "style.css" => (draft.css.as_bytes().to_vec(), "text/css"),
-        "script.js" => (draft.js.as_bytes().to_vec(), "application/javascript"),
+    let (body, mime) = match parts.as_slice() {
+        [_, _, name] if *name == "index.html" => (draft_html(draft), "text/html"),
+        [_, _, name] if *name == "style.css" => (draft.css.as_bytes().to_vec(), "text/css"),
+        [_, _, name] if *name == "script.js" => (draft.js.as_bytes().to_vec(), "application/javascript"),
         _ => {
-            let asset = parts[2..].iter().map(|part| part.to_string_lossy()).collect::<Vec<_>>().join("/");
-            let validated = match parse_note_path(&format!("/{id}/{asset}")) {
-                Ok(request) => request.relative,
-                Err(status) => return Served::new(status),
-            };
-            return serve(method, dir, &validated, range);
+            return serve(method, dir, &file, range);
         },
     };
     let mut response = Served::new(StatusCode::OK);
@@ -328,7 +323,7 @@ pub(crate) fn handle(method: &str, path: &str, range: Option<&str>, note_index: 
                 (Ok(parsed), Some(dir)) => {
                     if parsed.relative.iter().next().is_some_and(|part| part == "__draft") {
                         match drafts.lock().ok().and_then(|items| items.get(&parsed.id).cloned()) {
-                            Some(draft) => serve_draft(method, parsed.id, &dir, &parsed.relative, range, &draft),
+                            Some(draft) => serve_draft(method, &dir, &parsed.relative, range, &draft),
                             None => Served::new(StatusCode::NOT_FOUND),
                         }
                     } else { serve(method, &dir, &parsed.relative, range) }
@@ -406,9 +401,13 @@ mod tests {
         assert_eq!(handle("GET", &format!("/{}/__draft/1/style.css", metadata.id), None, &index, &drafts).body, b"body { color: red }");
         assert_eq!(handle("GET", &format!("/{}/__draft/1/script.js", metadata.id), None, &index, &drafts).body, b"window.ok = true");
         assert_eq!(handle("GET", &format!("/{}/__draft/1/asset.txt", metadata.id), None, &index, &drafts).body, b"disk asset");
-        for path in ["../asset.txt", "%2e%2e/asset.txt", "%2fasset.txt", "/asset.txt", "%5casset.txt", "C:/asset.txt", "assets//asset.txt", "assets/.%2e/asset.txt"] {
+        for rev in ["invalid", "-1", "18446744073709551616"] {
+            assert_eq!(handle("GET", &format!("/{}/__draft/{rev}/index.html", metadata.id), None, &index, &drafts).status, StatusCode::NOT_FOUND);
+        }
+        for path in ["../asset.txt", "%2e%2e/asset.txt", "%2fasset.txt", "/asset.txt", "%5casset.txt", "C:/asset.txt", "assets//asset.txt", "assets/.%2e/asset.txt", "index.html/../asset.txt"] {
             assert_eq!(handle("GET", &format!("/{}/__draft/1/{path}", metadata.id), None, &index, &drafts).status, StatusCode::FORBIDDEN);
         }
+        assert_eq!(handle("GET", &format!("/{}/__draft/1/%2findex.html", metadata.id), None, &index, &drafts).status, StatusCode::FORBIDDEN);
         drafts.lock().unwrap().remove(&metadata.id);
         assert_eq!(handle("GET", &path, None, &index, &drafts).status, StatusCode::NOT_FOUND);
     }

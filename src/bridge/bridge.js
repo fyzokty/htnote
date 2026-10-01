@@ -125,9 +125,9 @@
   window.addEventListener("scroll", () => {
     if (scrolling) return;
     scrolling = true;
-    requestAnimationFrame(() => { scrolling = false; send("HTNOTE_SCROLL", { scrollY: window.scrollY }); });
+    requestAnimationFrame(() => { scrolling = false; send("HTNOTE_SCROLL", { scrollY: window.scrollY, path: location.pathname }); });
   }, { passive: true });
 
-  if (document.readyState === "loading") window.addEventListener("load", () => send("HTNOTE_READY", { noteId }), { once: true });
-  else send("HTNOTE_READY", { noteId });
+  if (document.readyState === "loading") window.addEventListener("load", () => send("HTNOTE_READY", { noteId, path: location.pathname }), { once: true });
+  else send("HTNOTE_READY", { noteId, path: location.pathname });
 })();

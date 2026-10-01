@@ -2,6 +2,7 @@ import { mockIPC } from "@tauri-apps/api/mocks";
 import { beforeEach, afterEach, describe, expect, it, vi } from "vitest";
 
 import type { DocBase } from "@/features/editor/docState";
+import { ipc } from "@/lib/ipc";
 import type { Settings } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
@@ -17,6 +18,7 @@ const doc = (id: string) => useTabsStore.getState().tabs.find((tab) => tab.noteI
 
 beforeEach(() => {
   vi.useFakeTimers();
+  vi.spyOn(ipc, "clearPreviewDraft").mockResolvedValue();
   resetTabsStoreForTests();
   resetTreeStoreForTests();
   useSettingsStore.setState({ settings, status: "ready" });
@@ -24,6 +26,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.restoreAllMocks();
   resetTabsStoreForTests();
   resetTreeStoreForTests();
   vi.useRealTimers();
@@ -133,15 +136,19 @@ describe("tabsStore", () => {
   });
 
   it("closes others while keeping guard vetoes", async () => {
+    const clear = vi.spyOn(ipc, "clearPreviewDraft").mockResolvedValue();
     const store = useTabsStore.getState();
     for (const id of ["a", "b", "c"]) store.openNote(id);
     const unregister = store.setBeforeCloseGuard((id) => id !== "a");
     await store.closeOthers("b");
     expect(ids()).toEqual(["a", "b"]);
     expect(useTabsStore.getState().activeId).toBe("b");
+    expect(clear).toHaveBeenCalledWith("c");
+    expect(clear).not.toHaveBeenCalledWith("a");
     expect(await store.close("a")).toBe(false);
     unregister();
     expect(await store.close("a")).toBe(true);
+    expect(clear).toHaveBeenCalledWith("a");
   });
 
   it("waits for an asynchronous close guard", async () => {
@@ -153,12 +160,15 @@ describe("tabsStore", () => {
   });
 
   it("removes missing tabs using the close selection rule", () => {
+    const clear = vi.spyOn(ipc, "clearPreviewDraft").mockResolvedValue();
     const store = useTabsStore.getState();
     for (const id of ["a", "b", "c", "d"]) store.openNote(id);
     store.activate("b");
     store.replaceMissing(["a", "c"]);
     expect(ids()).toEqual(["a", "c"]);
     expect(useTabsStore.getState().activeId).toBe("c");
+    expect(clear).toHaveBeenCalledWith("b");
+    expect(clear).toHaveBeenCalledWith("d");
     store.replaceMissing([]);
     expect(useTabsStore.getState().activeId).toBeNull();
   });

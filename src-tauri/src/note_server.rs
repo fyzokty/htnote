@@ -81,11 +81,13 @@ mod tests {
         write_metadata_atomic(&dir.join("metadata.json"), &metadata).unwrap();
         std::fs::write(dir.join("index.html"), "<head></head><body>ok</body>").unwrap();
         std::fs::write(dir.join("audio.bin"), "abcdef").unwrap();
+        std::fs::write(dir.join("asset.txt"), "disk asset").unwrap();
         let mut index = NoteIndex::new(root.path().to_path_buf());
         index.refresh_readonly().unwrap();
         let drafts: PreviewDrafts = Arc::new(std::sync::Mutex::new(Default::default()));
         drafts.lock().unwrap().insert(metadata.id, crate::state::PreviewDraft {
-            rev: 1, html: "<head></head><body>preview</body>".into(), css: String::new(), js: String::new(),
+            rev: 1, html: "<head></head><body>preview</body>".into(),
+            css: "body { color: red }".into(), js: "window.preview = true".into(),
         });
         let origin = start(Arc::new(RwLock::new(index)), drafts).unwrap();
         let host = origin.strip_prefix("http://").unwrap();
@@ -101,6 +103,12 @@ mod tests {
         assert_eq!(request(&origin, "evil.localhost", "GET", &format!("/{id}/"), None).0, 403);
         assert_eq!(request(&origin, "evil.localhost", "GET", &format!("/{id}/__draft/1/index.html"), None).0, 403);
         assert!(request(&origin, host, "GET", &format!("/{id}/__draft/1/index.html"), None).1.contains("preview"));
+        let preview = request(&origin, host, "GET", &format!("/{id}/__draft/1/index.html"), None).1;
+        assert!(preview.contains("./style.css"));
+        assert!(preview.contains("./script.js"));
+        assert!(request(&origin, host, "GET", &format!("/{id}/__draft/1/style.css"), None).1.contains("body { color: red }"));
+        assert!(request(&origin, host, "GET", &format!("/{id}/__draft/1/script.js"), None).1.contains("window.preview = true"));
+        assert!(request(&origin, host, "GET", &format!("/{id}/__draft/1/asset.txt"), None).1.contains("disk asset"));
         assert_eq!(request(&origin, host, "GET", "/00000000-0000-4000-8000-000000000000/", None).0, 404);
         assert_eq!(request(&origin, host, "POST", &format!("/{id}/"), None).0, 405);
         assert_eq!(request(&origin, host, "GET", "/__htnote/bridge.js", None).0, 200);

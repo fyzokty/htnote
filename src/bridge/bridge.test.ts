@@ -23,7 +23,7 @@ describe("note bridge", () => {
     vi.spyOn(window.parent, "postMessage").mockImplementation(messages);
     window.eval(source);
     window.dispatchEvent(new Event("load"));
-    expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_READY", noteId: "123e4567-e89b-12d3-a456-426614174000" }, "*");
+    expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_READY", noteId: "123e4567-e89b-12d3-a456-426614174000", path: location.pathname }, "*");
   });
 
   beforeEach(() => {
@@ -149,7 +149,7 @@ describe("note bridge", () => {
     hostMessage({ type: "HTNOTE_SCROLL_RESTORE", scrollY: 42 });
     expect(scrollTo).toHaveBeenCalledWith(0, 42);
     window.dispatchEvent(new Event("scroll"));
-    expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_SCROLL", scrollY: window.scrollY }, "*");
+    expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_SCROLL", scrollY: window.scrollY, path: location.pathname }, "*");
     frame.mockRestore();
     scrollTo.mockRestore();
   });
