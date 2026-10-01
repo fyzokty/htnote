@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { installUnsavedWindowGuard } from "@/app/unsavedWindowGuard";
 import { UnsavedChangesDialog } from "@/components/ui/UnsavedChangesDialog";
 import { RecoveryDialog } from "@/features/editor/RecoveryDialog";
+import { installExternalChangeListener } from "@/features/editor/externalChange";
 import type { RecoveryCandidate } from "@/features/editor/RecoveryDialog";
 import { deleteRecoveryDraft, selectRecoveryCandidates, useDraftAutosave } from "@/features/editor/recoveryDrafts";
 import { extractContent } from "@/features/editor/contentRegion";
@@ -66,6 +67,7 @@ export function AppShell() {
     return installUnsavedWindowGuard();
   }, []);
   useEffect(() => startFsChangeSync(), []);
+  useEffect(() => installExternalChangeListener(), []);
   useEffect(() => setDiscardRecoveryDraftHook(deleteRecoveryDraft), []);
   useEffect(() => {
     void loadTree().then(() => {

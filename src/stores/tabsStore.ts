@@ -1,8 +1,8 @@
 import { create } from "zustand";
 
 import {
-  cancelEdit, createDocState, enterEdit, markSaving, reloadBase, saveFailed,
-  saveSucceeded, switchMode, updateDraft,
+  cancelEdit, createDocState, enterEdit, keepMine, loadFromDisk, markConflict, markRemoved,
+  markSaving, reloadBase, saveFailed, saveSucceeded, switchMode, updateDraft,
 } from "@/features/editor/docState";
 import type { DocBase, DocDraft, DocState } from "@/features/editor/docState";
 import { resolveUnsaved } from "@/features/editor/unsavedGuard";
@@ -38,6 +38,12 @@ interface TabsState {
   saveFailed: (id: string) => void;
   cancelEdit: (id: string) => void;
   reloadBase: (id: string, newBase: DocBase) => void;
+  markConflict: (id: string, diskHash: string) => void;
+  keepMine: (id: string, diskBase: DocBase) => void;
+  loadFromDisk: (id: string, base: DocBase) => void;
+  markRemoved: (id: string, title: string | null, parent: string) => void;
+  handleRemoved: (id: string, title: string | null, parent: string) => "closed" | "marked" | "missing" | "saving";
+  retargetTab: (oldId: string, newId: string, newBase: DocBase) => boolean;
   isDirty: (id: string) => boolean;
   anyDirty: () => boolean;
   setBeforeCloseGuard: (guard: BeforeCloseGuard) => () => void;
@@ -174,7 +180,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     let { tabs, activeId } = get();
     const previous = tabs;
     for (const tab of previous) {
-      if (!existing.has(tab.noteId)) {
+      if (!existing.has(tab.noteId) && !tab.doc.dirty && !tab.doc.saving && !tab.doc.removedOnDisk) {
         ({ tabs, activeId } = removeTab(tabs, activeId, tab.noteId));
         clearClosedPreview(tab.noteId);
       }
@@ -219,6 +225,48 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   },
   reloadBase(id, newBase) {
     set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => reloadBase(doc, newBase)) }));
+  },
+  markConflict(id, diskHash) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => markConflict(doc, diskHash)) }));
+  },
+  keepMine(id, diskBase) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => keepMine(doc, diskBase)) }));
+  },
+  loadFromDisk(id, base) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => loadFromDisk(doc, base)) }));
+  },
+  markRemoved(id, title, parent) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => markRemoved(doc, title, parent)) }));
+  },
+  handleRemoved(id, title, parent) {
+    const current = get();
+    const tab = current.tabs.find((item) => item.noteId === id);
+    if (!tab) return "missing";
+    if (tab.doc.saving) return "saving";
+    if (tab.doc.dirty) {
+      set({ tabs: updateTabDoc(current.tabs, id, (doc) => markRemoved(doc, title, parent)) });
+      return "marked";
+    }
+    const result = removeTab(current.tabs, current.activeId, id);
+    set(result);
+    persist(result.tabs, result.activeId);
+    clearClosedPreview(id);
+    return "closed";
+  },
+  retargetTab(oldId, newId, newBase) {
+    const current = get();
+    if (!current.tabs.some((tab) => tab.noteId === oldId)) return false;
+    const destination = current.tabs.find((tab) => tab.noteId === newId);
+    const tabs = destination
+      ? current.tabs.filter((tab) => tab.noteId !== oldId).map((tab) => tab.noteId === newId
+        ? { ...tab, doc: tab.doc.dirty ? reloadBase(tab.doc, newBase) : loadFromDisk(tab.doc, newBase) } : tab)
+      : current.tabs.map((tab) => tab.noteId === oldId
+        ? { noteId: newId, doc: loadFromDisk(tab.doc, newBase) } : tab);
+    const activeId = newId;
+    set({ tabs, activeId });
+    persist(tabs, activeId);
+    useTreeStore.getState().revealNote(newId);
+    return true;
   },
   isDirty(id) {
     return get().tabs.find((tab) => tab.noteId === id)?.doc.dirty ?? false;

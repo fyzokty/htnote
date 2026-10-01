@@ -70,6 +70,7 @@ export function NoteViewer() {
   const [cache, setCache] = useState(() => ({ tabs, activeId, mounted: nextMounted([], activeId, openIds) }));
   const [now, setNow] = useState(() => Date.now());
   const activeNote = activeId ? findNote(tree, activeId) : null;
+  const activeTab = tabs.find((tab) => tab.noteId === activeId);
 
   const mounted = cache.tabs === tabs && cache.activeId === activeId
     ? cache.mounted
@@ -83,12 +84,12 @@ export function NoteViewer() {
   const saved = activeNote ? relativeSaved(activeNote.updatedAt, i18n.language, now) : "";
   return (
     <div className="flex h-full min-h-0 w-full flex-col text-left">
-      {activeNote && (
+      {(activeNote || activeTab?.doc.removedOnDisk) && (
         <div className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-app-border bg-app-surface px-5 py-2">
           <div className="min-w-0">
-            <h2 className="truncate font-semibold">{activeNote.title}</h2>
+            <h2 className="truncate font-semibold">{activeNote?.title ?? activeTab?.doc.removedTitle ?? t("tabs.untitled")}</h2>
             {saved && <p className="text-xs text-app-muted">{t("viewer.lastSaved", { time: saved })}</p>}
-            {activeNote.tags.length > 0 && <div className="mt-1 flex flex-wrap gap-1">{activeNote.tags.map((tag) => <span key={tag} className="rounded bg-app-subtle px-2 py-0.5 text-xs">{tag}</span>)}</div>}
+            {activeNote && activeNote.tags.length > 0 && <div className="mt-1 flex flex-wrap gap-1">{activeNote.tags.map((tag) => <span key={tag} className="rounded bg-app-subtle px-2 py-0.5 text-xs">{tag}</span>)}</div>}
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <button type="button" disabled aria-label={t("viewer.favorite")} title={t("viewer.favorite")} className="rounded p-2 text-app-muted"><Star className="size-4" aria-hidden /></button>
@@ -99,14 +100,14 @@ export function NoteViewer() {
       )}
       <div className="relative min-h-0 flex-1">
         {!activeId && <div className="flex h-full flex-col items-center justify-center gap-3 text-app-muted"><p>{t("viewer.empty")}</p></div>}
-        {activeId && !activeNote && <div className="flex h-full items-center justify-center text-app-muted">{t("viewer.notFound")}</div>}
+        {activeId && !activeNote && !activeTab?.doc.removedOnDisk && <div className="flex h-full items-center justify-center text-app-muted">{t("viewer.notFound")}</div>}
         {openIds.filter((id) => mounted.includes(id)).map((id) => {
           const note = findNote(tree, id);
-          if (!note) return null;
+          if (!note && !tabs.find((tab) => tab.noteId === id)?.doc.removedOnDisk) return null;
           const doc = tabs.find((tab) => tab.noteId === id)?.doc;
           return doc && doc.mode !== "view" && id === activeId
             ? <NoteEditor key={id} noteId={id} doc={doc} session={session} />
-            : <NoteFrame key={`${id}:${doc?.lastSavedAt ?? ""}`} id={id} active={id === activeId} title={note.title} />;
+            : note ? <NoteFrame key={`${id}:${doc?.lastSavedAt ?? ""}:${doc?.baseVersion ?? 0}`} id={id} active={id === activeId} title={note.title} /> : null;
         })}
       </div>
     </div>

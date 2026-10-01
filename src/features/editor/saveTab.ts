@@ -1,6 +1,7 @@
 import { ipc } from "@/lib/ipc";
 import { deleteRecoveryDraft } from "@/features/editor/recoveryDrafts";
 import { useTabsStore } from "@/stores/tabsStore";
+import { useTreeStore } from "@/stores/treeStore";
 import { useUiStore } from "@/stores/uiStore";
 
 const flushers = new Map<string, () => void>();
@@ -24,6 +25,10 @@ export async function saveTab(noteId: string): Promise<boolean> {
   flushEditor(noteId);
   const doc = useTabsStore.getState().tabs.find((tab) => tab.noteId === noteId)?.doc;
   if (!doc?.base || !doc.draft || doc.mode === "view" || doc.saving) return false;
+  if (doc.externalConflict || doc.removedOnDisk) {
+    useUiStore.getState().pushToast({ kind: "info", messageKey: "external.chooseFirst" });
+    return false;
+  }
   const snapshot = { ...doc.draft };
   useTabsStore.getState().markSaving(noteId);
   try {
@@ -39,7 +44,21 @@ export async function saveTab(noteId: string): Promise<boolean> {
     return true;
   } catch (error) {
     useTabsStore.getState().saveFailed(noteId);
-    notifySaveError(error);
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "CONFLICT") {
+      try {
+        const disk = await ipc.readNote(noteId);
+        useTabsStore.getState().markConflict(noteId, disk.contentHash);
+      } catch (readError) {
+        if (typeof readError === "object" && readError !== null && "code" in readError && readError.code === "NOTE_NOT_FOUND") {
+          const note = useTreeStore.getState().findNoteById(noteId);
+          useTabsStore.getState().markRemoved(noteId, note?.title ?? null, note?.relPath.split("/").slice(0, -1).join("/") ?? "");
+        } else {
+          notifySaveError(readError);
+        }
+      }
+    } else {
+      notifySaveError(error);
+    }
     return false;
   }
 }

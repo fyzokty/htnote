@@ -126,8 +126,9 @@ describe("useEditSession", () => {
   });
 
   it("preserves the draft and reports a conflict", async () => {
+    let reads = 0;
     mockIPC((command) => {
-      if (command === "read_note") return note;
+      if (command === "read_note") return reads++ === 0 ? note : { ...note, contentHash: "disk" };
       if (command === "save_note") throw { code: "CONFLICT", message: "changed" };
     });
     const { result } = renderHook(() => useEditSession("a"));
@@ -136,7 +137,7 @@ describe("useEditSession", () => {
     await act(async () => { expect(await result.current.save()).toBe(false); });
     expect(doc()).toMatchObject({ mode: "visual", dirty: true, saving: false });
     expect(doc().draft?.html).toContain("Unsaved");
-    expect(useUiStore.getState().toasts.slice(-1)[0]?.messageKey).toBe("editor.session.conflict");
+    expect(doc().externalConflict).toBe("disk");
   });
 
   it("keeps edits made while saving and uses the new hash for the next save", async () => {
