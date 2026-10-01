@@ -47,6 +47,21 @@ describe("useShortcut", () => {
 });
 
 describe("capture listener", () => {
+  it("leaves Ctrl+B/I/U to the focused editor", () => {
+    const handler = vi.fn();
+    render(createElement(Subscriber, { handler }));
+    removeListener = installShortcutListener();
+    const editor = document.createElement("div");
+    editor.contentEditable = "true";
+    document.body.append(editor);
+    for (const key of ["b", "i", "u"]) {
+      const event = new KeyboardEvent("keydown", { key, code: `Key${key.toUpperCase()}`, ctrlKey: true, bubbles: true, cancelable: true });
+      editor.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+    }
+    expect(handler).not.toHaveBeenCalled();
+    editor.remove();
+  });
   it("ignores F2 in inputs while allowing Ctrl+N", () => {
     const rename = vi.fn();
     const create = vi.fn();
