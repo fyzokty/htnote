@@ -8,7 +8,7 @@ import { defineConfig, globalIgnores } from "eslint/config";
 
 export default defineConfig([
   // Rust tarafı ve üretilen çıktılar lint edilmez.
-  globalIgnores(["dist", "src-tauri", "coverage", "node_modules", "e2e/.artifacts"]),
+  globalIgnores(["dist", "src-tauri", "coverage", "node_modules", "e2e/**"]),
   {
     files: ["**/*.{ts,tsx}"],
     extends: [

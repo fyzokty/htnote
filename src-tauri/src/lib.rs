@@ -24,12 +24,17 @@ pub fn run() {
         })
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
-            let config_dir = app.path().app_config_dir()?;
+            let config_dir = settings::config_dir_override().unwrap_or(app.path().app_config_dir()?);
             let settings = settings::load_settings(&config_dir)?;
             let documents = dirs::document_dir()
                 .or_else(dirs::home_dir)
                 .ok_or_else(|| error::AppError::Internal("No documents or home directory".into()))?;
-            let root_dir = settings::resolve_root_dir(&settings, &documents)?;
+            let root_settings = if let Some(root) = settings::root_override() {
+                settings::Settings { root_dir: Some(root.to_string_lossy().into_owned()), ..settings.clone() }
+            } else {
+                settings.clone()
+            };
+            let root_dir = settings::resolve_root_dir(&root_settings, &documents)?;
             let state = state::AppState::new(config_dir, settings, root_dir.clone());
             if let Err(error) = onboarding::run(&state) {
                 eprintln!("Onboarding failed: {error}");
