@@ -39,21 +39,6 @@ pub(crate) fn replace_file(source: &Path, destination: &Path) -> io::Result<()> 
     std::fs::rename(source, destination)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn failed_replace_removes_temporary_file() {
-        let directory = tempfile::tempdir().unwrap();
-        let destination = directory.path().join("metadata.json");
-        std::fs::create_dir(&destination).unwrap();
-
-        assert!(write_file_atomic(&destination, b"contents").is_err());
-        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
-    }
-}
-
 #[cfg(windows)]
 pub(crate) fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
     use std::os::windows::ffi::OsStrExt;
@@ -79,5 +64,20 @@ pub(crate) fn replace_file(source: &Path, destination: &Path) -> io::Result<()> 
         Err(io::Error::last_os_error())
     } else {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn failed_replace_removes_temporary_file() {
+        let directory = tempfile::tempdir().unwrap();
+        let destination = directory.path().join("metadata.json");
+        std::fs::create_dir(&destination).unwrap();
+
+        assert!(write_file_atomic(&destination, b"contents").is_err());
+        assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
     }
 }

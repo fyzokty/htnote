@@ -42,10 +42,9 @@ fn finish_name(name: &str) -> String {
     }
 }
 
-/// `existing` verilen adın varlığını büyük/küçük harfe duyarsız olarak sınamalıdır.
 pub fn unique_name(desired: &str, existing: impl Fn(&str) -> bool) -> String {
     let desired = sanitize_name(desired);
-    if !existing(&desired) {
+    if !exists_ignoring_case(&desired, &existing) {
         return desired;
     }
     for number in 2.. {
@@ -53,11 +52,42 @@ pub fn unique_name(desired: &str, existing: impl Fn(&str) -> bool) -> String {
         let base: String = desired.graphemes(true).take(MAX_NAME_LENGTH - suffix.len()).collect();
         let base = base.trim_end_matches([' ', '.']);
         let candidate = format!("{base}{suffix}");
-        if !existing(&candidate) {
+        if !exists_ignoring_case(&candidate, &existing) {
             return candidate;
         }
     }
     unreachable!()
+}
+
+fn exists_ignoring_case(name: &str, existing: &impl Fn(&str) -> bool) -> bool {
+    if existing(name) || existing(&name.to_lowercase()) || existing(&name.to_uppercase())
+        || existing(&turkish_lowercase(name)) {
+        return true;
+    }
+
+    // Kısa adlarda karışık büyük/küçük harf biçimleri de tam eşleşen sorgularla bulunur.
+    let letters: Vec<usize> = name.char_indices()
+        .filter_map(|(index, ch)| ch.is_ascii_alphabetic().then_some(index))
+        .collect();
+    if letters.len() > 12 {
+        return false;
+    }
+    let mut variant = name.as_bytes().to_vec();
+    for mask in 0..(1usize << letters.len()) {
+        for (bit, index) in letters.iter().enumerate() {
+            variant[*index] = if mask & (1 << bit) == 0 {
+                name.as_bytes()[*index].to_ascii_lowercase()
+            } else {
+                name.as_bytes()[*index].to_ascii_uppercase()
+            };
+        }
+        if let Ok(value) = std::str::from_utf8(&variant) {
+            if existing(value) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 pub fn normalize_tags(tags: Vec<String>) -> Vec<String> {
@@ -119,7 +149,8 @@ mod tests {
         assert_eq!(unique_name("Not", |name| occupied.iter().any(|item| item.eq_ignore_ascii_case(name))), "Not (3)");
         assert_eq!(unique_name(&"a".repeat(120), |name| name == "a".repeat(120)), format!("{} (2)", "a".repeat(116)));
         assert_eq!(unique_name("Straße", |name| name.replace('ß', "ss").eq_ignore_ascii_case("STRASSE")), "Straße (2)");
-        assert_eq!(unique_name("Not", |name| name == "NOT"), "Not");
+        assert_eq!(unique_name("Not", |name| name == "NOT"), "Not (2)");
+        assert_eq!(unique_name("Not", |name| name == "nOt"), "Not (2)");
     }
 
     #[test]
