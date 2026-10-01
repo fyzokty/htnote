@@ -3,8 +3,10 @@ use std::path::{Path, PathBuf};
 
 use uuid::Uuid;
 
+use crate::error::AppError;
+
 use super::resolve_in_root;
-use super::scan::{IndexedNote, ScanResult, TreeNode};
+use super::scan::{self, IndexedNote, ScanResult, TreeNode};
 
 pub struct NoteIndex {
     pub root: PathBuf,
@@ -30,6 +32,12 @@ impl NoteIndex {
         self.tree = scan.tree;
     }
 
+    pub fn refresh_readonly(&mut self) -> Result<(), AppError> {
+        let result = scan::scan_readonly(&self.root)?;
+        self.replace_all(result);
+        Ok(())
+    }
+
     pub fn upsert(&mut self, note: IndexedNote) {
         self.by_id.insert(note.metadata.id, note);
     }
@@ -51,7 +59,18 @@ impl NoteIndex {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::notes::create::{create_folder_in, create_note_in};
     use crate::notes::model::NoteMetadata;
+    use crate::notes::rename::{move_item_in, rename_folder_in, rename_note_in};
+
+    fn tree_has_path(nodes: &[TreeNode], expected: &str) -> bool {
+        nodes.iter().any(|node| match node {
+            TreeNode::Folder { rel_path, children, .. } => {
+                rel_path == expected || tree_has_path(children, expected)
+            }
+            TreeNode::Note { rel_path, .. } => rel_path == expected,
+        })
+    }
 
     #[test]
     fn index_resolves_and_removes_subtrees() {
@@ -80,5 +99,48 @@ mod tests {
         index.rename_prefix("a", "moved/a");
         assert_eq!(index.rel_path(inside.id), Some("moved/a/b/note"));
         assert_eq!(index.rel_path(outside.id), Some("ab/note"));
+    }
+
+    #[test]
+    fn readonly_refresh_updates_paths_titles_and_tree_after_mutations() {
+        let root = tempfile::tempdir().unwrap();
+        create_folder_in(root.path(), "", "a").unwrap();
+        create_folder_in(root.path(), "", "target").unwrap();
+        let (_, note) = create_note_in(root.path(), "a", Some("old")).unwrap();
+        let mut index = NoteIndex::new(root.path().to_path_buf());
+        index.refresh_readonly().unwrap();
+
+        rename_note_in(root.path(), index.by_id.get(&note.metadata.id).unwrap(), "new").unwrap();
+        index.refresh_readonly().unwrap();
+        assert_eq!(index.rel_path(note.metadata.id), Some("a/new"));
+        assert_eq!(index.by_id[&note.metadata.id].metadata.title, "new");
+        assert!(tree_has_path(&index.tree, "a/new"));
+        assert!(!tree_has_path(&index.tree, "a/old"));
+
+        rename_folder_in(root.path(), "a", "renamed").unwrap();
+        index.refresh_readonly().unwrap();
+        assert_eq!(index.rel_path(note.metadata.id), Some("renamed/new"));
+        assert!(tree_has_path(&index.tree, "renamed/new"));
+        assert!(!tree_has_path(&index.tree, "a"));
+
+        move_item_in(root.path(), "renamed", "target").unwrap();
+        index.refresh_readonly().unwrap();
+        assert_eq!(index.rel_path(note.metadata.id), Some("target/renamed/new"));
+        assert_eq!(index.resolve(note.metadata.id), Some(root.path().canonicalize().unwrap().join("target/renamed/new")));
+        assert!(tree_has_path(&index.tree, "target/renamed/new"));
+        assert!(!tree_has_path(&index.tree, "renamed"));
+    }
+
+    #[test]
+    fn failed_mutation_keeps_index_unchanged() {
+        let root = tempfile::tempdir().unwrap();
+        create_folder_in(root.path(), "", "a").unwrap();
+        create_folder_in(root.path(), "a", "b").unwrap();
+        let (_, note) = create_note_in(root.path(), "a/b", Some("note")).unwrap();
+        let mut index = NoteIndex::new(root.path().to_path_buf());
+        index.refresh_readonly().unwrap();
+        assert!(move_item_in(root.path(), "a", "a/b").is_err());
+        assert_eq!(index.rel_path(note.metadata.id), Some("a/b/note"));
+        assert!(tree_has_path(&index.tree, "a/b/note"));
     }
 }

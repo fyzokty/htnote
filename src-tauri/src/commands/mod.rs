@@ -74,8 +74,8 @@ pub async fn rename_note(app: tauri::AppHandle, id: uuid::Uuid, new_title: Strin
         let state = app.state::<AppState>();
         let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
         let note = index.by_id.get(&id).cloned().ok_or_else(|| AppError::NotFound(id.to_string()))?;
-        let (node, updated) = rename::rename_note_in(&index.root, &note, &new_title)?;
-        index.upsert(updated);
+        let (node, _) = rename::rename_note_in(&index.root, &note, &new_title)?;
+        index.refresh_readonly()?;
         Ok(node)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
@@ -86,9 +86,7 @@ pub async fn rename_folder(app: tauri::AppHandle, rel_path: String, new_name: St
         let state = app.state::<AppState>();
         let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
         let node = rename::rename_folder_in(&index.root, &rel_path, &new_name)?;
-        if let TreeNode::Folder { rel_path: new_rel, .. } = &node {
-            index.rename_prefix(&rel_path, new_rel);
-        }
+        index.refresh_readonly()?;
         Ok(node)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
@@ -99,7 +97,7 @@ pub async fn move_item(app: tauri::AppHandle, rel_path: String, target_folder_re
         let state = app.state::<AppState>();
         let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
         let new_rel = rename::move_item_in(&index.root, &rel_path, &target_folder_rel_path)?;
-        index.rename_prefix(&rel_path, &new_rel);
+        index.refresh_readonly()?;
         Ok(new_rel)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }

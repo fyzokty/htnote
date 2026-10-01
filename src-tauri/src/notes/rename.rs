@@ -44,7 +44,12 @@ fn destination(parent: &Path, source: &Path, desired: &str) -> Result<PathBuf, A
         .collect::<Result<Vec<_>, _>>()?;
     let source_name = source.file_name().unwrap_or_default().to_string_lossy();
     let siblings: Vec<_> = names.into_iter().filter(|name| {
-        parent != source.parent().unwrap_or(parent) || name != source_name.as_ref()
+        parent != source.parent().unwrap_or(parent)
+            || if cfg!(windows) {
+                !names_equal_ci(name, &source_name)
+            } else {
+                name != source_name.as_ref()
+            }
     }).collect();
     let name = unique_name(&sanitize_name(desired), exists_ci(&siblings));
     Ok(parent.join(name))
@@ -265,6 +270,16 @@ mod tests {
         create_folder_in(root.path(), "", "target").unwrap();
         create_folder_in(root.path(), "target", "new (2)").unwrap();
         assert_eq!(move_item_in(root.path(), "new (2)", "target").unwrap(), "target/new (2) (2)");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn differently_cased_source_path_is_not_a_collision() {
+        let root = tempfile::tempdir().unwrap();
+        create_folder_in(root.path(), "", "not").unwrap();
+        let node = rename_folder_in(root.path(), "NOT", "Not").unwrap();
+        assert!(matches!(node, TreeNode::Folder { rel_path, .. } if rel_path == "Not"));
+        assert!(root.path().join("Not").is_dir());
     }
 
     #[test]

@@ -45,16 +45,24 @@ pub struct ScanResult {
 }
 
 pub fn scan(root: &Path) -> Result<ScanResult, AppError> {
+    scan_with_repair(root, true)
+}
+
+pub fn scan_readonly(root: &Path) -> Result<ScanResult, AppError> {
+    scan_with_repair(root, false)
+}
+
+fn scan_with_repair(root: &Path, repair_metadata: bool) -> Result<ScanResult, AppError> {
     if !root.is_dir() { return Ok(ScanResult::default()); }
     let root = root.canonicalize()?;
     let mut result = ScanResult::default();
     let mut seen_ids = HashSet::new();
     let mut seen_dirs = HashSet::new();
-    result.tree = scan_dir(&root, &root, &mut result.notes, &mut result.repairs, &mut seen_ids, &mut seen_dirs)?;
+    result.tree = scan_dir(&root, &root, &mut result.notes, &mut result.repairs, &mut seen_ids, &mut seen_dirs, repair_metadata)?;
     Ok(result)
 }
 
-fn scan_dir(root: &Path, dir: &Path, notes: &mut Vec<IndexedNote>, repairs: &mut Vec<Repair>, seen_ids: &mut HashSet<Uuid>, seen_dirs: &mut HashSet<PathBuf>) -> Result<Vec<TreeNode>, AppError> {
+fn scan_dir(root: &Path, dir: &Path, notes: &mut Vec<IndexedNote>, repairs: &mut Vec<Repair>, seen_ids: &mut HashSet<Uuid>, seen_dirs: &mut HashSet<PathBuf>, repair_metadata: bool) -> Result<Vec<TreeNode>, AppError> {
     let canonical = dir.canonicalize()?;
     if !canonical.starts_with(root) || !seen_dirs.insert(canonical) { return Ok(Vec::new()); }
     let mut folders = Vec::new();
@@ -76,7 +84,7 @@ fn scan_dir(root: &Path, dir: &Path, notes: &mut Vec<IndexedNote>, repairs: &mut
     note_dirs.sort_by(|a, b| compare_names(&a.0, &b.0));
     let mut tree = Vec::new();
     for (name, path) in folders {
-        let children = scan_dir(root, &path, notes, repairs, seen_ids, seen_dirs)?;
+        let children = scan_dir(root, &path, notes, repairs, seen_ids, seen_dirs, repair_metadata)?;
         tree.push(TreeNode::Folder { name, rel_path: rel_string(path.strip_prefix(root).map_err(|error| AppError::Internal(error.to_string()))?), children });
     }
     for (name, path) in note_dirs {
@@ -96,6 +104,9 @@ fn scan_dir(root: &Path, dir: &Path, notes: &mut Vec<IndexedNote>, repairs: &mut
             repair = Some(RepairKind::DuplicateId);
         }
         if let Some(kind) = repair {
+            if !repair_metadata {
+                return Err(AppError::Internal(format!("Metadata requires repair: {rel_path}")));
+            }
             let backup = backup_metadata(&metadata_path, &original)?;
             write_metadata_atomic(&metadata_path, &metadata)?;
             repairs.push(Repair { rel_path: rel_path.clone(), kind, backup_path: backup.file_name().unwrap_or_default().to_string_lossy().into_owned() });
@@ -221,6 +232,17 @@ mod tests {
         assert_eq!(fs::read_to_string(root.path().join("D/metadata.json.bak.2")).unwrap(), "broken");
         assert_eq!(fs::read_to_string(root.path().join("D/metadata.json.bak")).unwrap(), "old");
         assert!(scan(root.path()).unwrap().repairs.is_empty());
+    }
+
+    #[test]
+    fn readonly_scan_does_not_repair_metadata() {
+        let root = tempfile::tempdir().unwrap();
+        note(root.path(), "A", None);
+        let path = root.path().join("A/metadata.json");
+        let before = fs::read(&path).unwrap();
+        assert!(scan_readonly(root.path()).is_err());
+        assert_eq!(fs::read(&path).unwrap(), before);
+        assert!(!path.with_file_name("metadata.json.bak").exists());
     }
 
     #[test]
