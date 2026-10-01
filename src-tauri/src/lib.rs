@@ -8,6 +8,7 @@ mod fs_util;
 pub mod index;
 pub mod notes;
 mod settings;
+mod search;
 mod state;
 mod watcher;
 
@@ -48,6 +49,7 @@ pub fn run() {
             *state.note_origin.write().map_err(|error| error::AppError::Internal(error.to_string()))? = origin;
             app.manage(state);
             let managed = app.state::<state::AppState>();
+            search::start_build(&managed);
             if let Err(error) = watcher::start_for_app(&managed, app.handle().clone()) {
                 eprintln!("File watcher startup failed: {error}");
             }
@@ -60,6 +62,7 @@ pub fn run() {
             commands::get_root_dir,
             commands::get_note_origin,
             commands::get_note_tree,
+            commands::search_notes,
             commands::read_note,
             commands::save_note,
             commands::copy_asset,

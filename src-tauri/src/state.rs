@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, RwLock};
-use std::sync::atomic::AtomicU64;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 
 use crate::settings::Settings;
 use crate::index::note_index::NoteIndex;
@@ -23,6 +23,8 @@ pub struct AppState {
     pub settings: Mutex<Settings>,
     pub root_dir: RwLock<PathBuf>,
     pub note_index: Arc<RwLock<NoteIndex>>,
+    pub search_index: Arc<RwLock<crate::search::SearchIndex>>,
+    pub search_indexing: Arc<AtomicBool>,
     pub watcher: Mutex<Option<crate::watcher::WatcherManager>>,
     pub note_origin: RwLock<String>,
     pub last_saved_hashes: Mutex<HashMap<Uuid, String>>,
@@ -43,6 +45,8 @@ impl AppState {
             drafts_dir,
             settings: Mutex::new(settings),
             note_index: Arc::new(RwLock::new(NoteIndex::new(root_dir.clone()))),
+            search_index: Arc::new(RwLock::new(crate::search::SearchIndex::default())),
+            search_indexing: Arc::new(AtomicBool::new(false)),
             root_dir: RwLock::new(root_dir),
             watcher: Mutex::new(None),
             note_origin: RwLock::new(String::new()),

@@ -109,3 +109,23 @@ export interface FlatNote {
   title: string;
   relPath: string;
 }
+
+export interface SearchSnippet {
+  before: string;
+  match: string;
+  after: string;
+}
+
+export interface SearchResult {
+  id: string;
+  title: string;
+  relPath: string;
+  titleMatch: boolean;
+  matchCount: number;
+  snippets: SearchSnippet[];
+}
+
+export interface SearchNotesResult {
+  results: SearchResult[];
+  indexing: boolean;
+}

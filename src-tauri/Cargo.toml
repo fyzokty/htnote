@@ -29,6 +29,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde", "clock"] }
 unicode-segmentation = "1"
 lol_html = "2"
+scraper = "0.24"
 notify-debouncer-full = "0.6"
 mime_guess = "2"
 percent-encoding = "2"
