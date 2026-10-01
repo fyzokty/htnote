@@ -4,6 +4,7 @@ import { FilePlus2, FolderPlus, Menu, NotebookPen, Plus, Search, Settings2, Tras
 import { useTranslation } from "react-i18next";
 
 import { SidebarTree } from "@/features/tree/SidebarTree";
+import { startFsChangeSync } from "@/features/tree/fsChangeSync";
 import { useTreeActions } from "@/features/tree/useTreeActions";
 import { resolveLanguage } from "@/i18n/language";
 import { installShortcutListener } from "@/lib/shortcuts/manager";
@@ -44,6 +45,7 @@ export function AppShell() {
     }
   });
   useEffect(() => installShortcutListener(), []);
+  useEffect(() => startFsChangeSync(), []);
   useEffect(() => {
     void loadTree().catch(() => {});
   }, [loadTree]);

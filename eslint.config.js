@@ -31,6 +31,11 @@ export default defineConfig([
               importNames: ["invoke"],
               message: "invoke yalnızca src/lib/ipc.ts üzerinden çağrılmalı.",
             },
+            {
+              name: "@tauri-apps/api/event",
+              importNames: ["listen"],
+              message: "listen yalnızca src/lib/events.ts üzerinden çağrılmalı.",
+            },
           ],
         },
       ],
@@ -45,9 +50,15 @@ export default defineConfig([
     },
   },
   {
-    files: ["src/lib/ipc.ts", "src/lib/**/*.test.{ts,tsx}"],
+    files: ["src/lib/ipc.ts"],
     rules: {
-      "no-restricted-imports": "off",
+      "no-restricted-imports": ["error", { paths: [{ name: "@tauri-apps/api/event", importNames: ["listen"], message: "listen yalnızca src/lib/events.ts üzerinden çağrılmalı." }] }],
+    },
+  },
+  {
+    files: ["src/lib/events.ts"],
+    rules: {
+      "no-restricted-imports": ["error", { paths: [{ name: "@tauri-apps/api/core", importNames: ["invoke"], message: "invoke yalnızca src/lib/ipc.ts üzerinden çağrılmalı." }] }],
     },
   },
   {
