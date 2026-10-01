@@ -26,9 +26,9 @@ beforeEach(() => {
 });
 
 describe("SidebarTree keyboard focus", () => {
-  it("prioritizes note and folder rows over the root drop target", () => {
-    expect(preferTreeRow([{ id: "drop:root" }, { id: "drop:A/Note" }])).toEqual([{ id: "drop:A/Note" }]);
-    expect(preferTreeRow([{ id: "drop:root" }, { id: "drop:A" }])).toEqual([{ id: "drop:A" }]);
+  it("resolves a pointer over a note to the root and prioritizes folders", () => {
+    expect(preferTreeRow([{ id: "drop:root" }, { id: "drop:note:A/Note" }])).toEqual([{ id: "drop:root" }]);
+    expect(preferTreeRow([{ id: "drop:root" }, { id: "drop:folder:A" }])).toEqual([{ id: "drop:folder:A" }]);
     expect(preferTreeRow([{ id: "drop:root" }])).toEqual([{ id: "drop:root" }]);
   });
 
@@ -47,7 +47,7 @@ describe("SidebarTree keyboard focus", () => {
     const calls: unknown[] = [];
     const moved = { ...note, relPath: "B/Note" };
     const destination: TreeNode = { type: "folder", name: "B", relPath: "B", children: [] };
-    useTreeStore.setState({ tree: [...tree, destination] });
+    useTreeStore.setState({ tree: [...tree, destination], selected: { kind: "folder", relPath: "A" } });
     mockIPC((command, args) => {
       if (command === "move_item") { calls.push(args); return "B/Note"; }
       if (command === "get_note_tree") return [tree[0], { ...destination, children: [moved] }];

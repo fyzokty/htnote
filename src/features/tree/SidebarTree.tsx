@@ -36,8 +36,8 @@ interface RowProps {
 
 // eslint-disable-next-line react-refresh/only-export-components
 export function preferTreeRow(collisions: Collision[]): Collision[] {
-  const row = collisions.find(({ id }) => id !== "drop:root");
-  return row ? [row] : collisions;
+  const folder = collisions.find(({ id }) => String(id).startsWith("drop:folder:"));
+  return folder ? [folder] : collisions.filter(({ id }) => id === "drop:root");
 }
 
 const treeCollisionDetection: CollisionDetection = (args) => preferTreeRow(pointerWithin(args));
@@ -46,7 +46,7 @@ const TreeRow = memo(function TreeRow({ node, depth, expanded, selected, tabbabl
   const { t } = useTranslation();
   const isFolder = node.type === "folder";
   const drag = useDraggable({ id: `drag:${node.relPath}`, data: { node }, disabled: renaming });
-  const drop = useDroppable({ id: `drop:${node.relPath}`, data: { path: node.relPath, type: node.type } });
+  const drop = useDroppable({ id: `drop:${node.type}:${node.relPath}`, data: { path: node.relPath, type: node.type }, disabled: !isFolder });
   const setNodeRef = (element: HTMLElement | null) => { drag.setNodeRef(element); drop.setNodeRef(element); };
   const isTarget = dropPath === node.relPath && dragSource !== null;
   return (
@@ -120,7 +120,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
 
   function dragOver(event: DragOverEvent) {
     const target = event.over?.data.current;
-    const path = (target?.type === "folder" || target?.type === "root" || target?.type === "note") && typeof target.path === "string" ? target.path : null;
+    const path = (target?.type === "folder" || target?.type === "root") && typeof target.path === "string" ? target.path : null;
     setDropPath(path);
   }
   function finishDrag(event?: DragEndEvent) {

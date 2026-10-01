@@ -63,6 +63,7 @@ export function useTreeActions(onOpenNote: (id: string) => void) {
       else {
         if (targetRelPath) useTreeStore.getState().revealFolder(targetRelPath);
         useTreeStore.getState().revealNote(node.id);
+        useTreeStore.getState().select({ kind: "note", id: node.id });
       }
     } catch (error) { notifyError(error); }
   }, []);
