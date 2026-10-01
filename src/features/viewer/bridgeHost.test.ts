@@ -1,7 +1,7 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createRateLimiter, installBridgeHost, parseBridgeMessage, registerFrame, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
+import { clearHighlight, createRateLimiter, installBridgeHost, parseBridgeMessage, registerFrame, requestHighlight, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
 import { initNoteOrigin } from "@/lib/noteUrl";
 import { subscribeShortcut } from "@/lib/shortcuts/manager";
 import type { Settings } from "@/lib/types";
@@ -140,4 +140,62 @@ it("handles registered messages and resends theme on settings change", () => {
     dispose();
     unregister();
   }
+});
+
+it("queues highlights until a validated ready message, then dispatches immediately", () => {
+  useTabsStore.getState().openNote(id);
+  const unregister = registerFrame(id, frame);
+  const dispose = installBridgeHost();
+  try {
+    requestHighlight(id, "ilk");
+    expect(frame.postMessage).not.toHaveBeenCalled();
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }, frame, "https://evil.test"));
+    expect(frame.postMessage).not.toHaveBeenCalled();
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }));
+    expect(frame.postMessage).toHaveBeenCalledWith({ type: "HTNOTE_HIGHLIGHT", query: "ilk" }, NOTE_ORIGIN);
+    clearHighlight(id);
+    requestHighlight(id, "sonra");
+    expect(frame.postMessage).toHaveBeenLastCalledWith({ type: "HTNOTE_HIGHLIGHT", query: "sonra" }, NOTE_ORIGIN);
+    expect(frame.postMessage).toHaveBeenNthCalledWith(3, { type: "HTNOTE_CLEAR_HIGHLIGHT" }, NOTE_ORIGIN);
+    clearHighlight(id);
+    expect(frame.postMessage).toHaveBeenLastCalledWith({ type: "HTNOTE_CLEAR_HIGHLIGHT" }, NOTE_ORIGIN);
+  } finally { dispose(); unregister(); }
+});
+
+it("drops a queued highlight when edit mode clears it", () => {
+  useTabsStore.getState().openNote(id);
+  const unregister = registerFrame(id, frame);
+  const dispose = installBridgeHost();
+  try {
+    requestHighlight(id, "sil");
+    clearHighlight(id);
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }));
+    expect(frame.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: "HTNOTE_HIGHLIGHT" }), NOTE_ORIGIN);
+  } finally { dispose(); unregister(); }
+});
+
+it("drops a queued highlight after edit mode starts before frame registration", () => {
+  useTabsStore.getState().openNote(id);
+  requestHighlight(id, "sil");
+  useTabsStore.getState().enterEdit(id, { html: "", css: "", js: "", contentHash: "hash" });
+  const unregister = registerFrame(id, frame);
+  const dispose = installBridgeHost();
+  try {
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }));
+    expect(frame.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: "HTNOTE_HIGHLIGHT" }), NOTE_ORIGIN);
+    requestHighlight(id, "yeniden");
+    expect(frame.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: "HTNOTE_HIGHLIGHT" }), NOTE_ORIGIN);
+  } finally { dispose(); unregister(); }
+});
+
+it("clears a highlight queued before any frame registers", () => {
+  useTabsStore.getState().openNote(id);
+  requestHighlight(id, "sil");
+  clearHighlight(id);
+  const unregister = registerFrame(id, frame);
+  const dispose = installBridgeHost();
+  try {
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }));
+    expect(frame.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: "HTNOTE_HIGHLIGHT" }), NOTE_ORIGIN);
+  } finally { dispose(); unregister(); }
 });

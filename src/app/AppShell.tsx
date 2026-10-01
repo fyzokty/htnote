@@ -13,6 +13,7 @@ import { deleteRecoveryDraft, selectRecoveryCandidates, useDraftAutosave } from 
 import { extractContent } from "@/features/editor/contentRegion";
 import { getDropHandler, toCssPoint } from "@/features/editor/fileDrop";
 import { setDiscardRecoveryDraftHook } from "@/features/editor/unsavedGuard";
+import { SearchModal } from "@/features/search/SearchModal";
 import { SidebarTree } from "@/features/tree/SidebarTree";
 import { handleQuickFilterKeyDown } from "@/features/tree/filterTree";
 import { TabBar } from "@/features/tabs/TabBar";
@@ -49,6 +50,8 @@ export function AppShell() {
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const [recoveryCandidates, setRecoveryCandidates] = useState<RecoveryCandidate[]>([]);
   const unsavedDialog = useUiStore((state) => state.unsavedDialog);
+  const searchOpen = useUiStore((state) => state.searchOpen);
+  const openSearch = useUiStore((state) => state.openSearch);
   useDraftAutosave();
   const sidebarWidth = dragWidth ?? clampWidth(settings?.sidebarWidth ?? 260);
   const widthRef = useRef(sidebarWidth);
@@ -56,6 +59,7 @@ export function AppShell() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useShortcut("toggleSidebar", toggleSidebar);
+  useShortcut("globalSearch", openSearch);
   useShortcut("newNote", () => { void createNote(); });
   useShortcut("newFolder", () => { void createFolder(); });
   useShortcut("rename", () => {
@@ -213,6 +217,7 @@ export function AppShell() {
   return (
     <main className="flex h-screen min-h-0 w-full overflow-hidden bg-app-bg text-app-text">
       <UnsavedChangesDialog />
+      {searchOpen && <SearchModal />}
       {!unsavedDialog && <RecoveryDialog candidates={recoveryCandidates} onRecover={(id) => void recoverDraft(id)} onIgnore={(id) => void ignoreDraft(id)} />}
       {sidebarVisible && (
         <aside
@@ -232,7 +237,7 @@ export function AppShell() {
               <button type="button" onClick={() => void createFolder()} title={formatShortcut("newFolder")} className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-subtle px-2 py-2 text-xs font-medium">
                 <FolderPlus className="size-4 shrink-0" aria-hidden /> {t("sidebar.newFolder")}
               </button>
-              <button type="button" disabled className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-subtle px-2 py-2 text-xs font-medium disabled:cursor-default">
+              <button type="button" onClick={openSearch} title={formatShortcut("globalSearch")} className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-subtle px-2 py-2 text-xs font-medium">
                 <Search className="size-4 shrink-0" aria-hidden /> {t("sidebar.search")}
               </button>
             </div>

@@ -138,6 +138,15 @@ describe("note bridge", () => {
     expect(document.querySelector("p")?.textContent).toBe("I\u0307i İi Iı");
   });
 
+  it("highlights separate text nodes and clears marks without removing elements", () => {
+    document.body.innerHTML = "<p>İstanbul <strong>istanbul</strong></p>";
+    hostMessage({ type: "HTNOTE_HIGHLIGHT", query: "istanbul" });
+    expect(document.querySelectorAll("mark.htnote-highlight")).toHaveLength(2);
+    hostMessage({ type: "HTNOTE_CLEAR_HIGHLIGHT" });
+    expect(document.querySelectorAll("mark.htnote-highlight")).toHaveLength(0);
+    expect(document.querySelector("strong")?.textContent).toBe("istanbul");
+  });
+
   it("restores scroll only from the parent and reports scroll changes", () => {
     const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
     const frame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {

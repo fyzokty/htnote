@@ -23,6 +23,11 @@ const toastTimers = new Map<number, ReturnType<typeof setTimeout>>();
 let nextToastId = 0;
 
 interface UiState {
+  searchOpen: boolean;
+  lastSearchQuery: string;
+  openSearch: () => void;
+  closeSearch: () => void;
+  setLastSearchQuery: (query: string) => void;
   unsavedDialog: { noteIds: string[]; resolve: (decision: UnsavedDecision) => void } | null;
   openUnsavedDialog: (noteIds: string[], resolve: (decision: UnsavedDecision) => void) => void;
   closeUnsavedDialog: () => void;
@@ -35,6 +40,11 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
+  searchOpen: false,
+  lastSearchQuery: "",
+  openSearch: () => set({ searchOpen: true }),
+  closeSearch: () => set({ searchOpen: false }),
+  setLastSearchQuery: (lastSearchQuery) => set({ lastSearchQuery }),
   unsavedDialog: null,
   openUnsavedDialog: (noteIds, resolve) => set({ unsavedDialog: { noteIds, resolve } }),
   closeUnsavedDialog: () => set({ unsavedDialog: null }),

@@ -19,6 +19,24 @@ export type BridgeMessage =
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const frames = new Map<string, Window>();
+const readyFrames = new Set<Window>();
+const pendingHighlights = new Map<string, string>();
+
+export function requestHighlight(noteId: string, query: string) {
+  if (useTabsStore.getState().tabs.find((tab) => tab.noteId === noteId)?.doc.mode !== "view") return;
+  pendingHighlights.set(noteId, query);
+  const frame = frames.get(noteId);
+  if (frame && readyFrames.has(frame)) {
+    frame.postMessage({ type: "HTNOTE_HIGHLIGHT", query }, getNoteOrigin());
+    pendingHighlights.delete(noteId);
+  }
+}
+
+export function clearHighlight(noteId: string) {
+  pendingHighlights.delete(noteId);
+  const frame = frames.get(noteId);
+  if (frame && readyFrames.has(frame)) frame.postMessage({ type: "HTNOTE_CLEAR_HIGHLIGHT" }, getNoteOrigin());
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -62,9 +80,14 @@ export function parseBridgeMessage(event: MessageEvent, expectedWindow: Window, 
 }
 
 export function registerFrame(noteId: string, frame: Window): () => void {
+  const previous = frames.get(noteId);
+  if (previous) readyFrames.delete(previous);
   frames.set(noteId, frame);
   return () => {
-    if (frames.get(noteId) === frame) frames.delete(noteId);
+    if (frames.get(noteId) === frame) {
+      frames.delete(noteId);
+      readyFrames.delete(frame);
+    }
   };
 }
 
@@ -103,7 +126,15 @@ export function handleBridgeMessage(event: MessageEvent) {
   if (!message) return;
   switch (message.type) {
     case "HTNOTE_READY":
+      readyFrames.add(frame);
       sendTheme(frame);
+      for (const [noteId, candidate] of frames) {
+        if (candidate !== frame || !pendingHighlights.has(noteId)) continue;
+        if (useTabsStore.getState().tabs.find((tab) => tab.noteId === noteId)?.doc.mode === "view") {
+          frame.postMessage({ type: "HTNOTE_HIGHLIGHT", query: pendingHighlights.get(noteId) }, getNoteOrigin());
+        }
+        pendingHighlights.delete(noteId);
+      }
       break;
     case "HTNOTE_OPEN_NOTE":
       if (useTreeStore.getState().findNoteById(message.id)) useTabsStore.getState().openNote(message.id);
@@ -141,4 +172,6 @@ export function installBridgeHost(target: Window = window): () => void {
 
 export function resetBridgeHostForTests() {
   frames.clear();
+  readyFrames.clear();
+  pendingHighlights.clear();
 }
