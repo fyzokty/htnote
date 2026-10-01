@@ -2,8 +2,8 @@ import { useEffect, useRef } from "react";
 
 import { extractContent, replaceContent } from "@/features/editor/contentRegion";
 import type { VisualEditorHandle } from "@/features/editor/VisualEditor";
-import { registerEditorFlush, saveTab } from "@/features/editor/saveTab";
-import { discardTab, resolveUnsaved } from "@/features/editor/unsavedGuard";
+import { flushEditor, registerEditorFlush, saveTab } from "@/features/editor/saveTab";
+import { discardTab, requestUnsavedDecision } from "@/features/editor/unsavedGuard";
 import { ipc } from "@/lib/ipc";
 import { useTabsStore } from "@/stores/tabsStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -65,10 +65,17 @@ export function useEditSession(noteId: string | null) {
   async function cancel(): Promise<boolean> {
     const doc = getDoc();
     if (!noteId || !doc || doc.mode === "view" || doc.saving) return false;
-    visualRef.current?.flush();
+    flushEditor(noteId);
     if (getDoc()?.dirty) {
-      if (!(await resolveUnsaved([noteId])).has(noteId)) return false;
-      if (getDoc()?.mode === "view") return true;
+      const decision = await requestUnsavedDecision([noteId]);
+      if (decision === "cancel") return false;
+      if (decision === "save") {
+        const saved = await saveTab(noteId);
+        if (!saved || getDoc()?.dirty) return false;
+        useTabsStore.getState().cancelEdit(noteId);
+        clearPreview();
+        return true;
+      }
     }
     return discardTab(noteId);
   }
@@ -77,14 +84,17 @@ export function useEditSession(noteId: string | null) {
     const doc = getDoc();
     if (!doc || doc.saving) return;
     if (doc.mode === "view") { await enter(); return; }
-    visualRef.current?.flush();
+    flushEditor(noteId!);
     if (!getDoc()?.dirty) {
       useTabsStore.getState().cancelEdit(noteId!);
       clearPreview();
     } else {
-      if ((await resolveUnsaved([noteId!])).has(noteId!) && !getDoc()?.dirty && getDoc()?.mode !== "view") {
+      const decision = await requestUnsavedDecision([noteId!]);
+      if (decision === "save" && await saveTab(noteId!) && !getDoc()?.dirty) {
         useTabsStore.getState().cancelEdit(noteId!);
         clearPreview();
+      } else if (decision === "discard") {
+        await discardTab(noteId!);
       }
     }
   }

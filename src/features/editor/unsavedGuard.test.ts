@@ -1,7 +1,7 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { requestUnsavedDecision, resolveUnsaved } from "@/features/editor/unsavedGuard";
+import { discardTab, requestUnsavedDecision, resolveUnsaved, setDiscardRecoveryDraftHook } from "@/features/editor/unsavedGuard";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -83,5 +83,38 @@ describe("unsaved guard", () => {
     decide("discard");
     expect(await second).toEqual(new Set(["a", "b"]));
     expect(useTabsStore.getState().isDirty("b")).toBe(false);
+  });
+
+  it("serializes overlapping requests without waiting on their own resolution", async () => {
+    dirty("a"); dirty("b"); dirty("c");
+    mockIPC((command) => command === "save_note" ? { contentHash: "new" } : undefined);
+    const first = resolveUnsaved(["a"]);
+    const second = resolveUnsaved(["a", "b"]);
+    const third = resolveUnsaved(["b", "c"]);
+    decide("save");
+    expect(await first).toEqual(new Set(["a"]));
+    await vi.waitFor(() => expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["b"]));
+    decide("save");
+    expect(await second).toEqual(new Set(["a", "b"]));
+    await vi.waitFor(() => expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["c"]));
+    decide("discard");
+    expect(await third).toEqual(new Set(["b", "c"]));
+  });
+
+  it("discards even when preview and recovery cleanup fail", async () => {
+    dirty("a");
+    mockIPC((command) => { if (command === "clear_preview_draft") throw new Error("preview"); });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const recovery = vi.fn().mockRejectedValue(new Error("recovery"));
+    const unregister = setDiscardRecoveryDraftHook(recovery);
+    try {
+      expect(await discardTab("a")).toBe(true);
+      expect(useTabsStore.getState().isDirty("a")).toBe(false);
+      expect(recovery).toHaveBeenCalledWith("a");
+      expect(warn).toHaveBeenCalledTimes(2);
+    } finally {
+      unregister();
+      warn.mockRestore();
+    }
   });
 });

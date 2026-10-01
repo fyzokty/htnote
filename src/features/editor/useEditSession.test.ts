@@ -72,6 +72,44 @@ describe("useEditSession", () => {
     expect(doc().mode).toBe("view");
   });
 
+  it("saves a dirty edit on cancel without discarding the saved content", async () => {
+    let saves = 0;
+    mockIPC((command) => {
+      if (command === "read_note") return note;
+      if (command === "save_note") { saves++; return { contentHash: "new", metadata: note.metadata }; }
+    });
+    const { result } = renderHook(() => useEditSession("a"));
+    await act(async () => { await result.current.enter(); });
+    act(() => result.current.onVisualChange("<p>Saved</p>"));
+    let pending!: Promise<boolean>;
+    act(() => { pending = result.current.cancel(); });
+    await decide("save");
+    expect(await pending).toBe(true);
+    expect(saves).toBe(1);
+    expect(doc()).toMatchObject({ mode: "view", dirty: false, base: { contentHash: "new" } });
+    expect(doc().base?.html).toContain("Saved");
+  });
+
+  it("keeps editing after a failed Save decision in cancel and Ctrl+E", async () => {
+    mockIPC((command) => {
+      if (command === "read_note") return note;
+      if (command === "save_note") throw { code: "IO_ERROR" };
+    });
+    const { result } = renderHook(() => useEditSession("a"));
+    await act(async () => { await result.current.enter(); });
+    act(() => result.current.onVisualChange("<p>Unsaved</p>"));
+    let pendingCancel!: Promise<boolean>;
+    act(() => { pendingCancel = result.current.cancel(); });
+    await decide("save");
+    expect(await pendingCancel).toBe(false);
+    expect(doc()).toMatchObject({ mode: "visual", dirty: true });
+    let pendingToggle!: Promise<void>;
+    act(() => { pendingToggle = result.current.toggleEdit(); });
+    await decide("save");
+    await pendingToggle;
+    expect(doc()).toMatchObject({ mode: "visual", dirty: true });
+  });
+
   it("starts in code when no content region exists and blocks invalid code to visual transitions", async () => {
     mockIPC((command) => command === "read_note" ? { ...note, html: "<html></html>" } : undefined);
     const { result } = renderHook(() => useEditSession("a"));

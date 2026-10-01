@@ -126,6 +126,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       if (await beforeClose(candidate)) allowed.push(candidate);
     }
     const resolved = await resolveUnsaved(allowed);
+    if (allowed.length && !resolved.size) return;
     for (const candidate of allowed) {
       if (!resolved.has(candidate) || get().isDirty(candidate)) continue;
       const current = get();

@@ -164,6 +164,7 @@ describe("tabsStore", () => {
         store.updateDraft(id, { html: `changed ${id}` });
       }
     }
+    store.openNote("d");
     mockIPC((command, args) => {
       if (command === "save_note" && (args as { id: string }).id === "c") throw { code: "IO_ERROR" };
       if (command === "save_note") return { contentHash: "new" };
@@ -177,6 +178,37 @@ describe("tabsStore", () => {
     await closing;
     expect(ids()).toEqual(["b", "c"]);
     expect(store.isDirty("c")).toBe(true);
+  });
+
+  it("keeps every candidate and the active tab on a cancelled batch close", async () => {
+    const store = useTabsStore.getState();
+    for (const id of ["a", "b", "c"]) store.openNote(id);
+    store.enterEdit("a", base, "code");
+    store.updateDraft("a", { html: "changed" });
+    store.activate("c");
+    const closing = store.closeOthers("b");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["a"]);
+    useUiStore.getState().unsavedDialog?.resolve("cancel");
+    await closing;
+    expect(ids()).toEqual(["a", "b", "c"]);
+    expect(useTabsStore.getState().activeId).toBe("c");
+  });
+
+  it("closes dirty and clean candidates after one discard decision", async () => {
+    const store = useTabsStore.getState();
+    for (const id of ["a", "b", "c"]) store.openNote(id);
+    store.enterEdit("a", base, "code");
+    store.updateDraft("a", { html: "changed" });
+    mockIPC(() => undefined);
+    const closing = store.closeOthers("b");
+    await Promise.resolve();
+    await Promise.resolve();
+    useUiStore.getState().unsavedDialog?.resolve("discard");
+    await closing;
+    expect(ids()).toEqual(["b"]);
+    expect(useTabsStore.getState().activeId).toBe("b");
   });
 
   it("waits for an asynchronous close guard", async () => {
