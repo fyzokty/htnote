@@ -21,7 +21,6 @@ interface TreeState {
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let seeded = false;
 let loaded = false;
-let pendingChanges: Array<{ kind: "toggle" | "reveal"; paths: string[] }> = [];
 
 function walk(nodes: TreeNode[], visit: (node: TreeNode, parents: string[]) => void, parents: string[] = []) {
   for (const node of nodes) {
@@ -40,21 +39,21 @@ function persist(expanded: Set<string>) {
   }, 500);
 }
 
-function seedExpansion(saved: string[], folders: Set<string>) {
-  const expanded = new Set(saved.filter((path) => folders.has(path)));
-  for (const change of pendingChanges) {
-    for (const path of change.paths) {
-      if (!folders.has(path)) continue;
-      if (change.kind === "reveal") expanded.add(path);
-      else if (expanded.has(path)) expanded.delete(path);
-      else expanded.add(path);
-    }
-  }
-  const changed = pendingChanges.length > 0;
-  pendingChanges = [];
+function seedExpansion(saved: string[], current: Set<string>, folders: Set<string>) {
+  const expanded = new Set([...saved, ...current].filter((path) => folders.has(path)));
   seeded = true;
-  if (changed) persist(expanded);
+  if (current.size > 0 && (expanded.size !== saved.length || [...expanded].some((path) => !saved.includes(path)))) persist(expanded);
   return expanded;
+}
+
+function reconcile(tree: TreeNode[], expanded: Set<string>, selected: TreeSelection | null) {
+  const folders = new Set<string>();
+  walk(tree, (node) => { if (node.type === "folder") folders.add(node.relPath); });
+  const pruned = new Set([...expanded].filter((path) => folders.has(path)));
+  const exists = selected && (selected.kind === "folder"
+    ? folders.has(selected.relPath)
+    : treeContainsNote(tree, selected.id));
+  return { folders, expanded: pruned, selected: exists ? selected : null };
 }
 
 export const useTreeStore = create<TreeState>((set, get) => ({
@@ -67,31 +66,34 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     set({ loading: true });
     try {
       const tree = await ipc.getNoteTree();
-      const folders = new Set<string>();
-      walk(tree, (node) => { if (node.type === "folder") folders.add(node.relPath); });
+      const current = reconcile(tree, get().expanded, get().selected);
       const saved = useSettingsStore.getState().settings?.expandedFolders;
       const expanded = !seeded && saved
-        ? seedExpansion(saved, folders)
-        : new Set([...get().expanded].filter((path) => folders.has(path)));
+        ? seedExpansion(saved, current.expanded, current.folders)
+        : current.expanded;
       loaded = true;
-      const selected = get().selected;
-      const exists = selected && (selected.kind === "folder"
-        ? folders.has(selected.relPath)
-        : treeContainsNote(tree, selected.id));
-      set({ tree, expanded, selected: exists ? selected : null, loading: false });
+      set({ tree, expanded, selected: current.selected, loading: false });
     } catch (error) {
       set({ loading: false });
       throw error;
     }
   },
   async refresh() {
-    const before = get().expanded;
-    await get().load();
-    const after = get().expanded;
-    if (before.size !== after.size || [...before].some((path) => !after.has(path))) persist(after);
+    if (get().loading) return;
+    set({ loading: true });
+    try {
+      const tree = await ipc.getNoteTree();
+      const before = get().expanded;
+      const current = reconcile(tree, before, get().selected);
+      loaded = true;
+      set({ tree, expanded: current.expanded, selected: current.selected, loading: false });
+      if (before.size !== current.expanded.size) persist(current.expanded);
+    } catch (error) {
+      set({ loading: false });
+      throw error;
+    }
   },
   toggle(relPath) {
-    if (!seeded) pendingChanges.push({ kind: "toggle", paths: [relPath] });
     const expanded = new Set(get().expanded);
     if (expanded.has(relPath)) expanded.delete(relPath);
     else expanded.add(relPath);
@@ -105,7 +107,6 @@ export const useTreeStore = create<TreeState>((set, get) => ({
       if (node.type === "note" && node.id === id) parents = ancestors;
     });
     if (!parents) return;
-    if (!seeded) pendingChanges.push({ kind: "reveal", paths: parents });
     const previous = get().expanded;
     const expanded = new Set([...get().expanded, ...parents]);
     set({ expanded, selected: { kind: "note", id } });
@@ -136,7 +137,7 @@ useSettingsStore.subscribe((state) => {
   if (seeded || !loaded || !state.settings) return;
   const folders = new Set<string>();
   walk(useTreeStore.getState().tree, (node) => { if (node.type === "folder") folders.add(node.relPath); });
-  useTreeStore.setState({ expanded: seedExpansion(state.settings.expandedFolders, folders) });
+  useTreeStore.setState({ expanded: seedExpansion(state.settings.expandedFolders, useTreeStore.getState().expanded, folders) });
 });
 
 export function resetTreeStoreForTests() {
@@ -144,6 +145,5 @@ export function resetTreeStoreForTests() {
   saveTimer = null;
   seeded = false;
   loaded = false;
-  pendingChanges = [];
   useTreeStore.setState({ tree: [], loading: false, selected: null, expanded: new Set<string>() });
 }

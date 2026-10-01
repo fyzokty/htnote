@@ -75,13 +75,13 @@ describe("treeStore", () => {
     vi.useRealTimers();
   });
 
-  it("reconciles expansion changes made before settings arrive and persists them", async () => {
+  it("unites folders opened before settings arrive and seeds only once", async () => {
     const updates: unknown[] = [];
     mockIPC((command, args) => {
       if (command === "get_note_tree") return tree;
       if (command === "update_settings") {
         updates.push(args);
-        return { ...settings, expandedFolders: ["A/B"] };
+        return { ...settings, expandedFolders: ["A", "A/B"] };
       }
       return undefined;
     });
@@ -92,9 +92,29 @@ describe("treeStore", () => {
     await vi.advanceTimersByTimeAsync(500);
     expect(updates).toHaveLength(0);
     useSettingsStore.setState({ settings: { ...settings, expandedFolders: ["A"] }, status: "ready" });
-    expect([...useTreeStore.getState().expanded]).toEqual(["A/B"]);
+    expect([...useTreeStore.getState().expanded]).toEqual(["A", "A/B"]);
     await vi.advanceTimersByTimeAsync(500);
-    expect(updates).toEqual([{ patch: { expandedFolders: ["A/B"] } }]);
+    expect(updates).toEqual([{ patch: { expandedFolders: ["A", "A/B"] } }]);
+    useTreeStore.getState().toggle("A");
+    useSettingsStore.setState({ settings: { ...settings, expandedFolders: ["A"] }, status: "ready" });
+    await useTreeStore.getState().refresh();
+    expect([...useTreeStore.getState().expanded]).toEqual(["A/B"]);
     vi.useRealTimers();
+  });
+
+  it("refresh before late settings prunes deleted nodes without seeding saved folders", async () => {
+    let nodes = tree;
+    mockIPC((command) => command === "get_note_tree" ? nodes : undefined);
+    await useTreeStore.getState().load();
+    useTreeStore.getState().toggle("A/B");
+    useTreeStore.getState().select({ kind: "note", id: "n" });
+    nodes = [{ type: "folder", name: "A", relPath: "A", children: [] }];
+    await useTreeStore.getState().refresh();
+    expect([...useTreeStore.getState().expanded]).toEqual([]);
+    expect(useTreeStore.getState().selected).toBeNull();
+    useSettingsStore.setState({ settings: { ...settings, expandedFolders: ["A/B"] }, status: "ready" });
+    expect([...useTreeStore.getState().expanded]).toEqual([]);
+    await useTreeStore.getState().refresh();
+    expect([...useTreeStore.getState().expanded]).toEqual([]);
   });
 });

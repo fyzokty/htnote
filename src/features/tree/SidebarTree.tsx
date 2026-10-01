@@ -77,7 +77,9 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     const keys: TreeKey[] = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
     if (event.key !== "Enter" && !keys.includes(event.key as TreeKey)) return;
     event.preventDefault();
-    const current = rows.find(({ node }) => isSelected(node, selected))?.node ?? null;
+    const focusedKey = (event.target as HTMLElement).closest<HTMLElement>("[data-tree-key]")?.dataset.treeKey;
+    const current = rows.find(({ node }) => focusedKey === (node.type === "folder" ? `folder:${node.relPath}` : `note:${node.id}`))?.node
+      ?? rows.find(({ node }) => isSelected(node, selected))?.node ?? null;
     if (event.key === "Enter") {
       if (current) choose(current);
       return;
@@ -85,6 +87,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     const next = nextVisibleNode(tree, expanded, current, event.key as TreeKey);
     if (!next) return;
     if (next.expansion && next.node.type === "folder") {
+      select({ kind: "folder", relPath: next.node.relPath });
       toggle(next.node.relPath);
       return;
     }
