@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
 import { resolveCreateTarget } from "@/features/tree/treeNavigation";
+import { canDrop } from "@/features/tree/canDrop";
 import { notifyError } from "@/lib/errors";
 import { ipc } from "@/lib/ipc";
 import type { TreeNode } from "@/lib/types";
@@ -51,5 +52,21 @@ export function useTreeActions(onOpenNote: (id: string) => void) {
     catch (error) { notifyError(error); }
   }, []);
 
-  return { createNote, createFolder, renameNode, revealNode };
+  const moveNode = useCallback(async (node: TreeNode, targetRelPath: string) => {
+    const state = useTreeStore.getState();
+    if (!canDrop(node, targetRelPath, state.tree)) return;
+    try {
+      const newPath = await ipc.moveItem(node.relPath, targetRelPath);
+      if (node.type === "folder") useTreeStore.getState().movePathPrefix(node.relPath, newPath);
+      await useTreeStore.getState().refresh();
+      if (node.type === "folder") useTreeStore.getState().revealFolder(newPath);
+      else {
+        if (targetRelPath) useTreeStore.getState().revealFolder(targetRelPath);
+        useTreeStore.getState().revealNote(node.id);
+        useTreeStore.getState().select({ kind: "note", id: node.id });
+      }
+    } catch (error) { notifyError(error); }
+  }, []);
+
+  return { createNote, createFolder, renameNode, revealNode, moveNode };
 }
