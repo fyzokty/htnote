@@ -3,6 +3,8 @@ import type { PointerEvent } from "react";
 import { FilePlus2, FolderPlus, Menu, NotebookPen, Search, Settings2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { installUnsavedWindowGuard } from "@/app/unsavedWindowGuard";
+import { UnsavedChangesDialog } from "@/components/ui/UnsavedChangesDialog";
 import { SidebarTree } from "@/features/tree/SidebarTree";
 import { TabBar } from "@/features/tabs/TabBar";
 import { NoteViewer } from "@/features/viewer/NoteViewer";
@@ -49,6 +51,11 @@ export function AppShell() {
   });
   useEffect(() => installShortcutListener(), []);
   useEffect(() => installBridgeHost(), []);
+  useEffect(() => {
+    const internals = (window as Window & { __TAURI_INTERNALS__?: { metadata?: { currentWindow?: unknown } } }).__TAURI_INTERNALS__;
+    if (!internals?.metadata?.currentWindow) return;
+    return installUnsavedWindowGuard();
+  }, []);
   useEffect(() => startFsChangeSync(), []);
   useEffect(() => {
     void loadTree().then(() => {
@@ -108,6 +115,7 @@ export function AppShell() {
 
   return (
     <main className="flex h-screen min-h-0 w-full overflow-hidden bg-app-bg text-app-text">
+      <UnsavedChangesDialog />
       {sidebarVisible && (
         <aside
           className="relative flex h-full min-h-0 shrink-0 flex-col border-r border-app-border bg-app-surface"

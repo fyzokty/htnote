@@ -7,6 +7,7 @@ import type { Settings } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
+import { useUiStore } from "@/stores/uiStore";
 
 const settings: Settings = {
   rootDir: null, theme: "system", language: null, sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true,
@@ -68,7 +69,10 @@ describe("tabsStore", () => {
     store.cancelEdit("a");
     expect(doc("a")).toMatchObject({ mode: "view", draft: null, dirty: false });
     expect(store.anyDirty()).toBe(true);
-    await store.close("b");
+    const closing = store.close("b");
+    await Promise.resolve();
+    useUiStore.getState().unsavedDialog?.resolve("discard");
+    await closing;
     expect(store.isDirty("b")).toBe(false);
     expect(store.anyDirty()).toBe(false);
   });
@@ -149,6 +153,30 @@ describe("tabsStore", () => {
     unregister();
     expect(await store.close("a")).toBe(true);
     expect(clear).toHaveBeenCalledWith("a");
+  });
+
+  it("prompts once for dirty closeOthers and keeps a failed save open", async () => {
+    const store = useTabsStore.getState();
+    for (const id of ["a", "b", "c"]) {
+      store.openNote(id);
+      if (id !== "b") {
+        store.enterEdit(id, base, "code");
+        store.updateDraft(id, { html: `changed ${id}` });
+      }
+    }
+    mockIPC((command, args) => {
+      if (command === "save_note" && (args as { id: string }).id === "c") throw { code: "IO_ERROR" };
+      if (command === "save_note") return { contentHash: "new" };
+    });
+    const closing = store.closeOthers("b");
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["a", "c"]);
+    useUiStore.getState().unsavedDialog?.resolve("save");
+    await closing;
+    expect(ids()).toEqual(["b", "c"]);
+    expect(store.isDirty("c")).toBe(true);
   });
 
   it("waits for an asynchronous close guard", async () => {

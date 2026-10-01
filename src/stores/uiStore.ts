@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { useSettingsStore } from "@/stores/settingsStore";
+import type { UnsavedDecision } from "@/features/editor/unsavedGuard";
 
 export interface ToastAction {
   labelKey: string;
@@ -22,6 +23,9 @@ const toastTimers = new Map<number, ReturnType<typeof setTimeout>>();
 let nextToastId = 0;
 
 interface UiState {
+  unsavedDialog: { noteIds: string[]; resolve: (decision: UnsavedDecision) => void } | null;
+  openUnsavedDialog: (noteIds: string[], resolve: (decision: UnsavedDecision) => void) => void;
+  closeUnsavedDialog: () => void;
   sidebarVisible: boolean;
   setSidebarVisible: (visible: boolean) => void;
   toggleSidebar: () => void;
@@ -31,6 +35,9 @@ interface UiState {
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
+  unsavedDialog: null,
+  openUnsavedDialog: (noteIds, resolve) => set({ unsavedDialog: { noteIds, resolve } }),
+  closeUnsavedDialog: () => set({ unsavedDialog: null }),
   sidebarVisible: true,
   toasts: [],
   pushToast: (input) => {
