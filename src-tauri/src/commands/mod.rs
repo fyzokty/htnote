@@ -57,7 +57,6 @@ pub fn update_settings(patch: SettingsPatch, app: tauri::AppHandle, state: State
         index.root = root;
         index.replace_all(result);
         drop(index);
-        state.search_index.write().map_err(|error| AppError::Internal(error.to_string()))?.clear();
         search::start_build(&state);
         crate::watcher::start_for_app(&state, app)?;
     }
@@ -287,7 +286,9 @@ fn reindex_all(state: &AppState) -> Result<(), AppError> {
     let ids = state.note_index.read().map_err(|error| AppError::Internal(error.to_string()))?
         .by_id.keys().copied().collect::<Vec<_>>();
     state.search_index.write().map_err(|error| AppError::Internal(error.to_string()))?.clear();
-    search::reindex_notes(&state.note_index, &state.search_index, &ids, &[])
+    search::reindex_notes(&state.note_index, &state.search_index, &ids, &[])?;
+    state.search_indexing.store(false, Ordering::Release);
+    Ok(())
 }
 
 #[cfg(test)]

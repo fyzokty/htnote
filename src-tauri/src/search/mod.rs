@@ -1,7 +1,7 @@
 mod extract;
 mod normalize;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, RwLock};
 
@@ -30,6 +30,8 @@ pub struct Entry {
 #[derive(Default)]
 pub struct SearchIndex {
     entries: HashMap<Uuid, Entry>,
+    versions: HashMap<Uuid, u64>,
+    generation: u64,
 }
 
 #[derive(Serialize, Debug)]
@@ -62,10 +64,10 @@ fn occurrences(text: &str, term: &str) -> Vec<usize> {
     text.match_indices(term).map(|(offset, _)| text[..offset].chars().count()).collect()
 }
 
-fn snippet(text: &str, map: &[usize], position: usize, length: usize) -> Option<SearchSnippet> {
+fn snippet(text: &str, map: &[(usize, usize)], position: usize, length: usize) -> Option<SearchSnippet> {
     let chars: Vec<char> = text.chars().collect();
-    let start = *map.get(position)?;
-    let end = map.get(position + length - 1)?.saturating_add(1).min(chars.len());
+    let start = map.get(position)?.0;
+    let end = map.get(position.checked_add(length)?.checked_sub(1)?)?.1.min(chars.len());
     let mut left = start.saturating_sub(60);
     let mut right = end.saturating_add(60).min(chars.len());
     while left > 0 && !chars[left - 1].is_whitespace() { left -= 1; }
@@ -93,12 +95,23 @@ impl SearchIndex {
 
     pub fn remove(&mut self, id: Uuid) { self.entries.remove(&id); }
 
-    pub fn clear(&mut self) { self.entries.clear(); }
+    pub fn clear(&mut self) {
+        self.entries.clear();
+        self.versions.clear();
+        self.generation = self.generation.wrapping_add(1);
+    }
+
+    fn upsert_initial(&mut self, note: &IndexedNote, html: &str, generation: u64, version: u64) {
+        if self.generation == generation
+            && self.versions.get(&note.metadata.id).copied().unwrap_or_default() == version {
+            self.upsert(note, html);
+        }
+    }
 
     pub fn search(&self, query: &str, limit: usize) -> Vec<SearchResult> {
         let query = tr_fold(query.trim()).text;
-        if query.chars().count() < 2 { return Vec::new(); }
         let words: Vec<_> = query.split_whitespace().collect();
+        if words.iter().any(|word| word.chars().count() < 2) { return Vec::new(); }
         let Some(first) = words.first() else { return Vec::new() };
         let mut matches: Vec<_> = self.entries.iter().filter_map(|(id, entry)| {
             let tags = entry.tags.iter().map(|tag| tr_fold(tag).text).collect::<Vec<_>>();
@@ -107,9 +120,17 @@ impl SearchIndex {
             if !words.iter().all(|word| entry.title_norm.contains(word)
                 || tags.iter().any(|tag| tag.contains(word)) || entry.text_norm.text.contains(word)) { return None; }
             let count = words.iter().map(|word| occurrences(&entry.text_norm.text, word).len()).sum();
-            let snippets = occurrences(&entry.text_norm.text, first).into_iter().take(3)
+            let mut seen = HashSet::new();
+            let snippets = occurrences(&entry.text_norm.text, first).into_iter()
+                .filter(|position| {
+                    let end = position + first.chars().count() - 1;
+                    match (entry.text_norm.map.get(*position), entry.text_norm.map.get(end)) {
+                        (Some(start), Some(end)) => seen.insert((start.0, end.1)),
+                        _ => false,
+                    }
+                })
                 .filter_map(|position| snippet(&entry.text, &entry.text_norm.map, position, first.chars().count()))
-                .collect();
+                .take(3).collect();
             Some((title_match, tag_match, entry.updated_at, SearchResult {
                 id: *id, title: entry.title.clone(), rel_path: entry.rel_path.clone(),
                 title_match, match_count: count, snippets,
@@ -124,6 +145,15 @@ impl SearchIndex {
 
 // Not indeksi kilidi bırakılmadan arama indeksi kilidi alınmaz.
 pub fn reindex_notes(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, ids: &[Uuid], removed: &[Uuid]) -> Result<(), AppError> {
+    // Dosya okuma sürerken başlayan daha yeni bir güncelleme eski sonucu geçersiz kılar.
+    let (generation, versions) = {
+        let mut search = search.write().map_err(|error| AppError::Internal(error.to_string()))?;
+        for id in ids.iter().chain(removed) {
+            let version = search.versions.entry(*id).or_default();
+            *version = version.wrapping_add(1);
+        }
+        (search.generation, ids.iter().chain(removed).map(|id| (*id, search.versions[id])).collect::<HashMap<_, _>>())
+    };
     let notes = {
         let index = index.read().map_err(|error| AppError::Internal(error.to_string()))?;
         ids.iter().filter_map(|id| index.by_id.get(id).and_then(|note| index.resolve(*id).map(|dir| (note.clone(), dir)))).collect::<Vec<_>>()
@@ -137,30 +167,70 @@ pub fn reindex_notes(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, id
         Ok::<_, AppError>((note, html))
     }).collect::<Result<Vec<_>, _>>()?;
     let mut search = search.write().map_err(|error| AppError::Internal(error.to_string()))?;
-    for id in removed { search.remove(*id); }
-    for (note, html) in loaded { search.upsert(&note, &html); }
+    if search.generation != generation { return Ok(()); }
+    for id in removed {
+        if search.versions.get(id) == versions.get(id) { search.remove(*id); }
+    }
+    for (note, html) in loaded {
+        let id = note.metadata.id;
+        if search.versions.get(&id) == versions.get(&id) { search.upsert(&note, &html); }
+    }
+    Ok(())
+}
+
+fn index_initial_note(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, id: Uuid, generation: u64) -> Result<(), AppError> {
+    let version = {
+        let search = search.read().map_err(|error| AppError::Internal(error.to_string()))?;
+        if search.generation != generation { return Ok(()); }
+        search.versions.get(&id).copied().unwrap_or_default()
+    };
+    let note = {
+        let index = index.read().map_err(|error| AppError::Internal(error.to_string()))?;
+        index.by_id.get(&id).and_then(|note| index.resolve(id).map(|dir| (note.clone(), dir)))
+    };
+    let Some((note, dir)) = note else { return Ok(()); };
+    let html = match std::fs::read_to_string(dir.join("index.html")) {
+        Ok(html) => html,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(error) => return Err(error.into()),
+    };
+    let mut search = search.write().map_err(|error| AppError::Internal(error.to_string()))?;
+    search.upsert_initial(&note, &html, generation, version);
     Ok(())
 }
 
 pub fn start_build(state: &AppState) {
-    state.search_indexing.store(true, Ordering::Release);
+    let generation = match state.search_index.write() {
+        Ok(mut search) => {
+            search.clear();
+            state.search_indexing.store(true, Ordering::Release);
+            search.generation
+        }
+        Err(error) => {
+            eprintln!("Search indexing failed: {error}");
+            return;
+        }
+    };
     let index = Arc::clone(&state.note_index);
     let search = Arc::clone(&state.search_index);
     let indexing = Arc::clone(&state.search_indexing);
     std::thread::spawn(move || {
         let ids = index.read().map(|locked| locked.by_id.keys().copied().collect::<Vec<_>>()).unwrap_or_default();
         for id in ids {
-            if let Err(error) = reindex_notes(&index, &search, &[id], &[]) {
+            if let Err(error) = index_initial_note(&index, &search, id, generation) {
                 eprintln!("Search indexing failed: {error}");
             }
         }
-        indexing.store(false, Ordering::Release);
+        if let Ok(locked) = search.read() {
+            if locked.generation == generation { indexing.store(false, Ordering::Release); }
+        }
     });
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::index::note_index::NoteIndex;
     use crate::notes::model::NoteMetadata;
 
     fn add(index: &mut SearchIndex, title: &str, tags: &[&str], html: &str) -> Uuid {
@@ -182,6 +252,7 @@ mod tests {
         assert!(index.search("istanbul yok", 3).is_empty());
         assert_eq!(index.search("istanbul", 1).len(), 1);
         assert!(index.search("i", 3).is_empty());
+        assert!(index.search("a b", 3).is_empty());
         assert_eq!(index.search("ılık", 3).len(), 0);
         add(&mut index, "Warm", &[], "<p>ILIK</p>");
         assert_eq!(index.search("ılık", 3).len(), 1);
@@ -198,6 +269,8 @@ mod tests {
         let result = index.search("istanbul", 5);
         assert_eq!(result[0].snippets[0].r#match, "İSTANBUL");
         assert_eq!(result[0].snippets[0].before, "😀 ");
+        let expansion_map = [(0, 1), (0, 1), (1, 2)];
+        assert_eq!(snippet("İx", &expansion_map, 1, 2).unwrap().r#match, "İx");
         let long = format!("{} hedef {}", "ön ".repeat(30), "son ".repeat(30));
         add(&mut index, "Y", &[], &format!("<p>{long}hedef hedef hedef</p>"));
         let snippets = index.search("hedef", 10).into_iter().find(|item| item.title == "Y").unwrap().snippets;
@@ -210,5 +283,28 @@ mod tests {
             add(&mut index, "X", &[], &format!("<p>{text}</p>"));
             let _ = index.search("i😀", 10);
         }
+    }
+
+    #[test]
+    fn startup_result_cannot_replace_a_newer_update() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut metadata = NoteMetadata::new("Current");
+        let id = metadata.id;
+        let dir = temp.path().join("Current");
+        std::fs::create_dir(&dir).unwrap();
+        std::fs::write(dir.join("index.html"), "<p>new content</p>").unwrap();
+        metadata.tags = Vec::new();
+        let note = IndexedNote { rel_path: "Current".into(), metadata };
+        let mut notes = NoteIndex::new(temp.path().to_path_buf());
+        notes.upsert(note.clone());
+        let notes = RwLock::new(notes);
+        let search = RwLock::new(SearchIndex::default());
+        reindex_notes(&notes, &search, &[id], &[]).unwrap();
+        search.write().unwrap().upsert_initial(&note, "<p>stale content</p>", 0, 0);
+        assert_eq!(search.read().unwrap().search("new content", 10).len(), 1);
+        assert!(search.read().unwrap().search("stale content", 10).is_empty());
+        search.write().unwrap().clear();
+        search.write().unwrap().upsert_initial(&note, "<p>stale content</p>", 0, 1);
+        assert!(search.read().unwrap().search("stale content", 10).is_empty());
     }
 }
