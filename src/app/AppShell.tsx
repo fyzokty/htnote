@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { SidebarTree } from "@/features/tree/SidebarTree";
 import { TabBar } from "@/features/tabs/TabBar";
 import { NoteViewer } from "@/features/viewer/NoteViewer";
+import { installBridgeHost } from "@/features/viewer/bridgeHost";
 import { startFsChangeSync } from "@/features/tree/fsChangeSync";
 import { useTreeActions } from "@/features/tree/useTreeActions";
 import { resolveLanguage } from "@/i18n/language";
@@ -47,6 +48,7 @@ export function AppShell() {
     }
   });
   useEffect(() => installShortcutListener(), []);
+  useEffect(() => installBridgeHost(), []);
   useEffect(() => startFsChangeSync(), []);
   useEffect(() => {
     void loadTree().then(() => {
