@@ -81,6 +81,26 @@ fn note_node(note: &IndexedNote) -> TreeNode {
     }
 }
 
+#[cfg(windows)]
+fn check_note_files_unlocked(metadata: &Path, html: &Path) -> Result<(), AppError> {
+    use std::fs::OpenOptions;
+    use std::os::windows::fs::OpenOptionsExt;
+
+    // İki dosyanın kilidini dizin veya içerik değiştirilmeden önce denetle.
+    let metadata_handle = OpenOptions::new().read(true).write(true)
+        .share_mode(0).open(metadata)?;
+    let html_handle = OpenOptions::new().read(true).write(true)
+        .share_mode(0).open(html)?;
+    drop(html_handle);
+    drop(metadata_handle);
+    Ok(())
+}
+
+#[cfg(not(windows))]
+fn check_note_files_unlocked(_metadata: &Path, _html: &Path) -> Result<(), AppError> {
+    Ok(())
+}
+
 pub fn rename_note_in(root: &Path, note: &IndexedNote, new_title: &str) -> Result<(TreeNode, IndexedNote), AppError> {
     rename_note_with_writer(root, note, new_title, |path, metadata, html| {
         write_metadata_atomic(&path.join("metadata.json"), metadata)?;
@@ -97,6 +117,7 @@ fn rename_note_with_writer(
     let source = source_dir(root, &note.rel_path)?;
     let metadata_path = source.join("metadata.json");
     let html_path = source.join("index.html");
+    check_note_files_unlocked(&metadata_path, &html_path)?;
     let original_meta = fs::read(&metadata_path)?;
     let original_html = fs::read(&html_path)?;
     let mut metadata = read_metadata(&metadata_path)?;
@@ -120,7 +141,9 @@ fn rename_note_with_writer(
             rename_dir(&target, &source)
         })();
         if let Err(rollback_error) = rollback {
-            return Err(AppError::Internal(format!("Rename failed: {error}; rollback failed: {rollback_error}")));
+            return Err(AppError::Io(std::io::Error::other(format!(
+                "Rename failed: {error}; rollback failed: {rollback_error}"
+            ))));
         }
         return Err(error);
     }
@@ -165,7 +188,7 @@ pub fn rename_folder_in(root: &Path, rel: &str, new_name: &str) -> Result<TreeNo
 pub fn move_item_in(root: &Path, rel: &str, target_rel: &str) -> Result<String, AppError> {
     let source = source_dir(root, rel)?;
     let target_parent = target_folder(root, target_rel)?;
-    if !source.join("metadata.json").is_file() && target_parent.starts_with(&source) {
+    if target_parent.starts_with(&source) {
         return Err(AppError::InvalidMove(rel.into()));
     }
     if source.parent() == Some(target_parent.as_path()) { return relative(root, &source); }
@@ -220,6 +243,19 @@ mod tests {
     }
 
     #[test]
+    fn note_cannot_move_into_its_own_subdirectory() {
+        let root = tempfile::tempdir().unwrap();
+        create_folder_in(root.path(), "", "other").unwrap();
+        let (_, note) = create_note_in(root.path(), "", Some("not")).unwrap();
+        fs::create_dir_all(root.path().join("not/assets/custom")).unwrap();
+
+        assert!(matches!(move_item_in(root.path(), "not", "not/assets"), Err(AppError::InvalidMove(_))));
+        assert!(matches!(move_item_in(root.path(), "not", "not/assets/custom"), Err(AppError::InvalidMove(_))));
+        assert_eq!(move_item_in(root.path(), "not", "other").unwrap(), "other/not");
+        assert_eq!(read_metadata(&root.path().join("other/not/metadata.json")).unwrap().id, note.metadata.id);
+    }
+
+    #[test]
     fn collisions_use_unique_names() {
         let root = tempfile::tempdir().unwrap();
         let (_, note) = create_note_in(root.path(), "", Some("old")).unwrap();
@@ -251,5 +287,29 @@ mod tests {
         });
         assert!(matches!(locked, Err(AppError::Io(_))));
         assert!(root.path().join("old").is_dir());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn locked_note_files_fail_before_rename() {
+        use std::fs::OpenOptions;
+        use std::os::windows::fs::OpenOptionsExt;
+
+        let root = tempfile::tempdir().unwrap();
+        let (_, note) = create_note_in(root.path(), "", Some("old")).unwrap();
+        let original_metadata = fs::read(root.path().join("old/metadata.json")).unwrap();
+        let original_html = fs::read(root.path().join("old/index.html")).unwrap();
+
+        for name in ["metadata.json", "index.html"] {
+            let locked = OpenOptions::new().read(true).share_mode(0)
+                .open(root.path().join("old").join(name)).unwrap();
+            let error = rename_note_in(root.path(), &note, "new").unwrap_err();
+            assert_eq!(error.code(), "IO_ERROR");
+            assert!(root.path().join("old").is_dir());
+            assert!(!root.path().join("new").exists());
+            drop(locked);
+            assert_eq!(fs::read(root.path().join("old/metadata.json")).unwrap(), original_metadata);
+            assert_eq!(fs::read(root.path().join("old/index.html")).unwrap(), original_html);
+        }
     }
 }
