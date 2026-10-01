@@ -1,7 +1,7 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { createRateLimiter, installBridgeHost, parseBridgeMessage, registerFrame, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
+import { clearHighlight, createRateLimiter, installBridgeHost, parseBridgeMessage, registerFrame, requestHighlight, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
 import { initNoteOrigin } from "@/lib/noteUrl";
 import { subscribeShortcut } from "@/lib/shortcuts/manager";
 import type { Settings } from "@/lib/types";
@@ -140,4 +140,32 @@ it("handles registered messages and resends theme on settings change", () => {
     dispose();
     unregister();
   }
+});
+
+it("queues highlights until a validated ready message, then dispatches immediately", () => {
+  const unregister = registerFrame(id, frame);
+  const dispose = installBridgeHost();
+  try {
+    requestHighlight(id, "ilk");
+    expect(frame.postMessage).not.toHaveBeenCalled();
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }, frame, "https://evil.test"));
+    expect(frame.postMessage).not.toHaveBeenCalled();
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }));
+    expect(frame.postMessage).toHaveBeenCalledWith({ type: "HTNOTE_HIGHLIGHT", query: "ilk" }, NOTE_ORIGIN);
+    requestHighlight(id, "sonra");
+    expect(frame.postMessage).toHaveBeenLastCalledWith({ type: "HTNOTE_HIGHLIGHT", query: "sonra" }, NOTE_ORIGIN);
+    clearHighlight(id);
+    expect(frame.postMessage).toHaveBeenLastCalledWith({ type: "HTNOTE_CLEAR_HIGHLIGHT" }, NOTE_ORIGIN);
+  } finally { dispose(); unregister(); }
+});
+
+it("drops a queued highlight when edit mode clears it", () => {
+  const unregister = registerFrame(id, frame);
+  const dispose = installBridgeHost();
+  try {
+    requestHighlight(id, "sil");
+    clearHighlight(id);
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }));
+    expect(frame.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: "HTNOTE_HIGHLIGHT" }), NOTE_ORIGIN);
+  } finally { dispose(); unregister(); }
 });

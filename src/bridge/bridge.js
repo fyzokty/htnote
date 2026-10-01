@@ -93,6 +93,7 @@
         fragment.append(document.createTextNode(text.slice(from, start)));
         const mark = document.createElement("mark");
         mark.setAttribute("data-htnote-hl", "");
+        mark.className = "htnote-highlight";
         mark.textContent = text.slice(start, end);
         fragment.append(mark);
         first ||= mark;
@@ -119,6 +120,7 @@
       }
       if (typeof mode === "string") document.documentElement.setAttribute("data-ht-theme", mode);
     } else if (type === "HTNOTE_HIGHLIGHT") highlight(query);
+    else if (type === "HTNOTE_CLEAR_HIGHLIGHT") clearHighlights();
     else if (type === "HTNOTE_SCROLL_RESTORE" && Number.isFinite(scrollY) && scrollY >= 0) {
       if (typeof token === "string") scrollToken = token;
       window.scrollTo(0, scrollY);

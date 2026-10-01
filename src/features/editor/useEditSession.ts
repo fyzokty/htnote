@@ -5,6 +5,7 @@ import type { VisualEditorHandle } from "@/features/editor/VisualEditor";
 import { flushEditor, registerEditorFlush, saveTab } from "@/features/editor/saveTab";
 import { discardTab, requestUnsavedDecision } from "@/features/editor/unsavedGuard";
 import { ipc } from "@/lib/ipc";
+import { clearHighlight } from "@/features/viewer/bridgeHost";
 import { useTabsStore } from "@/stores/tabsStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -24,6 +25,7 @@ export function useEditSession(noteId: string | null) {
     try {
       const base = await ipc.readNote(noteId);
       if (getDoc()?.mode !== "view") return;
+      clearHighlight(noteId);
       useTabsStore.getState().enterEdit(noteId, base, "visual", extractContent(base.html).ok);
     } catch (error) { notifyError(error); }
   }
