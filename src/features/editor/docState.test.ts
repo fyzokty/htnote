@@ -14,6 +14,7 @@ describe("docState", () => {
     expect(createDocState()).toEqual({
       mode: "view", base: null, draft: null, dirty: false,
       visualAvailable: true, saving: false, lastSavedAt: null,
+      baseVersion: 0, externalConflict: null, removedOnDisk: false, removedTitle: null, removedParent: "",
     });
   });
 

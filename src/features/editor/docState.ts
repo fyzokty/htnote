@@ -12,6 +12,11 @@ export interface DocState {
   visualAvailable: boolean;
   saving: boolean;
   lastSavedAt: number | null;
+  baseVersion: number;
+  externalConflict: string | null;
+  removedOnDisk: boolean;
+  removedTitle: string | null;
+  removedParent: string;
 }
 
 export function createDocState(visualAvailable = true): DocState {
@@ -23,6 +28,11 @@ export function createDocState(visualAvailable = true): DocState {
     visualAvailable,
     saving: false,
     lastSavedAt: null,
+    baseVersion: 0,
+    externalConflict: null,
+    removedOnDisk: false,
+    removedTitle: null,
+    removedParent: "",
   };
 }
 
@@ -50,6 +60,7 @@ export function enterEdit(state: DocState, base: DocBase, preferred: "visual" | 
     draft: draftFrom(base),
     dirty: false,
     saving: false,
+    externalConflict: null,
   };
 }
 
@@ -77,6 +88,7 @@ export function saveSucceeded(state: DocState, newBase: DocBase, savedAt?: numbe
     saving: false,
     lastSavedAt: savedAt ?? Date.now(),
     dirty: computeDirty(newBase, state.draft),
+    externalConflict: null,
   };
 }
 
@@ -87,11 +99,29 @@ export function saveFailed(state: DocState): DocState {
 
 export function cancelEdit(state: DocState): DocState {
   if (state.mode === "view") return invalid(state, "cancelEdit");
-  return { ...state, mode: "view", draft: null, dirty: false, saving: false };
+  return { ...state, mode: "view", draft: null, dirty: false, saving: false, externalConflict: null };
 }
 
 export function reloadBase(state: DocState, newBase: DocBase): DocState {
-  if (state.mode === "view") return { ...state, base: newBase };
+  if (state.mode === "view") return { ...state, base: newBase, baseVersion: state.baseVersion + 1, externalConflict: null };
   const draft = state.dirty ? state.draft : draftFrom(newBase);
-  return { ...state, base: newBase, draft, dirty: computeDirty(newBase, draft) };
+  return { ...state, base: newBase, draft, dirty: computeDirty(newBase, draft), baseVersion: state.baseVersion + 1, externalConflict: null };
+}
+
+export function markConflict(state: DocState, diskHash: string): DocState {
+  return { ...state, externalConflict: diskHash };
+}
+
+export function keepMine(state: DocState): DocState {
+  if (!state.base || !state.externalConflict) return state;
+  return { ...state, base: { ...state.base, contentHash: state.externalConflict }, externalConflict: null };
+}
+
+export function loadFromDisk(state: DocState, base: DocBase): DocState {
+  return { ...state, base, draft: state.mode === "view" ? null : draftFrom(base), dirty: false,
+    externalConflict: null, removedOnDisk: false, baseVersion: state.baseVersion + 1 };
+}
+
+export function markRemoved(state: DocState, title: string | null, parent: string): DocState {
+  return { ...state, removedOnDisk: true, externalConflict: null, removedTitle: title, removedParent: parent };
 }
