@@ -38,6 +38,13 @@ export interface NoteNode {
 
 export type TreeNode = FolderNode | NoteNode;
 
+export interface FsChangePayload {
+  changedNoteIds: string[];
+  removedNoteIds: string[];
+  treeChanged: boolean;
+  trashChanged: boolean;
+}
+
 export type TreeSelection = { kind: "note"; id: string } | { kind: "folder"; relPath: string };
 
 export interface FlatNote {

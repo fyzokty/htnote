@@ -30,11 +30,28 @@ pub fn get_settings(state: State<'_, AppState>) -> Result<Settings, AppError> {
 }
 
 #[tauri::command]
-pub fn update_settings(patch: SettingsPatch, state: State<'_, AppState>) -> Result<Settings, AppError> {
+pub fn update_settings(patch: SettingsPatch, app: tauri::AppHandle, state: State<'_, AppState>) -> Result<Settings, AppError> {
     let mut settings = state.settings.lock().map_err(|error| AppError::Internal(error.to_string()))?;
     let updated = settings::apply_patch(&settings, patch);
+    let root_changed = updated.root_dir != settings.root_dir;
+    let new_root = if root_changed {
+        let fallback = dirs::document_dir().or_else(dirs::home_dir)
+            .ok_or_else(|| AppError::Internal("No documents or home directory".into()))?;
+        Some(settings::resolve_root_dir(&updated, &fallback)?)
+    } else { None };
+    let result = if let Some(root) = &new_root { Some(scan::scan(root)?) } else { None };
     settings::save_settings_atomic(&state.config_dir, &updated)?;
     *settings = updated.clone();
+    drop(settings);
+    if let (Some(root), Some(result)) = (new_root, result) {
+        *state.watcher.lock().map_err(|error| AppError::Internal(error.to_string()))? = None;
+        *state.root_dir.write().map_err(|error| AppError::Internal(error.to_string()))? = root.clone();
+        let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
+        index.root = root;
+        index.replace_all(result);
+        drop(index);
+        crate::watcher::start_for_app(&state, app)?;
+    }
     Ok(updated)
 }
 
