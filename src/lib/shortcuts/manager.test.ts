@@ -47,6 +47,22 @@ describe("useShortcut", () => {
 });
 
 describe("capture listener", () => {
+  it("ignores F2 in inputs while allowing Ctrl+N", () => {
+    const rename = vi.fn();
+    const create = vi.fn();
+    function TreeSubscribers() {
+      useShortcut("rename", rename);
+      useShortcut("newNote", create);
+      return createElement("input", { "aria-label": "name" });
+    }
+    const view = render(createElement(TreeSubscribers));
+    removeListener = installShortcutListener();
+    const input = view.getByRole("textbox");
+    fireEvent.keyDown(input, { key: "F2", code: "F2" });
+    fireEvent.keyDown(input, { key: "n", code: "KeyN", ctrlKey: true });
+    expect(rename).not.toHaveBeenCalled();
+    expect(create).toHaveBeenCalledOnce();
+  });
   it("input odaktayken kısayolu editörden önce yakalar", () => {
     const handler = vi.fn();
     const bubble = vi.fn();

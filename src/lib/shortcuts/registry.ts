@@ -1,6 +1,7 @@
 export type ShortcutId =
   | "newNote"
   | "newFolder"
+  | "rename"
   | "save"
   | "toggleEdit"
   | "globalSearch"
@@ -26,11 +27,13 @@ type ShortcutDefinition = {
   key: string;
   modifier: "mod" | "ctrl" | "none";
   shift: boolean;
+  allowInEditable?: boolean;
 };
 
 const SHORTCUTS: Record<ShortcutId, ShortcutDefinition> = {
-  newNote: { codes: ["KeyN"], key: "N", modifier: "mod", shift: false },
-  newFolder: { codes: ["KeyN"], key: "N", modifier: "mod", shift: true },
+  newNote: { codes: ["KeyN"], key: "N", modifier: "mod", shift: false, allowInEditable: true },
+  newFolder: { codes: ["KeyN"], key: "N", modifier: "mod", shift: true, allowInEditable: true },
+  rename: { codes: ["F2"], key: "F2", modifier: "none", shift: false },
   save: { codes: ["KeyS"], key: "S", modifier: "mod", shift: false },
   toggleEdit: { codes: ["KeyE"], key: "E", modifier: "mod", shift: false },
   globalSearch: { codes: ["KeyF"], key: "F", modifier: "mod", shift: true },
@@ -45,6 +48,10 @@ export function getPlatform(): Platform {
   if (typeof navigator !== "undefined" && /Mac/i.test(navigator.platform)) return "mac";
   if (typeof navigator !== "undefined" && /Linux/i.test(navigator.platform)) return "linux";
   return "windows";
+}
+
+export function allowShortcutInEditable(id: ShortcutId): boolean {
+  return SHORTCUTS[id].allowInEditable === true || (id !== "rename" && id !== "escape");
 }
 
 export function matchShortcut(input: KeyInput, platform: Platform): ShortcutId | null {

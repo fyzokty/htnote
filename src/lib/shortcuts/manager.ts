@@ -1,4 +1,4 @@
-import { getPlatform, matchShortcut } from "@/lib/shortcuts/registry";
+import { allowShortcutInEditable, getPlatform, matchShortcut } from "@/lib/shortcuts/registry";
 import type { KeyInput, ShortcutId } from "@/lib/shortcuts/registry";
 
 type Handler = () => void;
@@ -38,7 +38,7 @@ export function installShortcutListener(target: Window = window): () => void {
       meta: event.metaKey,
     };
     const id = matchShortcut(input, getPlatform());
-    if (!id || (id === "escape" && isEditable(event.target))) return;
+    if (!id || (isEditable(event.target) && !allowShortcutInEditable(id))) return;
     if (!subscribers.get(id)?.size) return;
     event.preventDefault();
     event.stopPropagation();

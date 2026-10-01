@@ -1,7 +1,7 @@
 {
   "common": { "appName": "HTNote", "loading": "Loading..." },
   "sidebar": { "label": "Sidebar", "newNote": "+ Note", "newFolder": "+ Folder", "search": "Search", "quickFilter": "Quick filter", "quickFilterPlaceholder": "Quick filter...", "empty": "No notes or folders yet.", "trash": "Trash", "settings": "Settings", "resize": "Resize sidebar", "hide": "Hide sidebar", "show": "Show sidebar" },
-  "tree": { "label": "Note tree", "empty": "No notes yet — start with + Note", "folder": "Folder: {{name}}", "note": "Note: {{name}}" },
+  "tree": { "label": "Note tree", "empty": "No notes yet — start with + Note", "folder": "Folder: {{name}}", "note": "Note: {{name}}", "untitledNote": "Untitled Note", "newFolderName": "New Folder", "newNote": "New Note", "newFolder": "New Folder", "rename": "Rename", "reveal": "Show in File Explorer", "trash": "Move to Trash" },
   "tabs": { "label": "Tabs", "new": "New tab" },
   "viewer": { "workspace": "Workspace", "empty": "Select a note or create a new one" },
   "editor": {},

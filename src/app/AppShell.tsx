@@ -4,6 +4,7 @@ import { FilePlus2, FolderPlus, Menu, NotebookPen, Plus, Search, Settings2, Tras
 import { useTranslation } from "react-i18next";
 
 import { SidebarTree } from "@/features/tree/SidebarTree";
+import { useTreeActions } from "@/features/tree/useTreeActions";
 import { resolveLanguage } from "@/i18n/language";
 import { installShortcutListener } from "@/lib/shortcuts/manager";
 import { formatShortcut } from "@/lib/shortcuts/registry";
@@ -21,6 +22,8 @@ export function AppShell() {
   const loadTree = useTreeStore((state) => state.load);
   const selectTree = useTreeStore((state) => state.select);
   const openNote = useCallback((id: string) => selectTree({ kind: "note", id }), [selectTree]);
+  const { createNote, createFolder } = useTreeActions(openNote);
+  const setRenaming = useTreeStore((state) => state.setRenaming);
   const sidebarVisible = useUiStore((state) => state.sidebarVisible);
   const setSidebarVisible = useUiStore((state) => state.setSidebarVisible);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
@@ -31,6 +34,15 @@ export function AppShell() {
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useShortcut("toggleSidebar", toggleSidebar);
+  useShortcut("newNote", () => { void createNote(); });
+  useShortcut("newFolder", () => { void createFolder(); });
+  useShortcut("rename", () => {
+    const selected = useTreeStore.getState().selected;
+    if (selected && document.activeElement?.closest('[role="tree"]')) {
+      const node = selected.kind === "folder" ? selected.relPath : useTreeStore.getState().findNoteById(selected.id)?.relPath;
+      if (node) setRenaming(node);
+    }
+  });
   useEffect(() => installShortcutListener(), []);
   useEffect(() => {
     void loadTree().catch(() => {});
@@ -95,10 +107,10 @@ export function AppShell() {
           </div>
           <div className="shrink-0 space-y-3 p-3">
             <div className="flex gap-1">
-              <button type="button" disabled className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-accent px-2 py-2 text-xs font-medium text-app-accent-text disabled:cursor-default">
+              <button type="button" onClick={() => void createNote()} title={formatShortcut("newNote")} className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-accent px-2 py-2 text-xs font-medium text-app-accent-text">
                 <FilePlus2 className="size-4 shrink-0" aria-hidden /> {t("sidebar.newNote")}
               </button>
-              <button type="button" disabled className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-subtle px-2 py-2 text-xs font-medium disabled:cursor-default">
+              <button type="button" onClick={() => void createFolder()} title={formatShortcut("newFolder")} className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-subtle px-2 py-2 text-xs font-medium">
                 <FolderPlus className="size-4 shrink-0" aria-hidden /> {t("sidebar.newFolder")}
               </button>
               <button type="button" disabled className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-subtle px-2 py-2 text-xs font-medium disabled:cursor-default">

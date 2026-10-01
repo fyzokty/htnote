@@ -1,4 +1,21 @@
-import type { TreeNode } from "@/lib/types";
+import type { TreeNode, TreeSelection } from "@/lib/types";
+
+export function resolveCreateTarget(selection: TreeSelection | null, tree: TreeNode[]): string {
+  if (!selection) return "";
+  const selected = selection;
+  function find(nodes: TreeNode[], parent: string): string | null {
+    for (const node of nodes) {
+      if (selected.kind === "folder" && node.type === "folder" && node.relPath === selected.relPath) return node.relPath;
+      if (selected.kind === "note" && node.type === "note" && node.id === selected.id) return parent;
+      if (node.type === "folder") {
+        const result = find(node.children, node.relPath);
+        if (result !== null) return result;
+      }
+    }
+    return null;
+  }
+  return find(tree, "") ?? "";
+}
 
 export type TreeKey = "ArrowUp" | "ArrowDown" | "ArrowLeft" | "ArrowRight";
 
