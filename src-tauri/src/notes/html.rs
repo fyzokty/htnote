@@ -1,9 +1,9 @@
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
 use chrono::SecondsFormat;
 use lol_html::html_content::ContentType;
-use lol_html::{element, rewrite_str, Settings};
+use lol_html::{element, end_tag, rewrite_str, Settings};
 
 use super::model::NoteMetadata;
 
@@ -112,15 +112,24 @@ pub fn sync_head(html: &str, meta: &NoteMetadata, has_css: bool, has_js: bool) -
         let repaired = rewrite_str(
             html,
             Settings {
-                element_content_handlers: vec![element!("html", move |el| {
-                    if add_head {
-                        el.prepend("<head></head>", ContentType::Html);
-                    }
-                    if add_body {
-                        el.append("<body></body>", ContentType::Html);
-                    }
-                    Ok(())
-                })],
+                element_content_handlers: vec![
+                    element!("html", move |el| {
+                        if add_head {
+                            let prefix = if add_body { "<head></head><body>" } else { "<head></head>" };
+                            el.prepend(prefix, ContentType::Html);
+                        }
+                        if add_body {
+                            el.append("</body>", ContentType::Html);
+                        }
+                        Ok(())
+                    }),
+                    element!("head", move |el| {
+                        if add_body && !add_head {
+                            el.after("<body>", ContentType::Html);
+                        }
+                        Ok(())
+                    }),
+                ],
                 ..Settings::default()
             },
         )
@@ -146,6 +155,9 @@ pub fn sync_head(html: &str, meta: &NoteMetadata, has_css: bool, has_js: bool) -
     let mut seen_meta = [false; 3];
     let mut seen_css = false;
     let mut seen_body = false;
+    let main_depth = Rc::new(Cell::new(0usize));
+    let main_depth_for_main = Rc::clone(&main_depth);
+    let main_depth_for_script = Rc::clone(&main_depth);
     rewrite_str(
         html,
         Settings {
@@ -173,6 +185,7 @@ pub fn sync_head(html: &str, meta: &NoteMetadata, has_css: bool, has_js: bool) -
                             } else {
                                 seen_meta[index] = true;
                                 if el.get_attribute("content").as_deref() != Some(value.as_str()) {
+                                    // lol_html set_attribute ham özel karakterleri kaçırmaz.
                                     el.set_attribute("content", &escape_html(value))?;
                                 }
                             }
@@ -194,9 +207,19 @@ pub fn sync_head(html: &str, meta: &NoteMetadata, has_css: bool, has_js: bool) -
                     }
                     Ok(())
                 }),
+                element!("main", move |el| {
+                    main_depth_for_main.set(main_depth_for_main.get() + 1);
+                    let depth = Rc::clone(&main_depth_for_main);
+                    el.on_end_tag(end_tag!(move |_| {
+                        depth.set(depth.get() - 1);
+                        Ok(())
+                    }))
+                }),
                 element!("script[src]", move |el| {
-                    if el.get_attribute("src").as_deref() == Some("./script.js") {
-                        // Yönetilen script her zaman body sonunda tek kez yer alır.
+                    if main_depth_for_script.get() == 0
+                        && el.get_attribute("src").as_deref() == Some("./script.js")
+                    {
+                        // İçerik dışındaki yönetilen script body sonunda yeniden oluşturulur.
                         el.remove();
                     }
                     Ok(())
@@ -264,6 +287,25 @@ mod tests {
     }
 
     #[test]
+    fn incomplete_html_places_existing_content_inside_body() {
+        let meta = fixture_meta();
+        for input in [
+            "<html><main><!-- keep --><p>Hi</p></main></html>",
+            "<html><head><meta name='author' content='Me'></head><main><!-- keep --><p>Hi</p></main></html>",
+        ] {
+            let output = sync_head(input, &meta, false, true);
+            let head_end = output.find("</head>").unwrap();
+            let body_start = output.find("<body>").unwrap();
+            let content_start = output.find("<main><!-- keep --><p>Hi</p></main>").unwrap();
+            let script_start = output.find("<script src=\"./script.js\"></script>").unwrap();
+            let body_end = output.find("</body>").unwrap();
+            assert!(head_end < body_start && body_start < content_start);
+            assert!(content_start < script_start && script_start < body_end);
+            assert_eq!(sync_head(&output, &meta, false, true), output);
+        }
+    }
+
+    #[test]
     fn css_and_js_are_each_kept_once_or_removed() {
         let meta = fixture_meta();
         let input = "<html><head><link href='./style.css'><link href='./style.css'><link href='external.css'></head><body><main><script>keep()</script></main><script src='./script.js'></script><script src='./script.js'></script><script src='external.js'></script></body></html>";
@@ -287,8 +329,22 @@ mod tests {
         let output = sync_head(input, &meta, false, false);
         assert!(output.contains("<meta name='other' content='&amp;'>"));
         assert_eq!(output.matches("name='htnote-tags'").count(), 1);
+        assert!(output.contains("content=\"rust, a&lt;&amp;&quot;\""), "{output}");
         assert!(output.contains("<!--keep-->"));
         assert_eq!(sync_head(&output, &meta, false, false), output);
+    }
+
+    #[test]
+    fn managed_script_inside_main_is_preserved() {
+        let meta = fixture_meta();
+        let protected = "<main id='htnote-content'>\n<!-- keep -->\n<script src='./script.js'></script>\n</main>";
+        let input = format!("<html><head></head><body>{protected}<aside><script src='./script.js'></script></aside></body></html>");
+        for has_js in [false, true] {
+            let output = sync_head(&input, &meta, false, has_js);
+            assert!(output.contains(protected));
+            assert_eq!(output.matches("./script.js").count(), 1 + usize::from(has_js));
+            assert_eq!(sync_head(&output, &meta, false, has_js), output);
+        }
     }
 
     #[test]
