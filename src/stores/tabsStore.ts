@@ -1,10 +1,16 @@
 import { create } from "zustand";
 
+import {
+  cancelEdit, createDocState, enterEdit, markSaving, reloadBase, saveFailed,
+  saveSucceeded, switchMode, updateDraft,
+} from "@/features/editor/docState";
+import type { DocBase, DocDraft, DocState } from "@/features/editor/docState";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTreeStore } from "@/stores/treeStore";
 
 export interface Tab {
   noteId: string;
+  doc: DocState;
 }
 
 export type BeforeCloseGuard = (noteId: string) => boolean | Promise<boolean>;
@@ -22,6 +28,16 @@ interface TabsState {
   move: (fromIndex: number, toIndex: number) => void;
   replaceMissing: (existingIds: Iterable<string>) => void;
   restore: (existingIds: Iterable<string>) => void;
+  enterEdit: (id: string, base: DocBase, preferred?: "visual" | "code") => void;
+  switchMode: (id: string, mode: "visual" | "code") => void;
+  updateDraft: (id: string, partial: Partial<DocDraft>) => void;
+  markSaving: (id: string) => void;
+  saveSucceeded: (id: string, newBase: DocBase, savedAt?: number) => void;
+  saveFailed: (id: string) => void;
+  cancelEdit: (id: string) => void;
+  reloadBase: (id: string, newBase: DocBase) => void;
+  isDirty: (id: string) => boolean;
+  anyDirty: () => boolean;
   setBeforeCloseGuard: (guard: BeforeCloseGuard) => () => void;
 }
 
@@ -52,6 +68,16 @@ function removeTab(tabs: Tab[], activeId: string | null, id: string) {
   return { tabs: remaining, activeId: nextActive };
 }
 
+function updateTabDoc(tabs: Tab[], id: string, transition: (doc: DocState) => DocState): Tab[] {
+  const index = tabs.findIndex((tab) => tab.noteId === id);
+  if (index < 0) return tabs;
+  const doc = transition(tabs[index].doc);
+  if (doc === tabs[index].doc) return tabs;
+  const next = [...tabs];
+  next[index] = { ...tabs[index], doc };
+  return next;
+}
+
 export const useTabsStore = create<TabsState>((set, get) => ({
   tabs: [],
   activeId: null,
@@ -61,7 +87,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     const alreadyOpen = current.tabs.some((tab) => tab.noteId === id);
     const tabs = alreadyOpen
       ? current.tabs
-      : [...current.tabs, { noteId: id }];
+      : [...current.tabs, { noteId: id, doc: createDocState() }];
     const activeId = activate ? id : current.activeId;
     if (tabs !== current.tabs || activeId !== current.activeId) {
       set({ tabs, activeId });
@@ -138,11 +164,41 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     if (!settings) return;
     const existing = new Set(existingIds);
     const ids = [...new Set(settings.openTabs.filter((id) => existing.has(id)))];
-    const tabs = ids.map((noteId) => ({ noteId }));
+    const tabs = ids.map((noteId) => ({ noteId, doc: createDocState() }));
     const activeId = ids.includes(settings.activeTab ?? "") ? settings.activeTab : ids[0] ?? null;
     set({ tabs, activeId, restored: true });
     if (activeId) useTreeStore.getState().revealNote(activeId);
     if (ids.length !== settings.openTabs.length || activeId !== settings.activeTab) persist(tabs, activeId);
+  },
+  enterEdit(id, base, preferred) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => enterEdit(doc, base, preferred)) }));
+  },
+  switchMode(id, mode) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => switchMode(doc, mode)) }));
+  },
+  updateDraft(id, partial) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => updateDraft(doc, partial)) }));
+  },
+  markSaving(id) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, markSaving) }));
+  },
+  saveSucceeded(id, newBase, savedAt) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => saveSucceeded(doc, newBase, savedAt)) }));
+  },
+  saveFailed(id) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, saveFailed) }));
+  },
+  cancelEdit(id) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, cancelEdit) }));
+  },
+  reloadBase(id, newBase) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => reloadBase(doc, newBase)) }));
+  },
+  isDirty(id) {
+    return get().tabs.find((tab) => tab.noteId === id)?.doc.dirty ?? false;
+  },
+  anyDirty() {
+    return get().tabs.some((tab) => tab.doc.dirty);
   },
   setBeforeCloseGuard(guard) {
     beforeClose = guard;
