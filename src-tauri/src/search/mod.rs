@@ -154,9 +154,17 @@ pub fn reindex_notes(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, id
         }
         (search.generation, ids.iter().chain(removed).map(|id| (*id, search.versions[id])).collect::<HashMap<_, _>>())
     };
-    let notes = {
+    let (notes, missing) = {
         let index = index.read().map_err(|error| AppError::Internal(error.to_string()))?;
-        ids.iter().filter_map(|id| index.by_id.get(id).and_then(|note| index.resolve(*id).map(|dir| (note.clone(), dir)))).collect::<Vec<_>>()
+        let mut notes = Vec::new();
+        let mut missing = Vec::new();
+        for id in ids {
+            match index.by_id.get(id).and_then(|note| index.resolve(*id).map(|dir| (note.clone(), dir))) {
+                Some(note) => notes.push(note),
+                None => missing.push(*id),
+            }
+        }
+        (notes, missing)
     };
     let loaded = notes.into_iter().map(|(note, dir)| {
         let html = match std::fs::read_to_string(dir.join("index.html")) {
@@ -168,7 +176,7 @@ pub fn reindex_notes(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, id
     }).collect::<Result<Vec<_>, _>>()?;
     let mut search = search.write().map_err(|error| AppError::Internal(error.to_string()))?;
     if search.generation != generation { return Ok(()); }
-    for id in removed {
+    for id in removed.iter().chain(&missing) {
         if search.versions.get(id) == versions.get(id) { search.remove(*id); }
     }
     for (note, html) in loaded {
@@ -306,5 +314,23 @@ mod tests {
         search.write().unwrap().clear();
         search.write().unwrap().upsert_initial(&note, "<p>stale content</p>", 0, 1);
         assert!(search.read().unwrap().search("stale content", 10).is_empty());
+    }
+
+    #[test]
+    fn reindex_removes_notes_missing_from_note_index() {
+        let temp = tempfile::tempdir().unwrap();
+        let metadata = NoteMetadata::new("Gone");
+        let id = metadata.id;
+        let note = IndexedNote { rel_path: "Gone".into(), metadata };
+        let mut notes = NoteIndex::new(temp.path().to_path_buf());
+        notes.upsert(note.clone());
+        let notes = RwLock::new(notes);
+        let mut search = SearchIndex::default();
+        search.upsert(&note, "<p>find me</p>");
+        let search = RwLock::new(search);
+
+        notes.write().unwrap().remove_subtree("Gone");
+        reindex_notes(&notes, &search, &[id], &[]).unwrap();
+        assert!(search.read().unwrap().search("find me", 10).is_empty());
     }
 }
