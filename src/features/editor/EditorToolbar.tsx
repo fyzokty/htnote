@@ -1,14 +1,19 @@
 import { useEffect, useState } from "react";
 import type { Editor } from "@tiptap/react";
 import { useTranslation } from "react-i18next";
+import { open } from "@tauri-apps/plugin-dialog";
 import {
   Bold, Italic, Underline, Strikethrough, List, ListOrdered, Quote, Code2,
-  Table2, Minus, Link2, Link2Off, Rows3, Columns3, Trash2,
+  Table2, Minus, Link2, Link2Off, Rows3, Columns3, Trash2, ImagePlus,
 } from "lucide-react";
 
-interface EditorToolbarProps { editor: Editor; onLinkNote?: () => void }
+import { fileName, mediaFor, processFilesSequentially } from "@/features/editor/fileDrop";
+import { ipc } from "@/lib/ipc";
+import { useUiStore } from "@/stores/uiStore";
 
-export function EditorToolbar({ editor, onLinkNote }: EditorToolbarProps) {
+interface EditorToolbarProps { editor: Editor; noteId?: string; onLinkNote?: () => void }
+
+export function EditorToolbar({ editor, noteId = "", onLinkNote }: EditorToolbarProps) {
   const { t } = useTranslation();
   const [, setRevision] = useState(0);
   const [linkOpen, setLinkOpen] = useState(false);
@@ -44,6 +49,27 @@ export function EditorToolbar({ editor, onLinkNote }: EditorToolbarProps) {
     setLinkError(false);
   };
 
+  const addMedia = async () => {
+    try {
+      const selected = await open({
+        multiple: true,
+        filters: [
+          { name: t("editor.mediaImages"), extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif"] },
+          { name: t("editor.mediaAudio"), extensions: ["mp3", "wav", "ogg", "m4a"] },
+          { name: t("editor.mediaVideo"), extensions: ["mp4", "webm"] },
+          { name: t("editor.mediaAll"), extensions: ["*"] },
+        ],
+      });
+      if (!selected) return;
+      const paths = Array.isArray(selected) ? selected : [selected];
+      await processFilesSequentially(paths, (path) => ipc.copyAsset(noteId, path),
+        (asset, path) => { editor.commands.insertMedia(mediaFor(asset, fileName(path))); },
+        (path) => useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.dropCopyFailed", params: { name: fileName(path) } }));
+    } catch {
+      useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.mediaOpenFailed" });
+    }
+  };
+
   return (
     <div className="htnote-editor-toolbar" role="toolbar" aria-label={t("editor.toolbar")}>
       <select aria-label={t("editor.blockType")} title={t("editor.blockType")}
@@ -70,6 +96,7 @@ export function EditorToolbar({ editor, onLinkNote }: EditorToolbarProps) {
       {action(t("editor.addColumn"), <Columns3 size={16} />, () => editor.chain().focus().addColumnAfter().run(), false, !editor.can().addColumnAfter())}
       {action(t("editor.deleteColumn"), <Trash2 size={16} />, () => editor.chain().focus().deleteColumn().run(), false, !editor.can().deleteColumn())}
       {action(t("editor.horizontalRule"), <Minus size={16} />, () => editor.chain().focus().setHorizontalRule().run())}
+      {action(t("editor.addMedia"), <ImagePlus size={16} />, () => { void addMedia(); })}
       {action(t("editor.addLink"), <Link2 size={16} />, () => {
         setLinkUrl(editor.getAttributes("link").href ?? "");
         setLinkError(false);

@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { EditorToolbar } from "@/features/editor/EditorToolbar";
 import { NotePicker } from "@/components/ui/NotePicker";
+import { classifyClipboard, decodeDataUrl, pasteFileName, rewriteDataUrlImages, shouldWarnExternalImages } from "@/features/editor/clipboardPaste";
 import { createVisualExtensions } from "@/features/editor/extensions";
 import { fileName, mediaFor, processFilesSequentially, registerDropHandler } from "@/features/editor/fileDrop";
 import { escapeHtml, noteLinkHref } from "@/features/editor/noteLinks";
@@ -61,7 +62,57 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
     }, openPicker, noteId),
     content: wrapRawBlocks(initialInner),
     immediatelyRender: false,
-    editorProps: { attributes: { "aria-label": t("editor.content") } },
+    editorProps: {
+      attributes: { "aria-label": t("editor.content") },
+      handlePaste: (view, event) => {
+        const data = event.clipboardData;
+        if (!data) return false;
+        const kind = classifyClipboard(data);
+        if (kind === "externalImages") {
+          if (shouldWarnExternalImages()) useUiStore.getState().pushToast({ kind: "info", messageKey: "editor.externalImageOffline" });
+          return false;
+        }
+        if (kind === "plain") return false;
+        const { from, to } = view.state.selection;
+        if (kind === "files") {
+          const files = Array.from(data.files);
+          void (async () => {
+            let position = from;
+            for (const file of files) {
+              try {
+                const asset = await ipc.saveAssetBytes(noteId, pasteFileName(new Date(), file.type), new Uint8Array(await file.arrayBuffer()));
+                const current = editorRef.current;
+                if (!current || current.isDestroyed) return;
+                current.commands.setTextSelection({ from: position, to: position === from ? to : position });
+                current.commands.insertMedia(mediaFor(asset, file.name || pasteFileName(new Date(), file.type)));
+                position = current.state.selection.to;
+              } catch {
+                useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.pasteFailed" });
+              }
+            }
+          })();
+          return true;
+        }
+        const html = data.getData("text/html");
+        void (async () => {
+          try {
+            const rewritten = await rewriteDataUrlImages(html, async (url) => {
+              const { bytes, mime } = decodeDataUrl(url);
+              return (await ipc.saveAssetBytes(noteId, pasteFileName(new Date(), mime), bytes)).relPath;
+            });
+            const current = editorRef.current;
+            if (!current || current.isDestroyed) return;
+            current.chain().focus().setTextSelection({ from, to }).insertContent(rewritten).run();
+            if (classifyClipboard({ files: [], getData: () => rewritten }) === "externalImages" && shouldWarnExternalImages()) {
+              useUiStore.getState().pushToast({ kind: "info", messageKey: "editor.externalImageOffline" });
+            }
+          } catch {
+            useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.pasteFailed" });
+          }
+        })();
+        return true;
+      },
+    },
     onUpdate: ({ editor: current }) => {
       pending.current = current.getHTML();
       if (timer.current) clearTimeout(timer.current);
@@ -104,7 +155,7 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
   if (!visualAvailable || !editor) return null;
   return (
     <section className="htnote-visual-editor">
-      <EditorToolbar editor={editor} onLinkNote={openPicker} />
+      <EditorToolbar editor={editor} noteId={noteId} onLinkNote={openPicker} />
       <EditorContent editor={editor} aria-label={t("editor.content")} />
       {pickerOpen && <NotePicker currentNoteId={noteId} onSelect={selectNote} onClose={() => setPickerOpen(false)} />}
     </section>
