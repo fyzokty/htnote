@@ -9,6 +9,8 @@ pub enum AppError {
     NotAFolder(String),
     #[error("Name conflict: {0}")]
     NameConflict(String),
+    #[error("Content conflict: {0}")]
+    Conflict(String),
     #[error("Invalid name: {0}")]
     InvalidName(String),
     #[error("Invalid move: {0}")]
@@ -29,6 +31,7 @@ impl AppError {
             Self::NotFound(_) => "NOTE_NOT_FOUND",
             Self::NotAFolder(_) => "NOT_A_FOLDER",
             Self::NameConflict(_) => "NAME_CONFLICT",
+            Self::Conflict(_) => "CONFLICT",
             Self::InvalidName(_) => "INVALID_NAME",
             Self::InvalidMove(_) => "INVALID_MOVE",
             Self::PathOutsideRoot(_) => "PATH_OUTSIDE_ROOT",
@@ -61,6 +64,7 @@ mod tests {
             (AppError::NotFound("missing".into()), "NOTE_NOT_FOUND"),
             (AppError::NotAFolder("note".into()), "NOT_A_FOLDER"),
             (AppError::NameConflict("used".into()), "NAME_CONFLICT"),
+            (AppError::Conflict("changed".into()), "CONFLICT"),
             (AppError::InvalidName("bad".into()), "INVALID_NAME"),
             (AppError::InvalidMove("nested".into()), "INVALID_MOVE"),
             (

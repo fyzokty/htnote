@@ -5,6 +5,8 @@ use crate::index::scan::{self, TreeNode};
 use crate::notes::create;
 use crate::notes::read::{self, NoteData};
 use crate::notes::rename;
+use crate::notes::save::{self, SaveNoteInput, SaveNoteOutput};
+use crate::index::scan::IndexedNote;
 use crate::settings::{self, Settings, SettingsPatch};
 use crate::state::AppState;
 use tauri::{Manager, State};
@@ -79,6 +81,30 @@ pub async fn read_note(app: tauri::AppHandle, id: uuid::Uuid) -> Result<NoteData
         let dir = resolve_note_dir(&state, id)?;
         read::read_note_dir(&dir)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn save_note(app: tauri::AppHandle, id: uuid::Uuid, payload: SaveNoteInput) -> Result<SaveNoteOutput, AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        save_note_in_state(&state, id, payload, |dir, input| save::save_note_dir(dir, input, chrono::Utc::now()))
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+fn save_note_in_state(
+    state: &AppState,
+    id: uuid::Uuid,
+    payload: SaveNoteInput,
+    save: impl FnOnce(&std::path::Path, SaveNoteInput) -> Result<SaveNoteOutput, AppError>,
+) -> Result<SaveNoteOutput, AppError> {
+    let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
+    let indexed = index.by_id.get(&id).cloned().ok_or_else(|| AppError::NotFound(id.to_string()))?;
+    let dir = index.resolve(id).ok_or_else(|| AppError::NotFound(id.to_string()))?;
+    let result = save(&dir, payload)?;
+    index.upsert(IndexedNote { rel_path: indexed.rel_path, metadata: result.metadata.clone() });
+    state.last_saved_hashes.lock().map_err(|error| AppError::Internal(error.to_string()))?
+        .insert(id, result.content_hash.clone());
+    Ok(result)
 }
 
 fn resolve_note_dir(state: &AppState, id: uuid::Uuid) -> Result<std::path::PathBuf, AppError> {
@@ -165,7 +191,76 @@ async fn scan_and_replace(state: &AppState) -> Result<Vec<TreeNode>, AppError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::notes::create::create_note_in;
     use crate::notes::model::{write_metadata_atomic, NoteMetadata};
+    use crate::notes::read::read_note_dir;
+
+    fn save_input(expected_hash: Option<String>) -> SaveNoteInput {
+        SaveNoteInput {
+            html: "<main>Yeni içerik</main>".into(),
+            css: "body {}".into(),
+            js: String::new(),
+            expected_hash,
+        }
+    }
+
+    #[test]
+    fn save_updates_index_and_last_saved_hash_without_changing_path_or_title() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join("folder")).unwrap();
+        let (_, indexed) = create_note_in(root.path(), "folder", Some("Başlık")).unwrap();
+        let id = indexed.metadata.id;
+        let original_path = indexed.rel_path.clone();
+        let original_updated_at = indexed.metadata.updated_at;
+        let state = AppState::new(root.path().to_path_buf(), Settings::default(), root.path().to_path_buf());
+        state.note_index.write().unwrap().upsert(indexed);
+        let dir = resolve_note_dir(&state, id).unwrap();
+        let expected_hash = read_note_dir(&dir).unwrap().content_hash;
+
+        let saved = save_note_in_state(&state, id, save_input(Some(expected_hash)), |dir, input| {
+            save::save_note_dir(dir, input, original_updated_at + chrono::Duration::seconds(1))
+        }).unwrap();
+
+        let index = state.note_index.read().unwrap();
+        assert_eq!(index.rel_path(id), Some(original_path.as_str()));
+        assert_eq!(index.by_id[&id].metadata.title, "Başlık");
+        assert_eq!(index.by_id[&id].metadata.updated_at, saved.metadata.updated_at);
+        assert!(index.by_id[&id].metadata.has_custom_css);
+        assert_eq!(saved.content_hash, read_note_dir(&dir).unwrap().content_hash);
+        assert_eq!(state.last_saved_hashes.lock().unwrap().get(&id), Some(&saved.content_hash));
+    }
+
+    #[test]
+    fn conflict_and_write_failure_keep_index_and_last_saved_hash() {
+        let root = tempfile::tempdir().unwrap();
+        let (_, indexed) = create_note_in(root.path(), "", Some("Başlık")).unwrap();
+        let id = indexed.metadata.id;
+        let original_updated_at = indexed.metadata.updated_at;
+        let original_path = indexed.rel_path.clone();
+        let state = AppState::new(root.path().to_path_buf(), Settings::default(), root.path().to_path_buf());
+        state.note_index.write().unwrap().upsert(indexed);
+        state.last_saved_hashes.lock().unwrap().insert(id, "previous".into());
+        let dir = resolve_note_dir(&state, id).unwrap();
+        let original_hash = read_note_dir(&dir).unwrap().content_hash;
+
+        let conflict = save_note_in_state(&state, id, save_input(Some("stale".into())), |dir, input| {
+            save::save_note_dir(dir, input, chrono::Utc::now())
+        });
+        assert!(matches!(conflict, Err(AppError::Conflict(_))));
+
+        let write_failure = save_note_in_state(&state, id, save_input(Some(original_hash.clone())), |_, _| {
+            Err(AppError::Io(std::io::Error::other("injected write failure")))
+        });
+        assert!(matches!(write_failure, Err(AppError::Io(_))));
+
+        let index = state.note_index.read().unwrap();
+        assert_eq!(index.rel_path(id), Some(original_path.as_str()));
+        assert_eq!(index.by_id[&id].metadata.title, "Başlık");
+        assert_eq!(index.by_id[&id].metadata.updated_at, original_updated_at);
+        assert!(!index.by_id[&id].metadata.has_custom_css);
+        assert_eq!(state.last_saved_hashes.lock().unwrap().get(&id).map(String::as_str), Some("previous"));
+        assert_eq!(read_note_dir(&dir).unwrap().content_hash, original_hash);
+    }
 
     #[test]
     fn unknown_note_id_is_not_found() {
