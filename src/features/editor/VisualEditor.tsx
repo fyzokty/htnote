@@ -4,41 +4,61 @@ import { useTranslation } from "react-i18next";
 
 import { EditorToolbar } from "@/features/editor/EditorToolbar";
 import { createVisualExtensions } from "@/features/editor/extensions";
+import { unwrapRawBlocks, wrapRawBlocks } from "@/features/editor/visualPipeline";
 
 interface VisualEditorProps {
   initialInner: string;
   onChange: (inner: string) => void;
   visualAvailable?: boolean;
+  onEditInCode?: () => void;
 }
 
-export function VisualEditor({ initialInner, onChange, visualAvailable = true }: VisualEditorProps) {
+export function VisualEditor({ initialInner, onChange, visualAvailable = true, onEditInCode }: VisualEditorProps) {
   const { t } = useTranslation();
   const onChangeRef = useRef(onChange);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  const onEditInCodeRef = useRef(onEditInCode);
+  useEffect(() => { onEditInCodeRef.current = onEditInCode; }, [onEditInCode]);
   const pending = useRef<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const baseline = useRef<string | null>(null);
+  const lastReported = useRef<string | null>(null);
+  const flush = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    const html = pending.current;
+    pending.current = null;
+    if (html !== null && html !== lastReported.current) {
+      lastReported.current = html;
+      onChangeRef.current(unwrapRawBlocks(html));
+    }
+  };
 
   const editor = useEditor({
-    extensions: createVisualExtensions(t("editor.placeholder")),
-    content: initialInner,
+    // TipTap bu geri çağırmayı yalnızca NodeView buton olayı sırasında çalıştırır.
+    // eslint-disable-next-line react-hooks/refs
+    extensions: createVisualExtensions(t("editor.placeholder"), () => {
+      flush();
+      onEditInCodeRef.current?.();
+    }),
+    content: wrapRawBlocks(initialInner),
     immediatelyRender: false,
     editorProps: { attributes: { "aria-label": t("editor.content") } },
     onUpdate: ({ editor: current }) => {
       pending.current = current.getHTML();
       if (timer.current) clearTimeout(timer.current);
-      timer.current = setTimeout(() => {
-        timer.current = null;
-        const html = pending.current;
-        pending.current = null;
-        if (html !== null) onChangeRef.current(html);
-      }, 150);
+      timer.current = setTimeout(flush, 150);
     },
   });
 
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-    if (pending.current !== null) onChangeRef.current(pending.current);
-  }, []);
+  useEffect(() => {
+    if (editor && baseline.current === null) {
+      baseline.current = editor.getHTML();
+      lastReported.current = baseline.current;
+    }
+  }, [editor]);
+
+  useEffect(() => () => { flush(); }, []);
 
   if (!visualAvailable || !editor) return null;
   return (
