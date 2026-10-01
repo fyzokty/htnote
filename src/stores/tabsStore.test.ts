@@ -38,7 +38,10 @@ describe("tabsStore", () => {
     store.openNote("b", { activate: false });
     expect(ids()).toEqual(["a", "b"]);
     expect(useTabsStore.getState().activeId).toBe("a");
-    store.openNote("b");
+    expect(useTreeStore.getState().selected).toEqual({ kind: "note", id: "a" });
+    store.openNote("b", { activate: false });
+    expect(useTabsStore.getState().activeId).toBe("b");
+    expect(useTreeStore.getState().selected).toEqual({ kind: "note", id: "b" });
     store.openNote("b");
     expect(ids()).toEqual(["a", "b"]);
     expect(useTabsStore.getState().activeId).toBe("b");
