@@ -14,10 +14,11 @@ export function ImageView(props: NodeViewProps) {
   const { t } = useTranslation();
   const { node, selected, updateAttributes, deleteNode } = props;
   const width = node.attrs.width as string | null;
+  const displayWidth = width && /^\d+(?:\.\d+)?$/.test(width) ? `${width}px` : width ?? undefined;
   return (
     <NodeViewWrapper className="htnote-media-image">
       <img src={resolveMediaSrc(noteIdFrom(props), node.attrs.src ?? "")} alt={node.attrs.alt ?? ""}
-        title={node.attrs.title ?? undefined} style={{ width: width ?? undefined }} draggable={false} />
+        title={node.attrs.title ?? undefined} style={{ width: displayWidth }} draggable={false} />
       {selected && <div className="htnote-media-image-toolbar" contentEditable={false}>
         <label>{t("editor.image.alt")}
           <input aria-label={t("editor.image.alt")} value={node.attrs.alt ?? ""}
