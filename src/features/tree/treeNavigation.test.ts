@@ -15,24 +15,25 @@ describe("tree navigation", () => {
   it("skips closed descendants and clamps vertical movement", () => {
     const expanded = new Set<string>();
     expect(visibleNodes(tree, expanded).map(({ node }) => node)).toEqual([folder, sibling]);
-    expect(nextVisibleNode(tree, expanded, folder, "ArrowUp")).toBe(folder);
-    expect(nextVisibleNode(tree, expanded, folder, "ArrowDown")).toBe(sibling);
-    expect(nextVisibleNode(tree, expanded, sibling, "ArrowDown")).toBe(sibling);
-    expect(nextVisibleNode(tree, expanded, null, "ArrowDown")).toBe(folder);
+    expect(nextVisibleNode(tree, expanded, folder, "ArrowUp")).toEqual({ node: folder });
+    expect(nextVisibleNode(tree, expanded, folder, "ArrowDown")).toEqual({ node: sibling });
+    expect(nextVisibleNode(tree, expanded, sibling, "ArrowDown")).toEqual({ node: sibling });
+    expect(nextVisibleNode(tree, expanded, null, "ArrowDown")).toEqual({ node: folder });
   });
 
   it("moves into open folders and back to parents", () => {
     const expanded = new Set(["A", "A/Nested"]);
-    expect(nextVisibleNode(tree, expanded, folder, "ArrowRight")).toBe(child);
-    expect(nextVisibleNode(tree, expanded, child, "ArrowLeft")).toBe(folder);
-    expect(nextVisibleNode(tree, expanded, deep, "ArrowLeft")).toBe(nested);
-    expect(nextVisibleNode(tree, expanded, nested, "ArrowLeft")).toBe(nested);
-    expect(nextVisibleNode(tree, expanded, deep, "ArrowRight")).toBe(deep);
+    expect(nextVisibleNode(tree, expanded, folder, "ArrowRight")).toEqual({ node: child });
+    expect(nextVisibleNode(tree, expanded, child, "ArrowLeft")).toEqual({ node: folder });
+    expect(nextVisibleNode(tree, expanded, deep, "ArrowLeft")).toEqual({ node: nested });
+    expect(nextVisibleNode(tree, expanded, nested, "ArrowLeft")).toEqual({ node: nested, expansion: "collapse" });
+    expect(nextVisibleNode(tree, expanded, deep, "ArrowRight")).toEqual({ node: deep });
   });
 
-  it("keeps a closed folder selected until the UI expands it", () => {
-    expect(nextVisibleNode(tree, new Set(), folder, "ArrowRight")).toBe(folder);
-    expect(nextVisibleNode(tree, new Set(["A"]), nested, "ArrowRight")).toBe(nested);
+  it("signals expansion for closed folders", () => {
+    expect(nextVisibleNode(tree, new Set(), folder, "ArrowRight")).toEqual({ node: folder, expansion: "expand" });
+    expect(nextVisibleNode(tree, new Set(["A"]), nested, "ArrowRight")).toEqual({ node: nested, expansion: "expand" });
+    expect(nextVisibleNode(tree, new Set(), folder, "ArrowLeft")).toEqual({ node: folder });
     expect(nextVisibleNode([], new Set(), null, "ArrowDown")).toBeNull();
   });
 });

@@ -74,4 +74,27 @@ describe("treeStore", () => {
     expect(updates[0]).toEqual({ patch: { expandedFolders: ["A/B"] } });
     vi.useRealTimers();
   });
+
+  it("reconciles expansion changes made before settings arrive and persists them", async () => {
+    const updates: unknown[] = [];
+    mockIPC((command, args) => {
+      if (command === "get_note_tree") return tree;
+      if (command === "update_settings") {
+        updates.push(args);
+        return { ...settings, expandedFolders: ["A/B"] };
+      }
+      return undefined;
+    });
+    await useTreeStore.getState().load();
+    vi.useFakeTimers();
+    useTreeStore.getState().toggle("A");
+    useTreeStore.getState().toggle("A/B");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(updates).toHaveLength(0);
+    useSettingsStore.setState({ settings: { ...settings, expandedFolders: ["A"] }, status: "ready" });
+    expect([...useTreeStore.getState().expanded]).toEqual(["A/B"]);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(updates).toEqual([{ patch: { expandedFolders: ["A/B"] } }]);
+    vi.useRealTimers();
+  });
 });

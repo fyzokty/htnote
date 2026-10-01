@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef } from "react";
+import { memo, useCallback, useLayoutEffect, useRef } from "react";
 import type { KeyboardEvent } from "react";
 import { ChevronDown, ChevronRight, FileText, Folder } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -55,7 +55,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const rootRef = useRef<HTMLDivElement>(null);
   const rows = visibleNodes(tree, expanded);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!selected) return;
     const key = selected.kind === "folder" ? `folder:${selected.relPath}` : `note:${selected.id}`;
     const element = Array.from(rootRef.current?.querySelectorAll<HTMLElement>("[data-tree-key]") ?? [])
@@ -84,11 +84,11 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     }
     const next = nextVisibleNode(tree, expanded, current, event.key as TreeKey);
     if (!next) return;
-    if (next === current && current?.type === "folder" && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
-      if ((event.key === "ArrowLeft") === expanded.has(current.relPath)) toggle(current.relPath);
+    if (next.expansion && next.node.type === "folder") {
+      toggle(next.node.relPath);
       return;
     }
-    select(next.type === "folder" ? { kind: "folder", relPath: next.relPath } : { kind: "note", id: next.id });
+    select(next.node.type === "folder" ? { kind: "folder", relPath: next.node.relPath } : { kind: "note", id: next.node.id });
   }
 
   return (
