@@ -33,9 +33,9 @@ export function NoteEditor({ noteId, doc, session }: Props) {
       <div className="min-h-0 flex-1 overflow-auto">
         {/* Ref yalnızca editörün bekleyen değişikliğini olay sırasında boşaltmak için aktarılır. */}
         {/* eslint-disable-next-line react-hooks/refs */}
-        {doc.mode === "visual" && parts?.ok && <VisualEditor ref={session.visualRef} initialInner={parts.inner} onChange={session.onVisualChange} onEditInCode={() => session.switchMode("code")} />}
+        {doc.mode === "visual" && parts?.ok && <VisualEditor ref={session.visualRef} noteId={noteId} initialInner={parts.inner} onChange={session.onVisualChange} onEditInCode={() => session.switchMode("code")} />}
         {/* eslint-disable-next-line react-hooks/refs */}
-        {doc.mode === "code" && <SplitView editor={<CodeEditor html={draft.html} css={draft.css ?? ""} js={draft.js ?? ""} onChange={session.onCodeChange} />}>
+        {doc.mode === "code" && <SplitView editor={<CodeEditor noteId={noteId} html={draft.html} css={draft.css ?? ""} js={draft.js ?? ""} onChange={session.onCodeChange} />}>
           <LivePreview noteId={noteId} html={draft.html} css={draft.css ?? ""} js={draft.js ?? ""} />
         </SplitView>}
       </div>
