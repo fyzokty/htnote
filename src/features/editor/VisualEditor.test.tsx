@@ -47,4 +47,27 @@ describe("VisualEditor", () => {
     render(<VisualEditor initialInner="<p>Test</p>" onChange={vi.fn()} visualAvailable={false} />);
     expect(screen.queryByRole("toolbar")).toBeNull();
   });
+
+  it("does not report an unchanged document as dirty", () => {
+    vi.useFakeTimers();
+    const onChange = vi.fn();
+    const view = render(<VisualEditor initialInner={'<p class="x" data-y="1">A</p><canvas></canvas><script>run()</script>'} onChange={onChange} />);
+    act(() => vi.advanceTimersByTime(300));
+    view.unmount();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("preserves raw canvas and script after a rich block edit", () => {
+    vi.useFakeTimers();
+    const onChange = vi.fn();
+    const view = render(<VisualEditor initialInner={'<p class="x" data-y="1">A</p><canvas id="c"></canvas><script>run()</script>'} onChange={onChange} />);
+    act(() => { fireEvent.change(screen.getByRole("combobox"), { target: { value: "h2" } }); });
+    act(() => vi.advanceTimersByTime(150));
+    const result = onChange.mock.lastCall?.[0] as string;
+    expect(result).toContain('<canvas id="c"></canvas><script>run()</script>');
+    expect(result).toContain('data-y="1"');
+    expect(result).not.toContain("htnote-raw");
+    view.unmount();
+  });
+
 });
