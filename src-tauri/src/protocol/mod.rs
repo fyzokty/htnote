@@ -291,6 +291,11 @@ fn draft_html(draft: &PreviewDraft) -> Vec<u8> {
 }
 
 fn serve_draft(method: &str, dir: &Path, relative: &Path, range: Option<&str>, draft: &PreviewDraft) -> Served {
+    if method != "GET" && method != "HEAD" {
+        let mut response = Served::new(StatusCode::METHOD_NOT_ALLOWED);
+        response.header("Allow", "GET, HEAD");
+        return response;
+    }
     // parse_note_path tüm segmentleri doğrular; burada yalnızca taslak URL yapısı ayrıştırılır.
     let parts: Vec<_> = relative.iter().collect();
     if parts.len() < 3 || parts[0] != "__draft" || parts[1].to_string_lossy().parse::<u64>().is_err() {
@@ -430,6 +435,21 @@ mod tests {
         assert_eq!(handle("GET", &format!("/{}/__draft/1/%2findex.html", metadata.id), None, &index, &drafts).status, StatusCode::FORBIDDEN);
         drafts.lock().unwrap().remove(&metadata.id);
         assert_eq!(handle("GET", &path, None, &index, &drafts).status, StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn draft_memory_files_reject_unsupported_methods() {
+        let dir = tempfile::tempdir().unwrap();
+        let draft = PreviewDraft {
+            rev: 1, html: "<html></html>".into(), css: "body {}".into(), js: "window.ok = true".into(),
+        };
+        for file in ["index.html", "style.css", "script.js", "asset.txt"] {
+            let relative = PathBuf::from(format!("__draft/1/{file}"));
+            let response = serve_draft("POST", dir.path(), &relative, None, &draft);
+            assert_eq!(response.status, StatusCode::METHOD_NOT_ALLOWED, "{file}");
+            assert!(response.headers.contains(&("Allow", "GET, HEAD".into())), "{file}");
+            assert!(response.body.is_empty(), "{file}");
+        }
     }
 
     #[test]
