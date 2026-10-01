@@ -19,6 +19,7 @@ pub type PreviewDrafts = Arc<Mutex<HashMap<Uuid, PreviewDraft>>>;
 
 pub struct AppState {
     pub config_dir: PathBuf,
+    pub drafts_dir: PathBuf,
     pub settings: Mutex<Settings>,
     pub root_dir: RwLock<PathBuf>,
     pub note_index: Arc<RwLock<NoteIndex>>,
@@ -30,9 +31,16 @@ pub struct AppState {
 }
 
 impl AppState {
+    #[cfg(test)]
     pub fn new(config_dir: PathBuf, settings: Settings, root_dir: PathBuf) -> Self {
+        let drafts_dir = config_dir.join("drafts");
+        Self::with_drafts_dir(config_dir, drafts_dir, settings, root_dir)
+    }
+
+    pub fn with_drafts_dir(config_dir: PathBuf, drafts_dir: PathBuf, settings: Settings, root_dir: PathBuf) -> Self {
         Self {
             config_dir,
+            drafts_dir,
             settings: Mutex::new(settings),
             note_index: Arc::new(RwLock::new(NoteIndex::new(root_dir.clone()))),
             root_dir: RwLock::new(root_dir),

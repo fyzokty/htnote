@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { AppInfo, NoteData, PreviewDraftPayload, SaveNotePayload, SaveNoteResult, Settings, SettingsPatch, TreeNode } from "@/lib/types";
+import type { AppInfo, NoteData, PreviewDraftPayload, RecoveryDraft, SaveNotePayload, SaveNoteResult, Settings, SettingsPatch, TreeNode, WriteDraftPayload } from "@/lib/types";
 
 export const ipc = {
   appInfo(): Promise<AppInfo> {
@@ -32,6 +32,18 @@ export const ipc = {
   },
   clearPreviewDraft(id: string): Promise<void> {
     return invoke<void>("clear_preview_draft", { id });
+  },
+  writeDraft(id: string, payload: WriteDraftPayload): Promise<void> {
+    return invoke<void>("write_draft", { id, payload });
+  },
+  readDraft(id: string): Promise<RecoveryDraft> {
+    return invoke<RecoveryDraft>("read_draft", { id });
+  },
+  deleteDraft(id: string): Promise<void> {
+    return invoke<void>("delete_draft", { id });
+  },
+  listDrafts(): Promise<RecoveryDraft[]> {
+    return invoke<RecoveryDraft[]>("list_drafts");
   },
   createNote(parentRelPath: string, title?: string): Promise<TreeNode> {
     return invoke<TreeNode>("create_note", { parentRelPath, title: title ?? null });

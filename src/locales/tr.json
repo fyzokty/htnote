@@ -10,5 +10,6 @@
   "errorBoundary": { "title": "Bir şeyler ters gitti", "description": "Uygulamayı yeniden yüklemeyi deneyin.", "reload": "Yeniden yükle" },
   "dialogs": {},
   "unsaved": { "title": "Kaydedilmemiş değişiklikler", "multipleTitle": "Kaydedilmemiş notlar", "description": "Devam etmeden önce değişikliklerinizi kaydetmek ister misiniz?", "save": "Kaydet", "saveAll": "Tümünü kaydet", "discard": "Kaydetme", "cancel": "İptal" },
+  "recovery": { "title": "Kaydedilmemiş notları kurtar", "description": "Önceki oturumdan taslaklar bulundu.", "savedAt": "Taslak zamanı: {{time}}", "diskChanged": "Bu not taslak oluşturulduğundan beri diskte değişti. Kurtarma, kaydın temeli olarak güncel notu kullanır.", "recover": "Kurtar", "ignore": "Yok say" },
   "settings": { "theme": "Tema", "system": "Sistem", "light": "Açık", "dark": "Koyu", "language": "Dil", "turkish": "Türkçe", "english": "İngilizce" }
 }

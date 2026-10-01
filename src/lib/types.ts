@@ -77,6 +77,14 @@ export interface PreviewDraftPayload {
   js: string;
 }
 
+export interface RecoveryDraft extends PreviewDraftPayload {
+  id: string;
+  baseHash: string;
+  savedAt: string;
+}
+
+export type WriteDraftPayload = Omit<RecoveryDraft, "id">;
+
 export type TreeNode = FolderNode | NoteNode;
 
 export interface FsChangePayload {
