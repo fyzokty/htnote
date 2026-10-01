@@ -122,6 +122,16 @@ fn serve_bridge(method: &str) -> Served {
     response
 }
 
+fn bridge_response(method: &str, uri: &Uri) -> Option<Served> {
+    if uri.path() != "/__htnote/bridge.js" {
+        return None;
+    }
+    Some(match valid_origin(uri) {
+        Ok(()) => serve_bridge(method),
+        Err(status) => Served::new(status),
+    })
+}
+
 fn fallback_position(html: &str) -> usize {
     let mut position = if html.starts_with('\u{feff}') { '\u{feff}'.len_utf8() } else { 0 };
     let rest = &html[position..];
@@ -280,12 +290,7 @@ fn serve(method: &str, note_dir: &Path, relative: &Path, range: Option<&str>) ->
 
 pub fn handle(app: &AppHandle, request: Request<Vec<u8>>, responder: UriSchemeResponder) {
     let method = request.method().as_str().to_owned();
-    if request.uri().path() == "/__htnote/bridge.js" {
-        let response = if let Err(status) = valid_origin(request.uri()) {
-            Served::new(status)
-        } else {
-            serve_bridge(&method)
-        };
+    if let Some(response) = bridge_response(&method, request.uri()) {
         responder.respond(response.into_response());
         return;
     }
@@ -457,6 +462,28 @@ mod tests {
         assert_eq!(served.status, StatusCode::OK);
         assert!(String::from_utf8(served.body).unwrap().contains(BRIDGE_TAG));
         assert!(!served.headers.iter().any(|(name, _)| *name == "Content-Range"));
+    }
+
+    #[test]
+    fn bridge_route_checks_note_origin() {
+        for url in [
+            "http://htnote-note.localhost/__htnote/bridge.js",
+            "htnote-note://localhost/__htnote/bridge.js",
+            "/__htnote/bridge.js",
+        ] {
+            let response = bridge_response("GET", &request_uri(url)).unwrap();
+            assert_eq!(response.status, StatusCode::OK, "{url}");
+            assert_eq!(response.body, BRIDGE_JS.as_bytes(), "{url}");
+        }
+        for url in [
+            "https://htnote-note.localhost/__htnote/bridge.js",
+            "http://evil.localhost/__htnote/bridge.js",
+            "htnote-note://evil.localhost/__htnote/bridge.js",
+            "http://localhost/__htnote/bridge.js",
+        ] {
+            assert_eq!(bridge_response("GET", &request_uri(url)).unwrap().status, StatusCode::FORBIDDEN, "{url}");
+        }
+        assert!(bridge_response("GET", &request_uri("http://htnote-note.localhost/other.js")).is_none());
     }
 
     #[cfg(unix)]

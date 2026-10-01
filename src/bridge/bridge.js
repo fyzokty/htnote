@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const noteId = location.pathname.split("/")[1] || "";
+  const noteId = location.pathname.split("/")[1];
   window.htnote = Object.freeze({ noteId, version: 1 });
   const send = (type, payload = {}) => window.parent.postMessage({ type, ...payload }, "*");
   const external = /^(https?:|mailto:)/i;
@@ -19,7 +19,6 @@
   }
   document.addEventListener("click", followLink, true);
   document.addEventListener("auxclick", followLink, true);
-
   window.open = (url) => {
     if (url != null && external.test(String(url))) send("HTNOTE_OPEN_EXTERNAL", { url: String(url) });
     return null;
@@ -68,20 +67,38 @@
     let first;
     for (const node of nodes) {
       const text = node.textContent;
-      const folded = text.toLocaleLowerCase("tr");
+      let folded = "";
+      const starts = [], ends = [];
+      for (let offset = 0; offset < text.length;) {
+        let end = offset + (text.codePointAt(offset) > 0xffff ? 2 : 1);
+        let part = text.slice(offset, end).toLocaleLowerCase("tr");
+        if (text[offset] === "I" && text[end] === "\u0307") {
+          part = "i";
+          end++;
+        }
+        folded += part;
+        for (let i = 0; i < part.length; i++) { starts.push(offset); ends.push(end); }
+        offset = end;
+      }
       let from = 0;
-      let found = folded.indexOf(needle, from);
+      let found = folded.indexOf(needle);
       if (found < 0) continue;
       const fragment = document.createDocumentFragment();
       while (found >= 0) {
-        fragment.append(document.createTextNode(text.slice(from, found)));
+        const start = starts[found];
+        const end = ends[found + needle.length - 1];
+        if (start < from) {
+          found = folded.indexOf(needle, found + 1);
+          continue;
+        }
+        fragment.append(document.createTextNode(text.slice(from, start)));
         const mark = document.createElement("mark");
         mark.setAttribute("data-htnote-hl", "");
-        mark.textContent = text.slice(found, found + query.length);
+        mark.textContent = text.slice(start, end);
         fragment.append(mark);
         first ||= mark;
-        from = found + query.length;
-        found = folded.indexOf(needle, from);
+        from = end;
+        found = folded.indexOf(needle, found + needle.length);
       }
       fragment.append(document.createTextNode(text.slice(from)));
       node.replaceWith(fragment);

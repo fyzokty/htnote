@@ -68,13 +68,19 @@ describe("note bridge", () => {
       return event;
     };
     expect(key("s", "KeyS", { ctrlKey: true }).defaultPrevented).toBe(true);
+    for (const letter of ["e", "w", "n"]) {
+      expect(key(letter, `Key${letter.toUpperCase()}`, { ctrlKey: true }).defaultPrevented).toBe(true);
+    }
     expect(key("N", "KeyN", { ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(true);
+    expect(key("F", "KeyF", { ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(true);
+    expect(key("Tab", "Tab", { ctrlKey: true }).defaultPrevented).toBe(true);
     expect(key("Tab", "Tab", { ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(true);
     expect(key("\\", "Backslash", { ctrlKey: true }).defaultPrevented).toBe(true);
     expect(key("Escape", "Escape").defaultPrevented).toBe(true);
     expect(key("x", "KeyX", { ctrlKey: true }).defaultPrevented).toBe(false);
+    expect(key("s", "KeyS", { ctrlKey: true, altKey: true }).defaultPrevented).toBe(false);
     expect(key("x", "KeyX").defaultPrevented).toBe(false);
-    expect(messages).toHaveBeenCalledTimes(6);
+    expect(messages).toHaveBeenCalledTimes(12);
     expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_SHORTCUT", key: "s", ctrl: true, shift: false, alt: false, meta: false }, "*");
   });
 
@@ -88,10 +94,23 @@ describe("note bridge", () => {
     expect(document.documentElement.dataset.htTheme).toBe("dark");
     hostMessage({ type: "HTNOTE_HIGHLIGHT", query: "i" });
     expect(document.querySelectorAll("mark[data-htnote-hl]")).toHaveLength(2);
+    expect(Array.from(document.querySelectorAll("p mark")).map((mark) => mark.textContent)).toEqual(["İ", "i"]);
     hostMessage({ type: "HTNOTE_HIGHLIGHT", query: "ı" });
     expect(document.querySelectorAll("mark[data-htnote-hl]")).toHaveLength(2);
+    expect(Array.from(document.querySelectorAll("p mark")).map((mark) => mark.textContent)).toEqual(["I", "ı"]);
     hostMessage({ type: "HTNOTE_HIGHLIGHT", query: "" });
     expect(document.querySelectorAll("mark[data-htnote-hl]")).toHaveLength(0);
     expect(document.querySelector("p")?.textContent).toBe("İ i I ı");
+  });
+
+  it("keeps source offsets when Turkish folding changes text length", () => {
+    document.body.innerHTML = "<p>I\u0307i İi Iı</p>";
+    hostMessage({ type: "HTNOTE_HIGHLIGHT", query: "İi" });
+    expect(Array.from(document.querySelectorAll("p mark")).map((mark) => mark.textContent)).toEqual(["I\u0307i", "İi"]);
+    expect(document.querySelector("p")?.textContent).toBe("I\u0307i İi Iı");
+    hostMessage({ type: "HTNOTE_HIGHLIGHT", query: "Iı" });
+    expect(Array.from(document.querySelectorAll("p mark")).map((mark) => mark.textContent)).toEqual(["Iı"]);
+    hostMessage({ type: "HTNOTE_HIGHLIGHT", query: "" });
+    expect(document.querySelector("p")?.textContent).toBe("I\u0307i İi Iı");
   });
 });
