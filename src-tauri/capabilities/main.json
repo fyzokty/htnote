@@ -5,8 +5,6 @@
   "windows": ["main"],
   "permissions": [
     "core:default",
-    "allow-set-preview-draft",
-    "allow-clear-preview-draft",
     "opener:allow-reveal-item-in-dir",
     {
       "identifier": "opener:allow-open-url",

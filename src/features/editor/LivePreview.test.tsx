@@ -58,7 +58,7 @@ it("clears the old frame and draft immediately when the note changes", async () 
   await act(async () => { vi.advanceTimersByTime(300); });
   view.rerender(<LivePreview noteId={otherId} html="two" css="" js="" />);
   const switchingFrame = screen.getByTitle("Live preview") as HTMLIFrameElement;
-  expect(switchingFrame.getAttribute("src")).toBeNull();
+  expect(switchingFrame.getAttribute("src")).toBe("about:blank");
   expect(clear).toHaveBeenCalledWith(id);
   expect(set).toHaveBeenCalledWith(otherId, { html: "two", css: "", js: "" });
   const switchingPost = vi.spyOn(switchingFrame.contentWindow!, "postMessage").mockImplementation(() => {});
@@ -92,7 +92,7 @@ it("leaves the frame blank when the new note draft fails", async () => {
   expect((screen.getByTitle("Live preview") as HTMLIFrameElement).src).toBe(`${origin}/${id}/__draft/1/index.html`);
   view.rerender(<LivePreview noteId={otherId} html="two" css="" js="" />);
   await act(async () => { await Promise.resolve(); });
-  expect((screen.getByTitle("Live preview") as HTMLIFrameElement).getAttribute("src")).toBeNull();
+  expect((screen.getByTitle("Live preview") as HTMLIFrameElement).getAttribute("src")).toBe("about:blank");
   view.unmount();
 });
 

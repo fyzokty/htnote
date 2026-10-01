@@ -75,5 +75,5 @@ export function LivePreview({ noteId, html, css, js }: LivePreviewProps) {
     return () => window.removeEventListener("message", onMessage);
   }, [noteId, frameSrc]);
 
-  return <iframe ref={frameRef} title="Live preview" src={frameSrc} sandbox={NOTE_IFRAME_SANDBOX} referrerPolicy="no-referrer" className="h-full w-full border-0" />;
+  return <iframe key={noteId} ref={frameRef} title="Live preview" src={frameSrc ?? "about:blank"} sandbox={NOTE_IFRAME_SANDBOX} referrerPolicy="no-referrer" className="h-full w-full border-0" />;
 }

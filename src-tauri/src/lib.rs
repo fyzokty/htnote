@@ -102,8 +102,6 @@ mod tests {
         assert!(capability.get("remote").is_none());
         assert_eq!(capability["windows"], serde_json::json!(["main"]));
         let permissions = capability["permissions"].as_array().expect("izin listesi");
-        assert!(permissions.contains(&serde_json::json!("allow-set-preview-draft")));
-        assert!(permissions.contains(&serde_json::json!("allow-clear-preview-draft")));
         for permission in permissions {
             let identifier = permission.as_str().or_else(|| permission["identifier"].as_str()).expect("izin kimliği");
             assert!(!identifier.contains('*'), "joker izin: {identifier}");
