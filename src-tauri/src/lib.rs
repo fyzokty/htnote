@@ -22,6 +22,7 @@ pub fn app_version() -> &'static str {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let config_dir = settings::config_dir_override().unwrap_or(app.path().app_config_dir()?);
             let settings = settings::load_settings(&config_dir)?;
@@ -115,6 +116,10 @@ mod tests {
             let identifier = permission.as_str().or_else(|| permission["identifier"].as_str()).expect("izin kimliği");
             assert!(!identifier.contains('*'), "joker izin: {identifier}");
         }
+        let dialog_permissions: Vec<_> = permissions.iter()
+            .filter_map(|permission| permission.as_str().or_else(|| permission["identifier"].as_str()))
+            .filter(|identifier| identifier.starts_with("dialog:")).collect();
+        assert_eq!(dialog_permissions, ["dialog:allow-open"]);
 
         let csp = conf["app"]["security"]["csp"].as_str().expect("üretim CSP");
         let directives: std::collections::HashMap<_, _> = csp
