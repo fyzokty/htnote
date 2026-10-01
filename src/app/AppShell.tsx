@@ -14,6 +14,7 @@ import { extractContent } from "@/features/editor/contentRegion";
 import { getDropHandler, toCssPoint } from "@/features/editor/fileDrop";
 import { setDiscardRecoveryDraftHook } from "@/features/editor/unsavedGuard";
 import { SidebarTree } from "@/features/tree/SidebarTree";
+import { handleQuickFilterKeyDown } from "@/features/tree/filterTree";
 import { TabBar } from "@/features/tabs/TabBar";
 import { NoteViewer } from "@/features/viewer/NoteViewer";
 import { installBridgeHost } from "@/features/viewer/bridgeHost";
@@ -37,6 +38,8 @@ export function AppShell() {
   const settings = useSettingsStore((state) => state.settings);
   const updateSettings = useSettingsStore((state) => state.update);
   const loadTree = useTreeStore((state) => state.load);
+  const filterQuery = useTreeStore((state) => state.filterQuery);
+  const setFilterQuery = useTreeStore((state) => state.setFilterQuery);
   const openNote = useCallback((id: string) => useTabsStore.getState().openNote(id), []);
   const { createNote, createFolder } = useTreeActions(openNote);
   const setRenaming = useTreeStore((state) => state.setRenaming);
@@ -233,7 +236,7 @@ export function AppShell() {
                 <Search className="size-4 shrink-0" aria-hidden /> {t("sidebar.search")}
               </button>
             </div>
-            <input type="search" aria-label={t("sidebar.quickFilter")} placeholder={t("sidebar.quickFilterPlaceholder")} className="w-full rounded-md border border-app-border bg-app-bg px-3 py-2 text-sm outline-none focus:border-app-accent" />
+            <input type="search" aria-label={t("sidebar.quickFilter")} placeholder={t("sidebar.quickFilterPlaceholder")} value={filterQuery} onChange={(event) => setFilterQuery(event.target.value)} onKeyDown={(event) => handleQuickFilterKeyDown(event, () => setFilterQuery(""))} className="w-full rounded-md border border-app-border bg-app-bg px-3 py-2 text-sm outline-none focus:border-app-accent" />
           </div>
           <SidebarTree onOpenNote={openNote} />
           <div className="shrink-0 border-t border-app-border p-2">
