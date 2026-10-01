@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SidebarTree } from "@/features/tree/SidebarTree";
+import { SidebarTree, preferTreeRow } from "@/features/tree/SidebarTree";
 import { useTreeActions } from "@/features/tree/useTreeActions";
 import type { TreeNode } from "@/lib/types";
 import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
@@ -26,6 +26,23 @@ beforeEach(() => {
 });
 
 describe("SidebarTree keyboard focus", () => {
+  it("prioritizes note and folder rows over the root drop target", () => {
+    expect(preferTreeRow([{ id: "drop:root" }, { id: "drop:A/Note" }])).toEqual([{ id: "drop:A/Note" }]);
+    expect(preferTreeRow([{ id: "drop:root" }, { id: "drop:A" }])).toEqual([{ id: "drop:A" }]);
+    expect(preferTreeRow([{ id: "drop:root" }])).toEqual([{ id: "drop:root" }]);
+  });
+
+  it("preserves treeitem semantics and click selection with pointer listeners", () => {
+    render(<SidebarTree onOpenNote={vi.fn()} />);
+    const folder = screen.getByRole("treeitem", { name: "Klasör: A" });
+    expect(folder).toHaveAttribute("tabindex", "0");
+    expect(folder).not.toHaveAttribute("aria-describedby");
+    fireEvent.pointerDown(folder);
+    fireEvent.click(folder);
+    expect(folder).toHaveFocus();
+    expect(folder).toHaveAttribute("aria-selected", "true");
+  });
+
   it("ignores invalid moves and refreshes and selects a moved note", async () => {
     const calls: unknown[] = [];
     const moved = { ...note, relPath: "B/Note" };
