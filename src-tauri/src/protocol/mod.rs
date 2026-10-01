@@ -6,11 +6,11 @@ use std::rc::Rc;
 
 use percent_encoding::percent_decode_str;
 use lol_html::{element, rewrite_str, Settings};
-use tauri::http::{Request, Response, StatusCode, Uri};
-use tauri::{AppHandle, Manager, UriSchemeResponder};
+use tauri::http::StatusCode;
 use uuid::Uuid;
 
-use crate::state::AppState;
+use crate::index::note_index::NoteIndex;
+use std::sync::{Arc, RwLock};
 
 const BRIDGE_JS: &str = include_str!("../../../src/bridge/bridge.js");
 const BRIDGE_TAG: &str = "<script src=\"/__htnote/bridge.js\"></script>";
@@ -21,14 +21,14 @@ struct NoteRequest {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-struct Served {
-    status: StatusCode,
-    headers: Vec<(&'static str, String)>,
-    body: Vec<u8>,
+pub(crate) struct Served {
+    pub status: StatusCode,
+    pub headers: Vec<(&'static str, String)>,
+    pub body: Vec<u8>,
 }
 
 impl Served {
-    fn new(status: StatusCode) -> Self {
+    pub(crate) fn new(status: StatusCode) -> Self {
         Self {
             status,
             headers: vec![
@@ -44,14 +44,6 @@ impl Served {
         self.headers.push((name, value.into()));
     }
 
-    fn into_response(self) -> Response<Vec<u8>> {
-        let mut builder = Response::builder().status(self.status);
-        for (name, value) in self.headers {
-            builder = builder.header(name, value);
-        }
-        // Sabit başlık adları ve denetlenmiş değerler yanıt oluşturmayı güvenli kılar.
-        builder.body(self.body).unwrap_or_else(|_| Response::new(Vec::new()))
-    }
 }
 
 fn parse_note_path(path: &str) -> Result<NoteRequest, StatusCode> {
@@ -85,27 +77,6 @@ fn parse_note_path(path: &str) -> Result<NoteRequest, StatusCode> {
     Ok(NoteRequest { id, relative: PathBuf::from(rel) })
 }
 
-fn valid_origin(uri: &Uri) -> Result<(), StatusCode> {
-    // Tauri platforma göre mutlak URI veya yalnızca yol iletebilir.
-    if let Some(scheme) = uri.scheme_str() {
-        let host = uri.host().ok_or(StatusCode::FORBIDDEN)?;
-        let known_origin = (scheme.eq_ignore_ascii_case("http") && host.eq_ignore_ascii_case("htnote-note.localhost"))
-            || (scheme.eq_ignore_ascii_case("htnote-note") && host.eq_ignore_ascii_case("localhost"));
-        if !known_origin {
-            return Err(StatusCode::FORBIDDEN);
-        }
-    } else if uri.authority().is_some() {
-        return Err(StatusCode::FORBIDDEN);
-    }
-    Ok(())
-}
-
-fn parse_note_uri(uri: &Uri) -> Result<NoteRequest, StatusCode> {
-    valid_origin(uri)?;
-    // http::Uri yolu normalize etmez; bu değer özgün nokta segmentlerini korur.
-    let raw_path = uri.path_and_query().ok_or(StatusCode::FORBIDDEN)?.path();
-    parse_note_path(raw_path)
-}
 
 fn serve_bridge(method: &str) -> Served {
     if method != "GET" && method != "HEAD" {
@@ -122,15 +93,6 @@ fn serve_bridge(method: &str) -> Served {
     response
 }
 
-fn bridge_response(method: &str, uri: &Uri) -> Option<Served> {
-    if uri.path() != "/__htnote/bridge.js" {
-        return None;
-    }
-    Some(match valid_origin(uri) {
-        Ok(()) => serve_bridge(method),
-        Err(status) => Served::new(status),
-    })
-}
 
 fn fallback_position(html: &str) -> usize {
     let mut position = if html.starts_with('\u{feff}') { '\u{feff}'.len_utf8() } else { 0 };
@@ -170,11 +132,11 @@ fn inject_bridge(body: &[u8]) -> Vec<u8> {
     result.into_bytes()
 }
 
-fn parse_request(method: &str, uri: &Uri) -> Result<NoteRequest, StatusCode> {
+fn parse_request(method: &str, path: &str) -> Result<NoteRequest, StatusCode> {
     if method != "GET" && method != "HEAD" {
         return Err(StatusCode::METHOD_NOT_ALLOWED);
     }
-    parse_note_uri(uri)
+    parse_note_path(path)
 }
 
 fn resolve_file(note_dir: &Path, relative: &Path) -> Result<PathBuf, StatusCode> {
@@ -288,23 +250,18 @@ fn serve(method: &str, note_dir: &Path, relative: &Path, range: Option<&str>) ->
     response
 }
 
-pub fn handle(app: &AppHandle, request: Request<Vec<u8>>, responder: UriSchemeResponder) {
-    let method = request.method().as_str().to_owned();
-    if let Some(response) = bridge_response(&method, request.uri()) {
-        responder.respond(response.into_response());
-        return;
+pub(crate) fn handle(method: &str, path: &str, range: Option<&str>, note_index: &Arc<RwLock<NoteIndex>>) -> Served {
+    if path == "/__htnote/bridge.js" {
+        return serve_bridge(method);
     }
-    let parsed = parse_request(&method, request.uri());
-    let range = request.headers().get("range").and_then(|value| value.to_str().ok()).map(str::to_owned);
+    let parsed = parse_request(method, path);
     let note_dir = match &parsed {
         Ok(parsed) => {
-            let state = app.state::<AppState>();
-            state.note_index.read().ok().and_then(|index| index.resolve(parsed.id))
+            note_index.read().ok().and_then(|index| index.resolve(parsed.id))
         }
         Err(_) => None,
     };
-    tauri::async_runtime::spawn_blocking(move || {
-        let response = if parsed.as_ref().err() == Some(&StatusCode::METHOD_NOT_ALLOWED) {
+        if parsed.as_ref().err() == Some(&StatusCode::METHOD_NOT_ALLOWED) {
             let mut response = Served::new(StatusCode::METHOD_NOT_ALLOWED);
             response.header("Allow", "GET, HEAD");
             response
@@ -312,11 +269,9 @@ pub fn handle(app: &AppHandle, request: Request<Vec<u8>>, responder: UriSchemeRe
             match (parsed, note_dir) {
                 (Err(status), _) => Served::new(status),
                 (Ok(_), None) => Served::new(StatusCode::NOT_FOUND),
-                (Ok(parsed), Some(dir)) => serve(&method, &dir, &parsed.relative, range.as_deref()),
+                (Ok(parsed), Some(dir)) => serve(method, &dir, &parsed.relative, range),
             }
-        };
-        responder.respond(response.into_response());
-    });
+        }
 }
 
 #[cfg(test)]
@@ -324,54 +279,13 @@ mod tests {
     use super::*;
 
     const ID: &str = "123e4567-e89b-12d3-a456-426614174000";
-    const OTHER_ID: &str = "123e4567-e89b-12d3-a456-426614174001";
-
-    const ORIGIN: &str = "http://htnote-note.localhost";
-
-    fn request_uri(url: &str) -> Uri {
-        Request::builder().uri(url).body(Vec::<u8>::new()).unwrap().uri().clone()
-    }
 
     #[test]
-    fn request_uris_preserve_and_reject_traversal() {
+    fn rejects_traversal_and_unsupported_methods() {
         for segment in ["..", "%2e%2e", ".%2e", "%2e."] {
-            let path = format!("/{ID}/{segment}/{OTHER_ID}/index.html");
-            let uri = request_uri(&format!("{ORIGIN}{path}"));
-            assert_eq!(uri.path(), path);
-            assert_eq!(parse_note_uri(&uri).err(), Some(StatusCode::FORBIDDEN));
+            assert_eq!(parse_request("GET", &format!("/{ID}/{segment}/index.html")).err(), Some(StatusCode::FORBIDDEN));
         }
-        let valid = request_uri(&format!("{ORIGIN}/{ID}/assets/x.png"));
-        assert_eq!(parse_note_uri(&valid).unwrap().relative, Path::new("assets/x.png"));
-    }
-
-    #[test]
-    fn accepts_platform_request_uri_forms() {
-        for url in [
-            format!("http://htnote-note.localhost/{ID}/index.html"),
-            format!("http://HTNOTE-NOTE.LOCALHOST:80/{ID}/index.html"),
-            format!("htnote-note://localhost/{ID}/index.html"),
-            format!("htnote-note://LOCALHOST:1234/{ID}/index.html"),
-            format!("/{ID}/index.html"),
-        ] {
-            assert_eq!(parse_note_uri(&request_uri(&url)).unwrap().relative, Path::new("index.html"), "{url}");
-        }
-    }
-
-    #[test]
-    fn rejects_other_authorities() {
-        for url in [
-            format!("http://evil.localhost/{ID}/index.html"),
-            format!("htnote-note://evil.localhost/{ID}/index.html"),
-        ] {
-            assert_eq!(parse_note_uri(&request_uri(&url)).err(), Some(StatusCode::FORBIDDEN), "{url}");
-        }
-    }
-
-    #[test]
-    fn unsupported_method_precedes_uri_validation() {
-        let malformed = request_uri("http://evil.localhost/invalid/%2e%2e");
-        assert_eq!(parse_request("POST", &malformed).err(), Some(StatusCode::METHOD_NOT_ALLOWED));
-        assert_eq!(parse_request("GET", &malformed).err(), Some(StatusCode::FORBIDDEN));
+        assert_eq!(parse_request("POST", &format!("/{ID}/index.html")).err(), Some(StatusCode::METHOD_NOT_ALLOWED));
     }
 
     #[test]
@@ -463,40 +377,6 @@ mod tests {
         assert_eq!(served.status, StatusCode::OK);
         assert!(String::from_utf8(served.body).unwrap().contains(BRIDGE_TAG));
         assert!(!served.headers.iter().any(|(name, _)| *name == "Content-Range"));
-    }
-
-    #[test]
-    fn bridge_route_checks_note_origin() {
-        for url in [
-            "http://htnote-note.localhost/__htnote/bridge.js",
-            "htnote-note://localhost/__htnote/bridge.js",
-            "/__htnote/bridge.js",
-        ] {
-            let response = bridge_response("GET", &request_uri(url)).unwrap();
-            assert_eq!(response.status, StatusCode::OK, "{url}");
-            assert_eq!(response.body, BRIDGE_JS.as_bytes(), "{url}");
-        }
-        for url in [
-            "https://htnote-note.localhost/__htnote/bridge.js",
-            "http://evil.localhost/__htnote/bridge.js",
-            "htnote-note://evil.localhost/__htnote/bridge.js",
-            "http://localhost/__htnote/bridge.js",
-        ] {
-            assert_eq!(bridge_response("GET", &request_uri(url)).unwrap().status, StatusCode::FORBIDDEN, "{url}");
-        }
-        assert!(bridge_response("GET", &request_uri("http://htnote-note.localhost/other.js")).is_none());
-
-        let response = bridge_response("GET", &request_uri("http://htnote-note.localhost/__htnote/bridge.js"))
-            .unwrap()
-            .into_response();
-        assert_eq!(response.status(), StatusCode::OK);
-        for (name, value) in [
-            ("content-type", "application/javascript; charset=utf-8"),
-            ("cache-control", "no-store"),
-            ("x-content-type-options", "nosniff"),
-        ] {
-            assert_eq!(response.headers().get(name).unwrap(), value);
-        }
     }
 
     #[cfg(unix)]

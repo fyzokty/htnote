@@ -14,7 +14,7 @@ describe("note isolation", () => {
     for (const check of ["parent-document", "internals", "invoke", "top-navigation", "popup", "traversal", "ipc-fetch"]) {
       assert.equal(await root.getAttribute(`data-${check}`), "pass", check);
     }
-    assert.equal(await browser.getTitle(), "Isolation complete");
+    assert.equal(await browser.execute(() => document.title), "Isolation complete");
     await browser.switchFrame(null);
     assert.equal(await browser.getUrl(), hostUrl);
     assert.equal((await browser.getWindowHandles()).length, 1);

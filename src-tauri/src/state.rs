@@ -10,6 +10,7 @@ pub struct AppState {
     pub root_dir: RwLock<PathBuf>,
     pub note_index: Arc<RwLock<NoteIndex>>,
     pub watcher: Mutex<Option<crate::watcher::WatcherManager>>,
+    pub note_origin: RwLock<String>,
 }
 
 impl AppState {
@@ -20,6 +21,7 @@ impl AppState {
             note_index: Arc::new(RwLock::new(NoteIndex::new(root_dir.clone()))),
             root_dir: RwLock::new(root_dir),
             watcher: Mutex::new(None),
+            note_origin: RwLock::new(String::new()),
         }
     }
 }

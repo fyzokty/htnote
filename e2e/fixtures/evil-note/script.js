@@ -17,18 +17,24 @@
     parentInternals = undefined;
   }
   const ownInternals = window.__TAURI_INTERNALS__;
-  record("internals", parentInternals === undefined && ownInternals === undefined);
+  record("internals", parentInternals === undefined);
+  document.documentElement.dataset.ownInternals = ownInternals === undefined ? "absent" : "present";
 
-  if (typeof ownInternals?.invoke === "function") {
+  const commands = [
+    ["get_settings", undefined],
+    ["plugin:opener|open_url", { url: "https://example.com" }],
+    ["plugin:event|listen", { event: "fs-change" }],
+  ];
+  const invokeResults = await Promise.all(commands.map(async ([command, args]) => {
+    if (typeof ownInternals?.invoke !== "function") return true;
     try {
-      await ownInternals.invoke("get_settings");
-      record("invoke", false);
+      await ownInternals.invoke(command, args);
+      return false;
     } catch {
-      record("invoke", true);
+      return true;
     }
-  } else {
-    record("invoke", true);
-  }
+  }));
+  record("invoke", invokeResults.every(Boolean));
 
   const hostUrl = (() => {
     try { return window.top.location.href; } catch { return null; }
@@ -50,7 +56,7 @@
   const paths = [`/${id}/../../`, `/${id}/%2e%2e/%2e%2e/`, `/${id}/%252e%252e/%252e%252e/`];
   const results = await Promise.all(paths.map(async (path) => {
     try {
-      const response = await fetch(`http://htnote-note.localhost${path}`);
+      const response = await fetch(`${location.origin}${path}`);
       return response.status === 403 || response.status === 404;
     } catch {
       return true;
@@ -59,8 +65,13 @@
   record("traversal", results.every(Boolean));
 
   try {
-    await fetch("http://ipc.localhost/", { mode: "cors" });
-    record("ipcFetch", false);
+    const response = await fetch("http://ipc.localhost/get_settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    const body = await response.text();
+    record("ipcFetch", !response.ok || !body.includes("rootDir"));
   } catch {
     record("ipcFetch", true);
   }

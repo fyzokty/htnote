@@ -1,6 +1,6 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 
-import { NOTE_ORIGIN } from "@/lib/noteUrl";
+import { getNoteOrigin } from "@/lib/noteUrl";
 import { dispatchShortcut } from "@/lib/shortcuts/manager";
 import { getPlatform, matchShortcut } from "@/lib/shortcuts/registry";
 import type { KeyInput } from "@/lib/shortcuts/registry";
@@ -83,7 +83,7 @@ function currentTheme() {
 }
 
 function sendTheme(frame: Window) {
-  frame.postMessage(currentTheme(), NOTE_ORIGIN);
+  frame.postMessage(currentTheme(), getNoteOrigin());
 }
 
 export function sendThemeToAll() {
@@ -95,7 +95,7 @@ const allowExternalOpen = createRateLimiter(1000);
 export function handleBridgeMessage(event: MessageEvent) {
   const frame = [...frames.values()].find((candidate) => candidate === event.source);
   if (!frame) return;
-  const message = parseBridgeMessage(event, frame, NOTE_ORIGIN);
+  const message = parseBridgeMessage(event, frame, getNoteOrigin());
   if (!message) return;
   switch (message.type) {
     case "HTNOTE_READY":

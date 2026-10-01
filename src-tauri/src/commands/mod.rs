@@ -63,6 +63,11 @@ pub fn get_root_dir(state: State<'_, AppState>) -> Result<String, AppError> {
 }
 
 #[tauri::command]
+pub fn get_note_origin(state: State<'_, AppState>) -> Result<String, AppError> {
+    Ok(state.note_origin.read().map_err(|error| AppError::Internal(error.to_string()))?.clone())
+}
+
+#[tauri::command]
 pub async fn get_note_tree(app: tauri::AppHandle) -> Result<Vec<TreeNode>, AppError> {
     scan_and_replace(&app.state::<AppState>()).await
 }
