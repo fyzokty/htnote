@@ -3,7 +3,7 @@ use std::rc::Rc;
 
 use chrono::SecondsFormat;
 use lol_html::html_content::ContentType;
-use lol_html::{element, end_tag, rewrite_str, Settings};
+use lol_html::{element, end, end_tag, rewrite_str, Settings};
 
 use super::model::NoteMetadata;
 
@@ -154,7 +154,9 @@ pub fn sync_head(html: &str, meta: &NoteMetadata, has_css: bool, has_js: bool) -
     let mut seen_title = false;
     let mut seen_meta = [false; 3];
     let mut seen_css = false;
-    let mut seen_body = false;
+    let script_inserted = Rc::new(Cell::new(false));
+    let script_inserted_at_body_end = Rc::clone(&script_inserted);
+    let script_inserted_at_document_end = Rc::clone(&script_inserted);
     let main_depth = Rc::new(Cell::new(0usize));
     let main_depth_for_main = Rc::clone(&main_depth);
     let main_depth_for_script = Rc::clone(&main_depth);
@@ -225,13 +227,23 @@ pub fn sync_head(html: &str, meta: &NoteMetadata, has_css: bool, has_js: bool) -
                     Ok(())
                 }),
                 element!("body", move |el| {
-                    if has_js && !seen_body {
-                        el.append("<script src=\"./script.js\"></script>", ContentType::Html);
-                    }
-                    seen_body = true;
-                    Ok(())
+                    let inserted = Rc::clone(&script_inserted_at_body_end);
+                    el.on_end_tag(end_tag!(move |tag| {
+                        if has_js && !inserted.get() {
+                            tag.before("<script src=\"./script.js\"></script>", ContentType::Html);
+                            inserted.set(true);
+                        }
+                        Ok(())
+                    }))
                 }),
             ],
+            document_content_handlers: vec![end!(move |document_end| {
+                // Kapanış etiketi yoksa script belge sonunda eklenir.
+                if has_js && !script_inserted_at_document_end.get() {
+                    document_end.append("<script src=\"./script.js\"></script>", ContentType::Html);
+                }
+                Ok(())
+            })],
             ..Settings::default()
         },
     )
@@ -350,10 +362,21 @@ mod tests {
     #[test]
     fn managed_script_is_placed_before_body_end() {
         let meta = fixture_meta();
-        let input = "<html><head><script src='./script.js'></script></head><body><p>keep</p></body></html>";
-        let output = sync_head(input, &meta, false, true);
+        let body = "<main><p>first</p></main><!-- keep --><aside><p>last</p></aside>";
+        let input = format!("<html><head><script src='./script.js'></script></head><body>{body}</body></html>");
+        let output = sync_head(&input, &meta, false, true);
         assert_eq!(output.matches("./script.js").count(), 1);
-        assert!(output.contains("<p>keep</p><script src=\"./script.js\"></script></body>"));
+        assert!(output.contains(&format!("<body>{body}<script src=\"./script.js\"></script></body>")));
+        assert_eq!(sync_head(&output, &meta, false, true), output);
+    }
+
+    #[test]
+    fn managed_script_is_placed_at_document_end_without_body_end_tag() {
+        let meta = fixture_meta();
+        let input = "<html><head></head><body><main><p>first</p></main><aside>last</aside>";
+        let output = sync_head(input, &meta, false, true);
+        assert!(output.ends_with("<aside>last</aside><script src=\"./script.js\"></script>"));
+        assert_eq!(output.matches("./script.js").count(), 1);
         assert_eq!(sync_head(&output, &meta, false, true), output);
     }
 }
