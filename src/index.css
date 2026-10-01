@@ -57,3 +57,14 @@
 .htnote-visual-editor .tiptap th { background: var(--app-subtle); }
 .htnote-visual-editor .tiptap hr { border: 0; border-top: 1px solid var(--app-border); margin: 1.5em 0; }
 .htnote-visual-editor .tiptap p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--app-muted); float: left; pointer-events: none; height: 0; }
+.htnote-visual-editor .tiptap .htnote-note-link { color: var(--app-accent); text-decoration: underline; }
+.htnote-visual-editor .tiptap .htnote-note-link::before { content: "↗"; margin-right: 0.2em; }
+.htnote-visual-editor .tiptap .htnote-note-link-broken { color: #dc2626; text-decoration-style: wavy; }
+.htnote-note-picker-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: #0008; }
+.htnote-note-picker { width: min(28rem, calc(100vw - 2rem)); max-height: 70vh; overflow: auto; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.5rem; background: var(--app-surface); color: var(--app-text); box-shadow: 0 1rem 3rem #0004; }
+.htnote-note-picker-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+.htnote-note-picker input { width: 100%; padding: 0.5rem; border: 1px solid var(--app-border); border-radius: 0.25rem; background: var(--app-surface); color: var(--app-text); }
+.htnote-note-picker [role="listbox"] { max-height: 50vh; overflow: auto; margin-top: 0.5rem; }
+.htnote-note-picker [role="option"] { display: flex; flex-direction: column; width: 100%; padding: 0.5rem; text-align: left; border-radius: 0.25rem; }
+.htnote-note-picker [role="option"][aria-selected="true"] { background: var(--app-subtle); }
+.htnote-note-picker small { color: var(--app-muted); }

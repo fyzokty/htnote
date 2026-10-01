@@ -6,9 +6,9 @@ import {
   Table2, Minus, Link2, Link2Off, Rows3, Columns3, Trash2,
 } from "lucide-react";
 
-interface EditorToolbarProps { editor: Editor }
+interface EditorToolbarProps { editor: Editor; onLinkNote?: () => void }
 
-export function EditorToolbar({ editor }: EditorToolbarProps) {
+export function EditorToolbar({ editor, onLinkNote }: EditorToolbarProps) {
   const { t } = useTranslation();
   const [, setRevision] = useState(0);
   const [linkOpen, setLinkOpen] = useState(false);
@@ -75,6 +75,7 @@ export function EditorToolbar({ editor }: EditorToolbarProps) {
         setLinkError(false);
         setLinkOpen(true);
       }, editor.isActive("link"))}
+      {onLinkNote && action(t("editor.linkNote"), <Link2 size={16} />, onLinkNote, false, false, "Ctrl+K")}
       {action(t("editor.removeLink"), <Link2Off size={16} />, () => editor.chain().focus().unsetLink().run(), false, !editor.isActive("link"))}
       {linkOpen && <div className="htnote-editor-link">
         <input aria-label={t("editor.linkUrl")} type="url" value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)}
