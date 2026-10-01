@@ -39,10 +39,10 @@ interface TabsState {
   cancelEdit: (id: string) => void;
   reloadBase: (id: string, newBase: DocBase) => void;
   markConflict: (id: string, diskHash: string) => void;
-  keepMine: (id: string) => void;
+  keepMine: (id: string, diskBase: DocBase) => void;
   loadFromDisk: (id: string, base: DocBase) => void;
   markRemoved: (id: string, title: string | null, parent: string) => void;
-  closeRemoved: (id: string) => void;
+  handleRemoved: (id: string, title: string | null, parent: string) => "closed" | "marked" | "missing" | "saving";
   retargetTab: (oldId: string, newId: string, newBase: DocBase) => void;
   isDirty: (id: string) => boolean;
   anyDirty: () => boolean;
@@ -229,8 +229,8 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   markConflict(id, diskHash) {
     set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => markConflict(doc, diskHash)) }));
   },
-  keepMine(id) {
-    set((state) => ({ tabs: updateTabDoc(state.tabs, id, keepMine) }));
+  keepMine(id, diskBase) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => keepMine(doc, diskBase)) }));
   },
   loadFromDisk(id, base) {
     set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => loadFromDisk(doc, base)) }));
@@ -238,14 +238,20 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   markRemoved(id, title, parent) {
     set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => markRemoved(doc, title, parent)) }));
   },
-  closeRemoved(id) {
+  handleRemoved(id, title, parent) {
     const current = get();
     const tab = current.tabs.find((item) => item.noteId === id);
-    if (!tab || tab.doc.dirty || tab.doc.saving) return;
+    if (!tab) return "missing";
+    if (tab.doc.saving) return "saving";
+    if (tab.doc.dirty) {
+      set({ tabs: updateTabDoc(current.tabs, id, (doc) => markRemoved(doc, title, parent)) });
+      return "marked";
+    }
     const result = removeTab(current.tabs, current.activeId, id);
     set(result);
     persist(result.tabs, result.activeId);
     clearClosedPreview(id);
+    return "closed";
   },
   retargetTab(oldId, newId, newBase) {
     const current = get();

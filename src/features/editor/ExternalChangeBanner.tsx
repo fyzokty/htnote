@@ -34,7 +34,7 @@ export function ExternalChangeBanner({ noteId, doc }: { noteId: string; doc: Doc
     try {
       const disk = await ipc.readNote(noteId);
       useTabsStore.getState().markConflict(noteId, disk.contentHash);
-      useTabsStore.getState().keepMine(noteId);
+      useTabsStore.getState().keepMine(noteId, disk);
     } catch (error) { notifySaveError(error); }
     finally { setBusy(false); }
   }

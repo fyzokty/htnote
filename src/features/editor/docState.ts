@@ -112,9 +112,9 @@ export function markConflict(state: DocState, diskHash: string): DocState {
   return { ...state, externalConflict: diskHash };
 }
 
-export function keepMine(state: DocState): DocState {
+export function keepMine(state: DocState, diskBase: DocBase): DocState {
   if (!state.base || !state.externalConflict) return state;
-  return { ...state, base: { ...state.base, contentHash: state.externalConflict }, externalConflict: null };
+  return { ...state, base: diskBase, dirty: computeDirty(diskBase, state.draft), externalConflict: null };
 }
 
 export function loadFromDisk(state: DocState, base: DocBase): DocState {

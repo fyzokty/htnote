@@ -64,8 +64,8 @@ describe("external fs changes", () => {
     mockIPC((command) => command === "read_note" ? { ...disk, contentHash: "newer" } : undefined);
     await handleExternalChanges(changed);
     expect(doc()).toMatchObject({ draft: { html: "mine" }, externalConflict: "newer" });
-    useTabsStore.getState().keepMine("a");
-    expect(doc()).toMatchObject({ base: { contentHash: "newer" }, draft: { html: "mine" }, externalConflict: null });
+    useTabsStore.getState().keepMine("a", { ...disk, contentHash: "newer" });
+    expect(doc()).toMatchObject({ base: { html: "disk", contentHash: "newer" }, draft: { html: "mine" }, externalConflict: null });
   });
 
   it("waits for an in-flight save and ignores its own hash", async () => {
@@ -91,6 +91,38 @@ describe("external fs changes", () => {
     });
     expect(await saveTab("a")).toBe(false);
     expect(doc()).toMatchObject({ externalConflict: "disk-hash", draft: { html: "mine" } });
+  });
+
+  it("shows removal guidance when a conflicted note disappears before the recovery read", async () => {
+    useTabsStore.getState().enterEdit("a", base, "code");
+    useTabsStore.getState().updateDraft("a", { html: "mine" });
+    mockIPC((command) => {
+      if (command === "save_note") throw { code: "CONFLICT" };
+      if (command === "read_note") throw { code: "NOTE_NOT_FOUND" };
+    });
+    expect(await saveTab("a")).toBe(false);
+    expect(doc()).toMatchObject({ removedOnDisk: true, draft: { html: "mine" } });
+  });
+
+  it("uses the latest draft state after waiting for a save before handling removal", async () => {
+    useTabsStore.getState().enterEdit("a", base, "code");
+    useTabsStore.getState().updateDraft("a", { html: "mine" });
+    useTabsStore.getState().markSaving("a");
+    const pending = handleExternalChanges(removed);
+    useTabsStore.getState().saveSucceeded("a", { ...base, html: "mine", contentHash: "saved" });
+    await pending;
+    expect(doc()).toBeUndefined();
+    expect(useUiStore.getState().toasts.slice(-1)[0]?.messageKey).toBe("external.closed");
+
+    useTabsStore.getState().openNote("a");
+    useTabsStore.getState().enterEdit("a", base, "code");
+    useTabsStore.getState().updateDraft("a", { html: "mine" });
+    useTabsStore.getState().markSaving("a");
+    const nextPending = handleExternalChanges(removed);
+    useTabsStore.getState().saveSucceeded("a", { ...base, html: "mine", contentHash: "saved" });
+    useTabsStore.getState().updateDraft("a", { html: "later" });
+    await nextPending;
+    expect(doc()).toMatchObject({ removedOnDisk: true, draft: { html: "later" } });
   });
 
   it("closes a removed clean tab and preserves a removed dirty tab", async () => {

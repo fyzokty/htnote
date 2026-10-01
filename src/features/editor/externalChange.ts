@@ -32,17 +32,14 @@ function afterSaving(id: string): Promise<void> {
 
 export async function handleExternalChanges(payload: FsChangePayload): Promise<void> {
   for (const id of payload.removedNoteIds) {
-    await afterSaving(id);
-    const doc = currentDoc(id);
-    if (!doc) continue;
-    if (decideExternalChange(doc, null, true) === "closeTab") {
-      useTabsStore.getState().closeRemoved(id);
-      useUiStore.getState().pushToast({ kind: "info", messageKey: "external.closed" });
-    } else {
-      const note = useTreeStore.getState().findNoteById(id);
-      const parent = note?.relPath.split("/").slice(0, -1).join("/") ?? "";
-      useTabsStore.getState().markRemoved(id, note?.title ?? null, parent);
-    }
+    const note = useTreeStore.getState().findNoteById(id);
+    const parent = note?.relPath.split("/").slice(0, -1).join("/") ?? "";
+    let outcome: "closed" | "marked" | "missing" | "saving";
+    do {
+      await afterSaving(id);
+      outcome = useTabsStore.getState().handleRemoved(id, note?.title ?? null, parent);
+    } while (outcome === "saving");
+    if (outcome === "closed") useUiStore.getState().pushToast({ kind: "info", messageKey: "external.closed" });
   }
   for (const id of payload.changedNoteIds) {
     if (!currentDoc(id) || payload.removedNoteIds.includes(id)) continue;

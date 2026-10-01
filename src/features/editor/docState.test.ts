@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  cancelEdit, computeDirty, createDocState, enterEdit, markSaving, reloadBase,
+  cancelEdit, computeDirty, createDocState, enterEdit, keepMine, markConflict, markSaving, reloadBase,
   saveFailed, saveSucceeded, switchMode, updateDraft,
 } from "@/features/editor/docState";
 import type { DocBase } from "@/features/editor/docState";
@@ -68,6 +68,15 @@ describe("docState", () => {
     const saved = saveSucceeded(whileSaving, changed, 123);
     expect(saved).toMatchObject({ mode: "visual", base: changed, draft: whileSaving.draft, dirty: true, saving: false, lastSavedAt: 123 });
     expect(saveSucceeded(saving, changed, 124).dirty).toBe(false);
+  });
+
+  it("uses the disk content as the base after keeping the local draft", () => {
+    const local = updateDraft(enterEdit(createDocState(), base), { html: changed.html });
+    const kept = keepMine(markConflict(local, changed.contentHash), changed);
+    expect(kept).toMatchObject({ base: changed, draft: { html: changed.html }, dirty: false, externalConflict: null });
+    const saved = saveSucceeded(markSaving(kept), changed);
+    expect(saved.dirty).toBe(false);
+    expect(saveSucceeded(updateDraft(markSaving(kept), { html: "later" }), changed).dirty).toBe(true);
   });
 
   it("uses the current time when a save timestamp is omitted", () => {
