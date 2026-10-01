@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
-import { FilePlus2, FolderPlus, Menu, NotebookPen, Plus, Search, Settings2, Trash2 } from "lucide-react";
+import { FilePlus2, FolderPlus, Menu, NotebookPen, Search, Settings2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { SidebarTree } from "@/features/tree/SidebarTree";
+import { TabBar } from "@/features/tabs/TabBar";
 import { startFsChangeSync } from "@/features/tree/fsChangeSync";
 import { useTreeActions } from "@/features/tree/useTreeActions";
 import { resolveLanguage } from "@/i18n/language";
@@ -183,10 +184,7 @@ export function AppShell() {
           <button type="button" onClick={toggleSidebar} title={formatShortcut("toggleSidebar")} aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")} className="rounded-md p-2 text-app-muted hover:bg-app-subtle focus-visible:outline-2 focus-visible:outline-app-accent">
             <Menu className="size-5" aria-hidden />
           </button>
-          <span className="text-sm text-app-muted">{t("tabs.label")}</span>
-          <button type="button" disabled aria-label={t("tabs.new")} className="ml-auto rounded-md p-2 text-app-muted disabled:cursor-default">
-            <Plus className="size-4" aria-hidden />
-          </button>
+          <TabBar />
         </header>
         <section className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden p-6 text-center" aria-label={t("viewer.workspace")}>
           <div className="flex flex-col items-center gap-3 text-app-muted">
