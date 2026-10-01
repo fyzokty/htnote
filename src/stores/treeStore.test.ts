@@ -18,24 +18,25 @@ beforeEach(() => {
 });
 
 describe("treeStore", () => {
-  it("makes overlapping load and refresh callers wait for the same request", async () => {
+  it("coalesces refresh calls during load into one fresh request", async () => {
     let release!: (nodes: TreeNode[]) => void;
     const pending = new Promise<TreeNode[]>((resolve) => { release = resolve; });
     let calls = 0;
     mockIPC((command) => {
-      if (command === "get_note_tree") { calls++; return pending; }
+      if (command === "get_note_tree") { calls++; return calls === 1 ? pending : []; }
       return undefined;
     });
     const first = useTreeStore.getState().load();
     const second = useTreeStore.getState().load();
     const refresh = useTreeStore.getState().refresh();
+    const anotherRefresh = useTreeStore.getState().refresh();
     expect(second).toBe(first);
-    expect(refresh).toBe(first);
+    expect(refresh).toBe(anotherRefresh);
     expect(useTreeStore.getState().loading).toBe(true);
     release(tree);
     await Promise.all([first, second, refresh]);
-    expect(calls).toBe(1);
-    expect(useTreeStore.getState().tree).toEqual(tree);
+    expect(calls).toBe(2);
+    expect(useTreeStore.getState().tree).toEqual([]);
     expect(useTreeStore.getState().loading).toBe(false);
   });
 

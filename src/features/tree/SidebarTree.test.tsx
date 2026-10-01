@@ -14,6 +14,26 @@ beforeEach(() => {
 });
 
 describe("SidebarTree keyboard focus", () => {
+  it("keeps exactly one tab stop and moves focus from the root with arrow keys", () => {
+    const { container } = render(<SidebarTree onOpenNote={vi.fn()} />);
+    const root = screen.getByRole("tree");
+    const folder = screen.getByRole("treeitem", { name: "Klasör: A" });
+    expect(root).toHaveAttribute("tabindex", "-1");
+    expect(folder).toHaveAttribute("tabindex", "0");
+    root.focus();
+    fireEvent.keyDown(root, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(folder);
+    expect(folder).toHaveAttribute("aria-selected", "true");
+
+    act(() => useTreeStore.getState().select({ kind: "note", id: "n" }));
+    expect(folder).toHaveAttribute("tabindex", "0");
+    expect(container.querySelectorAll('[tabindex="0"]')).toHaveLength(1);
+
+    act(() => useTreeStore.setState({ tree: [] }));
+    expect(root).toHaveAttribute("tabindex", "0");
+    expect(container.querySelectorAll('[tabindex="0"]')).toHaveLength(1);
+  });
+
   it("keeps focus and selection on a folder when arrows expand and collapse it", () => {
     render(<SidebarTree onOpenNote={vi.fn()} />);
     const folder = screen.getByRole("treeitem", { name: "Klasör: A" });
@@ -39,11 +59,24 @@ describe("SidebarTree keyboard focus", () => {
 
     fireEvent.keyDown(folder, { key: "ArrowRight" });
     expect(child).toHaveAttribute("aria-selected", "true");
+    expect(child).toHaveAttribute("tabindex", "0");
+    expect(folder).toHaveAttribute("tabindex", "-1");
     expect(document.activeElement).toBe(child);
 
     fireEvent.keyDown(child, { key: "ArrowLeft" });
     expect(folder).toHaveAttribute("aria-selected", "true");
     expect(document.activeElement).toBe(folder);
+  });
+
+  it("moves from the root to the last visible row with ArrowUp", () => {
+    useTreeStore.setState({ expanded: new Set(["A"]) });
+    render(<SidebarTree onOpenNote={vi.fn()} />);
+    const root = screen.getByRole("tree");
+    const child = screen.getByRole("treeitem", { name: "Not: Note" });
+    root.focus();
+    fireEvent.keyDown(root, { key: "ArrowUp" });
+    expect(document.activeElement).toBe(child);
+    expect(child).toHaveAttribute("aria-selected", "true");
   });
 
   it("does not move focus into the tree for external selection or expansion", () => {

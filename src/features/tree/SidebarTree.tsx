@@ -13,10 +13,11 @@ interface RowProps {
   depth: number;
   expanded: boolean;
   selected: boolean;
+  tabbable: boolean;
   onSelect: (node: TreeNode) => void;
 }
 
-const TreeRow = memo(function TreeRow({ node, depth, expanded, selected, onSelect }: RowProps) {
+const TreeRow = memo(function TreeRow({ node, depth, expanded, selected, tabbable, onSelect }: RowProps) {
   const { t } = useTranslation();
   const isFolder = node.type === "folder";
   return (
@@ -26,9 +27,9 @@ const TreeRow = memo(function TreeRow({ node, depth, expanded, selected, onSelec
       aria-expanded={isFolder ? expanded : undefined}
       aria-selected={selected}
       aria-label={isFolder ? t("tree.folder", { name: node.name }) : t("tree.note", { name: node.title })}
-      tabIndex={selected ? 0 : -1}
+      tabIndex={tabbable ? 0 : -1}
       data-tree-key={isFolder ? `folder:${node.relPath}` : `note:${node.id}`}
-      onClick={() => onSelect(node)}
+      onClick={(event) => { event.currentTarget.focus(); onSelect(node); }}
       className={`flex min-w-0 cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-app-accent ${selected ? "bg-app-accent text-app-accent-text" : "text-app-text hover:bg-app-subtle"}`}
       style={{ paddingLeft: depth * 16 + 4 }}
     >
@@ -55,6 +56,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const rootRef = useRef<HTMLDivElement>(null);
   const pendingFocusKey = useRef<string | null>(null);
   const rows = visibleNodes(tree, expanded);
+  const selectedVisible = rows.some(({ node }) => isSelected(node, selected));
 
   useLayoutEffect(() => {
     const key = pendingFocusKey.current;
@@ -89,7 +91,9 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
       }
       return;
     }
-    const next = nextVisibleNode(tree, expanded, current, event.key as TreeKey);
+    const next = event.target === rootRef.current && rows.length && (event.key === "ArrowUp" || event.key === "ArrowDown")
+      ? { node: rows[event.key === "ArrowUp" ? rows.length - 1 : 0].node }
+      : nextVisibleNode(tree, expanded, current, event.key as TreeKey);
     if (!next) return;
     pendingFocusKey.current = next.node.type === "folder" ? `folder:${next.node.relPath}` : `note:${next.node.id}`;
     if (next.expansion && next.node.type === "folder") {
@@ -101,9 +105,9 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   }
 
   return (
-    <div ref={rootRef} role="tree" aria-label={t("tree.label")} tabIndex={selected ? -1 : 0} onKeyDown={onKeyDown} className="min-h-0 flex-1 overflow-y-auto px-3 py-2 outline-none">
+    <div ref={rootRef} role="tree" aria-label={t("tree.label")} tabIndex={rows.length === 0 ? 0 : -1} onKeyDown={onKeyDown} className="min-h-0 flex-1 overflow-y-auto px-3 py-2 outline-none">
       {tree.length === 0 ? <p className="py-4 text-center text-sm text-app-muted">{t("tree.empty")}</p> : rows.map(({ node, depth }) => (
-        <TreeRow key={node.type === "folder" ? `folder:${node.relPath}` : `note:${node.id}`} node={node} depth={depth} expanded={node.type === "folder" && expanded.has(node.relPath)} selected={isSelected(node, selected)} onSelect={choose} />
+        <TreeRow key={node.type === "folder" ? `folder:${node.relPath}` : `note:${node.id}`} node={node} depth={depth} expanded={node.type === "folder" && expanded.has(node.relPath)} selected={isSelected(node, selected)} tabbable={selectedVisible ? isSelected(node, selected) : node === rows[0].node} onSelect={choose} />
       ))}
     </div>
   );

@@ -22,6 +22,7 @@ let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let seeded = false;
 let loaded = false;
 let inFlight: Promise<void> | null = null;
+let pendingRefresh: Promise<void> | null = null;
 
 function walk(nodes: TreeNode[], visit: (node: TreeNode, parents: string[]) => void, parents: string[] = []) {
   for (const node of nodes) {
@@ -84,7 +85,14 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     return inFlight;
   },
   refresh() {
-    if (inFlight) return inFlight;
+    if (inFlight) {
+      if (!pendingRefresh) {
+        pendingRefresh = inFlight.catch(() => {}).then(() => get().refresh()).finally(() => {
+          pendingRefresh = null;
+        });
+      }
+      return pendingRefresh;
+    }
     set({ loading: true });
     inFlight = (async () => {
       try {
@@ -154,5 +162,6 @@ export function resetTreeStoreForTests() {
   seeded = false;
   loaded = false;
   inFlight = null;
+  pendingRefresh = null;
   useTreeStore.setState({ tree: [], loading: false, selected: null, expanded: new Set<string>() });
 }
