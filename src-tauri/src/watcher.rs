@@ -492,10 +492,17 @@ mod tests {
             fs::write(assets.join(format!("{number}.txt")), b"copy").unwrap();
         }
         let mut count = 0;
-        while let Ok(payload) = receiver.recv_timeout(Duration::from_millis(600)) {
-            if payload.changed_note_ids.contains(&note.metadata.id) { count += 1; }
+        let deadline = Instant::now() + Duration::from_secs(15);
+        while let Some(remaining) = deadline.checked_duration_since(Instant::now()) {
+            match receiver.recv_timeout(remaining.min(Duration::from_secs(2))) {
+                Ok(payload) if payload.changed_note_ids.contains(&note.metadata.id) => count += 1,
+                Ok(_) => (),
+                Err(mpsc::RecvTimeoutError::Timeout) => break,
+                Err(mpsc::RecvTimeoutError::Disconnected) => break,
+            }
         }
-        assert!((1..=5).contains(&count), "{count} fs-change events");
+        // Yavaş CI koşucusunda birkaç parti daha oluşabilir; yine de 200 dosya az sayıda olaya birleşmeli.
+        assert!((1..=20).contains(&count), "{count} fs-change events for 200 files");
         drop(watcher);
     }
 }

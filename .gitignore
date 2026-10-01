@@ -16,6 +16,7 @@ src-tauri/gen/schemas/
 coverage/
 test-results/
 e2e/.artifacts/
+e2e/logs/
 
 # Loglar
 logs/
