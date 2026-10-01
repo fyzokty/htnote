@@ -432,9 +432,10 @@ mod tests {
             "<html><head><script>user()</script></head></html>",
             "<!DOCTYPE html><html><head><title>T</title></head></html>",
             "<HTML><HEAD><SCRIPT>user()</SCRIPT></HEAD></HTML>",
+            "<!-- <head><script>fake()</script></head> --><html><head><script>user()</script></head></html>",
         ] {
             let result = String::from_utf8(inject_bridge(input.as_bytes())).unwrap();
-            let head_end = result.to_ascii_lowercase().find("<head>").unwrap() + 6;
+            let head_end = result.to_ascii_lowercase().rfind("<head>").unwrap() + 6;
             assert!(result[head_end..].starts_with(BRIDGE_TAG));
         }
         for (input, prefix) in [
@@ -484,6 +485,18 @@ mod tests {
             assert_eq!(bridge_response("GET", &request_uri(url)).unwrap().status, StatusCode::FORBIDDEN, "{url}");
         }
         assert!(bridge_response("GET", &request_uri("http://htnote-note.localhost/other.js")).is_none());
+
+        let response = bridge_response("GET", &request_uri("http://htnote-note.localhost/__htnote/bridge.js"))
+            .unwrap()
+            .into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        for (name, value) in [
+            ("content-type", "application/javascript; charset=utf-8"),
+            ("cache-control", "no-store"),
+            ("x-content-type-options", "nosniff"),
+        ] {
+            assert_eq!(response.headers().get(name).unwrap(), value);
+        }
     }
 
     #[cfg(unix)]

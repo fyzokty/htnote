@@ -6,9 +6,8 @@
   const send = (type, payload = {}) => window.parent.postMessage({ type, ...payload }, "*");
   const external = /^(https?:|mailto:)/i;
   const note = /^htnote:\/\/note\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i;
-
   function followLink(event) {
-    const anchor = event.target instanceof Element ? event.target.closest("a[href]") : null;
+    const anchor = event.target?.closest?.("a[href]");
     if (!anchor) return;
     const href = anchor.getAttribute("href").trim();
     if (href.startsWith("#")) return;
@@ -25,13 +24,13 @@
   };
 
   document.addEventListener("keydown", (event) => {
-    if (!event.ctrlKey && !event.metaKey && event.key !== "Escape") return;
+    if (!(event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.key === "Escape")) return;
     const key = event.key.toLowerCase();
     const mod = /Mac/i.test(navigator.platform)
       ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
     const known = !event.altKey && (
       (event.key === "Escape" && !event.ctrlKey && !event.metaKey && !event.shiftKey) ||
-      (event.ctrlKey && !event.metaKey && event.code === "Tab") ||
+      (event.code === "Tab" && (mod || event.ctrlKey && !event.metaKey)) ||
       (mod && (
         (event.shiftKey ? ["n", "f"] : ["s", "e", "w", "n"]).includes(key) ||
         (!event.shiftKey && ["Backslash", "IntlBackslash"].includes(event.code))

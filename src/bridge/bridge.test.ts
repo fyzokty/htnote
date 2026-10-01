@@ -84,6 +84,30 @@ describe("note bridge", () => {
     expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_SHORTCUT", key: "s", ctrl: true, shift: false, alt: false, meta: false }, "*");
   });
 
+  it("handles Mac Mod and Ctrl tab shortcuts and forwards other modifier keys", () => {
+    const platform = vi.spyOn(navigator, "platform", "get").mockReturnValue("MacIntel");
+    const key = (name: string, code: string, options: KeyboardEventInit = {}) => {
+      const event = new KeyboardEvent("keydown", { key: name, code, bubbles: true, cancelable: true, ...options });
+      document.dispatchEvent(event);
+      return event;
+    };
+    try {
+      expect(key("s", "KeyS", { metaKey: true }).defaultPrevented).toBe(true);
+      expect(key("s", "KeyS", { ctrlKey: true }).defaultPrevented).toBe(false);
+      expect(key("Tab", "Tab", { metaKey: true }).defaultPrevented).toBe(true);
+      expect(key("Tab", "Tab", { metaKey: true, shiftKey: true }).defaultPrevented).toBe(true);
+      expect(key("Tab", "Tab", { ctrlKey: true }).defaultPrevented).toBe(true);
+      expect(key("Tab", "Tab", { ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(true);
+      expect(key("Escape", "Escape", { ctrlKey: true }).defaultPrevented).toBe(false);
+      expect(key("x", "KeyX", { altKey: true }).defaultPrevented).toBe(false);
+      expect(key("x", "KeyX", { shiftKey: true }).defaultPrevented).toBe(false);
+      expect(messages).toHaveBeenCalledTimes(9);
+      expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_SHORTCUT", key: "Escape", ctrl: true, shift: false, alt: false, meta: false }, "*");
+    } finally {
+      platform.mockRestore();
+    }
+  });
+
   it("applies trusted theme messages and highlights Turkish matches, then clears them", () => {
     document.body.innerHTML = "<p>İ i I ı</p><script>İ i</script><style>İ i</style>";
     hostMessage({ type: "HTNOTE_THEME", vars: { "--ht-bg": "red", "--other": "blue" }, mode: "dark" }, null);
