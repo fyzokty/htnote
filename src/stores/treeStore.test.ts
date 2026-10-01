@@ -18,6 +18,16 @@ beforeEach(() => {
 });
 
 describe("treeStore", () => {
+  it("seeds saved expansion when refresh is the first tree request", async () => {
+    useSettingsStore.setState({ settings, status: "ready" });
+    mockIPC((command) => command === "get_note_tree" ? tree : undefined);
+    await useTreeStore.getState().refresh();
+    expect([...useTreeStore.getState().expanded]).toEqual(["A"]);
+    useTreeStore.getState().toggle("A");
+    await useTreeStore.getState().refresh();
+    expect([...useTreeStore.getState().expanded]).toEqual([]);
+  });
+
   it("coalesces refresh calls during load into one fresh request", async () => {
     let release!: (nodes: TreeNode[]) => void;
     const pending = new Promise<TreeNode[]>((resolve) => { release = resolve; });

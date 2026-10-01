@@ -69,6 +69,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
 
   const choose = useCallback((node: TreeNode) => {
     if (node.type === "folder") {
+      pendingFocusKey.current = `folder:${node.relPath}`;
       select({ kind: "folder", relPath: node.relPath });
       toggle(node.relPath);
     } else {
@@ -86,7 +87,6 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
       ?? rows.find(({ node }) => isSelected(node, selected))?.node ?? null;
     if (event.key === "Enter") {
       if (current) {
-        if (current.type === "folder") pendingFocusKey.current = `folder:${current.relPath}`;
         choose(current);
       }
       return;

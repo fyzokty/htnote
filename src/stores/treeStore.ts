@@ -99,9 +99,13 @@ export const useTreeStore = create<TreeState>((set, get) => ({
         const tree = await ipc.getNoteTree();
         const before = get().expanded;
         const current = reconcile(tree, before, get().selected);
+        const saved = useSettingsStore.getState().settings?.expandedFolders;
+        const expanded = !seeded && saved
+          ? seedExpansion(saved, current.expanded, current.folders)
+          : current.expanded;
         loaded = true;
-        set({ tree, expanded: current.expanded, selected: current.selected, loading: false });
-        if (before.size !== current.expanded.size) persist(current.expanded);
+        set({ tree, expanded, selected: current.selected, loading: false });
+        if (before.size !== expanded.size && seeded) persist(expanded);
       } catch (error) {
         set({ loading: false });
         throw error;

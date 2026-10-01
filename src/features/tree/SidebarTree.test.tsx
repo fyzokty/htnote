@@ -50,6 +50,23 @@ describe("SidebarTree keyboard focus", () => {
     expect(document.activeElement).toBe(folder);
   });
 
+  it("keeps focus on a folder after click and Enter toggle", () => {
+    render(<SidebarTree onOpenNote={vi.fn()} />);
+    const root = screen.getByRole("tree");
+    const folder = screen.getByRole("treeitem", { name: "Klasör: A" });
+    root.focus();
+    fireEvent.click(folder);
+    expect(folder).toHaveAttribute("aria-expanded", "true");
+    expect(folder).toHaveAttribute("aria-selected", "true");
+    expect(document.activeElement).toBe(folder);
+
+    root.focus();
+    fireEvent.keyDown(root, { key: "Enter" });
+    expect(folder).toHaveAttribute("aria-expanded", "false");
+    expect(folder).toHaveAttribute("aria-selected", "true");
+    expect(document.activeElement).toBe(folder);
+  });
+
   it("moves focus and selection to the first child of an open folder", () => {
     useTreeStore.setState({ expanded: new Set(["A"]), selected: { kind: "folder", relPath: "A" } });
     render(<SidebarTree onOpenNote={vi.fn()} />);
