@@ -1,0 +1,356 @@
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
+use std::path::{Path, PathBuf};
+
+use percent_encoding::percent_decode_str;
+use tauri::http::{Request, Response, StatusCode, Uri};
+use tauri::{AppHandle, Manager, UriSchemeResponder};
+use uuid::Uuid;
+
+use crate::state::AppState;
+
+struct NoteRequest {
+    id: Uuid,
+    relative: PathBuf,
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct Served {
+    status: StatusCode,
+    headers: Vec<(&'static str, String)>,
+    body: Vec<u8>,
+}
+
+impl Served {
+    fn new(status: StatusCode) -> Self {
+        Self {
+            status,
+            headers: vec![
+                ("Cache-Control", "no-store".into()),
+                ("X-Content-Type-Options", "nosniff".into()),
+                ("Accept-Ranges", "bytes".into()),
+            ],
+            body: Vec::new(),
+        }
+    }
+
+    fn header(&mut self, name: &'static str, value: impl Into<String>) {
+        self.headers.push((name, value.into()));
+    }
+
+    fn into_response(self) -> Response<Vec<u8>> {
+        let mut builder = Response::builder().status(self.status);
+        for (name, value) in self.headers {
+            builder = builder.header(name, value);
+        }
+        // Sabit başlık adları ve denetlenmiş değerler yanıt oluşturmayı güvenli kılar.
+        builder.body(self.body).unwrap_or_else(|_| Response::new(Vec::new()))
+    }
+}
+
+fn parse_note_path(path: &str) -> Result<NoteRequest, StatusCode> {
+    let path = path.strip_prefix('/').unwrap_or(path);
+    let (id, rel) = path.split_once('/').unwrap_or((path, ""));
+    let id = Uuid::parse_str(id).map_err(|_| StatusCode::NOT_FOUND)?;
+    let rel = if rel.is_empty() { "index.html" } else { rel };
+    // Yalnızca bir kez decode edilir; ikinci kez çözülecek yüzde dizileri dosya adıdır.
+    let decoded = percent_decode_str(rel).decode_utf8().map_err(|_| StatusCode::FORBIDDEN)?;
+    let rel = decoded.as_ref();
+    let nested_trailing_slash = rel.ends_with('/');
+    let last_segment = rel.split('/').count() - 1;
+    if rel.starts_with('/')
+        || rel.contains('\\')
+        || rel.contains(':')
+        || rel.contains('\0')
+        || rel.split('/').enumerate().any(|(index, part)| {
+            let dots: String = part.chars().map(|ch| match ch {
+                '\u{ff0e}' | '\u{2024}' | '\u{fe52}' => '.',
+                _ => ch,
+            }).collect();
+            (part.is_empty() && !(nested_trailing_slash && index == last_segment)) || dots == "." || dots == ".."
+        })
+        || Path::new(rel).is_absolute()
+    {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    if nested_trailing_slash {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    Ok(NoteRequest { id, relative: PathBuf::from(rel) })
+}
+
+fn parse_note_uri(uri: &Uri) -> Result<NoteRequest, StatusCode> {
+    // Tauri platforma göre mutlak URI veya yalnızca yol iletebilir.
+    if let Some(scheme) = uri.scheme_str() {
+        let host = uri.host().ok_or(StatusCode::FORBIDDEN)?;
+        let known_origin = (scheme.eq_ignore_ascii_case("http") && host.eq_ignore_ascii_case("htnote-note.localhost"))
+            || (scheme.eq_ignore_ascii_case("htnote-note") && host.eq_ignore_ascii_case("localhost"));
+        if !known_origin {
+            return Err(StatusCode::FORBIDDEN);
+        }
+    } else if uri.authority().is_some() {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    // http::Uri yolu normalize etmez; bu değer özgün nokta segmentlerini korur.
+    let raw_path = uri.path_and_query().ok_or(StatusCode::FORBIDDEN)?.path();
+    parse_note_path(raw_path)
+}
+
+fn parse_request(method: &str, uri: &Uri) -> Result<NoteRequest, StatusCode> {
+    if method != "GET" && method != "HEAD" {
+        return Err(StatusCode::METHOD_NOT_ALLOWED);
+    }
+    parse_note_uri(uri)
+}
+
+fn resolve_file(note_dir: &Path, relative: &Path) -> Result<PathBuf, StatusCode> {
+    let root = note_dir.canonicalize().map_err(|_| StatusCode::NOT_FOUND)?;
+    let candidate = root.join(relative);
+    let file = candidate.canonicalize().map_err(|error| {
+        if error.kind() == std::io::ErrorKind::NotFound {
+            StatusCode::NOT_FOUND
+        } else {
+            StatusCode::FORBIDDEN
+        }
+    })?;
+    if !file.starts_with(&root) {
+        return Err(StatusCode::FORBIDDEN);
+    }
+    if !file.is_file() {
+        return Err(StatusCode::NOT_FOUND);
+    }
+    Ok(file)
+}
+
+fn parse_range(value: &str, len: u64) -> Result<(u64, u64), ()> {
+    let first = value.strip_prefix("bytes=").ok_or(())?.split(',').next().ok_or(())?.trim();
+    let (start, end) = first.split_once('-').ok_or(())?;
+    if len == 0 {
+        return Err(());
+    }
+    if start.is_empty() {
+        let suffix: u64 = end.parse().map_err(|_| ())?;
+        if suffix == 0 {
+            return Err(());
+        }
+        return Ok((len.saturating_sub(suffix), len - 1));
+    }
+    let start: u64 = start.parse().map_err(|_| ())?;
+    let end: u64 = if end.is_empty() { len - 1 } else { end.parse().map_err(|_| ())? };
+    if start >= len || end < start {
+        return Err(());
+    }
+    Ok((start, end.min(len - 1)))
+}
+
+fn serve(method: &str, note_dir: &Path, relative: &Path, range: Option<&str>) -> Served {
+    if method != "GET" && method != "HEAD" {
+        let mut response = Served::new(StatusCode::METHOD_NOT_ALLOWED);
+        response.header("Allow", "GET, HEAD");
+        return response;
+    }
+    let file_path = match resolve_file(note_dir, relative) {
+        Ok(path) => path,
+        Err(status) => return Served::new(status),
+    };
+    let mut file = match File::open(&file_path) {
+        Ok(file) => file,
+        Err(_) => return Served::new(StatusCode::NOT_FOUND),
+    };
+    let len = match file.metadata() {
+        Ok(metadata) => metadata.len(),
+        Err(_) => return Served::new(StatusCode::NOT_FOUND),
+    };
+    let selected = match range {
+        Some(value) => match parse_range(value, len) {
+            Ok(selected) => Some(selected),
+            Err(()) => {
+                let mut response = Served::new(StatusCode::RANGE_NOT_SATISFIABLE);
+                response.header("Content-Range", format!("bytes */{len}"));
+                return response;
+            }
+        },
+        None => None,
+    };
+    let mut response = Served::new(if selected.is_some() { StatusCode::PARTIAL_CONTENT } else { StatusCode::OK });
+    let mime = mime_guess::from_path(&file_path).first_or_octet_stream();
+    let mut content_type = mime.essence_str().to_string();
+    if matches!(content_type.as_str(), "text/html" | "text/css" | "text/javascript" | "application/javascript") {
+        content_type.push_str("; charset=utf-8");
+    }
+    response.header("Content-Type", content_type);
+    let (start, size) = if let Some((start, end)) = selected {
+        response.header("Content-Range", format!("bytes {start}-{end}/{len}"));
+        (start, end - start + 1)
+    } else {
+        (0, len)
+    };
+    response.header("Content-Length", size.to_string());
+    if method == "HEAD" {
+        return response;
+    }
+    if file.seek(SeekFrom::Start(start)).is_err() {
+        return Served::new(StatusCode::NOT_FOUND);
+    }
+    // Tauri Vec gövdesi ister; aralıklar yalnızca istenen baytları okur.
+    if file.take(size).read_to_end(&mut response.body).is_err() {
+        return Served::new(StatusCode::NOT_FOUND);
+    }
+    response
+}
+
+pub fn handle(app: &AppHandle, request: Request<Vec<u8>>, responder: UriSchemeResponder) {
+    let method = request.method().as_str().to_owned();
+    let parsed = parse_request(&method, request.uri());
+    let range = request.headers().get("range").and_then(|value| value.to_str().ok()).map(str::to_owned);
+    let note_dir = match &parsed {
+        Ok(parsed) => {
+            let state = app.state::<AppState>();
+            state.note_index.read().ok().and_then(|index| index.resolve(parsed.id))
+        }
+        Err(_) => None,
+    };
+    tauri::async_runtime::spawn_blocking(move || {
+        let response = if parsed.as_ref().err() == Some(&StatusCode::METHOD_NOT_ALLOWED) {
+            let mut response = Served::new(StatusCode::METHOD_NOT_ALLOWED);
+            response.header("Allow", "GET, HEAD");
+            response
+        } else {
+            match (parsed, note_dir) {
+                (Err(status), _) => Served::new(status),
+                (Ok(_), None) => Served::new(StatusCode::NOT_FOUND),
+                (Ok(parsed), Some(dir)) => serve(&method, &dir, &parsed.relative, range.as_deref()),
+            }
+        };
+        responder.respond(response.into_response());
+    });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ID: &str = "123e4567-e89b-12d3-a456-426614174000";
+    const OTHER_ID: &str = "123e4567-e89b-12d3-a456-426614174001";
+
+    const ORIGIN: &str = "http://htnote-note.localhost";
+
+    fn request_uri(url: &str) -> Uri {
+        Request::builder().uri(url).body(Vec::<u8>::new()).unwrap().uri().clone()
+    }
+
+    #[test]
+    fn request_uris_preserve_and_reject_traversal() {
+        for segment in ["..", "%2e%2e", ".%2e", "%2e."] {
+            let path = format!("/{ID}/{segment}/{OTHER_ID}/index.html");
+            let uri = request_uri(&format!("{ORIGIN}{path}"));
+            assert_eq!(uri.path(), path);
+            assert_eq!(parse_note_uri(&uri).err(), Some(StatusCode::FORBIDDEN));
+        }
+        let valid = request_uri(&format!("{ORIGIN}/{ID}/assets/x.png"));
+        assert_eq!(parse_note_uri(&valid).unwrap().relative, Path::new("assets/x.png"));
+    }
+
+    #[test]
+    fn accepts_platform_request_uri_forms() {
+        for url in [
+            format!("http://htnote-note.localhost/{ID}/index.html"),
+            format!("http://HTNOTE-NOTE.LOCALHOST:80/{ID}/index.html"),
+            format!("htnote-note://localhost/{ID}/index.html"),
+            format!("htnote-note://LOCALHOST:1234/{ID}/index.html"),
+            format!("/{ID}/index.html"),
+        ] {
+            assert_eq!(parse_note_uri(&request_uri(&url)).unwrap().relative, Path::new("index.html"), "{url}");
+        }
+    }
+
+    #[test]
+    fn rejects_other_authorities() {
+        for url in [
+            format!("http://evil.localhost/{ID}/index.html"),
+            format!("htnote-note://evil.localhost/{ID}/index.html"),
+        ] {
+            assert_eq!(parse_note_uri(&request_uri(&url)).err(), Some(StatusCode::FORBIDDEN), "{url}");
+        }
+    }
+
+    #[test]
+    fn unsupported_method_precedes_uri_validation() {
+        let malformed = request_uri("http://evil.localhost/invalid/%2e%2e");
+        assert_eq!(parse_request("POST", &malformed).err(), Some(StatusCode::METHOD_NOT_ALLOWED));
+        assert_eq!(parse_request("GET", &malformed).err(), Some(StatusCode::FORBIDDEN));
+    }
+
+    #[test]
+    fn paths_and_attacks() {
+        for path in [format!("/{ID}"), format!("/{ID}/"), format!("/{ID}/assets/x.png")] {
+            assert!(parse_note_path(&path).is_ok(), "{path}");
+        }
+        assert_eq!(parse_note_path(&format!("/{ID}")).unwrap().relative, Path::new("index.html"));
+        assert_eq!(parse_note_path(&format!("/{ID}/")).unwrap().relative, Path::new("index.html"));
+        assert_eq!(parse_note_path(&format!("/{ID}/assets/")).err(), Some(StatusCode::NOT_FOUND));
+        for path in ["../other/index.html", "%2e%2e/other", "..%5c..%5cWindows", "%2fabs", "C:/x", "%5c%5c%3f%5c", "a//b", "a/%00"] {
+            assert_eq!(parse_note_path(&format!("/{ID}/{path}")).err(), Some(StatusCode::FORBIDDEN), "{path}");
+        }
+        assert_eq!(parse_note_path(&format!("/{ID}/assets//")).err(), Some(StatusCode::FORBIDDEN));
+        assert_eq!(parse_note_path(&format!("/{ID}/../")).err(), Some(StatusCode::FORBIDDEN));
+        assert_eq!(parse_note_path(&format!("/{ID}/%252e%252e")).unwrap().relative, Path::new("%2e%2e"));
+        assert_eq!(parse_note_path(&format!("/{ID}/．．/x")).err(), Some(StatusCode::FORBIDDEN));
+        assert_eq!(parse_note_path("/unknown/x").err(), Some(StatusCode::NOT_FOUND));
+    }
+
+    #[test]
+    fn ranges() {
+        for (value, expected) in [("bytes=2-4", (2, 4)), ("bytes=2-", (2, 9)), ("bytes=-3", (7, 9)), ("bytes=8-100", (8, 9)), ("bytes=0-1,4-5", (0, 1))] {
+            assert_eq!(parse_range(value, 10), Ok(expected));
+        }
+        for value in ["bytes=10-", "bytes=4-2", "bytes=-0", "bytes=x-y", "items=0-1"] {
+            assert_eq!(parse_range(value, 10), Err(()));
+        }
+    }
+
+    #[test]
+    fn serves_files_and_headers() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("index.html"), "abcdef").unwrap();
+        let full = serve("GET", dir.path(), Path::new("index.html"), None);
+        assert_eq!(full.status, StatusCode::OK);
+        assert_eq!(full.body, b"abcdef");
+        assert!(full.headers.contains(&("Content-Type", "text/html; charset=utf-8".into())));
+        for (name, value) in [("Cache-Control", "no-store"), ("X-Content-Type-Options", "nosniff"), ("Accept-Ranges", "bytes")] {
+            assert!(full.headers.contains(&(name, value.into())));
+        }
+        let partial = serve("GET", dir.path(), Path::new("index.html"), Some("bytes=2-3"));
+        assert_eq!(partial.status, StatusCode::PARTIAL_CONTENT);
+        assert_eq!(partial.body, b"cd");
+        assert!(partial.headers.contains(&("Content-Range", "bytes 2-3/6".into())));
+        assert!(partial.headers.contains(&("Accept-Ranges", "bytes".into())));
+        assert!(serve("HEAD", dir.path(), Path::new("index.html"), None).body.is_empty());
+        assert_eq!(serve("POST", dir.path(), Path::new("index.html"), None).status, StatusCode::METHOD_NOT_ALLOWED);
+        assert_eq!(serve("GET", dir.path(), Path::new("missing"), None).status, StatusCode::NOT_FOUND);
+        let invalid_range = serve("GET", dir.path(), Path::new("index.html"), Some("bytes=20-"));
+        assert_eq!(invalid_range.status, StatusCode::RANGE_NOT_SATISFIABLE);
+        assert!(invalid_range.headers.contains(&("Accept-Ranges", "bytes".into())));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn symlink_escape() {
+        let dir = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        std::fs::write(outside.path().join("secret"), "hidden").unwrap();
+        std::os::unix::fs::symlink(outside.path().join("secret"), dir.path().join("link")).unwrap();
+        assert_eq!(serve("GET", dir.path(), Path::new("link"), None).status, StatusCode::FORBIDDEN);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn symlink_escape_when_permitted() {
+        let dir = tempfile::tempdir().unwrap();
+        let outside = tempfile::tempdir().unwrap();
+        std::fs::write(outside.path().join("secret"), "hidden").unwrap();
+        if std::os::windows::fs::symlink_file(outside.path().join("secret"), dir.path().join("link")).is_ok() {
+            assert_eq!(serve("GET", dir.path(), Path::new("link"), None).status, StatusCode::FORBIDDEN);
+        }
+    }
+}

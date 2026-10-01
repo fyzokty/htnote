@@ -1,5 +1,6 @@
 mod commands;
 mod onboarding;
+mod protocol;
 pub mod error;
 mod fs_util;
 pub mod index;
@@ -18,6 +19,9 @@ pub fn app_version() -> &'static str {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .register_asynchronous_uri_scheme_protocol("htnote-note", |context, request, responder| {
+            protocol::handle(context.app_handle(), request, responder);
+        })
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let config_dir = app.path().app_config_dir()?;
