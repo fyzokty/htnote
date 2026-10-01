@@ -39,18 +39,19 @@ fn relative(root: &Path, path: &Path) -> Result<String, AppError> {
 }
 
 fn destination(parent: &Path, source: &Path, desired: &str) -> Result<PathBuf, AppError> {
-    let names = fs::read_dir(parent)?
-        .map(|entry| entry.map(|entry| entry.file_name().to_string_lossy().into_owned()))
-        .collect::<Result<Vec<_>, _>>()?;
     let source_name = source.file_name().unwrap_or_default().to_string_lossy();
-    let siblings: Vec<_> = names.into_iter().filter(|name| {
-        parent != source.parent().unwrap_or(parent)
-            || if cfg!(windows) {
-                !names_equal_ci(name, &source_name)
-            } else {
-                name != source_name.as_ref()
-            }
-    }).collect();
+    let source_canonical = source.canonicalize()?;
+    let mut siblings = Vec::new();
+    for entry in fs::read_dir(parent)? {
+        let entry = entry?;
+        let name = entry.file_name().to_string_lossy().into_owned();
+        // Aynı adlı ayrı bir kardeş gerçek çakışmadır; yalnız kaynak nesnesi dışlanır.
+        let is_source = names_equal_ci(&name, &source_name)
+            && entry.path().canonicalize().ok().as_deref() == Some(source_canonical.as_path());
+        if !is_source {
+            siblings.push(name);
+        }
+    }
     let name = unique_name(&sanitize_name(desired), exists_ci(&siblings));
     Ok(parent.join(name))
 }
@@ -280,6 +281,29 @@ mod tests {
         let node = rename_folder_in(root.path(), "NOT", "Not").unwrap();
         assert!(matches!(node, TreeNode::Folder { rel_path, .. } if rel_path == "Not"));
         assert!(root.path().join("Not").is_dir());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn case_only_rename_uses_requested_name_without_suffix() {
+        let root = tempfile::tempdir().unwrap();
+        create_folder_in(root.path(), "", "not").unwrap();
+        let node = rename_folder_in(root.path(), "not", "Not").unwrap();
+        assert!(matches!(node, TreeNode::Folder { rel_path, .. } if rel_path == "Not"));
+        assert!(root.path().join("Not").is_dir());
+        assert!(!root.path().join("not").exists());
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn differently_cased_sibling_remains_a_collision() {
+        let root = tempfile::tempdir().unwrap();
+        create_folder_in(root.path(), "", "not").unwrap();
+        fs::create_dir(root.path().join("Not")).unwrap();
+        let node = rename_folder_in(root.path(), "not", "Not").unwrap();
+        assert!(matches!(node, TreeNode::Folder { rel_path, .. } if rel_path == "Not (2)"));
+        assert!(root.path().join("Not").is_dir());
+        assert!(root.path().join("Not (2)").is_dir());
     }
 
     #[test]
