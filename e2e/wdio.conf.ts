@@ -1,11 +1,13 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { connect } from "node:net";
-import { cp, mkdtemp, rm } from "node:fs/promises";
+import { createWriteStream } from "node:fs";
+import { cp, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 let driver: ChildProcess | undefined;
 let testDirectory: string | undefined;
+let driverLog: ReturnType<typeof createWriteStream> | undefined;
 
 async function waitForDriver(): Promise<void> {
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -43,16 +45,26 @@ export const config = {
     const root = join(testDirectory, "notes");
     const configDir = join(testDirectory, "config");
     await cp(resolve("e2e", "fixtures"), root, { recursive: true });
-    driver = spawn("tauri-driver", [], {
+    const driverArgs = process.env.MSEDGEDRIVER_PATH
+      ? ["--native-driver", process.env.MSEDGEDRIVER_PATH]
+      : [];
+    const logDirectory = resolve("e2e", "logs");
+    await mkdir(logDirectory, { recursive: true });
+    driverLog = createWriteStream(join(logDirectory, "tauri-driver.log"));
+    console.info(`Starting tauri-driver ${driverArgs.join(" ")}`);
+    driver = spawn("tauri-driver", driverArgs, {
       env: { ...process.env, HTNOTE_ROOT_OVERRIDE: root, HTNOTE_CONFIG_DIR_OVERRIDE: configDir },
       stdio: ["ignore", "pipe", "pipe"],
     });
     driver.stdout?.pipe(process.stdout);
     driver.stderr?.pipe(process.stderr);
+    driver.stdout?.pipe(driverLog, { end: false });
+    driver.stderr?.pipe(driverLog, { end: false });
     await waitForDriver();
   },
   async onComplete() {
     driver?.kill();
+    driverLog?.end();
     if (testDirectory) await rm(testDirectory, { recursive: true, force: true });
   },
 };

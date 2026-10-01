@@ -55,5 +55,79 @@ jobs:
         run: |
           cargo install --git https://github.com/chippers/msedgedriver-tool msedgedriver-tool
           & "$env:USERPROFILE\.cargo\bin\msedgedriver-tool.exe"
+          $driver = Join-Path $PWD.Path 'msedgedriver.exe'
+          if (-not (Test-Path $driver)) { throw "msedgedriver-tool did not create $driver" }
+          "MSEDGEDRIVER_PATH=$driver" >> $env:GITHUB_ENV
           $PWD.Path >> $env:GITHUB_PATH
-      - run: npm run test:e2e
+      - name: Print WebDriver and WebView2 versions
+        shell: pwsh
+        run: |
+          Write-Host "Pinned EdgeDriver: $env:MSEDGEDRIVER_PATH"
+          & $env:MSEDGEDRIVER_PATH --version
+          Write-Host 'EdgeDriver binaries on PATH:'
+          where.exe msedgedriver
+          Write-Host 'tauri-driver:'
+          (Get-Command tauri-driver).Source
+          tauri-driver --help
+          $client = '{F1E7E90C-7A49-42C8-A039-17D95E7E803D}'
+          foreach ($hive in @('HKCU:\Software\Microsoft\EdgeUpdate\Clients', 'HKLM:\Software\Microsoft\EdgeUpdate\Clients', 'HKLM:\Software\WOW6432Node\Microsoft\EdgeUpdate\Clients')) {
+            $key = Join-Path $hive $client
+            if (Test-Path $key) {
+              Write-Host "WebView2 Runtime ($key): $((Get-ItemProperty $key).pv)"
+            }
+          }
+      - name: Build debug app for diagnostics
+        run: npx tauri build --debug --no-bundle
+      - name: Diagnose app startup
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force e2e/logs | Out-Null
+          $env:HTNOTE_ROOT_OVERRIDE = Join-Path $env:RUNNER_TEMP 'htnote-smoke-notes'
+          $env:HTNOTE_CONFIG_DIR_OVERRIDE = Join-Path $env:RUNNER_TEMP 'htnote-smoke-config'
+          $env:RUST_BACKTRACE = '1'
+          New-Item -ItemType Directory -Force $env:HTNOTE_ROOT_OVERRIDE, $env:HTNOTE_CONFIG_DIR_OVERRIDE | Out-Null
+          $stdout = Join-Path $PWD.Path 'e2e/logs/app-stdout.log'
+          $stderr = Join-Path $PWD.Path 'e2e/logs/app-stderr.log'
+          $app = Start-Process -FilePath (Join-Path $PWD.Path 'src-tauri/target/debug/htnote.exe') -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+          $windowOpened = $false
+          $exitedEarly = $false
+          try {
+            $deadline = (Get-Date).AddSeconds(60)
+            while ((Get-Date) -lt $deadline) {
+              $app.Refresh()
+              if ($app.HasExited) { break }
+              if ($app.MainWindowHandle -ne 0) {
+                $windowOpened = $true
+                Write-Host "App window opened: $($app.MainWindowTitle)"
+                Start-Sleep -Seconds 3
+                $app.Refresh()
+                break
+              }
+              Start-Sleep -Milliseconds 500
+            }
+            if ($app.HasExited) {
+              $exitedEarly = $true
+              Write-Host "App exited with code $($app.ExitCode)"
+            } else {
+              Write-Host "App still running after diagnostic; window opened: $windowOpened"
+            }
+          } finally {
+            if (-not $app.HasExited) { taskkill.exe /PID $app.Id /T /F | Out-Null }
+            $app.WaitForExit()
+            Write-Host "App diagnostic final exit code: $($app.ExitCode)"
+            Write-Host 'App stdout:'
+            if (Test-Path $stdout) { Get-Content $stdout }
+            Write-Host 'App stderr:'
+            if (Test-Path $stderr) { Get-Content $stderr }
+          }
+          if (-not $windowOpened -or $exitedEarly) { throw 'App startup diagnostic failed' }
+      - name: Run e2e specs
+        run: npm run test:e2e
+      - name: Upload e2e diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-diagnostics
+          path: e2e/logs/
+          if-no-files-found: warn

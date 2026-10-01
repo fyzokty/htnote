@@ -23,6 +23,9 @@ the run. The two overrides are compiled only in debug builds.
    Microsoft EdgeUpdate Clients registry key. Confirm `msedgedriver --version`
    reports the same major version.
 
+   Set `MSEDGEDRIVER_PATH` to the matching executable's absolute path to make
+   `tauri-driver` use that binary even if another driver appears first on `PATH`.
+
 Run `npm run test:e2e`. This builds the debug executable without an installer,
 then runs both specs. The E2E suite is separate from `verify:test`.
 
@@ -30,3 +33,8 @@ If session creation fails, first check that both drivers are on `PATH` and that
 the EdgeDriver major version matches WebView2. If a security assertion fails,
 inspect the failing `data-*` result in the note iframe and investigate the
 isolation boundary; do not loosen the assertion or sandbox policy.
+
+Driver output is also saved to `e2e/logs/tauri-driver.log`. CI prints the driver
+and WebView2 versions, launches the debug app directly with temporary root and
+config overrides, and uploads `e2e/logs/` on failure. The app startup diagnostic
+captures its stdout and stderr there as separate files.
