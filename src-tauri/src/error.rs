@@ -11,6 +11,8 @@ pub enum AppError {
     NameConflict(String),
     #[error("Invalid name: {0}")]
     InvalidName(String),
+    #[error("Invalid move: {0}")]
+    InvalidMove(String),
     #[error("Path outside root: {0}")]
     PathOutsideRoot(String),
     #[error("I/O error: {0}")]
@@ -28,6 +30,7 @@ impl AppError {
             Self::NotAFolder(_) => "NOT_A_FOLDER",
             Self::NameConflict(_) => "NAME_CONFLICT",
             Self::InvalidName(_) => "INVALID_NAME",
+            Self::InvalidMove(_) => "INVALID_MOVE",
             Self::PathOutsideRoot(_) => "PATH_OUTSIDE_ROOT",
             Self::Io(_) => "IO_ERROR",
             Self::Json(_) => "JSON_ERROR",
@@ -59,6 +62,7 @@ mod tests {
             (AppError::NotAFolder("note".into()), "NOT_A_FOLDER"),
             (AppError::NameConflict("used".into()), "NAME_CONFLICT"),
             (AppError::InvalidName("bad".into()), "INVALID_NAME"),
+            (AppError::InvalidMove("nested".into()), "INVALID_MOVE"),
             (
                 AppError::PathOutsideRoot("outside".into()),
                 "PATH_OUTSIDE_ROOT",

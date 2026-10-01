@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use uuid::Uuid;
 
@@ -34,6 +34,14 @@ impl NoteIndex {
         self.by_id.insert(note.metadata.id, note);
     }
 
+    pub fn rename_prefix(&mut self, old_rel: &str, new_rel: &str) {
+        for note in self.by_id.values_mut() {
+            if let Ok(suffix) = Path::new(&note.rel_path).strip_prefix(old_rel) {
+                note.rel_path = super::rel_string(&Path::new(new_rel).join(suffix));
+            }
+        }
+    }
+
     pub fn remove_subtree(&mut self, rel_path: &str) {
         let prefix = format!("{}/", rel_path.trim_end_matches('/'));
         self.by_id.retain(|_, note| note.rel_path != rel_path && !note.rel_path.starts_with(&prefix));
@@ -60,5 +68,17 @@ mod tests {
         assert_eq!(index.rel_path(second.id), Some("AB/N2"));
         index.replace_all(ScanResult::default());
         assert!(index.by_id.is_empty());
+    }
+
+    #[test]
+    fn rename_prefix_updates_only_descendants() {
+        let mut index = NoteIndex::new(PathBuf::from("root"));
+        let inside = NoteMetadata::new("Inside");
+        let outside = NoteMetadata::new("Outside");
+        index.upsert(IndexedNote { rel_path: "a/b/note".into(), metadata: inside.clone() });
+        index.upsert(IndexedNote { rel_path: "ab/note".into(), metadata: outside.clone() });
+        index.rename_prefix("a", "moved/a");
+        assert_eq!(index.rel_path(inside.id), Some("moved/a/b/note"));
+        assert_eq!(index.rel_path(outside.id), Some("ab/note"));
     }
 }

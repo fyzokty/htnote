@@ -24,4 +24,16 @@ export const ipc = {
   createFolder(parentRelPath: string, name: string): Promise<TreeNode> {
     return invoke<TreeNode>("create_folder", { parentRelPath, name });
   },
+  renameNote(id: string, newTitle: string): Promise<TreeNode> {
+    return invoke<TreeNode>("rename_note", { id, newTitle });
+  },
+  renameFolder(relPath: string, newName: string): Promise<TreeNode> {
+    return invoke<TreeNode>("rename_folder", { relPath, newName });
+  },
+  moveItem(relPath: string, targetFolderRelPath: string): Promise<string> {
+    return invoke<string>("move_item", { relPath, targetFolderRelPath });
+  },
+  revealInExplorer(relPath: string): Promise<void> {
+    return invoke<void>("reveal_in_explorer", { relPath });
+  },
 };
