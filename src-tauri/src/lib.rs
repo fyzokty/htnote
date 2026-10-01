@@ -61,6 +61,8 @@ pub fn run() {
             commands::get_note_tree,
             commands::read_note,
             commands::save_note,
+            commands::copy_asset,
+            commands::save_asset_bytes,
             commands::write_draft,
             commands::read_draft,
             commands::delete_draft,
