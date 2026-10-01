@@ -27,6 +27,7 @@ dirs = "7"
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde", "clock"] }
 unicode-segmentation = "1"
+lol_html = "2"
 
 [dev-dependencies]
 tempfile = "3"
