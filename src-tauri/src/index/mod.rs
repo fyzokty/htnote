@@ -18,7 +18,7 @@ pub fn resolve_in_root(root: &Path, rel: &str) -> Result<PathBuf, AppError> {
     let root = root.canonicalize()?;
     let candidate = root.join(relative);
     let mut ancestor = candidate.as_path();
-    while !ancestor.exists() {
+    while ancestor.symlink_metadata().is_err() {
         ancestor = ancestor.parent().ok_or_else(|| AppError::PathOutsideRoot(rel.into()))?;
     }
     let canonical = ancestor.canonicalize()?;
@@ -52,6 +52,7 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let outside = tempfile::tempdir().unwrap();
         std::os::unix::fs::symlink(outside.path(), root.path().join("escape")).unwrap();
+        assert!(resolve_in_root(root.path(), "escape").is_err());
         assert!(resolve_in_root(root.path(), "escape/note").is_err());
     }
 
@@ -61,6 +62,7 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let outside = tempfile::tempdir().unwrap();
         if std::os::windows::fs::symlink_dir(outside.path(), root.path().join("escape")).is_ok() {
+            assert!(resolve_in_root(root.path(), "escape").is_err());
             assert!(resolve_in_root(root.path(), "escape/note").is_err());
         }
     }

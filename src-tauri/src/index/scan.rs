@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Utc};
 use serde::Serialize;
+use serde_json::Value;
 use uuid::Uuid;
 
 use crate::error::AppError;
@@ -44,7 +45,7 @@ pub struct ScanResult {
 }
 
 pub fn scan(root: &Path) -> Result<ScanResult, AppError> {
-    if !root.exists() { return Ok(ScanResult::default()); }
+    if !root.is_dir() { return Ok(ScanResult::default()); }
     let root = root.canonicalize()?;
     let mut result = ScanResult::default();
     let mut seen_ids = HashSet::new();
@@ -68,6 +69,9 @@ fn scan_dir(root: &Path, dir: &Path, notes: &mut Vec<IndexedNote>, repairs: &mut
         if path.join("metadata.json").is_file() { note_dirs.push((name, path)); }
         else { folders.push((name, path)); }
     }
+    // Eşit Türkçe anahtarlarda kararlı sıralama için önce ham adla dizilir.
+    folders.sort_by(|a, b| a.0.cmp(&b.0));
+    note_dirs.sort_by(|a, b| a.0.cmp(&b.0));
     folders.sort_by(|a, b| compare_names(&a.0, &b.0));
     note_dirs.sort_by(|a, b| compare_names(&a.0, &b.0));
     let mut tree = Vec::new();
@@ -83,18 +87,7 @@ fn scan_dir(root: &Path, dir: &Path, notes: &mut Vec<IndexedNote>, repairs: &mut
         let parsed = serde_json::from_slice::<serde_json::Value>(&original);
         let mut repair = None;
         let mut metadata = match parsed {
-            Ok(mut value) => {
-                if value.get("id").is_none() || value.get("id").is_some_and(serde_json::Value::is_null) {
-                    if let Some(object) = value.as_object_mut() {
-                        object.insert("id".into(), serde_json::json!(Uuid::new_v4()));
-                    }
-                    repair = Some(RepairKind::MissingId);
-                }
-                match serde_json::from_value::<NoteMetadata>(value) {
-                    Ok(metadata) => metadata,
-                    Err(_) => { repair = Some(RepairKind::CorruptMetadata); NoteMetadata::new(&name) }
-                }
-            }
+            Ok(value) => repair_fields(value, &name, &mut repair)?,
             Err(_) => { repair = Some(RepairKind::CorruptMetadata); NoteMetadata::new(&name) }
         };
         if !seen_ids.insert(metadata.id) {
@@ -118,7 +111,15 @@ fn backup_metadata(path: &Path, bytes: &[u8]) -> Result<PathBuf, AppError> {
         let name = if number == 1 { "metadata.json.bak".to_string() } else { format!("metadata.json.bak.{number}") };
         let backup = path.with_file_name(name);
         match OpenOptions::new().write(true).create_new(true).open(&backup) {
-            Ok(mut file) => { file.write_all(bytes)?; file.sync_all()?; return Ok(backup); }
+            Ok(mut file) => {
+                let written = file.write_all(bytes).and_then(|_| file.sync_all());
+                drop(file);
+                if let Err(error) = written {
+                    let _ = fs::remove_file(&backup);
+                    return Err(error.into());
+                }
+                return Ok(backup);
+            }
             Err(error) if error.kind() == ErrorKind::AlreadyExists => continue,
             Err(error) => return Err(error.into()),
         }
@@ -131,7 +132,32 @@ fn compare_names(left: &str, right: &str) -> std::cmp::Ordering {
         let alphabet = "abcçdefgğhıijklmnoöprsştuüvyz";
         turkish_lowercase(name).chars().map(|ch| alphabet.chars().position(|letter| letter == ch).map_or(1000 + ch as u32, |index| index as u32)).collect()
     }
-    key(left).cmp(&key(right)).then_with(|| left.cmp(right))
+    key(left).cmp(&key(right))
+}
+
+fn repair_fields(mut value: Value, name: &str, repair: &mut Option<RepairKind>) -> Result<NoteMetadata, AppError> {
+    let Some(fields) = value.as_object_mut() else {
+        *repair = Some(RepairKind::CorruptMetadata);
+        return Ok(NoteMetadata::new(name));
+    };
+    let defaults = serde_json::to_value(NoteMetadata::new(name))?;
+    if fields.get("id").and_then(Value::as_str).and_then(|id| Uuid::parse_str(id).ok()).is_none() {
+        fields.insert("id".into(), defaults["id"].clone());
+        *repair = Some(RepairKind::MissingId);
+    }
+    for field in ["title", "createdAt", "updatedAt", "isFavorite", "tags", "hasCustomCss", "hasCustomJs"] {
+        let valid = fields.get(field).is_some_and(|item| match field {
+            "title" => item.as_str().is_some(),
+            "createdAt" | "updatedAt" => item.as_str().is_some_and(|date| DateTime::parse_from_rfc3339(date).is_ok()),
+            "tags" => item.as_array().is_some_and(|tags| tags.iter().all(Value::is_string)),
+            _ => item.is_boolean(),
+        });
+        if !valid {
+            fields.insert(field.into(), defaults[field].clone());
+            *repair = Some(RepairKind::CorruptMetadata);
+        }
+    }
+    Ok(serde_json::from_value(value)?)
 }
 
 #[cfg(test)]
@@ -141,7 +167,8 @@ mod tests {
     fn note(root: &Path, name: &str, id: Option<Uuid>) {
         let dir = root.join(name);
         fs::create_dir_all(&dir).unwrap();
-        let mut value = serde_json::to_value(NoteMetadata::new(name)).unwrap();
+        let title = name.rsplit('/').next().unwrap();
+        let mut value = serde_json::to_value(NoteMetadata::new(title)).unwrap();
         if let Some(id) = id { value["id"] = serde_json::json!(id); } else { value.as_object_mut().unwrap().remove("id"); }
         fs::write(dir.join("metadata.json"), serde_json::to_vec(&value).unwrap()).unwrap();
     }
@@ -156,9 +183,21 @@ mod tests {
         fs::create_dir_all(root.path().join("Günlük Fikirler/assets/nested")).unwrap();
         let result = scan(root.path()).unwrap();
         assert_eq!(result.notes.len(), 3);
-        assert!(matches!(&result.tree[0], TreeNode::Folder { name, children, .. } if name == "Yazılım" && children.len() == 2));
-        assert!(matches!(&result.tree[1], TreeNode::Note { rel_path, .. } if rel_path == "Günlük Fikirler"));
-        assert!(result.notes.iter().any(|note| note.rel_path == "Yazılım/Web Geliştirme/React Hooks Notları"));
+        fn shape(nodes: &[TreeNode]) -> Vec<Value> {
+            nodes.iter().map(|node| match node {
+                TreeNode::Folder { name, rel_path, children } => serde_json::json!({"type": "folder", "name": name, "relPath": rel_path, "children": shape(children)}),
+                TreeNode::Note { title, rel_path, .. } => serde_json::json!({"type": "note", "title": title, "relPath": rel_path}),
+            }).collect()
+        }
+        assert_eq!(shape(&result.tree), vec![
+            serde_json::json!({"type": "folder", "name": "Yazılım", "relPath": "Yazılım", "children": [
+                {"type": "folder", "name": "Web Geliştirme", "relPath": "Yazılım/Web Geliştirme", "children": [
+                    {"type": "note", "title": "React Hooks Notları", "relPath": "Yazılım/Web Geliştirme/React Hooks Notları"}
+                ]},
+                {"type": "note", "title": "Rust Öğreniyorum", "relPath": "Yazılım/Rust Öğreniyorum"}
+            ]}),
+            serde_json::json!({"type": "note", "title": "Günlük Fikirler", "relPath": "Günlük Fikirler"}),
+        ]);
         assert!(scan(tempfile::tempdir().unwrap().path()).unwrap().tree.is_empty());
     }
 
@@ -192,5 +231,53 @@ mod tests {
         let result = scan(root.path()).unwrap();
         let names: Vec<_> = result.tree.iter().map(|node| match node { TreeNode::Folder { name, .. } => name.as_str(), TreeNode::Note { title, .. } => title.as_str() }).collect();
         assert_eq!(names, ["Klasör", "Çay", "çorba", "ılık", "İzmir", "Zeytin"]);
+    }
+
+    #[test]
+    fn missing_id_preserves_other_valid_fields_and_repairs_invalid_field_only() {
+        let root = tempfile::tempdir().unwrap();
+        note(root.path(), "A", None);
+        let path = root.path().join("A/metadata.json");
+        let mut value: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        value["title"] = serde_json::json!("Özgün başlık");
+        value["tags"] = serde_json::json!(["etiket"]);
+        value["isFavorite"] = serde_json::json!(true);
+        value["createdAt"] = serde_json::json!("2020-01-01T00:00:00.000Z");
+        value["updatedAt"] = serde_json::json!("2021-01-01T00:00:00.000Z");
+        value["hasCustomCss"] = serde_json::json!("invalid");
+        fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+        let result = scan(root.path()).unwrap();
+        let metadata = &result.notes[0].metadata;
+        assert_eq!(result.repairs[0].kind, RepairKind::CorruptMetadata);
+        assert_eq!(metadata.title, "Özgün başlık");
+        assert_eq!(metadata.tags, ["etiket"]);
+        assert!(metadata.is_favorite);
+        assert_eq!(metadata.created_at.to_rfc3339(), "2020-01-01T00:00:00+00:00");
+        assert_eq!(metadata.updated_at.to_rfc3339(), "2021-01-01T00:00:00+00:00");
+        assert!(!metadata.has_custom_css);
+        assert_eq!(fs::read(path.with_file_name("metadata.json.bak")).unwrap(), serde_json::to_vec(&value).unwrap());
+    }
+
+    #[test]
+    fn missing_id_alone_preserves_metadata() {
+        let root = tempfile::tempdir().unwrap();
+        note(root.path(), "A", None);
+        let path = root.path().join("A/metadata.json");
+        let mut value: Value = serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+        value["title"] = serde_json::json!("Özgün");
+        value["tags"] = serde_json::json!(["koru"]);
+        fs::write(&path, serde_json::to_vec(&value).unwrap()).unwrap();
+        let result = scan(root.path()).unwrap();
+        assert_eq!(result.repairs[0].kind, RepairKind::MissingId);
+        assert_eq!(result.notes[0].metadata.title, "Özgün");
+        assert_eq!(result.notes[0].metadata.tags, ["koru"]);
+    }
+
+    #[test]
+    fn file_root_returns_empty_tree() {
+        let root = tempfile::tempdir().unwrap();
+        let file = root.path().join("root");
+        fs::write(&file, "content").unwrap();
+        assert!(scan(&file).unwrap().tree.is_empty());
     }
 }
