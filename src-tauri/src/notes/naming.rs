@@ -27,10 +27,7 @@ fn finish_name(name: &str) -> String {
     }
 
     let stem = shortened.split('.').next().unwrap_or(shortened);
-    let reserved = matches!(stem.to_ascii_uppercase().as_str(), "CON" | "PRN" | "AUX" | "NUL")
-        || ((stem.len() == 4) && (stem.to_ascii_uppercase().starts_with("COM") || stem.to_ascii_uppercase().starts_with("LPT"))
-            && matches!(stem.as_bytes()[3], b'1'..=b'9'));
-    if reserved {
+    if is_reserved_stem(stem) {
         // Ayrılmış gövde uzantıdan önce değiştirilir; toplam sınır korunur.
         let mut base: String = stem.graphemes(true).take(MAX_NAME_LENGTH - 1).collect();
         base.push('_');
@@ -42,6 +39,14 @@ fn finish_name(name: &str) -> String {
     }
 }
 
+fn is_reserved_stem(stem: &str) -> bool {
+    let upper = stem.to_ascii_uppercase();
+    matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || (upper.len() == 4
+            && (upper.starts_with("COM") || upper.starts_with("LPT"))
+            && matches!(upper.as_bytes()[3], b'1'..=b'9'))
+}
+
 /// `existing` sağlanan adları büyük/küçük harf duyarsız karşılaştırmalıdır.
 pub fn unique_name(desired: &str, existing: impl Fn(&str) -> bool) -> String {
     let desired = sanitize_name(desired);
@@ -51,7 +56,17 @@ pub fn unique_name(desired: &str, existing: impl Fn(&str) -> bool) -> String {
     for number in 2.. {
         let suffix = format!(" ({number})");
         let base: String = desired.graphemes(true).take(MAX_NAME_LENGTH - suffix.len()).collect();
-        let base = base.trim_end_matches([' ', '.']);
+        let mut base = base.trim_end_matches([' ', '.']).to_owned();
+        let stem = base.split('.').next().unwrap_or(&base);
+        if is_reserved_stem(stem) {
+            // Kırpma ayrılmış bir gövde oluşturabilir; ek için yer açılır.
+            let insert_at = stem.len();
+            if base.graphemes(true).count() + suffix.graphemes(true).count() == MAX_NAME_LENGTH {
+                base = base.graphemes(true).take(base.graphemes(true).count() - 1).collect();
+                base = base.trim_end_matches([' ', '.']).to_owned();
+            }
+            base.insert(insert_at, '_');
+        }
         let candidate = format!("{base}{suffix}");
         if !existing(&candidate) {
             return candidate;
@@ -98,7 +113,9 @@ mod tests {
             ("React/Hooks: Notlar?", "React-Hooks- Notlar-"),
             ("CON", "CON_"),
             ("com1", "com1_"),
+            ("COM9", "COM9_"),
             ("LPT9.txt", "LPT9_.txt"),
+            ("lpt9", "lpt9_"),
             ("nul.", "nul_"),
             ("PRN.md", "PRN_.md"),
             ("AUX", "AUX_"),
@@ -125,7 +142,14 @@ mod tests {
     fn unique_name_uses_suffixes_and_ignores_case() {
         let occupied = vec!["Not".into(), "NOT (2)".into(), "not (3)".into()];
         assert_eq!(unique_name("not", exists_ci(&occupied)), "not (4)");
+        assert_eq!(unique_name("CON", exists_ci(&["CON_".into()])), "CON_ (2)");
         assert_eq!(unique_name(&"a".repeat(120), exists_ci(&["a".repeat(120)])), format!("{} (2)", "a".repeat(116)));
+        let long_reserved = format!("CON.{}", "a".repeat(116));
+        let sanitized = sanitize_name(&long_reserved);
+        let unique = unique_name(&long_reserved, exists_ci(&[sanitized]));
+        assert!(unique.starts_with("CON_."));
+        assert!(unique.ends_with(" (2)"));
+        assert!(unique.graphemes(true).count() <= MAX_NAME_LENGTH);
         assert!(names_equal_ci("İstanbul", "i\u{307}stanbul"));
     }
 
