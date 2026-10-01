@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { AppInfo, Settings, SettingsPatch, TreeNode } from "@/lib/types";
+import type { AppInfo, NoteData, Settings, SettingsPatch, TreeNode } from "@/lib/types";
 
 export const ipc = {
   appInfo(): Promise<AppInfo> {
@@ -17,6 +17,9 @@ export const ipc = {
   },
   getNoteTree(): Promise<TreeNode[]> {
     return invoke<TreeNode[]>("get_note_tree");
+  },
+  readNote(id: string): Promise<NoteData> {
+    return invoke<NoteData>("read_note", { id });
   },
   createNote(parentRelPath: string, title?: string): Promise<TreeNode> {
     return invoke<TreeNode>("create_note", { parentRelPath, title: title ?? null });

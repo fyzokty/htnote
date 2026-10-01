@@ -37,6 +37,26 @@ export interface NoteNode {
   updatedAt: string;
 }
 
+export interface NoteMetadata {
+  id: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  isFavorite: boolean;
+  tags: string[];
+  hasCustomCss: boolean;
+  hasCustomJs: boolean;
+  [key: string]: unknown;
+}
+
+export interface NoteData {
+  metadata: NoteMetadata;
+  html: string;
+  css: string | null;
+  js: string | null;
+  contentHash: string;
+}
+
 export type TreeNode = FolderNode | NoteNode;
 
 export interface FsChangePayload {
