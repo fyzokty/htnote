@@ -1,14 +1,18 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
 import { useEditSession } from "@/features/editor/useEditSession";
+import type { UnsavedDecision } from "@/features/editor/unsavedGuard";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 import { useUiStore } from "@/stores/uiStore";
 
 const html = '<html><main id="htnote-content"><p>First</p></main></html>';
 const note = { html, css: null, js: null, contentHash: "old", metadata: { id: "a", title: "A" } };
 const doc = () => useTabsStore.getState().tabs[0].doc;
+async function decide(decision: UnsavedDecision) {
+  await act(async () => { useUiStore.getState().unsavedDialog?.resolve(decision); });
+}
 
 beforeEach(() => {
   resetTabsStoreForTests();
@@ -52,19 +56,58 @@ describe("useEditSession", () => {
 
   it("cancels clean edits directly and asks before discarding dirty edits", async () => {
     mockIPC((command) => command === "read_note" ? note : undefined);
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(false);
     const { result } = renderHook(() => useEditSession("a"));
     await act(async () => { await result.current.enter(); });
-    act(() => result.current.cancel());
-    expect(confirm).not.toHaveBeenCalled();
+    await act(async () => { await result.current.cancel(); });
     await act(async () => { await result.current.enter(); });
     act(() => result.current.onVisualChange("<p>Changed</p>"));
-    act(() => result.current.cancel());
+    let pending!: Promise<boolean>;
+    act(() => { pending = result.current.cancel(); });
+    await decide("cancel");
+    await pending;
     expect(doc().mode).toBe("visual");
-    confirm.mockReturnValue(true);
-    act(() => result.current.cancel());
+    act(() => { pending = result.current.cancel(); });
+    await decide("discard");
+    await pending;
     expect(doc().mode).toBe("view");
-    confirm.mockRestore();
+  });
+
+  it("saves a dirty edit on cancel without discarding the saved content", async () => {
+    let saves = 0;
+    mockIPC((command) => {
+      if (command === "read_note") return note;
+      if (command === "save_note") { saves++; return { contentHash: "new", metadata: note.metadata }; }
+    });
+    const { result } = renderHook(() => useEditSession("a"));
+    await act(async () => { await result.current.enter(); });
+    act(() => result.current.onVisualChange("<p>Saved</p>"));
+    let pending!: Promise<boolean>;
+    act(() => { pending = result.current.cancel(); });
+    await decide("save");
+    expect(await pending).toBe(true);
+    expect(saves).toBe(1);
+    expect(doc()).toMatchObject({ mode: "view", dirty: false, base: { contentHash: "new" } });
+    expect(doc().base?.html).toContain("Saved");
+  });
+
+  it("keeps editing after a failed Save decision in cancel and Ctrl+E", async () => {
+    mockIPC((command) => {
+      if (command === "read_note") return note;
+      if (command === "save_note") throw { code: "IO_ERROR" };
+    });
+    const { result } = renderHook(() => useEditSession("a"));
+    await act(async () => { await result.current.enter(); });
+    act(() => result.current.onVisualChange("<p>Unsaved</p>"));
+    let pendingCancel!: Promise<boolean>;
+    act(() => { pendingCancel = result.current.cancel(); });
+    await decide("save");
+    expect(await pendingCancel).toBe(false);
+    expect(doc()).toMatchObject({ mode: "visual", dirty: true });
+    let pendingToggle!: Promise<void>;
+    act(() => { pendingToggle = result.current.toggleEdit(); });
+    await decide("save");
+    await pendingToggle;
+    expect(doc()).toMatchObject({ mode: "visual", dirty: true });
   });
 
   it("starts in code when no content region exists and blocks invalid code to visual transitions", async () => {
@@ -122,22 +165,23 @@ describe("useEditSession", () => {
 
   it("offers save, discard, and stay in edit mode for dirty Ctrl+E", async () => {
     mockIPC((command) => command === "read_note" ? note : command === "save_note" ? { contentHash: "new", metadata: note.metadata } : undefined);
-    const confirm = vi.spyOn(window, "confirm");
     const { result } = renderHook(() => useEditSession("a"));
     await act(async () => { await result.current.enter(); });
     act(() => result.current.onVisualChange("<p>Changed</p>"));
-    confirm.mockReturnValueOnce(false).mockReturnValueOnce(false);
-    await act(async () => { await result.current.toggleEdit(); });
+    let pending!: Promise<void>;
+    act(() => { pending = result.current.toggleEdit(); });
+    await decide("cancel");
+    await pending;
     expect(doc().mode).toBe("visual");
-    confirm.mockReturnValueOnce(false).mockReturnValueOnce(true);
-    await act(async () => { await result.current.toggleEdit(); });
+    act(() => { pending = result.current.toggleEdit(); });
+    await decide("discard");
+    await pending;
     expect(doc().mode).toBe("view");
     await act(async () => { await result.current.enter(); });
     act(() => result.current.onVisualChange("<p>Saved</p>"));
-    confirm.mockReturnValueOnce(true);
-    await act(async () => { await result.current.toggleEdit(); });
+    act(() => { pending = result.current.toggleEdit(); });
+    await decide("save");
+    await pending;
     expect(doc()).toMatchObject({ mode: "view", base: { contentHash: "new" } });
-    expect(confirm).toHaveBeenCalledTimes(5);
-    confirm.mockRestore();
   });
 });

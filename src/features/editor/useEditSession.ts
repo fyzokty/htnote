@@ -1,15 +1,16 @@
-import { useRef } from "react";
-import { useTranslation } from "react-i18next";
+import { useEffect, useRef } from "react";
 
 import { extractContent, replaceContent } from "@/features/editor/contentRegion";
 import type { VisualEditorHandle } from "@/features/editor/VisualEditor";
+import { flushEditor, registerEditorFlush, saveTab } from "@/features/editor/saveTab";
+import { discardTab, requestUnsavedDecision } from "@/features/editor/unsavedGuard";
 import { ipc } from "@/lib/ipc";
 import { useTabsStore } from "@/stores/tabsStore";
 import { useUiStore } from "@/stores/uiStore";
 
 export function useEditSession(noteId: string | null) {
-  const { t } = useTranslation();
   const visualRef = useRef<VisualEditorHandle>(null);
+  useEffect(() => noteId ? registerEditorFlush(noteId, () => visualRef.current?.flush()) : undefined, [noteId]);
   const getDoc = () => useTabsStore.getState().tabs.find((tab) => tab.noteId === noteId)?.doc;
   const notifyError = (error: unknown) => {
     const code = typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
@@ -53,53 +54,47 @@ export function useEditSession(noteId: string | null) {
 
   async function save(stayInEdit = false): Promise<boolean> {
     if (!noteId || getDoc()?.mode === "view" || getDoc()?.saving) return false;
-    visualRef.current?.flush();
-    const doc = getDoc();
-    if (!doc?.base || !doc.draft) return false;
-    const snapshot = { ...doc.draft };
-    useTabsStore.getState().markSaving(noteId);
-    try {
-      const result = await ipc.saveNote(noteId, {
-        html: snapshot.html, css: snapshot.css ?? "", js: snapshot.js ?? "", expectedHash: doc.base.contentHash,
-      });
-      useTabsStore.getState().saveSucceeded(noteId, { ...snapshot, contentHash: result.contentHash });
-      if (!stayInEdit && !getDoc()?.dirty) {
-        useTabsStore.getState().cancelEdit(noteId);
-        clearPreview();
-      }
-      return true;
-    } catch (error) {
-      useTabsStore.getState().saveFailed(noteId);
-      notifyError(error);
-      return false;
+    const saved = await saveTab(noteId);
+    if (saved && !stayInEdit && !getDoc()?.dirty) {
+      useTabsStore.getState().cancelEdit(noteId);
+      clearPreview();
     }
+    return saved;
   }
 
-  function cancel(): boolean {
+  async function cancel(): Promise<boolean> {
     const doc = getDoc();
     if (!noteId || !doc || doc.mode === "view" || doc.saving) return false;
-    visualRef.current?.flush();
-    if (getDoc()?.dirty && !window.confirm(t("editor.session.discardConfirm"))) return false;
-    useTabsStore.getState().cancelEdit(noteId);
-    clearPreview();
-    return true;
+    flushEditor(noteId);
+    if (getDoc()?.dirty) {
+      const decision = await requestUnsavedDecision([noteId]);
+      if (decision === "cancel") return false;
+      if (decision === "save") {
+        const saved = await saveTab(noteId);
+        if (!saved || getDoc()?.dirty) return false;
+        useTabsStore.getState().cancelEdit(noteId);
+        clearPreview();
+        return true;
+      }
+    }
+    return discardTab(noteId);
   }
 
   async function toggleEdit() {
     const doc = getDoc();
     if (!doc || doc.saving) return;
     if (doc.mode === "view") { await enter(); return; }
-    visualRef.current?.flush();
+    flushEditor(noteId!);
     if (!getDoc()?.dirty) {
       useTabsStore.getState().cancelEdit(noteId!);
       clearPreview();
     } else {
-      // T409 ortak diyaloğu gelene kadar iki onay üç çıkış seçeneğini sunar.
-      if (window.confirm(t("editor.session.saveConfirm"))) {
-        await save(false);
-      } else if (window.confirm(t("editor.session.exitWithoutSavingConfirm"))) {
+      const decision = await requestUnsavedDecision([noteId!]);
+      if (decision === "save" && await saveTab(noteId!) && !getDoc()?.dirty) {
         useTabsStore.getState().cancelEdit(noteId!);
         clearPreview();
+      } else if (decision === "discard") {
+        await discardTab(noteId!);
       }
     }
   }

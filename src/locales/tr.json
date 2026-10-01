@@ -9,5 +9,6 @@
   "toast": { "dismiss": "Bildirimi kapat" },
   "errorBoundary": { "title": "Bir şeyler ters gitti", "description": "Uygulamayı yeniden yüklemeyi deneyin.", "reload": "Yeniden yükle" },
   "dialogs": {},
+  "unsaved": { "title": "Kaydedilmemiş değişiklikler", "multipleTitle": "Kaydedilmemiş notlar", "description": "Devam etmeden önce değişikliklerinizi kaydetmek ister misiniz?", "save": "Kaydet", "saveAll": "Tümünü kaydet", "discard": "Kaydetme", "cancel": "İptal" },
   "settings": { "theme": "Tema", "system": "Sistem", "light": "Açık", "dark": "Koyu", "language": "Dil", "turkish": "Türkçe", "english": "İngilizce" }
 }

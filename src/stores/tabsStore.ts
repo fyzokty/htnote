@@ -5,6 +5,7 @@ import {
   saveSucceeded, switchMode, updateDraft,
 } from "@/features/editor/docState";
 import type { DocBase, DocDraft, DocState } from "@/features/editor/docState";
+import { resolveUnsaved } from "@/features/editor/unsavedGuard";
 import { ipc } from "@/lib/ipc";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTreeStore } from "@/stores/treeStore";
@@ -105,6 +106,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   async close(id) {
     if (!get().tabs.some((tab) => tab.noteId === id)) return false;
     if (!await beforeClose(id)) return false;
+    if (!(await resolveUnsaved([id])).resolved.has(id) || get().isDirty(id)) return false;
     const current = get();
     const result = removeTab(current.tabs, current.activeId, id);
     if (result.tabs === current.tabs) return false;
@@ -118,8 +120,21 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   },
   async closeOthers(id) {
     if (!get().tabs.some((tab) => tab.noteId === id)) return;
-    for (const tab of [...get().tabs]) {
-      if (tab.noteId !== id) await get().close(tab.noteId);
+    const candidates = get().tabs.filter((tab) => tab.noteId !== id).map((tab) => tab.noteId);
+    const allowed: string[] = [];
+    for (const candidate of candidates) {
+      if (await beforeClose(candidate)) allowed.push(candidate);
+    }
+    const resolved = await resolveUnsaved(allowed);
+    if (resolved.cancelled) return;
+    for (const candidate of allowed) {
+      if (!resolved.resolved.has(candidate) || get().isDirty(candidate)) continue;
+      const current = get();
+      const result = removeTab(current.tabs, current.activeId, candidate);
+      if (result.tabs === current.tabs) continue;
+      set(result);
+      persist(result.tabs, result.activeId);
+      clearClosedPreview(candidate);
     }
     get().activate(id);
   },

@@ -9,5 +9,6 @@
   "toast": { "dismiss": "Dismiss notification" },
   "errorBoundary": { "title": "Something went wrong", "description": "Try reloading the application.", "reload": "Reload" },
   "dialogs": {},
+  "unsaved": { "title": "Unsaved changes", "multipleTitle": "Unsaved notes", "description": "Would you like to save your changes before continuing?", "save": "Save", "saveAll": "Save all", "discard": "Don't save", "cancel": "Cancel" },
   "settings": { "theme": "Theme", "system": "System", "light": "Light", "dark": "Dark", "language": "Language", "turkish": "Turkish", "english": "English" }
 }
