@@ -56,7 +56,7 @@ export const Image = Node.create<MediaOptions>({
   addOptions() { return { noteId: "" }; },
   addAttributes() {
     return {
-      src: { default: null }, alt: { default: null }, width: { default: null },
+      src: { default: null }, alt: { default: null }, title: { default: null }, width: { default: null },
       height: { default: null }, loading: { default: null },
     };
   },

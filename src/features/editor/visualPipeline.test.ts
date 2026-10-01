@@ -59,7 +59,7 @@ describe("visualPipeline", () => {
   it("round-trips media blocks and nested sources", () => {
     const inner = '<img src="./assets/a.png" alt="A" title="Title" width="50%" class="hero" data-x="1">' +
       '<audio src="./assets/a.mp3" controls loop muted class="sound" data-x="2"><source src="./assets/b.ogg" type="audio/ogg" data-codec="vorbis"></audio>' +
-      '<video src="./assets/v.mp4" controls poster="./assets/poster.png" autoplay id="clip" style="width: 50%"><source src="./assets/v.webm" type="video/webm" media="screen"></video>';
+      '<video src="./assets/v.mp4" controls poster="./assets/poster.png" autoplay id="clip" style="width: 50%"><source src="./assets/v.webm" type="video/webm" media="screen" srcset="./assets/v-small.webm 1x, ./assets/v.webm 2x" sizes="(max-width: 600px) 100vw, 600px"></video>';
     const result = roundTrip(inner);
     const container = document.createElement("div");
     container.innerHTML = result;
@@ -75,6 +75,10 @@ describe("visualPipeline", () => {
     expect(container.querySelector("video")?.getAttribute("poster")).toBe("./assets/poster.png");
     expect(container.querySelector("video")?.hasAttribute("autoplay")).toBe(true);
     expect(container.querySelector("video source")?.getAttribute("media")).toBe("screen");
+    expect(container.querySelector("video source")?.getAttribute("src")).toBe("./assets/v.webm");
+    expect(container.querySelector("video source")?.getAttribute("type")).toBe("video/webm");
+    expect(container.querySelector("video source")?.getAttribute("srcset")).toBe("./assets/v-small.webm 1x, ./assets/v.webm 2x");
+    expect(container.querySelector("video source")?.getAttribute("sizes")).toBe("(max-width: 600px) 100vw, 600px");
     expect(result).not.toContain("htnote-raw");
   });
 
