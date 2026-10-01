@@ -77,13 +77,19 @@ export async function deleteRecoveryDraft(id: string) {
 }
 
 export function useDraftAutosave() {
-  useEffect(() => useTabsStore.subscribe((state, previous) => {
-    const old = new Map(previous.tabs.map((tab) => [tab.noteId, tab.doc]));
-    for (const tab of state.tabs) {
-      const before = old.get(tab.noteId);
-      if (tab.doc.draft !== before?.draft || tab.doc.dirty !== before?.dirty || tab.doc.base !== before?.base) schedule(tab.noteId);
-      old.delete(tab.noteId);
-    }
-    for (const id of old.keys()) cancelTimer(id);
-  }), []);
+  useEffect(() => {
+    const unsubscribe = useTabsStore.subscribe((state, previous) => {
+      const old = new Map(previous.tabs.map((tab) => [tab.noteId, tab.doc]));
+      for (const tab of state.tabs) {
+        const before = old.get(tab.noteId);
+        if (tab.doc.draft !== before?.draft || tab.doc.dirty !== before?.dirty || tab.doc.base !== before?.base) schedule(tab.noteId);
+        old.delete(tab.noteId);
+      }
+      for (const id of old.keys()) cancelTimer(id);
+    });
+    return () => {
+      unsubscribe();
+      for (const id of timers.keys()) cancelTimer(id);
+    };
+  }, []);
 }

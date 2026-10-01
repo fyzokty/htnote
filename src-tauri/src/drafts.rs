@@ -77,19 +77,46 @@ mod tests {
         let dir = root.path().join("drafts");
         let outside = root.path().join("keep.json");
         fs::write(&outside, "keep").unwrap();
+        fs::create_dir_all(&dir).unwrap();
+        let unrelated = dir.join("unrelated.txt");
+        fs::write(&unrelated, "keep here").unwrap();
         let id = Uuid::new_v4();
         let mut draft = DraftData { id, html: "one".into(), css: "".into(), js: "".into(), base_hash: "hash".into(), saved_at: Utc::now() };
         write_draft_in(&dir, &draft).unwrap();
+        assert_eq!(read_draft_in(&dir, id).unwrap().html, "one");
         draft.html = "two".into();
         write_draft_in(&dir, &draft).unwrap();
-        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 2);
         fs::write(dir.join("broken.json"), "{").unwrap();
         assert_eq!(read_draft_in(&dir, id).unwrap(), draft);
         assert_eq!(list_drafts_in(&dir).unwrap(), vec![draft]);
         delete_draft_in(&dir, id).unwrap();
         assert!(list_drafts_in(&dir).unwrap().is_empty());
         assert_eq!(fs::read_to_string(outside).unwrap(), "keep");
+        assert_eq!(fs::read_to_string(unrelated).unwrap(), "keep here");
         assert!(Uuid::parse_str("../../keep").is_err());
         assert!(serde_json::from_value::<Uuid>(serde_json::json!("../../keep")).is_err());
+    }
+
+    #[test]
+    fn rejected_id_and_failed_write_leave_existing_files_untouched() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = root.path().join("drafts");
+        let outside = root.path().join("keep.json");
+        fs::write(&outside, "keep").unwrap();
+        let invalid: Result<Uuid, _> = serde_json::from_value(serde_json::json!("../../keep"));
+        assert!(invalid.is_err());
+        assert_eq!(fs::read_to_string(&outside).unwrap(), "keep");
+        assert!(!dir.exists());
+
+        fs::create_dir(&dir).unwrap();
+        let id = Uuid::new_v4();
+        let draft = DraftData { id, html: "new".into(), css: "".into(), js: "".into(), base_hash: "hash".into(), saved_at: Utc::now() };
+        let destination = path_in(&dir, id);
+        fs::create_dir(&destination).unwrap();
+        assert!(write_draft_in(&dir, &draft).is_err());
+        assert!(destination.is_dir());
+        assert_eq!(fs::read_dir(&dir).unwrap().count(), 1);
+        assert_eq!(fs::read_to_string(outside).unwrap(), "keep");
     }
 }

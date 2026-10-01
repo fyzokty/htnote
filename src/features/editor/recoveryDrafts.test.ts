@@ -42,4 +42,26 @@ describe("draft autosave", () => {
     expect(handler).toHaveBeenCalledWith("delete_draft", { id: "a" });
     hook.unmount();
   });
+
+  it.each(["clean", "discard", "unmount"])("cancels a pending write on %s", async (reason) => {
+    vi.useFakeTimers();
+    const handler = vi.fn(() => undefined);
+    mockIPC(handler);
+    const hook = renderHook(() => useDraftAutosave());
+    const store = useTabsStore.getState();
+    act(() => {
+      store.openNote("a");
+      store.enterEdit("a", { html: "old", css: "", js: "", contentHash: "hash" }, "code");
+      store.updateDraft("a", { html: "new" });
+    });
+    await act(async () => { await vi.advanceTimersByTimeAsync(4000); });
+    if (reason === "unmount") hook.unmount();
+    else act(() => {
+      if (reason === "discard") store.cancelEdit("a");
+      else store.updateDraft("a", { html: "old" });
+    });
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    expect(handler).not.toHaveBeenCalledWith("write_draft", expect.anything());
+    hook.unmount();
+  });
 });
