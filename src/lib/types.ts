@@ -71,6 +71,14 @@ export interface SaveNoteResult {
   contentHash: string;
 }
 
+export type AssetKind = "image" | "audio" | "video" | "file";
+
+export interface AssetInfo {
+  relPath: string;
+  kind: AssetKind;
+  mime: string;
+}
+
 export interface PreviewDraftPayload {
   html: string;
   css: string;

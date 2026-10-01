@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { AppInfo, NoteData, PreviewDraftPayload, RecoveryDraft, SaveNotePayload, SaveNoteResult, Settings, SettingsPatch, TreeNode, WriteDraftPayload } from "@/lib/types";
+import type { AppInfo, AssetInfo, NoteData, PreviewDraftPayload, RecoveryDraft, SaveNotePayload, SaveNoteResult, Settings, SettingsPatch, TreeNode, WriteDraftPayload } from "@/lib/types";
 
 export const ipc = {
   appInfo(): Promise<AppInfo> {
@@ -26,6 +26,12 @@ export const ipc = {
   },
   saveNote(id: string, payload: SaveNotePayload): Promise<SaveNoteResult> {
     return invoke<SaveNoteResult>("save_note", { id, payload: { ...payload, css: payload.css ?? "", js: payload.js ?? "" } });
+  },
+  copyAsset(noteId: string, sourcePath: string): Promise<AssetInfo> {
+    return invoke<AssetInfo>("copy_asset", { noteId, sourcePath });
+  },
+  saveAssetBytes(noteId: string, suggestedName: string, bytes: Uint8Array): Promise<AssetInfo> {
+    return invoke<AssetInfo>("save_asset_bytes", { noteId, suggestedName, bytes: Array.from(bytes) });
   },
   setPreviewDraft(id: string, payload: PreviewDraftPayload): Promise<number> {
     return invoke<number>("set_preview_draft", { id, ...payload });

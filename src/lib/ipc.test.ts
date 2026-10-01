@@ -43,6 +43,18 @@ describe("ipc.saveNote", () => {
   });
 });
 
+describe("ipc asset commands", () => {
+  it("maps copy and byte save arguments to Tauri commands", async () => {
+    const result = { relPath: "./assets/resim.png", kind: "image", mime: "image/png" };
+    const handler = vi.fn(() => result);
+    mockIPC(handler);
+    await expect(ipc.copyAsset("note-id", "C:/resim.png")).resolves.toEqual(result);
+    expect(handler).toHaveBeenCalledWith("copy_asset", { noteId: "note-id", sourcePath: "C:/resim.png" });
+    await expect(ipc.saveAssetBytes("note-id", "resim.png", new Uint8Array([0, 127, 255]))).resolves.toEqual(result);
+    expect(handler).toHaveBeenCalledWith("save_asset_bytes", { noteId: "note-id", suggestedName: "resim.png", bytes: [0, 127, 255] });
+  });
+});
+
 describe("ipc preview draft commands", () => {
   it("sends draft content and clear id", async () => {
     const handler = vi.fn((command: string) => command === "set_preview_draft" ? 4 : undefined);

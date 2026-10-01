@@ -4,6 +4,7 @@ use crate::error::AppError;
 use crate::drafts::{self, DraftData};
 use crate::index::scan::{self, TreeNode};
 use crate::notes::create;
+use crate::notes::asset::{self, AssetInfo};
 use crate::notes::read::{self, NoteData};
 use crate::notes::rename;
 use crate::notes::save::{self, SaveNoteInput, SaveNoteOutput};
@@ -90,6 +91,22 @@ pub async fn save_note(app: tauri::AppHandle, id: uuid::Uuid, payload: SaveNoteI
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
         save_note_in_state(&state, id, payload, |dir, input| save::save_note_dir(dir, input, chrono::Utc::now()))
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn copy_asset(app: tauri::AppHandle, note_id: uuid::Uuid, source_path: String) -> Result<AssetInfo, AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = resolve_note_dir(&app.state::<AppState>(), note_id)?;
+        asset::copy_asset(&dir, std::path::Path::new(&source_path))
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn save_asset_bytes(app: tauri::AppHandle, note_id: uuid::Uuid, suggested_name: String, bytes: Vec<u8>) -> Result<AssetInfo, AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = resolve_note_dir(&app.state::<AppState>(), note_id)?;
+        asset::save_asset_bytes(&dir, &suggested_name, &bytes)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
 

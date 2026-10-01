@@ -17,6 +17,8 @@ pub enum AppError {
     InvalidMove(String),
     #[error("Path outside root: {0}")]
     PathOutsideRoot(String),
+    #[error("Payload too large: {0} bytes")]
+    PayloadTooLarge(usize),
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
     #[error("JSON error: {0}")]
@@ -35,6 +37,7 @@ impl AppError {
             Self::InvalidName(_) => "INVALID_NAME",
             Self::InvalidMove(_) => "INVALID_MOVE",
             Self::PathOutsideRoot(_) => "PATH_OUTSIDE_ROOT",
+            Self::PayloadTooLarge(_) => "PAYLOAD_TOO_LARGE",
             Self::Io(_) => "IO_ERROR",
             Self::Json(_) => "JSON_ERROR",
             Self::Internal(_) => "INTERNAL",
@@ -80,6 +83,7 @@ mod tests {
                 "JSON_ERROR",
             ),
             (AppError::Internal("failed".into()), "INTERNAL"),
+            (AppError::PayloadTooLarge(52_428_801), "PAYLOAD_TOO_LARGE"),
         ];
 
         for (error, code) in cases {
