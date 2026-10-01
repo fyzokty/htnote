@@ -23,7 +23,7 @@ describe("note bridge", () => {
     vi.spyOn(window.parent, "postMessage").mockImplementation(messages);
     window.eval(source);
     window.dispatchEvent(new Event("load"));
-    expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_READY", noteId: "123e4567-e89b-12d3-a456-426614174000" }, "*");
+    expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_READY", noteId: "123e4567-e89b-12d3-a456-426614174000", path: location.pathname }, "*");
   });
 
   beforeEach(() => {
@@ -35,7 +35,7 @@ describe("note bridge", () => {
 
   it("exposes frozen note metadata within the size limit", () => {
     expect(Object.isFrozen((window as unknown as { htnote: object }).htnote)).toBe(true);
-    expect(new TextEncoder().encode(source).length).toBeLessThan(5120);
+    expect(new TextEncoder().encode(source).length).toBeLessThan(6144);
   });
 
   it("routes note and external links, blocks unsafe links, and leaves anchors alone", () => {
@@ -136,5 +136,21 @@ describe("note bridge", () => {
     expect(Array.from(document.querySelectorAll("p mark")).map((mark) => mark.textContent)).toEqual(["Iı"]);
     hostMessage({ type: "HTNOTE_HIGHLIGHT", query: "" });
     expect(document.querySelector("p")?.textContent).toBe("I\u0307i İi Iı");
+  });
+
+  it("restores scroll only from the parent and reports scroll changes", () => {
+    const scrollTo = vi.spyOn(window, "scrollTo").mockImplementation(() => {});
+    const frame = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
+    hostMessage({ type: "HTNOTE_SCROLL_RESTORE", scrollY: 42 }, null);
+    expect(scrollTo).not.toHaveBeenCalled();
+    hostMessage({ type: "HTNOTE_SCROLL_RESTORE", scrollY: 42, token: "document-token" });
+    expect(scrollTo).toHaveBeenCalledWith(0, 42);
+    window.dispatchEvent(new Event("scroll"));
+    expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_SCROLL", scrollY: window.scrollY, path: location.pathname, token: "document-token" }, "*");
+    frame.mockRestore();
+    scrollTo.mockRestore();
   });
 });

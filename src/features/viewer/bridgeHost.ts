@@ -14,7 +14,8 @@ export type BridgeMessage =
   | { type: "HTNOTE_READY" }
   | { type: "HTNOTE_OPEN_NOTE"; id: string }
   | { type: "HTNOTE_OPEN_EXTERNAL"; url: string }
-  | { type: "HTNOTE_SHORTCUT"; input: KeyInput };
+  | { type: "HTNOTE_SHORTCUT"; input: KeyInput }
+  | { type: "HTNOTE_SCROLL"; scrollY: number };
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const frames = new Map<string, Window>();
@@ -52,6 +53,9 @@ export function parseBridgeMessage(event: MessageEvent, expectedWindow: Window, 
       return { type: "HTNOTE_SHORTCUT", input: {
         key: data.key, ctrl: data.ctrl, shift: data.shift, alt: data.alt, meta: data.meta,
       } };
+    case "HTNOTE_SCROLL":
+      return typeof data.scrollY === "number" && Number.isFinite(data.scrollY) && data.scrollY >= 0
+        ? { type: "HTNOTE_SCROLL", scrollY: data.scrollY } : null;
     default:
       return null;
   }
@@ -113,6 +117,8 @@ export function handleBridgeMessage(event: MessageEvent) {
       if (shortcut) dispatchShortcut(shortcut);
       break;
     }
+    case "HTNOTE_SCROLL":
+      break;
   }
 }
 

@@ -10,6 +10,7 @@ use crate::index::scan::IndexedNote;
 use crate::settings::{self, Settings, SettingsPatch};
 use crate::state::AppState;
 use tauri::{Manager, State};
+use std::sync::atomic::Ordering;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -112,6 +113,25 @@ fn resolve_note_dir(state: &AppState, id: uuid::Uuid) -> Result<std::path::PathB
         .map_err(|error| AppError::Internal(error.to_string()))?
         .resolve(id)
         .ok_or_else(|| AppError::NotFound(id.to_string()))
+}
+
+fn set_draft(state: &AppState, id: uuid::Uuid, html: String, css: String, js: String) -> Result<u64, AppError> {
+    resolve_note_dir(state, id)?;
+    let mut drafts = state.preview_drafts.lock().map_err(|error| AppError::Internal(error.to_string()))?;
+    let rev = state.preview_revision.fetch_add(1, Ordering::Relaxed) + 1;
+    drafts.insert(id, crate::state::PreviewDraft { rev, html, css, js });
+    Ok(rev)
+}
+
+#[tauri::command]
+pub fn set_preview_draft(state: State<'_, AppState>, id: uuid::Uuid, html: String, css: String, js: String) -> Result<u64, AppError> {
+    set_draft(&state, id, html, css, js)
+}
+
+#[tauri::command]
+pub fn clear_preview_draft(state: State<'_, AppState>, id: uuid::Uuid) -> Result<(), AppError> {
+    state.preview_drafts.lock().map_err(|error| AppError::Internal(error.to_string()))?.remove(&id);
+    Ok(())
 }
 
 #[tauri::command]
@@ -268,6 +288,21 @@ mod tests {
         let state = AppState::new(root.path().to_path_buf(), Settings::default(), root.path().to_path_buf());
         let id = uuid::Uuid::new_v4();
         assert!(matches!(resolve_note_dir(&state, id), Err(AppError::NotFound(value)) if value == id.to_string()));
+    }
+
+    #[test]
+    fn preview_revisions_increase_and_missing_note_is_rejected() {
+        let root = tempfile::tempdir().unwrap();
+        let (_, indexed) = create_note_in(root.path(), "", Some("Preview")).unwrap();
+        let id = indexed.metadata.id;
+        let state = AppState::new(root.path().to_path_buf(), Settings::default(), root.path().to_path_buf());
+        state.note_index.write().unwrap().upsert(indexed);
+        assert!(matches!(set_draft(&state, uuid::Uuid::new_v4(), "".into(), "".into(), "".into()), Err(AppError::NotFound(_))));
+        let first = set_draft(&state, id, "one".into(), "".into(), "".into()).unwrap();
+        state.preview_drafts.lock().unwrap().remove(&id);
+        let second = set_draft(&state, id, "two".into(), "".into(), "".into()).unwrap();
+        assert!(second > first);
+        assert_eq!(state.preview_drafts.lock().unwrap()[&id].html, "two");
     }
 
     #[test]

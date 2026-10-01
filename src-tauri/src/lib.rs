@@ -40,7 +40,7 @@ pub fn run() {
             if let Err(error) = initial_scan(&state) {
                 eprintln!("Initial note scan failed: {error}");
             }
-            let origin = note_server::start(state.note_index.clone())?;
+            let origin = note_server::start(state.note_index.clone(), state.preview_drafts.clone())?;
             *state.note_origin.write().map_err(|error| error::AppError::Internal(error.to_string()))? = origin;
             app.manage(state);
             let managed = app.state::<state::AppState>();
@@ -58,6 +58,8 @@ pub fn run() {
             commands::get_note_tree,
             commands::read_note,
             commands::save_note,
+            commands::set_preview_draft,
+            commands::clear_preview_draft,
             commands::create_note,
             commands::create_folder,
             commands::rename_note,
