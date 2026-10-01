@@ -39,6 +39,21 @@ impl NoteIndex {
     }
 
     pub fn upsert(&mut self, note: IndexedNote) {
+        fn update(nodes: &mut [TreeNode], note: &IndexedNote) {
+            for node in nodes {
+                match node {
+                    TreeNode::Folder { children, .. } => update(children, note),
+                    TreeNode::Note { id, title, is_favorite, tags, updated_at, .. } if *id == note.metadata.id => {
+                        *title = note.metadata.title.clone();
+                        *is_favorite = note.metadata.is_favorite;
+                        *tags = note.metadata.tags.clone();
+                        *updated_at = note.metadata.updated_at;
+                    }
+                    _ => (),
+                }
+            }
+        }
+        update(&mut self.tree, &note);
         self.by_id.insert(note.metadata.id, note);
     }
 

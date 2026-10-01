@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use std::sync::{Mutex, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
 
 use crate::settings::Settings;
 use crate::index::note_index::NoteIndex;
@@ -8,7 +8,8 @@ pub struct AppState {
     pub config_dir: PathBuf,
     pub settings: Mutex<Settings>,
     pub root_dir: RwLock<PathBuf>,
-    pub note_index: RwLock<NoteIndex>,
+    pub note_index: Arc<RwLock<NoteIndex>>,
+    pub watcher: Mutex<Option<crate::watcher::WatcherManager>>,
 }
 
 impl AppState {
@@ -16,8 +17,9 @@ impl AppState {
         Self {
             config_dir,
             settings: Mutex::new(settings),
-            note_index: RwLock::new(NoteIndex::new(root_dir.clone())),
+            note_index: Arc::new(RwLock::new(NoteIndex::new(root_dir.clone()))),
             root_dir: RwLock::new(root_dir),
+            watcher: Mutex::new(None),
         }
     }
 }

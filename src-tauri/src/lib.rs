@@ -5,6 +5,7 @@ pub mod index;
 pub mod notes;
 mod settings;
 mod state;
+mod watcher;
 
 use tauri::Manager;
 
@@ -29,6 +30,10 @@ pub fn run() {
                 eprintln!("Initial note scan failed: {error}");
             }
             app.manage(state);
+            let managed = app.state::<state::AppState>();
+            if let Err(error) = watcher::start_for_app(&managed, app.handle().clone()) {
+                eprintln!("File watcher startup failed: {error}");
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
