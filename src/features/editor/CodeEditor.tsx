@@ -27,7 +27,11 @@ export function CodeEditor({ html, css, js, onChange, initialTab = "html" }: Cod
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const statesRef = useRef<Record<CodeTab, EditorState> | null>(null);
-  const themeRef = useRef(new Compartment());
+  const themesRef = useRef<Record<CodeTab, Compartment>>({
+    html: new Compartment(),
+    css: new Compartment(),
+    js: new Compartment(),
+  });
 
   useEffect(() => { callbackRef.current = onChange; }, [onChange]);
 
@@ -37,9 +41,9 @@ export function CodeEditor({ html, css, js, onChange, initialTab = "html" }: Cod
       if (update.docChanged) callbackRef.current(codeChange(activeRef.current, update.state.doc.toString()));
     });
     const states = {
-      html: createCodeState("html", html, themeRef.current, mode, [listener]),
-      css: createCodeState("css", css, themeRef.current, mode, [listener]),
-      js: createCodeState("js", js, themeRef.current, mode, [listener]),
+      html: createCodeState("html", html, themesRef.current.html, mode, [listener]),
+      css: createCodeState("css", css, themesRef.current.css, mode, [listener]),
+      js: createCodeState("js", js, themesRef.current.js, mode, [listener]),
     };
     statesRef.current = states;
     const view = new EditorView({ state: states[activeRef.current], parent: hostRef.current });
@@ -73,9 +77,9 @@ export function CodeEditor({ html, css, js, onChange, initialTab = "html" }: Cod
     if (!states || !view) return;
     for (const tab of tabs) {
       const current = tab === activeRef.current ? view.state : states[tab];
-      const updated = current.update({ effects: themeRef.current.reconfigure(codeTheme(mode)) }).state;
+      const updated = current.update({ effects: themesRef.current[tab].reconfigure(codeTheme(mode)) }).state;
       states[tab] = updated;
-      if (tab === activeRef.current) view.dispatch({ effects: themeRef.current.reconfigure(codeTheme(mode)) });
+      if (tab === activeRef.current) view.setState(updated);
     }
   }, [mode]);
 

@@ -1,5 +1,5 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SplitView } from "@/features/editor/SplitView";
@@ -17,6 +17,15 @@ beforeEach(() => {
 });
 
 describe("SplitView", () => {
+  it("ayarlar yüklenene kadar önizleme düğmesini devre dışı bırakır", () => {
+    useSettingsStore.setState({ settings: null, status: "loading" });
+    render(<SplitView editor={<div>Editör</div>}><div>Önizleme</div></SplitView>);
+    const button = screen.getByRole("button", { name: "Canlı önizleme" });
+    expect(button).toBeDisabled();
+    act(() => useSettingsStore.setState({ settings: { ...settings }, status: "ready" }));
+    expect(button).toBeEnabled();
+  });
+
   it("kaydedilmiş oranı yükler ve sürükleme sonunda sınırlanmış oranı kaydeder", async () => {
     const patches: unknown[] = [];
     mockIPC((command, args) => {

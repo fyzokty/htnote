@@ -49,7 +49,7 @@ export function SplitView({ editor, children }: SplitViewProps) {
     <section className="htnote-split-view" aria-label={t("editor.split.label")}
       style={{ display: "flex", flexDirection: "column", minWidth: 0, height: "100%" }}>
       <div style={{ display: "flex", justifyContent: "flex-end", padding: "0.5rem", borderBottom: "1px solid var(--app-border)" }}>
-        <button type="button" aria-pressed={preview} onClick={() => {
+        <button type="button" disabled={!settings} aria-pressed={preview} onClick={() => {
           const next = !preview;
           if (settings) void update({ editorLivePreview: next }).catch(() => {});
         }}>{t("editor.split.livePreview")}</button>

@@ -1,8 +1,9 @@
 import { Compartment } from "@codemirror/state";
 import { undoDepth } from "@codemirror/commands";
+import { EditorView } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
 
-import { codeChange, createCodeState } from "@/features/editor/codeState";
+import { codeChange, codeTheme, createCodeState } from "@/features/editor/codeState";
 
 describe("codeState", () => {
   it("sekme durumları arasında içerik, seçim ve geri alma geçmişi korunur", () => {
@@ -20,5 +21,20 @@ describe("codeState", () => {
 
   it("yalnızca değişen sekme için kısmi güncelleme üretir", () => {
     expect(codeChange("css", "body {}" )).toEqual({ css: "body {}" });
+  });
+
+  it("her sekmenin temasını kendi durumunda yeniden yapılandırır", () => {
+    const htmlTheme = new Compartment();
+    const cssTheme = new Compartment();
+    const html = createCodeState("html", "<p>ilk</p>", htmlTheme, "light");
+    const css = createCodeState("css", "p {}", cssTheme, "light");
+
+    const darkHtml = html.update({ effects: htmlTheme.reconfigure(codeTheme("dark")) }).state;
+    expect(darkHtml.facet(EditorView.darkTheme)).toBe(true);
+    expect(css.facet(EditorView.darkTheme)).toBe(false);
+
+    const darkCss = css.update({ effects: cssTheme.reconfigure(codeTheme("dark")) }).state;
+    expect(darkHtml.facet(EditorView.darkTheme)).toBe(true);
+    expect(darkCss.facet(EditorView.darkTheme)).toBe(true);
   });
 });
