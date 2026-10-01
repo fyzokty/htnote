@@ -17,6 +17,8 @@ export function LivePreview({ noteId, html, css, js }: LivePreviewProps) {
   const scrollY = useRef(0);
   const mounted = useRef(false);
   const draftNotes = useRef(new Set<string>());
+  const activeNoteId = useRef(noteId);
+  const frameSrc = src?.startsWith(`${getNoteOrigin()}/${encodeURIComponent(noteId)}/__draft/`) ? src : undefined;
 
   useEffect(() => {
     const frame = frameRef.current?.contentWindow;
@@ -34,17 +36,26 @@ export function LivePreview({ noteId, html, css, js }: LivePreviewProps) {
   }, []);
 
   useEffect(() => {
+    const noteChanged = activeNoteId.current !== noteId;
+    if (noteChanged) {
+      void ipc.clearPreviewDraft(activeNoteId.current).catch(() => {});
+      activeNoteId.current = noteId;
+      scrollY.current = 0;
+      setSrc(undefined);
+    }
     draftNotes.current.add(noteId);
     let current = true;
-    const timer = window.setTimeout(() => {
+    const updateDraft = () => {
       void ipc.setPreviewDraft(noteId, { html, css, js }).then((rev) => {
         if (current) setSrc(noteUrl(noteId, `__draft/${rev}/index.html`));
-        else if (!mounted.current) void ipc.clearPreviewDraft(noteId).catch(() => {});
+        else if (!mounted.current || activeNoteId.current !== noteId) void ipc.clearPreviewDraft(noteId).catch(() => {});
       }).catch(() => {});
-    }, 300);
+    };
+    const timer = noteChanged ? undefined : window.setTimeout(updateDraft, 300);
+    if (noteChanged) updateDraft();
     return () => {
       current = false;
-      window.clearTimeout(timer);
+      if (timer !== undefined) window.clearTimeout(timer);
     };
   }, [noteId, html, css, js]);
 
@@ -54,8 +65,7 @@ export function LivePreview({ noteId, html, css, js }: LivePreviewProps) {
       if (!frame) return;
       const message = parseBridgeMessage(event, frame, getNoteOrigin());
       // Aynı iframe yeni revizyonda yeniden kullanılır; eski belgeden kuyrukta kalan olaylar yok sayılır.
-      if (!message || !src || !src.startsWith(`${getNoteOrigin()}/${encodeURIComponent(noteId)}/__draft/`)
-        || event.data?.path !== new URL(src).pathname) return;
+      if (!message || !frameSrc || event.data?.path !== new URL(frameSrc).pathname) return;
       if (message?.type === "HTNOTE_SCROLL") scrollY.current = message.scrollY;
       if (message?.type === "HTNOTE_READY" && event.data?.noteId === noteId) {
         frame.postMessage({ type: "HTNOTE_SCROLL_RESTORE", scrollY: scrollY.current }, getNoteOrigin());
@@ -63,7 +73,7 @@ export function LivePreview({ noteId, html, css, js }: LivePreviewProps) {
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [noteId, src]);
+  }, [noteId, frameSrc]);
 
-  return <iframe ref={frameRef} title="Live preview" src={src} sandbox={NOTE_IFRAME_SANDBOX} referrerPolicy="no-referrer" className="h-full w-full border-0" />;
+  return <iframe ref={frameRef} title="Live preview" src={frameSrc} sandbox={NOTE_IFRAME_SANDBOX} referrerPolicy="no-referrer" className="h-full w-full border-0" />;
 }

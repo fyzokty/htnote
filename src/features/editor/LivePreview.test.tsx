@@ -44,26 +44,28 @@ it("debounces drafts, updates revision, restores scroll and clears on unmount", 
   expect(clear).toHaveBeenCalledWith(id);
 });
 
-it("keeps drafts during note changes and clears pending updates after unmount", async () => {
+it("clears the old frame and draft immediately when the note changes", async () => {
   vi.useFakeTimers();
   initNoteOrigin(origin);
   let resolveFirst!: (revision: number) => void;
+  let resolveSecond!: (revision: number) => void;
   const set = vi.spyOn(ipc, "setPreviewDraft")
     .mockImplementationOnce(() => new Promise((resolve) => { resolveFirst = resolve; }))
-    .mockResolvedValueOnce(2);
+    .mockImplementationOnce(() => new Promise((resolve) => { resolveSecond = resolve; }));
   const clear = vi.spyOn(ipc, "clearPreviewDraft").mockResolvedValue();
   const otherId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
   const view = render(<LivePreview noteId={id} html="one" css="" js="" />);
   await act(async () => { vi.advanceTimersByTime(300); });
   view.rerender(<LivePreview noteId={otherId} html="two" css="" js="" />);
   const switchingFrame = screen.getByTitle("Live preview") as HTMLIFrameElement;
+  expect(switchingFrame.getAttribute("src")).toBeNull();
+  expect(clear).toHaveBeenCalledWith(id);
+  expect(set).toHaveBeenCalledWith(otherId, { html: "two", css: "", js: "" });
   const switchingPost = vi.spyOn(switchingFrame.contentWindow!, "postMessage").mockImplementation(() => {});
   window.dispatchEvent(new MessageEvent("message", { source: switchingFrame.contentWindow, origin, data: { type: "HTNOTE_SCROLL", scrollY: 444, path: `/${id}/__draft/1/index.html` } }));
   window.dispatchEvent(new MessageEvent("message", { source: switchingFrame.contentWindow, origin, data: { type: "HTNOTE_READY", noteId: id, path: `/${id}/__draft/1/index.html` } }));
   expect(switchingPost).not.toHaveBeenCalled();
-  expect(clear).not.toHaveBeenCalled();
-  await act(async () => { vi.advanceTimersByTime(300); await Promise.resolve(); });
-  expect(set).toHaveBeenCalledWith(otherId, { html: "two", css: "", js: "" });
+  await act(async () => { resolveSecond(2); await Promise.resolve(); });
   expect((screen.getByTitle("Live preview") as HTMLIFrameElement).src).toBe(`${origin}/${otherId}/__draft/2/index.html`);
   const frame = screen.getByTitle("Live preview") as HTMLIFrameElement;
   const post = vi.spyOn(frame.contentWindow!, "postMessage").mockImplementation(() => {});
@@ -77,6 +79,21 @@ it("keeps drafts during note changes and clears pending updates after unmount", 
   view.unmount();
   expect(clear).toHaveBeenCalledWith(id);
   expect(clear).toHaveBeenCalledWith(otherId);
+});
+
+it("leaves the frame blank when the new note draft fails", async () => {
+  vi.useFakeTimers();
+  initNoteOrigin(origin);
+  vi.spyOn(ipc, "setPreviewDraft").mockResolvedValueOnce(1).mockRejectedValueOnce(new Error("failed"));
+  vi.spyOn(ipc, "clearPreviewDraft").mockResolvedValue();
+  const otherId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  const view = render(<LivePreview noteId={id} html="one" css="" js="" />);
+  await act(async () => { vi.advanceTimersByTime(300); await Promise.resolve(); });
+  expect((screen.getByTitle("Live preview") as HTMLIFrameElement).src).toBe(`${origin}/${id}/__draft/1/index.html`);
+  view.rerender(<LivePreview noteId={otherId} html="two" css="" js="" />);
+  await act(async () => { await Promise.resolve(); });
+  expect((screen.getByTitle("Live preview") as HTMLIFrameElement).getAttribute("src")).toBeNull();
+  view.unmount();
 });
 
 it("clears a draft that finishes after unmount", async () => {
