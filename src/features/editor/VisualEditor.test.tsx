@@ -1,9 +1,11 @@
+import { createRef } from "react";
 import { Editor } from "@tiptap/core";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createVisualExtensions } from "@/features/editor/extensions";
 import { VisualEditor } from "@/features/editor/VisualEditor";
+import type { VisualEditorHandle } from "@/features/editor/VisualEditor";
 
 function normalized(html: string): string {
   const container = document.createElement("div");
@@ -41,6 +43,19 @@ describe("VisualEditor", () => {
     act(() => { fireEvent.change(screen.getByRole("combobox"), { target: { value: "p" } }); });
     view.unmount();
     expect(onChange).toHaveBeenCalledTimes(2);
+  });
+
+  it("flushes a pending change before saving or switching modes", () => {
+    vi.useFakeTimers();
+    const onChange = vi.fn();
+    const ref = createRef<VisualEditorHandle>();
+    render(<VisualEditor ref={ref} initialInner="<p>First</p>" onChange={onChange} />);
+    act(() => fireEvent.change(screen.getByRole("combobox"), { target: { value: "h2" } }));
+    expect(onChange).not.toHaveBeenCalled();
+    act(() => ref.current?.flush());
+    expect(onChange).toHaveBeenCalledWith("<h2>First</h2>");
+    act(() => vi.advanceTimersByTime(200));
+    expect(onChange).toHaveBeenCalledTimes(1);
   });
 
   it("does not render when visual editing is unavailable", () => {

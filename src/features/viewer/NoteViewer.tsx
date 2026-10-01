@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Pencil, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { NoteEditor } from "@/features/editor/NoteEditor";
+import { useEditSession } from "@/features/editor/useEditSession";
 import { nextMounted } from "@/features/viewer/lru";
 import { registerFrame } from "@/features/viewer/bridgeHost";
 import { NOTE_IFRAME_SANDBOX, noteUrl } from "@/lib/noteUrl";
+import { useShortcut } from "@/lib/shortcuts/useShortcut";
 import type { NoteNode, TreeNode } from "@/lib/types";
 import { useTabsStore } from "@/stores/tabsStore";
 import { useTreeStore } from "@/stores/treeStore";
@@ -59,6 +62,9 @@ export function NoteViewer() {
   const { t, i18n } = useTranslation();
   const tabs = useTabsStore((state) => state.tabs);
   const activeId = useTabsStore((state) => state.activeId);
+  const session = useEditSession(activeId);
+  useShortcut("toggleEdit", () => { void session.toggleEdit(); });
+  useShortcut("save", () => { void session.save(true); });
   const tree = useTreeStore((state) => state.tree);
   const openIds = tabs.map((tab) => tab.noteId);
   const [cache, setCache] = useState(() => ({ tabs, activeId, mounted: nextMounted([], activeId, openIds) }));
@@ -87,7 +93,7 @@ export function NoteViewer() {
           <div className="flex shrink-0 items-center gap-1">
             <button type="button" disabled aria-label={t("viewer.favorite")} title={t("viewer.favorite")} className="rounded p-2 text-app-muted"><Star className="size-4" aria-hidden /></button>
             <button type="button" disabled aria-label={t("viewer.export")} title={t("viewer.export")} className="rounded p-2 text-app-muted"><Download className="size-4" aria-hidden /></button>
-            <button type="button" disabled className="flex items-center gap-1 rounded bg-app-subtle px-3 py-2 text-sm text-app-muted"><Pencil className="size-4" aria-hidden />{t("viewer.edit")}</button>
+            <button type="button" onClick={() => { void session.toggleEdit(); }} className="flex items-center gap-1 rounded bg-app-subtle px-3 py-2 text-sm text-app-muted"><Pencil className="size-4" aria-hidden />{t("viewer.edit")}</button>
           </div>
         </div>
       )}
@@ -96,7 +102,11 @@ export function NoteViewer() {
         {activeId && !activeNote && <div className="flex h-full items-center justify-center text-app-muted">{t("viewer.notFound")}</div>}
         {openIds.filter((id) => mounted.includes(id)).map((id) => {
           const note = findNote(tree, id);
-          return note && <NoteFrame key={id} id={id} active={id === activeId} title={note.title} />;
+          if (!note) return null;
+          const doc = tabs.find((tab) => tab.noteId === id)?.doc;
+          return doc && doc.mode !== "view" && id === activeId
+            ? <NoteEditor key={id} noteId={id} doc={doc} session={session} />
+            : <NoteFrame key={`${id}:${doc?.lastSavedAt ?? ""}`} id={id} active={id === activeId} title={note.title} />;
         })}
       </div>
     </div>
