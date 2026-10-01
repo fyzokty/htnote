@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { FilePlus2, FolderPlus, Menu, NotebookPen, Search, Settings2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { installUnsavedWindowGuard } from "@/app/unsavedWindowGuard";
 import { UnsavedChangesDialog } from "@/components/ui/UnsavedChangesDialog";
@@ -10,6 +11,7 @@ import { installExternalChangeListener } from "@/features/editor/externalChange"
 import type { RecoveryCandidate } from "@/features/editor/RecoveryDialog";
 import { deleteRecoveryDraft, selectRecoveryCandidates, useDraftAutosave } from "@/features/editor/recoveryDrafts";
 import { extractContent } from "@/features/editor/contentRegion";
+import { getDropHandler, toCssPoint } from "@/features/editor/fileDrop";
 import { setDiscardRecoveryDraftHook } from "@/features/editor/unsavedGuard";
 import { SidebarTree } from "@/features/tree/SidebarTree";
 import { TabBar } from "@/features/tabs/TabBar";
@@ -19,6 +21,7 @@ import { startFsChangeSync } from "@/features/tree/fsChangeSync";
 import { useTreeActions } from "@/features/tree/useTreeActions";
 import { resolveLanguage } from "@/i18n/language";
 import { ipc } from "@/lib/ipc";
+import { onFileDrop } from "@/lib/events";
 import { installShortcutListener } from "@/lib/shortcuts/manager";
 import { formatShortcut } from "@/lib/shortcuts/registry";
 import { useShortcut } from "@/lib/shortcuts/useShortcut";
@@ -62,12 +65,52 @@ export function AppShell() {
   useEffect(() => installShortcutListener(), []);
   useEffect(() => installBridgeHost(), []);
   useEffect(() => {
-    const internals = (window as Window & { __TAURI_INTERNALS__?: { metadata?: { currentWindow?: unknown } } }).__TAURI_INTERNALS__;
-    if (!internals?.metadata?.currentWindow) return;
+    const internals = (window as Window & { __TAURI_INTERNALS__?: { metadata?: { currentWindow?: unknown; currentWebview?: unknown } } }).__TAURI_INTERNALS__;
+    if (!internals?.metadata?.currentWindow || !internals.metadata.currentWebview) return;
     return installUnsavedWindowGuard();
   }, []);
   useEffect(() => startFsChangeSync(), []);
   useEffect(() => installExternalChangeListener(), []);
+  useEffect(() => {
+    const internals = (window as Window & { __TAURI_INTERNALS__?: { metadata?: { currentWindow?: unknown } } }).__TAURI_INTERNALS__;
+    if (!internals?.metadata?.currentWindow) return;
+    let hovered: Element | null = null;
+    let active = true;
+    let eventVersion = 0;
+    const clearHover = () => {
+      hovered?.classList.remove("htnote-drop-target");
+      hovered = null;
+    };
+    const listener = onFileDrop(async (event) => {
+      const version = ++eventVersion;
+      if (!active) return;
+      if (event.type === "leave") { clearHover(); return; }
+      if (!event.position) return;
+      const scale = await getCurrentWindow().scaleFactor().catch(() => 1);
+      if (!active || version !== eventVersion) return;
+      const point = toCssPoint(event.position, scale);
+      const hit = document.elementFromPoint(point.x, point.y);
+      const visual = hit?.closest(".htnote-visual-editor .tiptap");
+      const code = hit?.closest(".htnote-code-host");
+      const tabs = useTabsStore.getState();
+      const doc = tabs.tabs.find((tab) => tab.noteId === tabs.activeId)?.doc;
+      const editor = doc?.mode === "visual" && visual ? "visual" : doc?.mode === "code" && code ? "code" : null;
+      const handler = editor && tabs.activeId ? getDropHandler(tabs.activeId, editor) : undefined;
+      const target = handler ? (visual ?? code ?? null) : null;
+      if (hovered !== target) {
+        clearHover();
+        target?.classList.add("htnote-drop-target");
+        hovered = target;
+      }
+      if (event.type === "drop") {
+        clearHover();
+        if (handler) void handler(event.paths, point);
+        else useUiStore.getState().pushToast({ kind: "info", messageKey: "editor.dropInEditMode" });
+      }
+    });
+    void listener.catch(() => {});
+    return () => { active = false; clearHover(); void listener.then((unlisten) => unlisten(), () => {}); };
+  }, []);
   useEffect(() => setDiscardRecoveryDraftHook(deleteRecoveryDraft), []);
   useEffect(() => {
     void loadTree().then(() => {

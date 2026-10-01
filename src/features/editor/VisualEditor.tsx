@@ -5,9 +5,12 @@ import { useTranslation } from "react-i18next";
 import { EditorToolbar } from "@/features/editor/EditorToolbar";
 import { NotePicker } from "@/components/ui/NotePicker";
 import { createVisualExtensions } from "@/features/editor/extensions";
+import { fileName, mediaFor, processFilesSequentially, registerDropHandler } from "@/features/editor/fileDrop";
 import { escapeHtml, noteLinkHref } from "@/features/editor/noteLinks";
 import { unwrapRawBlocks, wrapRawBlocks } from "@/features/editor/visualPipeline";
+import { ipc } from "@/lib/ipc";
 import type { FlatNote } from "@/lib/types";
+import { useUiStore } from "@/stores/uiStore";
 
 interface VisualEditorProps {
   noteId?: string;
@@ -83,6 +86,18 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
       lastReported.current = baseline.current;
     }
   }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    return registerDropHandler(noteId, "visual", async (paths, point) => {
+      const target = editor.view.posAtCoords({ left: point.x, top: point.y });
+      if (!target) return;
+      editor.commands.setTextSelection(target.pos);
+      await processFilesSequentially(paths, (path) => ipc.copyAsset(noteId, path),
+        (asset, path) => { editor.commands.insertMedia(mediaFor(asset, fileName(path))); },
+        (path) => useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.dropCopyFailed", params: { name: fileName(path) } }));
+    });
+  }, [editor, noteId]);
 
   useEffect(() => () => { flush(); }, []);
 

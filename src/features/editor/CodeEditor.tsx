@@ -8,9 +8,12 @@ import { useTranslation } from "react-i18next";
 import { NotePicker } from "@/components/ui/NotePicker";
 import { codeChange, codeTheme, createCodeState } from "@/features/editor/codeState";
 import type { CodeChange, CodeTab } from "@/features/editor/codeState";
+import { codeTagFor, fileName, processFilesSequentially, registerDropHandler } from "@/features/editor/fileDrop";
 import { codeNoteLink } from "@/features/editor/noteLinks";
 import { useThemeMode } from "@/hooks/useThemeMode";
+import { ipc } from "@/lib/ipc";
 import type { FlatNote } from "@/lib/types";
+import { useUiStore } from "@/stores/uiStore";
 
 interface CodeEditorProps {
   noteId?: string;
@@ -46,6 +49,26 @@ export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = 
   });
 
   useEffect(() => { callbackRef.current = onChange; }, [onChange]);
+
+  useEffect(() => {
+    if (activeTab !== "html") return;
+    return registerDropHandler(noteId, "code", async (paths, point) => {
+      const view = viewRef.current;
+      if (!view || activeRef.current !== "html") {
+        useUiStore.getState().pushToast({ kind: "info", messageKey: "editor.dropInEditMode" });
+        return;
+      }
+      const position = view.posAtCoords({ x: point.x, y: point.y }) ?? view.state.selection.main.head;
+      view.dispatch({ selection: { anchor: position } });
+      await processFilesSequentially(paths, (path) => ipc.copyAsset(noteId, path),
+        (asset, path) => {
+          const pos = view.state.selection.main.head;
+          const tag = codeTagFor(asset, fileName(path));
+          view.dispatch({ changes: { from: pos, insert: tag }, selection: { anchor: pos + tag.length } });
+        },
+        (path) => useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.dropCopyFailed", params: { name: fileName(path) } }));
+    });
+  }, [noteId, activeTab]);
 
   useEffect(() => {
     if (!hostRef.current) return;
