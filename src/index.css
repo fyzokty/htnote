@@ -35,3 +35,25 @@
   --color-app-accent: var(--app-accent);
   --color-app-accent-text: var(--app-accent-text);
 }
+
+.htnote-visual-editor { color: var(--app-text); background: var(--app-surface); }
+.htnote-editor-toolbar { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.5rem; border-bottom: 1px solid var(--app-border); }
+.htnote-editor-toolbar button, .htnote-editor-toolbar select, .htnote-editor-link input { padding: 0.35rem; border: 1px solid var(--app-border); border-radius: 0.25rem; background: var(--app-surface); color: var(--app-text); }
+.htnote-editor-toolbar button[aria-pressed="true"] { background: var(--app-accent); color: var(--app-accent-text); }
+.htnote-editor-toolbar button:disabled { opacity: 0.4; }
+.htnote-editor-link { display: flex; align-items: center; gap: 0.25rem; }
+.htnote-editor-link [role="alert"] { color: #dc2626; }
+.htnote-visual-editor .tiptap { min-height: 12rem; padding: 1rem 1.5rem; line-height: 1.65; outline: none; }
+.htnote-visual-editor .tiptap p { margin: 0.65em 0; }
+.htnote-visual-editor .tiptap h1, .htnote-visual-editor .tiptap h2, .htnote-visual-editor .tiptap h3, .htnote-visual-editor .tiptap h4, .htnote-visual-editor .tiptap h5, .htnote-visual-editor .tiptap h6 { font-weight: 700; line-height: 1.25; margin: 1em 0 0.5em; }
+.htnote-visual-editor .tiptap h1 { font-size: 2em; } .htnote-visual-editor .tiptap h2 { font-size: 1.5em; } .htnote-visual-editor .tiptap h3 { font-size: 1.25em; }
+.htnote-visual-editor .tiptap ul { list-style: disc; } .htnote-visual-editor .tiptap ol { list-style: decimal; }
+.htnote-visual-editor .tiptap ul, .htnote-visual-editor .tiptap ol { padding-left: 1.5em; margin: 0.75em 0; }
+.htnote-visual-editor .tiptap blockquote { border-left: 3px solid var(--app-border); padding-left: 1em; color: var(--app-muted); }
+.htnote-visual-editor .tiptap pre { overflow: auto; padding: 1em; border-radius: 0.3rem; background: var(--app-subtle); }
+.htnote-visual-editor .tiptap :not(pre) > code { padding: 0.1em 0.3em; background: var(--app-subtle); }
+.htnote-visual-editor .tiptap table { border-collapse: collapse; width: 100%; }
+.htnote-visual-editor .tiptap th, .htnote-visual-editor .tiptap td { border: 1px solid var(--app-border); padding: 0.4em; }
+.htnote-visual-editor .tiptap th { background: var(--app-subtle); }
+.htnote-visual-editor .tiptap hr { border: 0; border-top: 1px solid var(--app-border); margin: 1.5em 0; }
+.htnote-visual-editor .tiptap p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--app-muted); float: left; pointer-events: none; height: 0; }
