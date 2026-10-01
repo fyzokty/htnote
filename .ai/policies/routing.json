@@ -9,19 +9,23 @@
     },
     "implement": {
       "chain": [
-        "gpt-6-sol@medium"
+        "gpt-6-sol@medium",
+        "gemini-3.8-flash-medium",
+        "claude-sonnet-5-5"
       ],
       "writes": true
     },
     "analyze": {
       "chain": [
-        "gpt-6-luna"
+        "gpt-6-luna",
+        "gemini-3.8-flash-medium"
       ],
       "writes": false
     },
     "test_gap": {
       "chain": [
-        "gpt-6-luna"
+        "gpt-6-luna",
+        "gemini-3.8-flash-medium"
       ],
       "writes": false
     },
