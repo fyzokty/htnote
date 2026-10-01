@@ -24,7 +24,7 @@ beforeEach(() => {
 describe("unsaved guard", () => {
   it("passes clean tabs without a dialog", async () => {
     useTabsStore.getState().openNote("a");
-    expect(await resolveUnsaved(["a"])).toEqual(new Set(["a"]));
+    expect(await resolveUnsaved(["a"])).toMatchObject({ resolved: new Set(["a"]), cancelled: false });
     expect(useUiStore.getState().unsavedDialog).toBeNull();
   });
 
@@ -38,7 +38,7 @@ describe("unsaved guard", () => {
     expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["a", "b"]);
     expect(requestUnsavedDecision(["a"])).toBe(requestUnsavedDecision(["b"]));
     decide("save");
-    expect(await first).toEqual(new Set(["a", "b"]));
+    expect(await first).toMatchObject({ resolved: new Set(["a", "b"]), cancelled: false });
     expect(calls).toMatchObject([
       { id: "a", payload: { expectedHash: "hash" } },
       { id: "b", payload: { expectedHash: "hash" } },
@@ -53,7 +53,7 @@ describe("unsaved guard", () => {
     });
     const pending = resolveUnsaved(["a", "b"]);
     decide("save");
-    expect(await pending).toEqual(new Set(["a"]));
+    expect(await pending).toMatchObject({ resolved: new Set(["a"]), cancelled: false });
     expect(useTabsStore.getState().isDirty("b")).toBe(true);
     expect(useUiStore.getState().toasts.slice(-1)[0]?.messageKey).toBe("errors.IO_ERROR");
   });
@@ -63,10 +63,10 @@ describe("unsaved guard", () => {
     const clear = vi.fn();
     mockIPC((command) => { if (command === "clear_preview_draft") clear(); });
     const cancelled = resolveUnsaved(["a"]); decide("cancel");
-    expect(await cancelled).toEqual(new Set());
+    expect(await cancelled).toMatchObject({ resolved: new Set(), cancelled: true });
     expect(useTabsStore.getState().isDirty("a")).toBe(true);
     const discarded = resolveUnsaved(["a"]); decide("discard");
-    expect(await discarded).toEqual(new Set(["a"]));
+    expect(await discarded).toMatchObject({ resolved: new Set(["a"]), cancelled: false });
     expect(clear).toHaveBeenCalledOnce();
   });
 
@@ -77,11 +77,11 @@ describe("unsaved guard", () => {
     const second = resolveUnsaved(["a", "b"]);
     expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["a"]);
     decide("save");
-    expect(await first).toEqual(new Set(["a"]));
+    expect(await first).toMatchObject({ resolved: new Set(["a"]), cancelled: false });
     await vi.waitFor(() => expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["b"]));
     expect(useTabsStore.getState().isDirty("b")).toBe(true);
     decide("discard");
-    expect(await second).toEqual(new Set(["a", "b"]));
+    expect(await second).toMatchObject({ resolved: new Set(["a", "b"]), cancelled: false });
     expect(useTabsStore.getState().isDirty("b")).toBe(false);
   });
 
@@ -92,13 +92,36 @@ describe("unsaved guard", () => {
     const second = resolveUnsaved(["a", "b"]);
     const third = resolveUnsaved(["b", "c"]);
     decide("save");
-    expect(await first).toEqual(new Set(["a"]));
+    expect(await first).toMatchObject({ resolved: new Set(["a"]), cancelled: false });
     await vi.waitFor(() => expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["b"]));
     decide("save");
-    expect(await second).toEqual(new Set(["a", "b"]));
+    expect(await second).toMatchObject({ resolved: new Set(["a", "b"]), cancelled: false });
     await vi.waitFor(() => expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["c"]));
     decide("discard");
-    expect(await third).toEqual(new Set(["b", "c"]));
+    expect(await third).toMatchObject({ resolved: new Set(["b", "c"]), cancelled: false });
+  });
+
+  it("asks only about new dirty notes across queued requests after a failed save", async () => {
+    dirty("a"); dirty("b"); dirty("c");
+    mockIPC((command, args) => {
+      if (command === "save_note" && (args as { id: string }).id === "a") throw { code: "IO_ERROR" };
+      if (command === "save_note") return { contentHash: "new" };
+    });
+    const first = resolveUnsaved(["a"]);
+    const second = resolveUnsaved(["a", "b"]);
+    const third = resolveUnsaved(["a", "b", "c"]);
+    const fourth = resolveUnsaved(["a"]);
+    decide("save");
+    expect(await first).toMatchObject({ resolved: new Set(), cancelled: false });
+    await vi.waitFor(() => expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["b"]));
+    decide("discard");
+    expect(await second).toMatchObject({ resolved: new Set(["b"]), cancelled: false });
+    await vi.waitFor(() => expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["c"]));
+    decide("discard");
+    expect(await third).toMatchObject({ resolved: new Set(["b", "c"]), cancelled: false });
+    expect(await fourth).toMatchObject({ resolved: new Set(), cancelled: false });
+    expect(useTabsStore.getState().isDirty("a")).toBe(true);
+    expect(useUiStore.getState().unsavedDialog).toBeNull();
   });
 
   it("discards even when preview and recovery cleanup fail", async () => {

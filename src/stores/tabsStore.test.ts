@@ -193,6 +193,7 @@ describe("tabsStore", () => {
     useUiStore.getState().unsavedDialog?.resolve("cancel");
     await closing;
     expect(ids()).toEqual(["a", "b", "c"]);
+    expect(store.isDirty("a")).toBe(true);
     expect(useTabsStore.getState().activeId).toBe("c");
   });
 

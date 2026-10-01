@@ -15,7 +15,7 @@ export function installUnsavedWindowGuard(): () => void {
     if (closing) return;
     closing = true;
     void resolveUnsaved(ids).then((resolved) => {
-      if (!disposed && ids.every((id) => resolved.has(id)) && !useTabsStore.getState().anyDirty()) {
+      if (!disposed && !resolved.cancelled && ids.every((id) => resolved.resolved.has(id)) && !useTabsStore.getState().anyDirty()) {
         return getCurrentWindow().destroy();
       }
     }).finally(() => { closing = false; });

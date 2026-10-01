@@ -4,8 +4,16 @@ import { useTabsStore } from "@/stores/tabsStore";
 import { useUiStore } from "@/stores/uiStore";
 
 export type UnsavedDecision = "save" | "discard" | "cancel";
+export interface UnsavedResolution {
+  resolved: Set<string>;
+  cancelled: boolean;
+}
+interface ResolutionState extends UnsavedResolution {
+  covered: Set<string>;
+  cancelledIds: Set<string>;
+}
 let pending: Promise<UnsavedDecision> | null = null;
-let activeResolution: Promise<Set<string>> | null = null;
+let activeResolution: Promise<ResolutionState> | null = null;
 let onDiscardRecoveryDraft: (noteId: string) => void | Promise<void> = () => {};
 
 export function setDiscardRecoveryDraftHook(callback: (noteId: string) => void | Promise<void>) {
@@ -41,10 +49,10 @@ export async function discardTab(noteId: string): Promise<boolean> {
 }
 
 // Başarılı notları döndürür; başarısız olanların taslakları korunur.
-export function resolveUnsaved(noteIds: string[]): Promise<Set<string>> {
+export function resolveUnsaved(noteIds: string[]): Promise<UnsavedResolution> {
   // Her işlem önceki karar ve kayıtları bekler; hiçbir işlem kendi sonucunu beklemez.
   const resolution = activeResolution
-    ? activeResolution.then(() => resolveUnsavedInternal(noteIds), () => resolveUnsavedInternal(noteIds))
+    ? activeResolution.then((previous) => resolveUnsavedInternal(noteIds, previous))
     : resolveUnsavedInternal(noteIds);
   activeResolution = resolution;
   void resolution.then(() => {
@@ -55,16 +63,22 @@ export function resolveUnsaved(noteIds: string[]): Promise<Set<string>> {
   return resolution;
 }
 
-async function resolveUnsavedInternal(noteIds: string[]): Promise<Set<string>> {
+async function resolveUnsavedInternal(noteIds: string[], previous?: ResolutionState): Promise<ResolutionState> {
   for (const id of noteIds) flushEditor(id);
-  const dirty = [...new Set(noteIds)].filter((id) => useTabsStore.getState().isDirty(id));
-  if (!dirty.length) return new Set(noteIds);
+  const dirty = [...new Set(noteIds)].filter((id) => useTabsStore.getState().isDirty(id) && !previous?.covered.has(id));
+  const covered = new Set([...(previous?.covered ?? []), ...dirty]);
+  const cancelledIds = new Set(previous?.cancelledIds ?? []);
+  const cancelled = noteIds.some((id) => cancelledIds.has(id) && useTabsStore.getState().isDirty(id));
+  const resolved = new Set(noteIds.filter((id) => !useTabsStore.getState().isDirty(id)));
+  if (!dirty.length) return { resolved, cancelled, covered, cancelledIds };
   const decision = await requestUnsavedDecision(dirty);
-  if (decision === "cancel") return new Set();
-  const resolved = new Set(noteIds.filter((id) => !dirty.includes(id)));
+  if (decision === "cancel") {
+    for (const id of dirty) cancelledIds.add(id);
+    return { resolved: new Set(), cancelled: true, covered, cancelledIds };
+  }
   for (const id of dirty) {
     const success = decision === "save" ? await saveTab(id) : await discardTab(id);
     if (success && !useTabsStore.getState().isDirty(id)) resolved.add(id);
   }
-  return resolved;
+  return { resolved, cancelled, covered, cancelledIds };
 }

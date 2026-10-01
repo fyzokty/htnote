@@ -106,7 +106,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   async close(id) {
     if (!get().tabs.some((tab) => tab.noteId === id)) return false;
     if (!await beforeClose(id)) return false;
-    if (!(await resolveUnsaved([id])).has(id) || get().isDirty(id)) return false;
+    if (!(await resolveUnsaved([id])).resolved.has(id) || get().isDirty(id)) return false;
     const current = get();
     const result = removeTab(current.tabs, current.activeId, id);
     if (result.tabs === current.tabs) return false;
@@ -126,9 +126,9 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       if (await beforeClose(candidate)) allowed.push(candidate);
     }
     const resolved = await resolveUnsaved(allowed);
-    if (allowed.length && !resolved.size) return;
+    if (resolved.cancelled) return;
     for (const candidate of allowed) {
-      if (!resolved.has(candidate) || get().isDirty(candidate)) continue;
+      if (!resolved.resolved.has(candidate) || get().isDirty(candidate)) continue;
       const current = get();
       const result = removeTab(current.tabs, current.activeId, candidate);
       if (result.tabs === current.tabs) continue;
