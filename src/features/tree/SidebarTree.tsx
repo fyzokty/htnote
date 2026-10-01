@@ -53,15 +53,17 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const select = useTreeStore((state) => state.select);
   const toggle = useTreeStore((state) => state.toggle);
   const rootRef = useRef<HTMLDivElement>(null);
+  const pendingFocusKey = useRef<string | null>(null);
   const rows = visibleNodes(tree, expanded);
 
   useLayoutEffect(() => {
-    if (!selected) return;
-    const key = selected.kind === "folder" ? `folder:${selected.relPath}` : `note:${selected.id}`;
+    const key = pendingFocusKey.current;
+    if (!key) return;
+    pendingFocusKey.current = null;
     const element = Array.from(rootRef.current?.querySelectorAll<HTMLElement>("[data-tree-key]") ?? [])
       .find((item) => item.dataset.treeKey === key);
     element?.focus();
-  }, [selected, expanded]);
+  });
 
   const choose = useCallback((node: TreeNode) => {
     if (node.type === "folder") {
@@ -81,11 +83,15 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     const current = rows.find(({ node }) => focusedKey === (node.type === "folder" ? `folder:${node.relPath}` : `note:${node.id}`))?.node
       ?? rows.find(({ node }) => isSelected(node, selected))?.node ?? null;
     if (event.key === "Enter") {
-      if (current) choose(current);
+      if (current) {
+        if (current.type === "folder") pendingFocusKey.current = `folder:${current.relPath}`;
+        choose(current);
+      }
       return;
     }
     const next = nextVisibleNode(tree, expanded, current, event.key as TreeKey);
     if (!next) return;
+    pendingFocusKey.current = next.node.type === "folder" ? `folder:${next.node.relPath}` : `note:${next.node.id}`;
     if (next.expansion && next.node.type === "folder") {
       select({ kind: "folder", relPath: next.node.relPath });
       toggle(next.node.relPath);

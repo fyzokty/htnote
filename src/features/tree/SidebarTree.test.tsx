@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { SidebarTree } from "@/features/tree/SidebarTree";
@@ -44,5 +44,17 @@ describe("SidebarTree keyboard focus", () => {
     fireEvent.keyDown(child, { key: "ArrowLeft" });
     expect(folder).toHaveAttribute("aria-selected", "true");
     expect(document.activeElement).toBe(folder);
+  });
+
+  it("does not move focus into the tree for external selection or expansion", () => {
+    render(<><button type="button">Outside</button><SidebarTree onOpenNote={vi.fn()} /></>);
+    const outside = screen.getByRole("button", { name: "Outside" });
+    outside.focus();
+    act(() => {
+      useTreeStore.getState().select({ kind: "folder", relPath: "A" });
+      useTreeStore.getState().toggle("A");
+    });
+    expect(screen.getByRole("treeitem", { name: "Klasör: A" })).toHaveAttribute("aria-selected", "true");
+    expect(document.activeElement).toBe(outside);
   });
 });

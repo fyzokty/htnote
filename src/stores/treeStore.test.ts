@@ -18,6 +18,27 @@ beforeEach(() => {
 });
 
 describe("treeStore", () => {
+  it("makes overlapping load and refresh callers wait for the same request", async () => {
+    let release!: (nodes: TreeNode[]) => void;
+    const pending = new Promise<TreeNode[]>((resolve) => { release = resolve; });
+    let calls = 0;
+    mockIPC((command) => {
+      if (command === "get_note_tree") { calls++; return pending; }
+      return undefined;
+    });
+    const first = useTreeStore.getState().load();
+    const second = useTreeStore.getState().load();
+    const refresh = useTreeStore.getState().refresh();
+    expect(second).toBe(first);
+    expect(refresh).toBe(first);
+    expect(useTreeStore.getState().loading).toBe(true);
+    release(tree);
+    await Promise.all([first, second, refresh]);
+    expect(calls).toBe(1);
+    expect(useTreeStore.getState().tree).toEqual(tree);
+    expect(useTreeStore.getState().loading).toBe(false);
+  });
+
   it("loads saved expansion and preserves valid selection on refresh", async () => {
     useSettingsStore.setState({ settings, status: "ready" });
     mockIPC((command) => command === "get_note_tree" ? tree : undefined);
@@ -99,6 +120,22 @@ describe("treeStore", () => {
     useSettingsStore.setState({ settings: { ...settings, expandedFolders: ["A"] }, status: "ready" });
     await useTreeStore.getState().refresh();
     expect([...useTreeStore.getState().expanded]).toEqual(["A/B"]);
+    vi.useRealTimers();
+  });
+
+  it("persists normalized late settings even without user expansion", async () => {
+    const updates: unknown[] = [];
+    mockIPC((command, args) => {
+      if (command === "get_note_tree") return tree;
+      if (command === "update_settings") { updates.push(args); return { ...settings, expandedFolders: ["A"] }; }
+      return undefined;
+    });
+    await useTreeStore.getState().load();
+    vi.useFakeTimers();
+    useSettingsStore.setState({ settings: { ...settings, expandedFolders: ["A", "A", "deleted"] }, status: "ready" });
+    expect([...useTreeStore.getState().expanded]).toEqual(["A"]);
+    await vi.advanceTimersByTimeAsync(500);
+    expect(updates).toEqual([{ patch: { expandedFolders: ["A"] } }]);
     vi.useRealTimers();
   });
 

@@ -21,6 +21,7 @@ interface TreeState {
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let seeded = false;
 let loaded = false;
+let inFlight: Promise<void> | null = null;
 
 function walk(nodes: TreeNode[], visit: (node: TreeNode, parents: string[]) => void, parents: string[] = []) {
   for (const node of nodes) {
@@ -40,9 +41,10 @@ function persist(expanded: Set<string>) {
 }
 
 function seedExpansion(saved: string[], current: Set<string>, folders: Set<string>) {
-  const expanded = new Set([...saved, ...current].filter((path) => folders.has(path)));
+  const validSaved = new Set(saved.filter((path) => folders.has(path)));
+  const expanded = new Set([...validSaved, ...current].filter((path) => folders.has(path)));
   seeded = true;
-  if (current.size > 0 && (expanded.size !== saved.length || [...expanded].some((path) => !saved.includes(path)))) persist(expanded);
+  if (saved.length !== validSaved.size || validSaved.size !== expanded.size) persist(expanded);
   return expanded;
 }
 
@@ -61,37 +63,43 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   loading: false,
   selected: null,
   expanded: new Set<string>(),
-  async load() {
-    if (get().loading) return;
+  load() {
+    if (inFlight) return inFlight;
     set({ loading: true });
-    try {
-      const tree = await ipc.getNoteTree();
-      const current = reconcile(tree, get().expanded, get().selected);
-      const saved = useSettingsStore.getState().settings?.expandedFolders;
-      const expanded = !seeded && saved
-        ? seedExpansion(saved, current.expanded, current.folders)
-        : current.expanded;
-      loaded = true;
-      set({ tree, expanded, selected: current.selected, loading: false });
-    } catch (error) {
-      set({ loading: false });
-      throw error;
-    }
+    inFlight = (async () => {
+      try {
+        const tree = await ipc.getNoteTree();
+        const current = reconcile(tree, get().expanded, get().selected);
+        const saved = useSettingsStore.getState().settings?.expandedFolders;
+        const expanded = !seeded && saved
+          ? seedExpansion(saved, current.expanded, current.folders)
+          : current.expanded;
+        loaded = true;
+        set({ tree, expanded, selected: current.selected, loading: false });
+      } catch (error) {
+        set({ loading: false });
+        throw error;
+      }
+    })().finally(() => { inFlight = null; });
+    return inFlight;
   },
-  async refresh() {
-    if (get().loading) return;
+  refresh() {
+    if (inFlight) return inFlight;
     set({ loading: true });
-    try {
-      const tree = await ipc.getNoteTree();
-      const before = get().expanded;
-      const current = reconcile(tree, before, get().selected);
-      loaded = true;
-      set({ tree, expanded: current.expanded, selected: current.selected, loading: false });
-      if (before.size !== current.expanded.size) persist(current.expanded);
-    } catch (error) {
-      set({ loading: false });
-      throw error;
-    }
+    inFlight = (async () => {
+      try {
+        const tree = await ipc.getNoteTree();
+        const before = get().expanded;
+        const current = reconcile(tree, before, get().selected);
+        loaded = true;
+        set({ tree, expanded: current.expanded, selected: current.selected, loading: false });
+        if (before.size !== current.expanded.size) persist(current.expanded);
+      } catch (error) {
+        set({ loading: false });
+        throw error;
+      }
+    })().finally(() => { inFlight = null; });
+    return inFlight;
   },
   toggle(relPath) {
     const expanded = new Set(get().expanded);
@@ -145,5 +153,6 @@ export function resetTreeStoreForTests() {
   saveTimer = null;
   seeded = false;
   loaded = false;
+  inFlight = null;
   useTreeStore.setState({ tree: [], loading: false, selected: null, expanded: new Set<string>() });
 }
