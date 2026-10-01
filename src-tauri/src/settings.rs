@@ -33,6 +33,7 @@ pub struct Settings {
     pub sidebar_visible: bool,
     pub open_tabs: Vec<String>,
     pub active_tab: Option<String>,
+    #[serde(default)]
     pub expanded_folders: Vec<String>,
 }
 
@@ -139,6 +140,14 @@ mod tests {
         let settings = load_settings(dir.path()).unwrap();
         assert_eq!(settings, Settings::default());
         assert!(dir.path().join("settings.json").exists());
+    }
+
+    #[test]
+    fn missing_expanded_folders_uses_empty_list() {
+        let mut value = serde_json::to_value(Settings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("expandedFolders");
+        let settings: Settings = serde_json::from_value(value).unwrap();
+        assert!(settings.expanded_folders.is_empty());
     }
 
     #[test]

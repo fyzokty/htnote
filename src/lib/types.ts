@@ -37,3 +37,11 @@ export interface NoteNode {
 }
 
 export type TreeNode = FolderNode | NoteNode;
+
+export type TreeSelection = { kind: "note"; id: string } | { kind: "folder"; relPath: string };
+
+export interface FlatNote {
+  id: string;
+  title: string;
+  relPath: string;
+}
