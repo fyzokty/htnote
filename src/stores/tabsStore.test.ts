@@ -138,6 +138,20 @@ describe("tabsStore", () => {
     expect(ids()).toEqual(["b", "a"]);
   });
 
+  it("persists filtered tabs and a valid active id after restore", async () => {
+    resetTabsStoreForTests();
+    useSettingsStore.setState({ settings: { ...settings, openTabs: ["b", "gone", "a"], activeTab: "gone" } });
+    const update = vi.spyOn(useSettingsStore.getState(), "update").mockResolvedValue(settings);
+
+    useTabsStore.getState().restore(["a", "b"]);
+    expect(useTabsStore.getState().restored).toBe(true);
+    await vi.advanceTimersByTimeAsync(499);
+    expect(update).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(update).toHaveBeenCalledExactlyOnceWith({ openTabs: ["b", "a"], activeTab: "b" });
+    update.mockRestore();
+  });
+
   it("does not overwrite saved tabs before restoration", async () => {
     resetTabsStoreForTests();
     const update = vi.spyOn(useSettingsStore.getState(), "update");
