@@ -15,12 +15,69 @@ function CreateButtons({ onOpenNote }: { onOpenNote: (id: string) => void }) {
   return <><button onClick={() => void createNote()}>Create note</button><button onClick={() => void createFolder()}>Create folder</button></>;
 }
 
+function MoveButton({ node, target }: { node: TreeNode; target: string }) {
+  const { moveNode } = useTreeActions(vi.fn());
+  return <button onClick={() => void moveNode(node, target)}>Move node</button>;
+}
+
 beforeEach(() => {
   resetTreeStoreForTests();
   useTreeStore.setState({ tree });
 });
 
 describe("SidebarTree keyboard focus", () => {
+  it("ignores invalid moves and refreshes and selects a moved note", async () => {
+    const calls: unknown[] = [];
+    const moved = { ...note, relPath: "B/Note" };
+    const destination: TreeNode = { type: "folder", name: "B", relPath: "B", children: [] };
+    useTreeStore.setState({ tree: [...tree, destination] });
+    mockIPC((command, args) => {
+      if (command === "move_item") { calls.push(args); return "B/Note"; }
+      if (command === "get_note_tree") return [tree[0], { ...destination, children: [moved] }];
+      return undefined;
+    });
+    render(<><MoveButton node={note} target="A" /><MoveButton node={note} target="B" /></>);
+    fireEvent.click(screen.getAllByRole("button", { name: "Move node" })[0]);
+    expect(calls).toHaveLength(0);
+    fireEvent.click(screen.getAllByRole("button", { name: "Move node" })[1]);
+    await waitFor(() => expect(useTreeStore.getState().selected).toEqual({ kind: "note", id: "n" }));
+    expect(calls).toEqual([{ relPath: "A/Note", targetFolderRelPath: "B" }]);
+    expect(useTreeStore.getState().expanded.has("B")).toBe(true);
+  });
+
+  it("uses the backend's new folder path when moving a folder", async () => {
+    const destination: TreeNode = { type: "folder", name: "B", relPath: "B", children: [] };
+    const moved: TreeNode = { type: "folder", name: "A (2)", relPath: "B/A (2)", children: [] };
+    useTreeStore.setState({ tree: [...tree, destination], expanded: new Set(["A"]) });
+    mockIPC((command) => {
+      if (command === "move_item") return "B/A (2)";
+      if (command === "get_note_tree") return [{ ...destination, children: [moved] }];
+      return undefined;
+    });
+    render(<MoveButton node={tree[0]} target="B" />);
+    fireEvent.click(screen.getByRole("button", { name: "Move node" }));
+    await waitFor(() => expect(useTreeStore.getState().selected).toEqual({ kind: "folder", relPath: "B/A (2)" }));
+    expect(useTreeStore.getState().expanded.has("B/A (2)")).toBe(true);
+  });
+
+  it("opens the move dialog from the context menu", async () => {
+    const destination: TreeNode = { type: "folder", name: "B", relPath: "B", children: [] };
+    const calls: unknown[] = [];
+    useTreeStore.setState({ tree: [...tree, destination], expanded: new Set(["A"]) });
+    mockIPC((command, args) => {
+      if (command === "move_item") { calls.push(args); return "B/Note"; }
+      if (command === "get_note_tree") return [tree[0], { ...destination, children: [{ ...note, relPath: "B/Note" }] }];
+      return undefined;
+    });
+    render(<SidebarTree onOpenNote={vi.fn()} />);
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Not: Note" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Taşı…" }));
+    expect(screen.getByRole("dialog", { name: "Öğeyi taşı" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "A" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("option", { name: "B" }));
+    fireEvent.click(screen.getByRole("button", { name: "Taşı" }));
+    await waitFor(() => expect(calls).toEqual([{ relPath: "A/Note", targetFolderRelPath: "B" }]));
+  });
   it("creates a note in the selected folder with the translated title and selects it", async () => {
     const created: TreeNode = { type: "note", id: "new", title: "Adsız Not", relPath: "A/Adsız Not", isFavorite: false, tags: [], updatedAt: "" };
     const calls: unknown[] = [];
