@@ -11,7 +11,7 @@ type Element = DefaultTreeAdapterTypes.Element;
 const VISUAL_TAGS = new Set([
   "p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote",
   "pre", "code", "table", "thead", "tbody", "tr", "th", "td", "hr", "br",
-  "strong", "em", "u", "s", "a",
+  "strong", "em", "u", "s", "a", "img", "audio", "video", "source",
 ]);
 
 function supportedByVisualEditor(html: string): boolean {

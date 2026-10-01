@@ -55,7 +55,7 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
     extensions: createVisualExtensions(t("editor.placeholder"), () => {
       flush();
       onEditInCodeRef.current?.();
-    }, openPicker),
+    }, openPicker, noteId),
     content: wrapRawBlocks(initialInner),
     immediatelyRender: false,
     editorProps: { attributes: { "aria-label": t("editor.content") } },

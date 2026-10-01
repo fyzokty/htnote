@@ -11,6 +11,8 @@ describe("blockClassifier", () => {
     ["<p><img src='a.png' alt='A'></p>", "rich"],
     ["<audio src='a.mp3' controls></audio>", "rich"],
     ["<video src='a.mp4' controls poster='p.png'></video>", "rich"],
+    ["<audio controls><source src='./assets/a.ogg' type='audio/ogg'></audio>", "rich"],
+    ["<video><source src='./assets/a.webm' media='screen'></video>", "rich"],
     ["<p data-key='1' id='x' style='color:red'>A</p>", "rich"],
     ["<div class='card'><button onclick='x()'>A</button></div>", "raw"],
     ["<canvas></canvas>", "raw"],

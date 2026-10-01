@@ -8,7 +8,7 @@ export const SUPPORTED_TAGS = new Set([
   "p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li",
   "blockquote", "pre", "code", "table", "thead", "tbody", "tfoot",
   "tr", "th", "td", "caption", "colgroup", "col", "hr", "br",
-  "strong", "em", "u", "s", "a", "img", "audio", "video", "span",
+  "strong", "em", "u", "s", "a", "img", "audio", "video", "source", "span",
 ]);
 
 export const GLOBAL_ATTRS = new Set(["class", "id", "style", "title"]);
@@ -18,6 +18,7 @@ export const TAG_ATTRS: Readonly<Record<string, ReadonlySet<string>>> = {
   img: new Set(["src", "alt", "width", "height", "loading"]),
   audio: new Set(["src", "controls", "autoplay", "loop", "muted", "preload"]),
   video: new Set(["src", "controls", "autoplay", "loop", "muted", "preload", "poster", "width", "height"]),
+  source: new Set(["src", "type", "media", "srcset", "sizes"]),
   ol: new Set(["start", "reversed", "type"]),
   li: new Set(["value"]),
   td: new Set(["colspan", "rowspan", "headers"]),
@@ -49,7 +50,7 @@ function isSupportedTree(node: Node): boolean {
   if (!isElement(node) || !isSupportedElement(node)) return false;
   const location = node.sourceCodeLocation;
   // Eksik kapanış etiketli öğeyi TipTap'e vermek kaynak metni değiştirebilir.
-  if (!location || (!new Set(["br", "hr", "img", "col"]).has(node.tagName) && !location.endTag)) return false;
+  if (!location || (!new Set(["br", "hr", "img", "col", "source"]).has(node.tagName) && !location.endTag)) return false;
   return node.childNodes.every(isSupportedTree);
 }
 
