@@ -8,7 +8,7 @@ import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
 
 const settings: Settings = {
-  rootDir: null, theme: "system", language: null, sidebarWidth: 260,
+  rootDir: null, theme: "system", language: null, sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true,
   sidebarVisible: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false,
 };
 const ids = () => useTabsStore.getState().tabs.map((tab) => tab.noteId);

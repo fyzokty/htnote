@@ -12,6 +12,8 @@ export interface Settings {
   language: Language | null;
   sidebarWidth: number;
   sidebarVisible: boolean;
+  editorSplitRatio: number;
+  editorLivePreview: boolean;
   openTabs: string[];
   activeTab: string | null;
   expandedFolders: string[];
