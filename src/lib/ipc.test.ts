@@ -43,6 +43,17 @@ describe("ipc.saveNote", () => {
   });
 });
 
+describe("ipc preview draft commands", () => {
+  it("sends draft content and clear id", async () => {
+    const handler = vi.fn((command: string) => command === "set_preview_draft" ? 4 : undefined);
+    mockIPC(handler);
+    await expect(ipc.setPreviewDraft("id", { html: "<p>x</p>", css: "a{}", js: "x()" })).resolves.toBe(4);
+    expect(handler).toHaveBeenCalledWith("set_preview_draft", { id: "id", html: "<p>x</p>", css: "a{}", js: "x()" });
+    await ipc.clearPreviewDraft("id");
+    expect(handler).toHaveBeenCalledWith("clear_preview_draft", { id: "id" });
+  });
+});
+
 describe("ipc creation commands", () => {
   it("createNote sends its parent and optional title", async () => {
     const node = { type: "note", id: "id", title: "Fikir", relPath: "Fikir", isFavorite: false, tags: [], updatedAt: "date" };

@@ -66,6 +66,9 @@ describe("parseBridgeMessage", () => {
     }
     expect(parseBridgeMessage(message({ type: "HTNOTE_SHORTCUT", key: "w", ctrl: true, shift: false, alt: false, meta: false }), frame, NOTE_ORIGIN))
       .toEqual({ type: "HTNOTE_SHORTCUT", input: { key: "w", ctrl: true, shift: false, alt: false, meta: false } });
+    expect(parseBridgeMessage(message({ type: "HTNOTE_SCROLL", scrollY: 23 }), frame, NOTE_ORIGIN))
+      .toEqual({ type: "HTNOTE_SCROLL", scrollY: 23 });
+    expect(parseBridgeMessage(message({ type: "HTNOTE_SCROLL", scrollY: -1 }), frame, NOTE_ORIGIN)).toBeNull();
   });
 });
 

@@ -71,6 +71,12 @@ export interface SaveNoteResult {
   contentHash: string;
 }
 
+export interface PreviewDraftPayload {
+  html: string;
+  css: string;
+  js: string;
+}
+
 export type TreeNode = FolderNode | NoteNode;
 
 export interface FsChangePayload {

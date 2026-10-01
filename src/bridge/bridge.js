@@ -107,7 +107,7 @@
 
   window.addEventListener("message", (event) => {
     if (event.source !== window.parent || !event.data || typeof event.data !== "object") return;
-    const { type, vars, mode, query } = event.data;
+    const { type, vars, mode, query, scrollY } = event.data;
     if (type === "HTNOTE_THEME") {
       if (vars && typeof vars === "object") {
         for (const [name, value] of Object.entries(vars)) {
@@ -118,7 +118,15 @@
       }
       if (typeof mode === "string") document.documentElement.setAttribute("data-ht-theme", mode);
     } else if (type === "HTNOTE_HIGHLIGHT") highlight(query);
+    else if (type === "HTNOTE_SCROLL_RESTORE" && Number.isFinite(scrollY) && scrollY >= 0) window.scrollTo(0, scrollY);
   });
+
+  let scrolling = false;
+  window.addEventListener("scroll", () => {
+    if (scrolling) return;
+    scrolling = true;
+    requestAnimationFrame(() => { scrolling = false; send("HTNOTE_SCROLL", { scrollY: window.scrollY }); });
+  }, { passive: true });
 
   if (document.readyState === "loading") window.addEventListener("load", () => send("HTNOTE_READY", { noteId }), { once: true });
   else send("HTNOTE_READY", { noteId });

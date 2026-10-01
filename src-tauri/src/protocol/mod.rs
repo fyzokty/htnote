@@ -11,6 +11,7 @@ use uuid::Uuid;
 
 use crate::index::note_index::NoteIndex;
 use std::sync::{Arc, RwLock};
+use crate::state::{PreviewDraft, PreviewDrafts};
 
 const BRIDGE_JS: &str = include_str!("../../../src/bridge/bridge.js");
 const BRIDGE_TAG: &str = "<script src=\"/__htnote/bridge.js\"></script>";
@@ -250,7 +251,55 @@ fn serve(method: &str, note_dir: &Path, relative: &Path, range: Option<&str>) ->
     response
 }
 
-pub(crate) fn handle(method: &str, path: &str, range: Option<&str>, note_index: &Arc<RwLock<NoteIndex>>) -> Served {
+fn draft_html(draft: &PreviewDraft) -> Vec<u8> {
+    let lower = draft.html.to_ascii_lowercase();
+    let style = !draft.css.is_empty() && !lower.contains("href=\"./style.css\"") && !lower.contains("href='./style.css'");
+    let script = !draft.js.is_empty() && !lower.contains("src=\"./script.js\"") && !lower.contains("src='./script.js'");
+    let mut tags = String::new();
+    if style { tags.push_str("<link rel=\"stylesheet\" href=\"./style.css\">"); }
+    if script { tags.push_str("<script src=\"./script.js\"></script>"); }
+    if tags.is_empty() { return inject_bridge(draft.html.as_bytes()); }
+    let fallback_tags = tags.clone();
+    let found_head = Rc::new(Cell::new(false));
+    let matched = Rc::clone(&found_head);
+    let rewritten = rewrite_str(&draft.html, Settings {
+        element_content_handlers: vec![element!("head", move |head| {
+            matched.set(true);
+            head.append(&tags, lol_html::html_content::ContentType::Html);
+            Ok(())
+        })],
+        ..Settings::default()
+    });
+    if found_head.get() {
+        if let Ok(html) = rewritten { return inject_bridge(html.as_bytes()); }
+    }
+    let mut html = draft.html.clone();
+    html.insert_str(fallback_position(&html), &format!("<head>{fallback_tags}</head>"));
+    inject_bridge(html.as_bytes())
+}
+
+fn serve_draft(method: &str, dir: &Path, relative: &Path, range: Option<&str>, draft: &PreviewDraft) -> Served {
+    let parts: Vec<_> = relative.iter().collect();
+    if parts.len() < 3 || parts[1].to_string_lossy().parse::<u64>().is_err() {
+        return Served::new(StatusCode::NOT_FOUND);
+    }
+    let file = parts[2..].iter().collect::<PathBuf>();
+    let name = file.to_string_lossy();
+    let (body, mime) = match name.as_ref() {
+        "index.html" => (draft_html(draft), "text/html"),
+        "style.css" => (draft.css.as_bytes().to_vec(), "text/css"),
+        "script.js" => (draft.js.as_bytes().to_vec(), "application/javascript"),
+        _ => return serve(method, dir, &file, range),
+    };
+    let mut response = Served::new(StatusCode::OK);
+    response.header("X-Preview-Revision", draft.rev.to_string());
+    response.header("Content-Type", format!("{mime}; charset=utf-8"));
+    response.header("Content-Length", body.len().to_string());
+    if method == "GET" { response.body = body; }
+    response
+}
+
+pub(crate) fn handle(method: &str, path: &str, range: Option<&str>, note_index: &Arc<RwLock<NoteIndex>>, drafts: &PreviewDrafts) -> Served {
     if path == "/__htnote/bridge.js" {
         return serve_bridge(method);
     }
@@ -269,7 +318,14 @@ pub(crate) fn handle(method: &str, path: &str, range: Option<&str>, note_index: 
             match (parsed, note_dir) {
                 (Err(status), _) => Served::new(status),
                 (Ok(_), None) => Served::new(StatusCode::NOT_FOUND),
-                (Ok(parsed), Some(dir)) => serve(method, &dir, &parsed.relative, range),
+                (Ok(parsed), Some(dir)) => {
+                    if parsed.relative.iter().next().is_some_and(|part| part == "__draft") {
+                        match drafts.lock().ok().and_then(|items| items.get(&parsed.id).cloned()) {
+                            Some(draft) => serve_draft(method, &dir, &parsed.relative, range, &draft),
+                            None => Served::new(StatusCode::NOT_FOUND),
+                        }
+                    } else { serve(method, &dir, &parsed.relative, range) }
+                },
             }
         }
 }
@@ -277,6 +333,7 @@ pub(crate) fn handle(method: &str, path: &str, range: Option<&str>, note_index: 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::notes::model::{write_metadata_atomic, NoteMetadata};
 
     const ID: &str = "123e4567-e89b-12d3-a456-426614174000";
 
@@ -314,6 +371,52 @@ mod tests {
         for value in ["bytes=10-", "bytes=4-2", "bytes=-0", "bytes=x-y", "items=0-1"] {
             assert_eq!(parse_range(value, 10), Err(()));
         }
+    }
+
+    #[test]
+    fn drafts_serve_memory_and_safe_disk_assets() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = root.path().join("Note");
+        std::fs::create_dir(&dir).unwrap();
+        let metadata = NoteMetadata::new("Note");
+        write_metadata_atomic(&dir.join("metadata.json"), &metadata).unwrap();
+        std::fs::write(dir.join("asset.txt"), "disk asset").unwrap();
+        let mut index = NoteIndex::new(root.path().to_path_buf());
+        index.refresh_readonly().unwrap();
+        let index = Arc::new(RwLock::new(index));
+        let drafts: PreviewDrafts = Arc::new(std::sync::Mutex::new(Default::default()));
+        let path = format!("/{}/__draft/1/index.html", metadata.id);
+        assert_eq!(handle("GET", &path, None, &index, &drafts).status, StatusCode::NOT_FOUND);
+        drafts.lock().unwrap().insert(metadata.id, PreviewDraft {
+            rev: 2, html: "<html><head></head><body>draft</body></html>".into(),
+            css: "body { color: red }".into(), js: "window.ok = true".into(),
+        });
+        let html = String::from_utf8(handle("GET", &path, None, &index, &drafts).body).unwrap();
+        assert!(html.contains("draft"));
+        assert!(html.contains("./style.css"));
+        assert!(html.contains("./script.js"));
+        assert!(html.contains(BRIDGE_TAG));
+        assert_eq!(handle("GET", &format!("/{}/__draft/1/style.css", metadata.id), None, &index, &drafts).body, b"body { color: red }");
+        assert_eq!(handle("GET", &format!("/{}/__draft/1/script.js", metadata.id), None, &index, &drafts).body, b"window.ok = true");
+        assert_eq!(handle("GET", &format!("/{}/__draft/1/asset.txt", metadata.id), None, &index, &drafts).body, b"disk asset");
+        for path in ["../asset.txt", "%2e%2e/asset.txt", "%2fasset.txt"] {
+            assert_eq!(handle("GET", &format!("/{}/__draft/1/{path}", metadata.id), None, &index, &drafts).status, StatusCode::FORBIDDEN);
+        }
+        drafts.lock().unwrap().remove(&metadata.id);
+        assert_eq!(handle("GET", &path, None, &index, &drafts).status, StatusCode::NOT_FOUND);
+    }
+
+    #[test]
+    fn draft_html_keeps_existing_head_links_once() {
+        let draft = PreviewDraft {
+            rev: 1,
+            html: "<html><head><link href=\"./style.css\" rel=\"stylesheet\"><script src=\"./script.js\"></script></head></html>".into(),
+            css: "body {}".into(), js: "run()".into(),
+        };
+        let html = String::from_utf8(draft_html(&draft)).unwrap();
+        assert_eq!(html.matches("./style.css").count(), 1);
+        assert_eq!(html.matches("./script.js").count(), 1);
+        assert!(html.contains(BRIDGE_TAG));
     }
 
     #[test]
