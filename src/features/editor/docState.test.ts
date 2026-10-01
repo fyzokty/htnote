@@ -36,6 +36,7 @@ describe("docState", () => {
     expect(visual.draft).toBe(edited.draft);
     expect(visual.dirty).toBe(true);
     expect(switchMode(enterEdit(createDocState(false), base), "visual").mode).toBe("code");
+    expect(switchMode(enterEdit(createDocState(false), base), "visual", true)).toMatchObject({ mode: "visual", visualAvailable: true });
   });
 
   it.each([

@@ -20,6 +20,14 @@ beforeEach(() => {
 });
 
 describe("TabBar", () => {
+  it("shows the dirty dot from the tab document", () => {
+    useTabsStore.getState().enterEdit("a", { html: "old", css: null, js: null, contentHash: "hash" });
+    useTabsStore.getState().updateDraft("a", { html: "new" });
+    render(<TabBar />);
+    expect(screen.getByRole("tab", { name: "Alpha" }).querySelector("span[aria-hidden]" )).not.toHaveClass("hidden");
+    act(() => useTabsStore.getState().updateDraft("a", { html: "old" }));
+    expect(screen.getByRole("tab", { name: "Alpha" }).querySelector("span[aria-hidden]" )).toHaveClass("hidden");
+  });
   it("renders live titles, highlights and activates tabs", () => {
     render(<TabBar />);
     const alpha = screen.getByRole("tab", { name: "Alpha" });

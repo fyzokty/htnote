@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { useTranslation } from "react-i18next";
 
@@ -13,7 +13,9 @@ interface VisualEditorProps {
   onEditInCode?: () => void;
 }
 
-export function VisualEditor({ initialInner, onChange, visualAvailable = true, onEditInCode }: VisualEditorProps) {
+export interface VisualEditorHandle { flush: () => void }
+
+export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(function VisualEditor({ initialInner, onChange, visualAvailable = true, onEditInCode }, ref) {
   const { t } = useTranslation();
   const onChangeRef = useRef(onChange);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
@@ -33,10 +35,10 @@ export function VisualEditor({ initialInner, onChange, visualAvailable = true, o
       onChangeRef.current(unwrapRawBlocks(html));
     }
   };
+  useImperativeHandle(ref, () => ({ flush }));
 
   const editor = useEditor({
     // TipTap bu geri çağırmayı yalnızca NodeView buton olayı sırasında çalıştırır.
-    // eslint-disable-next-line react-hooks/refs
     extensions: createVisualExtensions(t("editor.placeholder"), () => {
       flush();
       onEditInCodeRef.current?.();
@@ -67,4 +69,4 @@ export function VisualEditor({ initialInner, onChange, visualAvailable = true, o
       <EditorContent editor={editor} aria-label={t("editor.content")} />
     </section>
   );
-}
+});

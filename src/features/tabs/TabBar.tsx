@@ -64,6 +64,7 @@ export function TabBar() {
                 <TabItem
                   noteId={tab.noteId}
                   active={tab.noteId === activeId}
+                  isDirty={tab.doc.dirty}
                   onActivate={() => useTabsStore.getState().activate(tab.noteId)}
                   onClose={() => { void useTabsStore.getState().close(tab.noteId); }}
                   onContextMenu={(event) => openMenu(event, tab.noteId)}

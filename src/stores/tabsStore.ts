@@ -29,8 +29,8 @@ interface TabsState {
   move: (fromIndex: number, toIndex: number) => void;
   replaceMissing: (existingIds: Iterable<string>) => void;
   restore: (existingIds: Iterable<string>) => void;
-  enterEdit: (id: string, base: DocBase, preferred?: "visual" | "code") => void;
-  switchMode: (id: string, mode: "visual" | "code") => void;
+  enterEdit: (id: string, base: DocBase, preferred?: "visual" | "code", visualAvailable?: boolean) => void;
+  switchMode: (id: string, mode: "visual" | "code", visualAvailable?: boolean) => void;
   updateDraft: (id: string, partial: Partial<DocDraft>) => void;
   markSaving: (id: string) => void;
   saveSucceeded: (id: string, newBase: DocBase, savedAt?: number) => void;
@@ -181,11 +181,11 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     if (activeId) useTreeStore.getState().revealNote(activeId);
     if (ids.length !== settings.openTabs.length || activeId !== settings.activeTab) persist(tabs, activeId);
   },
-  enterEdit(id, base, preferred) {
-    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => enterEdit(doc, base, preferred)) }));
+  enterEdit(id, base, preferred, visualAvailable) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => enterEdit(doc, base, preferred, visualAvailable)) }));
   },
-  switchMode(id, mode) {
-    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => switchMode(doc, mode)) }));
+  switchMode(id, mode, visualAvailable) {
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => switchMode(doc, mode, visualAvailable)) }));
   },
   updateDraft(id, partial) {
     set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => updateDraft(doc, partial)) }));

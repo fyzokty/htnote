@@ -40,11 +40,12 @@ function draftFrom(base: DocBase): DocDraft {
   return { html: base.html, css: base.css, js: base.js };
 }
 
-export function enterEdit(state: DocState, base: DocBase, preferred: "visual" | "code" = "visual"): DocState {
+export function enterEdit(state: DocState, base: DocBase, preferred: "visual" | "code" = "visual", visualAvailable = state.visualAvailable): DocState {
   if (state.mode !== "view") return invalid(state, "enterEdit");
   return {
     ...state,
-    mode: preferred === "visual" && !state.visualAvailable ? "code" : preferred,
+    mode: preferred === "visual" && !visualAvailable ? "code" : preferred,
+    visualAvailable,
     base,
     draft: draftFrom(base),
     dirty: false,
@@ -52,9 +53,9 @@ export function enterEdit(state: DocState, base: DocBase, preferred: "visual" | 
   };
 }
 
-export function switchMode(state: DocState, mode: "visual" | "code"): DocState {
+export function switchMode(state: DocState, mode: "visual" | "code", visualAvailable = state.visualAvailable): DocState {
   if (state.mode === "view") return invalid(state, "switchMode");
-  return { ...state, mode: mode === "visual" && !state.visualAvailable ? "code" : mode };
+  return { ...state, visualAvailable, mode: mode === "visual" && !visualAvailable ? "code" : mode };
 }
 
 export function updateDraft(state: DocState, partial: Partial<DocDraft>): DocState {
