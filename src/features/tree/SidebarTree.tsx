@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { DndContext, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
-import type { Collision, CollisionDetection, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
+import type { CollisionDetection, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { ChevronDown, ChevronRight, FileText, Folder } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -10,6 +10,7 @@ import type { ContextMenuItem } from "@/components/ui/ContextMenu";
 import { InlineRename } from "@/features/tree/InlineRename";
 import { MoveDialog } from "@/features/tree/MoveDialog";
 import { canDrop } from "@/features/tree/canDrop";
+import { preferTreeRow } from "@/features/tree/preferTreeRow";
 import { useHoverExpand } from "@/features/tree/useHoverExpand";
 import { nextVisibleNode, visibleNodes } from "@/features/tree/treeNavigation";
 import { useTreeActions } from "@/features/tree/useTreeActions";
@@ -34,19 +35,13 @@ interface RowProps {
   dropValid: boolean;
 }
 
-// eslint-disable-next-line react-refresh/only-export-components
-export function preferTreeRow(collisions: Collision[]): Collision[] {
-  const folder = collisions.find(({ id }) => String(id).startsWith("drop:folder:"));
-  return folder ? [folder] : collisions.filter(({ id }) => id === "drop:root");
-}
-
 const treeCollisionDetection: CollisionDetection = (args) => preferTreeRow(pointerWithin(args));
 
 const TreeRow = memo(function TreeRow({ node, depth, expanded, selected, tabbable, onSelect, onMenu, renaming, onRename, onCancelRename, dragSource, dropPath, dropValid }: RowProps) {
   const { t } = useTranslation();
   const isFolder = node.type === "folder";
   const drag = useDraggable({ id: `drag:${node.relPath}`, data: { node }, disabled: renaming });
-  const drop = useDroppable({ id: `drop:${node.type}:${node.relPath}`, data: { path: node.relPath, type: node.type }, disabled: !isFolder });
+  const drop = useDroppable({ id: `drop:${node.type}:${node.relPath}`, data: { path: node.relPath, type: node.type } });
   const setNodeRef = (element: HTMLElement | null) => { drag.setNodeRef(element); drop.setNodeRef(element); };
   const isTarget = dropPath === node.relPath && dragSource !== null;
   return (

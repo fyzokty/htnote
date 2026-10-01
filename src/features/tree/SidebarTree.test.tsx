@@ -2,7 +2,8 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { SidebarTree, preferTreeRow } from "@/features/tree/SidebarTree";
+import { SidebarTree } from "@/features/tree/SidebarTree";
+import { preferTreeRow } from "@/features/tree/preferTreeRow";
 import { useTreeActions } from "@/features/tree/useTreeActions";
 import type { TreeNode } from "@/lib/types";
 import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
@@ -26,8 +27,8 @@ beforeEach(() => {
 });
 
 describe("SidebarTree keyboard focus", () => {
-  it("resolves a pointer over a note to the root and prioritizes folders", () => {
-    expect(preferTreeRow([{ id: "drop:root" }, { id: "drop:note:A/Note" }])).toEqual([{ id: "drop:root" }]);
+  it("ignores note rows, prioritizes folders, and accepts empty root space", () => {
+    expect(preferTreeRow([{ id: "drop:root" }, { id: "drop:note:A/Note" }])).toEqual([]);
     expect(preferTreeRow([{ id: "drop:root" }, { id: "drop:folder:A" }])).toEqual([{ id: "drop:folder:A" }]);
     expect(preferTreeRow([{ id: "drop:root" }])).toEqual([{ id: "drop:root" }]);
   });
