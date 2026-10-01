@@ -1,4 +1,4 @@
-import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { DndContext, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import type { DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
@@ -38,8 +38,8 @@ const TreeRow = memo(function TreeRow({ node, depth, expanded, selected, tabbabl
   const { t } = useTranslation();
   const isFolder = node.type === "folder";
   const drag = useDraggable({ id: `drag:${node.relPath}`, data: { node }, disabled: renaming });
-  const drop = useDroppable({ id: `drop:${node.relPath}`, data: { path: node.relPath } });
-  const setNodeRef = (element: HTMLElement | null) => { drag.setNodeRef(element); drop.setNodeRef(element); };
+  const drop = useDroppable({ id: `drop:${node.relPath}`, data: { path: node.relPath, type: "folder" }, disabled: !isFolder });
+  const setNodeRef = (element: HTMLElement | null) => { drag.setNodeRef(element); if (isFolder) drop.setNodeRef(element); };
   const isTarget = dropPath === node.relPath && dragSource !== null;
   return (
     <div
@@ -92,9 +92,8 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const [moveSource, setMoveSource] = useState<TreeNode | null>(null);
   const [dragSource, setDragSource] = useState<TreeNode | null>(null);
   const [dropPath, setDropPath] = useState<string | null>(null);
-  const hovered = useRef<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-  const rootDrop = useDroppable({ id: "drop:root", data: { path: "" } });
+  const rootDrop = useDroppable({ id: "drop:root", data: { path: "", type: "root" } });
   const { hover, clear } = useHoverExpand(toggle);
   const rootRef = useRef<HTMLDivElement>(null);
   const pendingFocusKey = useRef<string | null>(null);
@@ -102,22 +101,28 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const selectedVisible = rows.some(({ node }) => isSelected(node, selected));
   const dropValid = dragSource !== null && dropPath !== null && canDrop(dragSource, dropPath, tree);
 
+  useEffect(() => {
+    const path = dropPath;
+    hover(path, !!path && !!dragSource && canDrop(dragSource, path, tree) && !expanded.has(path), () => {
+      const current = useTreeStore.getState();
+      return !!dragSource && !!path && canDrop(dragSource, path, current.tree) && !current.expanded.has(path);
+    });
+    return clear;
+  }, [clear, dragSource, dropPath, expanded, hover, tree]);
+
   function dragOver(event: DragOverEvent) {
-    const path = typeof event.over?.data.current?.path === "string" ? event.over.data.current.path as string : null;
+    const target = event.over?.data.current;
+    const path = (target?.type === "folder" || target?.type === "root") && typeof target.path === "string" ? target.path : null;
     setDropPath(path);
-    if (path === hovered.current) return;
-    hovered.current = path;
-    hover(path, !!path && !!dragSource && canDrop(dragSource, path, tree) && !expanded.has(path));
   }
   function finishDrag(event?: DragEndEvent) {
     clear();
-    hovered.current = null;
     setDropPath(null);
     setDragSource(null);
     if (event) {
       const source = event.active.data.current?.node as TreeNode | undefined;
-      const target = event.over?.data.current?.path;
-      if (source && typeof target === "string") void moveNode(source, target);
+      const target = event.over?.data.current;
+      if (source && (target?.type === "folder" || target?.type === "root") && typeof target.path === "string" && canDrop(source, target.path, useTreeStore.getState().tree)) void moveNode(source, target.path);
     }
   }
 
@@ -184,10 +189,11 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
 
   return (
     <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragStart={(event: DragStartEvent) => setDragSource(event.active.data.current?.node as TreeNode ?? null)} onDragOver={dragOver} onDragEnd={finishDrag} onDragCancel={() => finishDrag()}>
-    <div ref={(element) => { rootRef.current = element; rootDrop.setNodeRef(element); }} role="tree" aria-label={t("tree.label")} tabIndex={rows.length === 0 ? 0 : -1} onKeyDown={onKeyDown} className={`min-h-0 flex-1 overflow-y-auto px-3 py-2 outline-none ${dragSource && dropPath === "" ? (dropValid ? "ring-2 ring-inset ring-app-accent" : "ring-2 ring-inset ring-red-500") : ""}`}>
+    <div ref={rootRef} role="tree" aria-label={t("tree.label")} tabIndex={rows.length === 0 ? 0 : -1} onKeyDown={onKeyDown} className={`flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2 outline-none ${dragSource && dropPath === "" ? (dropValid ? "ring-2 ring-inset ring-app-accent" : "ring-2 ring-inset ring-red-500") : ""}`}>
       {tree.length === 0 ? <p className="py-4 text-center text-sm text-app-muted">{t("tree.empty")}</p> : rows.map(({ node, depth }) => (
         <TreeRow key={node.type === "folder" ? `folder:${node.relPath}` : `note:${node.id}`} node={node} depth={depth} expanded={node.type === "folder" && expanded.has(node.relPath)} selected={isSelected(node, selected)} tabbable={selectedVisible ? isSelected(node, selected) : node === rows[0].node} onSelect={choose} onMenu={openMenu} renaming={renamingRelPath === node.relPath} onRename={(item, name) => void renameNode(item, name)} onCancelRename={() => setRenaming(null)} dragSource={dragSource} dropPath={dropPath} dropValid={dropValid} />
       ))}
+      <div ref={(element) => rootDrop.setNodeRef(element)} className="min-h-4 flex-1" aria-hidden />
       {menu && <ContextMenu items={menuItems} x={menu.x} y={menu.y} trigger={menu.trigger} onClose={() => setMenu(null)} />}
       {moveSource && <MoveDialog source={moveSource} tree={tree} onMove={(target) => { void moveNode(moveSource, target); setMoveSource(null); }} onClose={() => setMoveSource(null)} />}
     </div>

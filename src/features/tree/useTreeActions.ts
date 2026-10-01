@@ -60,7 +60,10 @@ export function useTreeActions(onOpenNote: (id: string) => void) {
       if (node.type === "folder") useTreeStore.getState().movePathPrefix(node.relPath, newPath);
       await useTreeStore.getState().refresh();
       if (node.type === "folder") useTreeStore.getState().revealFolder(newPath);
-      else useTreeStore.getState().revealNote(node.id);
+      else {
+        if (targetRelPath) useTreeStore.getState().revealFolder(targetRelPath);
+        useTreeStore.getState().revealNote(node.id);
+      }
     } catch (error) { notifyError(error); }
   }, []);
 

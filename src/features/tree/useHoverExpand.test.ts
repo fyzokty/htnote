@@ -31,3 +31,14 @@ it("cancels on target change, drop, and unmount", () => {
   act(() => vi.advanceTimersByTime(700));
   expect(toggle).not.toHaveBeenCalled();
 });
+
+it("rechecks whether the folder is still closed when the timer expires", () => {
+  vi.useFakeTimers();
+  const toggle = vi.fn();
+  const stillClosed = vi.fn(() => false);
+  const { result } = renderHook(() => useHoverExpand(toggle));
+  act(() => result.current.hover("a", true, stillClosed));
+  act(() => vi.advanceTimersByTime(700));
+  expect(stillClosed).toHaveBeenCalledOnce();
+  expect(toggle).not.toHaveBeenCalled();
+});

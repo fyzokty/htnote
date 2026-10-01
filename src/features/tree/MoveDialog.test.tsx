@@ -13,10 +13,22 @@ it("disables invalid folders and moves to a keyboard-selected destination", () =
   render(<MoveDialog source={source} tree={[source, destination]} onMove={move} onClose={vi.fn()} />);
   expect(screen.getByRole("option", { name: "A" })).toBeDisabled();
   expect(screen.getByRole("option", { name: "Child" })).toBeDisabled();
-  const dialog = screen.getByRole("dialog");
-  fireEvent.keyDown(dialog, { key: "ArrowDown" });
-  fireEvent.keyDown(dialog, { key: "Enter" });
+  const listbox = screen.getByRole("listbox");
+  expect(listbox).toHaveFocus();
+  fireEvent.keyDown(listbox, { key: "ArrowDown" });
+  expect(listbox).toHaveAttribute("aria-activedescendant", screen.getByRole("option", { name: "B" }).id);
+  fireEvent.keyDown(listbox, { key: "Enter" });
   expect(move).toHaveBeenCalledWith("b");
+});
+
+it("wraps between enabled options and keeps focus on the listbox", () => {
+  render(<MoveDialog source={child} tree={[source, destination]} onMove={vi.fn()} onClose={vi.fn()} />);
+  const listbox = screen.getByRole("listbox");
+  fireEvent.keyDown(listbox, { key: "ArrowUp" });
+  expect(listbox).toHaveAttribute("aria-activedescendant", screen.getByRole("option", { name: "B" }).id);
+  fireEvent.keyDown(listbox, { key: "ArrowDown" });
+  expect(listbox).toHaveAttribute("aria-activedescendant", screen.getByRole("option", { name: "Kök" }).id);
+  expect(listbox).toHaveFocus();
 });
 
 it("closes on Escape", () => {
