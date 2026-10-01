@@ -27,6 +27,7 @@
     "@tauri-apps/plugin-opener": "^2",
     "i18next": "^25.0.0",
     "lucide-react": "^1.49.0",
+    "parse5": "^8.0.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-i18next": "^16.0.0",
