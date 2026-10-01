@@ -1,5 +1,7 @@
 mod commands;
 pub mod error;
+mod fs_util;
+pub mod notes;
 mod settings;
 mod state;
 
