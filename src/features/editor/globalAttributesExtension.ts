@@ -3,7 +3,7 @@ import { Extension } from "@tiptap/core";
 const TYPES = [
   "paragraph", "heading", "blockquote", "codeBlock", "horizontalRule", "bulletList", "orderedList",
   "listItem", "table", "tableRow", "tableCell", "tableHeader", "bold", "italic", "underline",
-  "strike", "link", "code", "image", "hardBreak",
+  "strike", "link", "code", "image", "audio", "video", "hardBreak",
 ];
 
 export const GlobalAttributes = Extension.create({

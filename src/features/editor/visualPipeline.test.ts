@@ -56,9 +56,30 @@ describe("visualPipeline", () => {
     expect(result).not.toContain("htnote-raw");
   });
 
-  it("keeps classified elements without a TipTap node as raw blocks", () => {
-    const inner = '<p>Before <img src="a.png" data-x="1"></p><video src="clip.mp4"></video><p>After</p>';
-    expect(roundTrip(inner)).toContain('<p>Before <img src="a.png" data-x="1"></p><video src="clip.mp4"></video>');
+  it("round-trips media blocks and nested sources", () => {
+    const inner = '<img src="./assets/a.png" alt="A" title="Title" width="50%" class="hero" data-x="1">' +
+      '<audio src="./assets/a.mp3" controls loop muted class="sound" data-x="2"><source src="./assets/b.ogg" type="audio/ogg" data-codec="vorbis"></audio>' +
+      '<video src="./assets/v.mp4" controls poster="./assets/poster.png" autoplay id="clip" style="width: 50%"><source src="./assets/v.webm" type="video/webm" media="screen" srcset="./assets/v-small.webm 1x, ./assets/v.webm 2x" sizes="(max-width: 600px) 100vw, 600px"></video>';
+    const result = roundTrip(inner);
+    const container = document.createElement("div");
+    container.innerHTML = result;
+    expect(container.querySelector("img")?.getAttribute("src")).toBe("./assets/a.png");
+    expect(container.querySelector("img")?.getAttribute("width")).toBe("50%");
+    expect(container.querySelector("img")?.getAttribute("title")).toBe("Title");
+    expect(container.querySelector("img")?.getAttribute("class")).toBe("hero");
+    expect(container.querySelector("img")?.getAttribute("data-x")).toBe("1");
+    expect(container.querySelector("audio")?.hasAttribute("controls")).toBe(true);
+    expect(container.querySelector("audio")?.hasAttribute("loop")).toBe(true);
+    expect(container.querySelector("audio source")?.getAttribute("type")).toBe("audio/ogg");
+    expect(container.querySelector("audio source")?.getAttribute("data-codec")).toBe("vorbis");
+    expect(container.querySelector("video")?.getAttribute("poster")).toBe("./assets/poster.png");
+    expect(container.querySelector("video")?.hasAttribute("autoplay")).toBe(true);
+    expect(container.querySelector("video source")?.getAttribute("media")).toBe("screen");
+    expect(container.querySelector("video source")?.getAttribute("src")).toBe("./assets/v.webm");
+    expect(container.querySelector("video source")?.getAttribute("type")).toBe("video/webm");
+    expect(container.querySelector("video source")?.getAttribute("srcset")).toBe("./assets/v-small.webm 1x, ./assets/v.webm 2x");
+    expect(container.querySelector("video source")?.getAttribute("sizes")).toBe("(max-width: 600px) 100vw, 600px");
+    expect(result).not.toContain("htnote-raw");
   });
 
   it("preserves head and after slices when saving a changed document", () => {
