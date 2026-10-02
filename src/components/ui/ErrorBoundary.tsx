@@ -1,6 +1,7 @@
 import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
 
+import { Button } from "@/components/ui/Button";
 import i18n from "@/i18n";
 
 interface Props {
@@ -27,10 +28,10 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-app-bg p-6 text-center text-app-text">
           <h1 className="text-xl font-semibold">{i18n.t("errorBoundary.title")}</h1>
-          <p className="text-app-muted">{i18n.t("errorBoundary.description")}</p>
-          <button type="button" className="rounded bg-app-accent px-4 py-2 text-app-accent-text" onClick={() => window.location.reload()}>
+          <p className="select-text text-app-muted">{i18n.t("errorBoundary.description")}</p>
+          <Button type="button" variant="primary" onClick={() => window.location.reload()}>
             {i18n.t("errorBoundary.reload")}
-          </button>
+          </Button>
         </main>
       );
     }

@@ -22,6 +22,11 @@ export interface Toast extends ToastInput {
 const toastTimers = new Map<number, ReturnType<typeof setTimeout>>();
 let nextToastId = 0;
 
+interface ConfirmOptions {
+  variant: "primary" | "danger";
+  labelKey: string;
+}
+
 interface UiState {
   searchOpen: boolean;
   lastSearchQuery: string;
@@ -40,8 +45,8 @@ interface UiState {
   openTrash: () => void;
   closeTrash: () => void;
   setTrashCount: (count: number) => void;
-  confirmDialog: { titleKey: string; messageKey: string; params?: Record<string, string | number>; resolve: (confirmed: boolean) => void } | null;
-  confirm: (titleKey: string, messageKey: string, params?: Record<string, string | number>) => Promise<boolean>;
+  confirmDialog: { titleKey: string; messageKey: string; params?: Record<string, string | number>; options?: ConfirmOptions; resolve: (confirmed: boolean) => void } | null;
+  confirm: (titleKey: string, messageKey: string, params?: Record<string, string | number>, options?: ConfirmOptions) => Promise<boolean>;
   closeConfirmDialog: () => void;
   sidebarVisible: boolean;
   exportBusy: boolean;
@@ -72,8 +77,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   closeTrash: () => set({ trashOpen: false }),
   setTrashCount: (trashCount) => set((state) => ({ trashCount, trashRevision: state.trashRevision + 1 })),
   confirmDialog: null,
-  confirm: (titleKey, messageKey, params) => new Promise<boolean>((resolve) => {
-    set({ confirmDialog: { titleKey, messageKey, params, resolve } });
+  confirm: (titleKey, messageKey, params, options) => new Promise<boolean>((resolve) => {
+    set({ confirmDialog: { titleKey, messageKey, params, options, resolve } });
   }),
   closeConfirmDialog: () => set({ confirmDialog: null }),
   sidebarVisible: true,

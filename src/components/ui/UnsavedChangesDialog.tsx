@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/Button";
 import { useTreeStore } from "@/stores/treeStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -40,10 +41,10 @@ export function UnsavedChangesDialog() {
   if (!dialog) return null;
   const title = dialog.noteIds.length > 1 ? t("unsaved.multipleTitle") : t("unsaved.title");
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop p-4">
       <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="unsaved-title" aria-describedby="unsaved-description" className="w-full max-w-md rounded-lg border border-app-border bg-app-surface p-5 text-app-text shadow-xl">
         <h2 id="unsaved-title" className="text-lg font-semibold">{title}</h2>
-        <p id="unsaved-description" className="mt-2 text-sm text-app-muted">{t(dialog.purpose === "export" ? "export.unsaved" : "unsaved.description")}</p>
+        <p id="unsaved-description" className="select-text mt-2 text-sm text-app-muted">{t(dialog.purpose === "export" ? "export.unsaved" : "unsaved.description")}</p>
         {dialog.noteIds.length > 1 && <ul className="mt-3 max-h-40 list-disc overflow-auto pl-5 text-sm">{dialog.noteIds.map((id) => {
           const findTitle = (nodes: typeof tree): string | null => {
             for (const node of nodes) {
@@ -55,9 +56,9 @@ export function UnsavedChangesDialog() {
           return <li key={id}>{findTitle(tree) ?? t("tabs.untitled")}</li>;
         })}</ul>}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
-          <button ref={cancel} type="button" onClick={() => dialog.resolve("cancel")}>{t("unsaved.cancel")}</button>
-          <button type="button" data-testid="discard-changes" onClick={() => dialog.resolve("discard")}>{t(dialog.purpose === "export" ? "export.anyway" : "unsaved.discard")}</button>
-          <button type="button" data-testid="save-changes" onClick={() => dialog.resolve("save")} className="rounded bg-app-accent px-3 py-1 text-app-accent-text">{dialog.purpose === "export" ? t("export.saveAndExport") : dialog.noteIds.length > 1 ? t("unsaved.saveAll") : t("unsaved.save")}</button>
+          <Button ref={cancel} type="button" onClick={() => dialog.resolve("cancel")}>{t("unsaved.cancel")}</Button>
+          <Button type="button" variant={dialog.purpose === "export" ? "secondary" : "danger"} data-testid="discard-changes" onClick={() => dialog.resolve("discard")}>{t(dialog.purpose === "export" ? "export.anyway" : "unsaved.discard")}</Button>
+          <Button type="button" data-testid="save-changes" onClick={() => dialog.resolve("save")} variant="primary">{dialog.purpose === "export" ? t("export.saveAndExport") : dialog.noteIds.length > 1 ? t("unsaved.saveAll") : t("unsaved.save")}</Button>
         </div>
       </div>
     </div>

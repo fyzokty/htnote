@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/Button";
 import type { NoteNode, RecoveryDraft } from "@/lib/types";
 
 export interface RecoveryCandidate {
@@ -40,17 +41,17 @@ export function RecoveryDialog({ candidates, onRecover, onIgnore }: Props) {
   }, [candidates.length]);
 
   if (!candidates.length) return null;
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop p-4">
     <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="recovery-title" className="w-full max-w-lg rounded-lg border border-app-border bg-app-surface p-5 text-app-text shadow-xl">
       <h2 id="recovery-title" className="text-lg font-semibold">{t("recovery.title")}</h2>
       <p className="mt-2 text-sm text-app-muted">{t("recovery.description")}</p>
       <ul className="mt-4 max-h-80 space-y-3 overflow-auto">{candidates.map(({ draft, note, diskChanged }, index) => <li key={draft.id} className="rounded border border-app-border p-3">
         <p className="font-medium">{note.title}</p>
         <p className="text-sm text-app-muted">{t("recovery.savedAt", { time: new Date(draft.savedAt).toLocaleString() })}</p>
-        {diskChanged && <p className="text-sm text-amber-600">{t("recovery.diskChanged")}</p>}
+        {diskChanged && <p className="text-sm text-app-warning">{t("recovery.diskChanged")}</p>}
         <div className="mt-2 flex gap-2">
-          <button ref={index === 0 ? first : undefined} type="button" onClick={() => onRecover(draft.id)} className="rounded bg-app-accent px-3 py-1 text-app-accent-text">{t("recovery.recover")}</button>
-          <button type="button" onClick={() => onIgnore(draft.id)}>{t("recovery.ignore")}</button>
+          <Button ref={index === 0 ? first : undefined} type="button" onClick={() => onRecover(draft.id)} variant="primary">{t("recovery.recover")}</Button>
+          <Button type="button" variant="danger" onClick={() => onIgnore(draft.id)}>{t("recovery.ignore")}</Button>
         </div>
       </li>)}</ul>
     </div>

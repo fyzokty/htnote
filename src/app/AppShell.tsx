@@ -4,6 +4,9 @@ import { FilePlus2, FolderPlus, Menu, NotebookPen, Search, Settings2, Trash2 } f
 import { useTranslation } from "react-i18next";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
+import { Tooltip } from "@/components/ui/Tooltip";
+import { IconButton } from "@/components/ui/IconButton";
+import { Button } from "@/components/ui/Button";
 import { installUnsavedWindowGuard } from "@/app/unsavedWindowGuard";
 import { UnsavedChangesDialog } from "@/components/ui/UnsavedChangesDialog";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
@@ -260,7 +263,7 @@ export function AppShell() {
   }
 
   return (
-    <main className="flex h-screen min-h-0 w-full overflow-hidden bg-app-bg text-app-text">
+    <main className="select-none flex h-screen min-h-0 w-full overflow-hidden bg-app-bg text-app-text">
       <UnsavedChangesDialog />
       <ConfirmDialog />
       {searchOpen && <SearchModal />}
@@ -274,35 +277,35 @@ export function AppShell() {
         >
           <div className="flex h-14 shrink-0 items-center gap-2 border-b border-app-border px-4">
             <NotebookPen className="size-5 text-app-accent" aria-hidden />
-            <h1 className="text-lg font-semibold">{t("common.appName")}</h1>
+            <h1 className="select-none text-lg font-semibold">{t("common.appName")}</h1>
           </div>
           <div className="shrink-0 space-y-3 p-3">
             <div className="flex gap-1">
-              <button type="button" data-testid="new-note" onClick={() => void createNote()} title={formatShortcut("newNote")} className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-accent px-2 py-2 text-xs font-medium text-app-accent-text">
+              <Tooltip label={t("sidebar.newNote")} shortcut={formatShortcut("newNote")} className="flex-1"><Button type="button" data-testid="new-note" onClick={() => void createNote()} variant="primary" size="sm" className="min-w-0 flex-1 px-2 text-xs">
                 <FilePlus2 className="size-4 shrink-0" aria-hidden /> {t("sidebar.newNote")}
-              </button>
-              <button type="button" data-testid="new-folder" onClick={() => void createFolder()} title={formatShortcut("newFolder")} className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-subtle px-2 py-2 text-xs font-medium">
+              </Button></Tooltip>
+              <Tooltip label={t("sidebar.newFolder")} shortcut={formatShortcut("newFolder")} className="flex-1"><Button type="button" data-testid="new-folder" onClick={() => void createFolder()} size="sm" className="min-w-0 flex-1 px-2 text-xs">
                 <FolderPlus className="size-4 shrink-0" aria-hidden /> {t("sidebar.newFolder")}
-              </button>
-              <button type="button" data-testid="global-search" onClick={openSearch} title={formatShortcut("globalSearch")} className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-subtle px-2 py-2 text-xs font-medium">
+              </Button></Tooltip>
+              <Tooltip label={t("sidebar.search")} shortcut={formatShortcut("globalSearch")} className="flex-1"><Button type="button" data-testid="global-search" onClick={openSearch} size="sm" className="min-w-0 flex-1 px-2 text-xs">
                 <Search className="size-4 shrink-0" aria-hidden /> {t("sidebar.search")}
-              </button>
+              </Button></Tooltip>
             </div>
             <div className="flex items-center gap-1">
               <input type="search" aria-label={t("sidebar.quickFilter")} placeholder={t("sidebar.quickFilterPlaceholder")} value={filterQuery} onChange={(event) => setFilterQuery(event.target.value)} onKeyDown={(event) => handleQuickFilterKeyDown(event, () => setFilterQuery(""))} className="min-w-0 flex-1 rounded-md border border-app-border bg-app-bg px-3 py-2 text-sm outline-none focus:border-app-accent" />
-              {filterTag && <button type="button" onClick={() => setFilterTag(null)} aria-label={t("tags.clearFilter", { tag: filterTag })} className="max-w-24 shrink-0 truncate rounded bg-app-subtle px-2 py-1 text-xs">{filterTag} ×</button>}
+              {filterTag && <Button type="button" onClick={() => setFilterTag(null)} aria-label={t("tags.clearFilter", { tag: filterTag })} className="max-w-24 shrink-0 truncate rounded bg-app-subtle px-2 py-1 text-xs">{filterTag} ×</Button>}
             </div>
           </div>
           <FavoritesSection onOpenNote={openNote} />
           <SidebarTree onOpenNote={openNote} />
           <TagsSection />
           <div className="shrink-0 border-t border-app-border p-2">
-            <button type="button" data-testid="trash" onClick={openTrash} aria-pressed={trashOpen} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-app-subtle">
+            <Button type="button" data-testid="trash" onClick={openTrash} aria-pressed={trashOpen} variant="ghost" className="w-full justify-start gap-3">
               <Trash2 className="size-4" aria-hidden /> {t("sidebar.trash")} <span className="ml-auto">{trashCount}</span>
-            </button>
-            <button type="button" onClick={openSettings} aria-pressed={settingsOpen} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-app-subtle">
+            </Button>
+            <Button type="button" onClick={openSettings} aria-pressed={settingsOpen} variant="ghost" className="w-full justify-start gap-3">
               <Settings2 className="size-4" aria-hidden /> {t("sidebar.settings")}
-            </button>
+            </Button>
           </div>
           <div
             role="separator"
@@ -321,9 +324,9 @@ export function AppShell() {
       )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header onClickCapture={() => { closeTrash(); closeSettings(); }} className="flex h-14 shrink-0 items-center gap-3 border-b border-app-border bg-app-surface px-3">
-          <button type="button" onClick={toggleSidebar} title={formatShortcut("toggleSidebar")} aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")} className="rounded-md p-2 text-app-muted hover:bg-app-subtle focus-visible:outline-2 focus-visible:outline-app-accent">
+          <IconButton type="button" onClick={toggleSidebar} shortcut={formatShortcut("toggleSidebar")} label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")} className="text-app-muted">
             <Menu className="size-5" aria-hidden />
-          </button>
+          </IconButton>
           <TabBar />
         </header>
         <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden" aria-label={t("viewer.workspace")}>

@@ -308,3 +308,12 @@ describe("SidebarTree quick filter", () => {
     expect(screen.getByText("Eşleşme yok")).toBeInTheDocument();
   });
 });
+
+
+it("keeps tree labels unselectable and the inline rename input selectable", () => {
+  useTreeStore.setState({ tree, expanded: new Set(["A"]) });
+  render(<SidebarTree onOpenNote={vi.fn()} />);
+  expect(screen.getByRole("treeitem", { name: "Klasör: A" })).toHaveClass("select-none");
+  act(() => useTreeStore.getState().setRenaming("A"));
+  expect(screen.getByRole("textbox")).toHaveClass("select-text");
+});

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/Button";
 import { deleteRecoveryDraft } from "@/features/editor/recoveryDrafts";
 import { notifySaveError } from "@/features/editor/saveTab";
 import { ipc } from "@/lib/ipc";
@@ -70,12 +71,12 @@ export function ExternalChangeBanner({ noteId, doc }: { noteId: string; doc: Doc
 
   return (
     <div role="alert" className="flex shrink-0 items-center gap-3 border-b border-app-border bg-app-subtle px-4 py-2 text-sm">
-      <span>{doc.removedOnDisk ? t("external.removed") : t("external.changed")}</span>
+      <span className="select-text">{doc.removedOnDisk ? t("external.removed") : t("external.changed")}</span>
       {doc.removedOnDisk
-        ? <button type="button" disabled={busy} onClick={() => { void saveAs(); }}>{t("external.saveAs")}</button>
+        ? <Button type="button" disabled={busy} variant="primary" onClick={() => { void saveAs(); }}>{t("external.saveAs")}</Button>
         : <>
-          <button type="button" disabled={busy} onClick={() => { void loadDisk(); }}>{t("external.loadDisk")}</button>
-          <button type="button" disabled={busy} onClick={() => { void keepDraft(); }}>{t("external.keepMine")}</button>
+          <Button type="button" disabled={busy} variant="danger" onClick={() => { void loadDisk(); }}>{t("external.loadDisk")}</Button>
+          <Button type="button" disabled={busy} variant="primary" onClick={() => { void keepDraft(); }}>{t("external.keepMine")}</Button>
         </>}
     </div>
   );

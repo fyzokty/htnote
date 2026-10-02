@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/Button";
 import { useUiStore } from "@/stores/uiStore";
 
 export function ConfirmDialog() {
@@ -37,13 +38,13 @@ export function ConfirmDialog() {
   if (!dialog) return null;
   const decide = (confirmed: boolean) => { dialog.resolve(confirmed); close(); };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop p-4">
       <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message" className="w-full max-w-md rounded-lg border border-app-border bg-app-surface p-5 text-app-text shadow-xl">
         <h2 id="confirm-title" className="text-lg font-semibold">{t(dialog.titleKey, { defaultValue: dialog.titleKey })}</h2>
-        <p id="confirm-message" className="mt-2 text-sm text-app-muted">{t(dialog.messageKey, { ...dialog.params, defaultValue: dialog.messageKey })}</p>
+        <p id="confirm-message" className="select-text mt-2 text-sm text-app-muted">{t(dialog.messageKey, { ...dialog.params, defaultValue: dialog.messageKey })}</p>
         <div className="mt-5 flex justify-end gap-3">
-          <button ref={cancel} type="button" onClick={() => decide(false)}>{t("trash.cancel")}</button>
-          <button type="button" onClick={() => decide(true)} className="rounded bg-red-600 px-3 py-1 text-white">{t("trash.confirm")}</button>
+          <Button ref={cancel} type="button" onClick={() => decide(false)}>{t("trash.cancel")}</Button>
+          <Button type="button" onClick={() => decide(true)} variant={dialog.options?.variant ?? "danger"}>{t(dialog.options?.labelKey ?? "trash.confirm", { defaultValue: dialog.options?.labelKey ?? "trash.confirm" })}</Button>
         </div>
       </div>
     </div>

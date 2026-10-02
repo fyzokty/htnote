@@ -31,7 +31,13 @@ export function resolveThemeMode(theme: Theme, prefersDark: boolean): ThemeMode 
 }
 
 export function getNoteThemeVars(mode: ThemeMode): Record<string, string> {
-  return { ...noteColors[mode] };
+  const vars = { ...noteColors[mode] };
+  const style = getComputedStyle(document.documentElement);
+  for (const token of ["scrollbar", "scrollbar-hover"]) {
+    const value = style.getPropertyValue(`--app-${token}-${mode}`).trim();
+    if (value) vars[`--ht-${token}`] = value;
+  }
+  return vars;
 }
 
 export function applyThemeClass(mode: ThemeMode): void {

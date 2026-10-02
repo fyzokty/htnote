@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
+import { IconButton } from "@/components/ui/IconButton";
 import { formatShortcut, getPlatform, listShortcuts } from "@/lib/shortcuts/registry";
 import type { ShortcutCategory } from "@/lib/shortcuts/registry";
 
@@ -25,11 +26,11 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   return (
-    <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div role="presentation" className="fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div role="dialog" aria-modal="true" aria-label={t("shortcuts.title")} className="max-h-[80vh] w-full max-w-xl overflow-y-auto rounded-lg border border-app-border bg-app-surface p-5 shadow-xl">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">{t("shortcuts.title")}</h2>
-          <button ref={closeButton} type="button" onClick={onClose} aria-label={t("shortcuts.close")} className="rounded px-2 py-1 text-app-muted hover:bg-app-subtle">×</button>
+          <IconButton ref={closeButton} type="button" onClick={onClose} label={t("shortcuts.close")}>×</IconButton>
         </div>
         {categories.map((category) => (
           <section key={category} className="mt-5">

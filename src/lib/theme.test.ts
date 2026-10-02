@@ -5,6 +5,24 @@ import { getNoteThemeVars, resolveThemeMode } from "@/lib/theme";
 const keys = ["--ht-bg", "--ht-text", "--ht-accent", "--ht-font", "--ht-muted", "--ht-border", "--ht-code-bg"];
 
 describe("getNoteThemeVars", () => {
+  it("reads the requested scrollbar palette from app tokens independently of the current theme", () => {
+    const root = document.documentElement;
+    for (const mode of ["light", "dark"] as const) {
+      root.style.setProperty(`--app-scrollbar-${mode}`, mode === "light" ? "light-thumb" : "dark-thumb");
+      root.style.setProperty(`--app-scrollbar-hover-${mode}`, `${mode}-hover`);
+    }
+    try {
+      expect(getNoteThemeVars("light")["--ht-scrollbar"]).toBe("light-thumb");
+      expect(getNoteThemeVars("dark")["--ht-scrollbar"]).toBe("dark-thumb");
+      expect(getNoteThemeVars("dark")["--ht-scrollbar-hover"]).toBe("dark-hover");
+    } finally {
+      for (const mode of ["light", "dark"]) {
+        root.style.removeProperty(`--app-scrollbar-${mode}`);
+        root.style.removeProperty(`--app-scrollbar-hover-${mode}`);
+      }
+    }
+  });
+
   it("produces the complete palette for each mode", () => {
     const light = getNoteThemeVars("light");
     const dark = getNoteThemeVars("dark");

@@ -8,6 +8,17 @@
     root.style.cssText += ";--ht-bg:#f9fafb;--ht-text:#111827;--ht-accent:#4f46e5;--ht-muted:#6b7280;--ht-border:#e5e7eb;--ht-code-bg:#f3f4f6";
     root.dataset.htTheme = "light";
   }
+  if (!document.getElementById("htnote-scrollbars")) {
+    const style = document.createElement("style");
+    style.id = "htnote-scrollbars";
+    style.textContent = `:where(*){scrollbar-width:thin;scrollbar-color:var(--ht-scrollbar,var(--ht-border)) transparent}
+:where(*:hover){scrollbar-color:var(--ht-scrollbar-hover,var(--ht-muted)) transparent}
+:where(*)::-webkit-scrollbar{width:8px;height:8px}
+:where(*)::-webkit-scrollbar-track,:where(*)::-webkit-scrollbar-corner{background:transparent}
+:where(*)::-webkit-scrollbar-thumb{background:var(--ht-scrollbar,var(--ht-border));border:2px solid transparent;border-radius:999px;background-clip:padding-box}
+:where(*)::-webkit-scrollbar-thumb:hover{background-color:var(--ht-scrollbar-hover,var(--ht-muted))}`;
+    document.head.prepend(style);
+  }
   window.htnote = Object.freeze({ noteId, version: 1 });
   const send = (type, payload = {}) => window.parent.postMessage({ type, ...payload }, "*");
   const external = /^(https?:|mailto:)/i;

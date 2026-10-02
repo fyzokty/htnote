@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/Button";
 import { canDrop } from "@/features/tree/canDrop";
 import type { TreeNode } from "@/lib/types";
 
@@ -43,18 +44,18 @@ export function MoveDialog({ source, tree, onMove, onClose }: Props) {
       }
     }
   }
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <div ref={dialog} role="dialog" aria-modal="true" aria-label={t("tree.moveTitle")} tabIndex={-1} onKeyDown={onKeyDown} className="max-h-[80vh] w-80 overflow-y-auto rounded-lg bg-app-surface p-4 text-app-text shadow-xl outline-none">
       <h2 className="mb-3 font-semibold">{t("tree.moveTitle")}</h2>
       <div ref={listbox} role="listbox" tabIndex={0} aria-label={t("tree.moveTarget")} aria-activedescendant={valid.some((folder) => folder.path === focused) ? `move-${folders.findIndex((folder) => folder.path === focused)}` : undefined}>
         {folders.map((folder, index) => {
           const allowed = canDrop(source, folder.path, tree);
-          return <button key={folder.path} id={`move-${index}`} type="button" tabIndex={-1} role="option" aria-selected={allowed && focused === folder.path} aria-disabled={!allowed} disabled={!allowed} onClick={() => { setFocused(folder.path); listbox.current?.focus(); }} onDoubleClick={() => onMove(folder.path)} className={`block w-full rounded py-1 text-left disabled:opacity-40 ${focused === folder.path && allowed ? "bg-app-subtle" : ""}`} style={{ paddingLeft: folder.depth * 16 + 8 }} title={!allowed ? t("tree.invalidTarget") : undefined}>{folder.name}</button>;
+          return <Button variant="ghost" size="sm" key={folder.path} id={`move-${index}`} type="button" tabIndex={-1} role="option" aria-selected={allowed && focused === folder.path} aria-disabled={!allowed} disabled={!allowed} onClick={() => { setFocused(folder.path); listbox.current?.focus(); }} onDoubleClick={() => onMove(folder.path)} className={`block w-full rounded py-1 text-left disabled:opacity-40 ${focused === folder.path && allowed ? "bg-app-subtle" : ""}`} style={{ paddingLeft: folder.depth * 16 + 8 }} title={!allowed ? t("tree.invalidTarget") : undefined}>{folder.name}</Button>;
         })}
       </div>
       <div data-dialog-actions className="mt-4 flex justify-end gap-2">
-        <button type="button" onClick={onClose}>{t("tree.cancelMove")}</button>
-        <button type="button" disabled={!canDrop(source, focused, tree)} onClick={() => onMove(focused)}>{t("tree.confirmMove")}</button>
+        <Button type="button" onClick={onClose}>{t("tree.cancelMove")}</Button>
+        <Button variant="primary" type="button" disabled={!canDrop(source, focused, tree)} onClick={() => onMove(focused)}>{t("tree.confirmMove")}</Button>
       </div>
     </div>
   </div>;

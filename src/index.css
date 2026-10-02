@@ -12,6 +12,22 @@
   --app-subtle: #f3f4f6;
   --app-accent: #4f46e5;
   --app-accent-text: #ffffff;
+  --app-hover: #e9ecf2;
+  --app-active: #dde1eb;
+  --app-accent-hover: #4338ca;
+  --app-danger: #dc2626;
+  --app-danger-hover: #b91c1c;
+  --app-danger-text: #ffffff;
+  --app-focus: #4f46e5;
+  --app-warning: #b45309;
+  --app-scrollbar-light: #c1c6d0;
+  --app-scrollbar-hover-light: #8b93a2;
+  --app-scrollbar-dark: #48566b;
+  --app-scrollbar-hover-dark: #718198;
+  --app-scrollbar: var(--app-scrollbar-light);
+  --app-scrollbar-hover: var(--app-scrollbar-hover-light);
+  --app-backdrop: #00000080;
+  --app-shadow: #00000026;
 }
 
 :root.dark {
@@ -23,6 +39,18 @@
   --app-subtle: #334155;
   --app-accent: #6366f1;
   --app-accent-text: #ffffff;
+  --app-hover: #3d4b61;
+  --app-active: #485970;
+  --app-accent-hover: #4f46e5;
+  --app-danger: #b91c1c;
+  --app-danger-hover: #dc2626;
+  --app-danger-text: #ffffff;
+  --app-focus: #818cf8;
+  --app-warning: #fbbf24;
+  --app-scrollbar: var(--app-scrollbar-dark);
+  --app-scrollbar-hover: var(--app-scrollbar-hover-dark);
+  --app-backdrop: #00000099;
+  --app-shadow: #00000040;
 }
 
 @theme inline {
@@ -34,6 +62,18 @@
   --color-app-subtle: var(--app-subtle);
   --color-app-accent: var(--app-accent);
   --color-app-accent-text: var(--app-accent-text);
+  --color-app-hover: var(--app-hover);
+  --color-app-active: var(--app-active);
+  --color-app-accent-hover: var(--app-accent-hover);
+  --color-app-danger: var(--app-danger);
+  --color-app-danger-hover: var(--app-danger-hover);
+  --color-app-danger-text: var(--app-danger-text);
+  --color-app-focus: var(--app-focus);
+  --color-app-warning: var(--app-warning);
+  --color-app-scrollbar: var(--app-scrollbar);
+  --color-app-scrollbar-hover: var(--app-scrollbar-hover);
+  --color-app-backdrop: var(--app-backdrop);
+  --color-app-shadow: var(--app-shadow);
 }
 
 .htnote-visual-editor { color: var(--app-text); background: var(--app-surface); }
@@ -43,7 +83,7 @@
 .htnote-editor-toolbar button[aria-pressed="true"] { background: var(--app-accent); color: var(--app-accent-text); }
 .htnote-editor-toolbar button:disabled { opacity: 0.4; }
 .htnote-editor-link { display: flex; align-items: center; gap: 0.25rem; }
-.htnote-editor-link [role="alert"] { color: #dc2626; }
+.htnote-editor-link [role="alert"] { color: var(--app-danger); }
 .htnote-visual-editor .tiptap { min-height: 12rem; padding: 1rem 1.5rem; line-height: 1.65; outline: none; }
 .htnote-visual-editor .tiptap p { margin: 0.65em 0; }
 .htnote-visual-editor .tiptap h1, .htnote-visual-editor .tiptap h2, .htnote-visual-editor .tiptap h3, .htnote-visual-editor .tiptap h4, .htnote-visual-editor .tiptap h5, .htnote-visual-editor .tiptap h6 { font-weight: 700; line-height: 1.25; margin: 1em 0 0.5em; }
@@ -60,18 +100,18 @@
 .htnote-visual-editor .tiptap p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: var(--app-muted); float: left; pointer-events: none; height: 0; }
 .htnote-visual-editor .tiptap .htnote-note-link { color: var(--app-accent); text-decoration: underline; }
 .htnote-visual-editor .tiptap .htnote-note-link::before { content: "↗"; margin-right: 0.2em; }
-.htnote-visual-editor .tiptap .htnote-note-link-broken { color: #dc2626; text-decoration-style: wavy; }
+.htnote-visual-editor .tiptap .htnote-note-link-broken { color: var(--app-danger); text-decoration-style: wavy; }
 .htnote-media { position: relative; margin: 0.75rem 0; }
 .htnote-media-preview { display: block; max-width: 100%; border-radius: 0.5rem; }
 .htnote-media-video video { max-height: 28rem; }
 .htnote-media-audio { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
 .htnote-media-audio audio { width: min(100%, 28rem); }
 .htnote-media.is-selected > .htnote-media-preview { outline: 2px solid var(--app-accent); outline-offset: 3px; }
-.htnote-media-toolbar { position: absolute; top: 0.5rem; left: 0.5rem; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; max-width: calc(100% - 1rem); padding: 0.5rem; border: 1px solid var(--app-border); border-radius: 0.65rem; background: var(--app-surface); background: color-mix(in srgb, var(--app-surface) 90%, transparent); backdrop-filter: blur(6px); color: var(--app-text); box-shadow: 0 0.25rem 1rem #0002; font-size: 0.8rem; line-height: 1.3; }
+.htnote-media-toolbar { position: absolute; top: 0.5rem; left: 0.5rem; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; max-width: calc(100% - 1rem); padding: 0.5rem; border: 1px solid var(--app-border); border-radius: 0.65rem; background: var(--app-surface); background: color-mix(in srgb, var(--app-surface) 90%, transparent); backdrop-filter: blur(6px); color: var(--app-text); box-shadow: 0 0.25rem 1rem var(--app-shadow); font-size: 0.8rem; line-height: 1.3; }
 .htnote-media-audio .htnote-media-toolbar { position: static; max-width: 100%; background: var(--app-surface); backdrop-filter: none; }
-.htnote-media-toolbar button { display: inline-flex; align-items: center; justify-content: center; min-height: 1.9rem; padding: 0.3rem 0.5rem; border-radius: 0.3rem; color: var(--app-text); background: var(--app-subtle); cursor: pointer; }
-.htnote-media-toolbar button:hover { box-shadow: inset 0 0 0 1px var(--app-accent); }
-.htnote-media-toolbar button:disabled { opacity: 0.4; cursor: default; }
+.htnote-media-toolbar button:not(.htnote-button) { display: inline-flex; align-items: center; justify-content: center; min-height: 1.9rem; padding: 0.3rem 0.5rem; border-radius: 0.3rem; color: var(--app-text); background: var(--app-subtle); cursor: pointer; }
+.htnote-media-toolbar button:not(:disabled):hover { box-shadow: inset 0 0 0 1px var(--app-accent); }
+.htnote-media-toolbar button:disabled { opacity: 0.4; cursor: not-allowed; }
 .htnote-media-toolbar :is(button, input):focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
 .htnote-media-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
 .htnote-media-alt label { color: var(--app-muted); }
@@ -79,12 +119,76 @@
 .htnote-media-alt input::placeholder { color: var(--app-muted); }
 .htnote-media-width { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--app-border); border-radius: 0.4rem; background: var(--app-subtle); }
 .htnote-media-width button[aria-pressed="true"] { background: var(--app-accent); color: var(--app-accent-text); }
-.htnote-media-toolbar .htnote-media-delete { margin-left: auto; }
-.htnote-note-picker-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: #0008; }
-.htnote-note-picker { width: min(28rem, calc(100vw - 2rem)); max-height: 70vh; overflow: auto; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.5rem; background: var(--app-surface); color: var(--app-text); box-shadow: 0 1rem 3rem #0004; }
+.htnote-media-toolbar .htnote-tooltip-anchor:has(.htnote-media-delete) { margin-left: auto; }
+.htnote-note-picker-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: var(--app-backdrop); }
+.htnote-note-picker { width: min(28rem, calc(100vw - 2rem)); max-height: 70vh; overflow: auto; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.5rem; background: var(--app-surface); color: var(--app-text); box-shadow: 0 1rem 3rem var(--app-shadow); }
 .htnote-note-picker-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
 .htnote-note-picker input { width: 100%; padding: 0.5rem; border: 1px solid var(--app-border); border-radius: 0.25rem; background: var(--app-surface); color: var(--app-text); }
 .htnote-note-picker [role="listbox"] { max-height: 50vh; overflow: auto; margin-top: 0.5rem; }
 .htnote-note-picker [role="option"] { display: flex; flex-direction: column; width: 100%; padding: 0.5rem; text-align: left; border-radius: 0.25rem; }
 .htnote-note-picker [role="option"][aria-selected="true"] { background: var(--app-subtle); }
 .htnote-note-picker small { color: var(--app-muted); }
+
+
+/* Base rules also cover the editor toolbars reserved for B2. */
+@layer base {
+  :where(button, select, input[type="checkbox"], input[type="radio"], [role="tab"], [role="treeitem"], [role="option"], [role="menuitem"]) {
+    cursor: pointer;
+    transition: background-color 150ms ease-out, color 150ms ease-out, border-color 150ms ease-out, box-shadow 150ms ease-out;
+  }
+  :where(button) { padding: 0.375rem 0.625rem; border-radius: 0.375rem; user-select: none; }
+  :where(button, select, [role="tab"], [role="treeitem"], [role="option"], [role="menuitem"]):not(:disabled):not([aria-disabled="true"]):hover {
+    background-color: var(--app-hover);
+  }
+  :where(button, select, [role="tab"], [role="treeitem"]):not(:disabled):not([aria-disabled="true"]):active { background-color: var(--app-active); }
+  :where(button, input, textarea, select):disabled, :where([aria-disabled="true"]) { opacity: 0.45; cursor: not-allowed; }
+  :where(input, textarea, [contenteditable="true"], .cm-editor, .cm-editor *, .tiptap, .tiptap *, [role="alert"], [role="status"] p) { user-select: text; }
+  :where([role="toolbar"], .htnote-editor-toolbar, .htnote-editor-toolbar *, .htnote-media-toolbar, .htnote-media-toolbar *, .tiptap [contenteditable="false"]) { user-select: none; }
+  :where(input, textarea, [contenteditable="true"]) { user-select: text; }
+  :where(button[aria-pressed="true"], button[aria-selected="true"]) { background: var(--app-active); }
+
+  :where(input, textarea, select):not(:disabled):hover { border-color: var(--app-muted); }
+  :where(*, .cm-scroller) { scrollbar-width: thin; scrollbar-color: var(--app-scrollbar) transparent; }
+  :where(*, .cm-scroller):hover { scrollbar-color: var(--app-scrollbar-hover) transparent; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--app-scrollbar); border: 2px solid transparent; border-radius: 999px; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background-color: var(--app-scrollbar-hover); }
+}
+
+@layer components {
+  .htnote-button { display: inline-flex; align-items: center; justify-content: center; gap: 0.375rem; border: 1px solid transparent; border-radius: 0.375rem; font-size: 0.875rem; font-weight: 500; line-height: 1.25rem; }
+  .htnote-button-sm { min-height: 1.75rem; padding: 0.25rem 0.625rem; }
+  .htnote-button-md { min-height: 2.25rem; padding: 0.5rem 0.875rem; }
+  .htnote-button-primary { background: var(--app-accent); color: var(--app-accent-text); }
+  .htnote-button-primary:not(:disabled):hover { background: var(--app-accent-hover); }
+  .htnote-button-secondary { background: var(--app-subtle); border-color: var(--app-border); color: var(--app-text); }
+  .htnote-button-ghost { background: transparent; color: var(--app-text); }
+  .htnote-button-secondary:not(:disabled):hover, .htnote-button-ghost:not(:disabled):hover { background: var(--app-hover); }
+  .htnote-button-ghost[aria-pressed="true"] { background: var(--app-active); }
+  .htnote-button-danger { background: var(--app-danger); color: var(--app-danger-text); }
+  .htnote-button-danger:not(:disabled):hover { background: var(--app-danger-hover); }
+  .htnote-button:not(:disabled):active { box-shadow: inset 0 0 0 100px color-mix(in srgb, var(--app-text) 8%, transparent); }
+  .htnote-icon-button { width: 2.25rem; height: 2.25rem; padding: 0; flex-shrink: 0; }
+  .htnote-icon-button.htnote-button-sm { width: 1.75rem; height: 1.75rem; }
+  .htnote-tooltip-anchor { display: inline-flex; min-width: 0; align-items: center; flex-shrink: 0; }
+  .htnote-tooltip { position: fixed; z-index: 200; display: flex; align-items: center; gap: 0.75rem; max-width: calc(100vw - 16px); padding: 0.375rem 0.625rem; border: 1px solid var(--app-border); border-radius: 0.375rem; background: var(--app-surface); color: var(--app-text); box-shadow: 0 4px 16px var(--app-shadow); font-size: 0.75rem; overflow-wrap: anywhere; pointer-events: none; }
+  .htnote-tooltip kbd { flex-shrink: 0; color: var(--app-muted); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+
+.htnote-editor-toolbar button:not(:disabled):hover { background: var(--app-hover); }
+.htnote-editor-toolbar button[aria-pressed="true"]:not(:disabled):hover { background: var(--app-accent-hover); }
+
+/* Utility resets such as outline-none must not hide keyboard focus. */
+:where(button, input, textarea, select, [tabindex], [contenteditable="true"]):focus-visible {
+  outline: 2px solid var(--app-focus);
+  outline-offset: 2px;
+}
+
+:where(input, textarea, select):not(:disabled):hover { border-color: var(--app-muted); }
+:where(select):not(:disabled):hover { background-color: var(--app-hover); }
+.htnote-split-view [role="separator"]:hover { box-shadow: inset 0 0 0 3px var(--app-accent); }

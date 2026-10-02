@@ -32,14 +32,19 @@ describe("TabBar", () => {
     render(<TabBar />);
     const alpha = screen.getByRole("tab", { name: "Alpha" });
     const beta = screen.getByRole("tab", { name: "Beta" });
-    expect(alpha).toHaveAttribute("title", "Alpha");
+    expect(alpha).not.toHaveAttribute("title");
+    expect(alpha).toHaveClass("select-none");
     expect(beta).toHaveAttribute("aria-selected", "true");
     fireEvent.click(alpha);
     expect(alpha).toHaveAttribute("aria-selected", "true");
     act(() => {
       useTreeStore.setState({ tree: [{ type: "folder", relPath: "folder", name: "folder", children: [{ ...notes[0], title: "Renamed" }, notes[1]] }] });
     });
-    expect(screen.getByRole("tab", { name: "Renamed" })).toHaveAttribute("title", "Renamed");
+    expect(screen.getByRole("tab", { name: "Renamed" })).toHaveAttribute("aria-label", "Renamed");
+    const close = screen.getByRole("button", { name: "Renamed sekmesini kapat" });
+    fireEvent.focus(close);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Renamed sekmesini kapatCtrl+W");
+    expect(close).toHaveAttribute("aria-describedby", screen.getByRole("tooltip").id);
   });
 
   it("closes tabs with the middle button and close control", async () => {

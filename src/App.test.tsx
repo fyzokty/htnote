@@ -26,7 +26,9 @@ describe("App", () => {
   it("ayarlar yüklendikten sonra uygulama kabuğunu render eder", async () => {
     mockIPC((command) => command === "get_settings" ? defaults : undefined);
     render(<App />);
-    expect(await screen.findByRole("heading", { name: "HTNote" })).toBeInTheDocument();
+    const title = await screen.findByRole("heading", { name: "HTNote" });
+    expect(title).toHaveClass("select-none");
+    expect(title.closest("main")).toHaveClass("select-none");
   });
 
   it("dil ayarı değiştiğinde görünen metinleri günceller", async () => {

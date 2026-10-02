@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 
+import { IconButton } from "@/components/ui/IconButton";
+import { Button } from "@/components/ui/Button";
 import { addTag, removeTag } from "@/features/tags/tags";
 import type { TagCount } from "@/features/tags/tags";
 import { normalizeText } from "@/lib/textMatch";
@@ -42,7 +44,7 @@ export function TagInput({ tags, suggestions, onChange }: Props) {
 
   return <div className="mt-1 flex flex-wrap items-center gap-1">
     {tags.map((tag) => <span key={tag} className="inline-flex items-center gap-1 rounded bg-app-subtle px-2 py-0.5 text-xs">
-      {tag}<button type="button" aria-label={t("tags.remove", { tag })} onClick={() => onChange(removeTag(tags, tag))}>×</button>
+      {tag}<IconButton size="sm" className="size-4 min-h-0" type="button" label={t("tags.remove", { tag })} onClick={() => onChange(removeTag(tags, tag))}>×</IconButton>
     </span>)}
     <div className="relative">
       <input type="text" aria-label={t("tags.add")} placeholder={t("tags.add")} value={value}
@@ -51,7 +53,7 @@ export function TagInput({ tags, suggestions, onChange }: Props) {
         className="w-24 bg-transparent text-xs outline-none placeholder:text-app-muted" />
       {focused && matches.length > 0 && <ul className="absolute left-0 top-full z-20 max-h-40 min-w-36 overflow-y-auto rounded border border-app-border bg-app-surface shadow-lg" role="listbox" aria-label={t("tags.suggestions")}>
         {matches.map(({ tag, count }, index) => <li key={tag} role="option" aria-selected={index === selected}>
-          <button type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => commit(tag)} className="flex w-full justify-between gap-3 px-2 py-1 text-left text-xs hover:bg-app-subtle">{tag}<span>{count}</span></button>
+          <Button variant="ghost" size="sm" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => commit(tag)} className="flex w-full justify-between gap-3 px-2 py-1 text-left text-xs hover:bg-app-subtle">{tag}<span>{count}</span></Button>
         </li>)}
       </ul>}
     </div>

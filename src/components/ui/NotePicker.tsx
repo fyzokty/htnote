@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { IconButton } from "@/components/ui/IconButton";
+import { Button } from "@/components/ui/Button";
 import { textMatch } from "@/lib/textMatch";
 import type { FlatNote } from "@/lib/types";
 import { useTreeStore } from "@/stores/treeStore";
@@ -42,14 +44,14 @@ export function NotePicker({ currentNoteId, onSelect, onClose }: NotePickerProps
     <div ref={dialog} className="htnote-note-picker" role="dialog" aria-modal="true" aria-label={t("notePicker.title")} onKeyDown={onKeyDown}>
       <div className="htnote-note-picker-header">
         <strong>{t("notePicker.title")}</strong>
-        <button type="button" onClick={onClose} aria-label={t("notePicker.close")}>×</button>
+        <IconButton type="button" onClick={onClose} label={t("notePicker.close")}>×</IconButton>
       </div>
       <input ref={input} aria-label={t("notePicker.search")} value={query} onChange={(event) => { setQuery(event.target.value); setActive(0); }} />
       <div role="listbox" aria-label={t("notePicker.results")}>
-        {filtered.map((note, index) => <button key={note.id} type="button" role="option" aria-selected={active === index}
+        {filtered.map((note, index) => <Button variant="ghost" key={note.id} type="button" role="option" aria-selected={active === index}
           onMouseEnter={() => setActive(index)} onClick={() => onSelect(note)}>
           <span>{note.title}</span><small>{note.relPath.split("/").slice(0, -1).join("/") || t("notePicker.root")}</small>
-        </button>)}
+        </Button>)}
         {!filtered.length && <p>{t("notePicker.empty")}</p>}
       </div>
     </div>
