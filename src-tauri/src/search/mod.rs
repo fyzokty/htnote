@@ -62,7 +62,13 @@ pub struct SearchNotesResult {
 }
 
 fn occurrences(text: &str, term: &str) -> Vec<usize> {
-    text.match_indices(term).map(|(offset, _)| text[..offset].chars().count()).collect()
+    let mut last_byte = 0;
+    let mut chars = 0;
+    text.match_indices(term).map(|(offset, _)| {
+        chars += text[last_byte..offset].chars().count();
+        last_byte = offset;
+        chars
+    }).collect()
 }
 
 fn snippet(text: &str, map: &[(usize, usize)], position: usize, length: usize) -> Option<SearchSnippet> {
@@ -120,27 +126,33 @@ impl SearchIndex {
             let tag_match = words.iter().any(|word| tags.iter().any(|tag| tag.contains(word)));
             if !words.iter().all(|word| entry.title_norm.contains(word)
                 || tags.iter().any(|tag| tag.contains(word)) || entry.text_norm.text.contains(word)) { return None; }
-            let count = words.iter().map(|word| occurrences(&entry.text_norm.text, word).len()).sum();
-            let mut seen = HashSet::new();
-            let snippets = occurrences(&entry.text_norm.text, first).into_iter()
-                .filter(|position| {
-                    let end = position + first.chars().count() - 1;
-                    match (entry.text_norm.map.get(*position), entry.text_norm.map.get(end)) {
-                        (Some(start), Some(end)) => seen.insert((start.0, end.1)),
-                        _ => false,
-                    }
-                })
-                .filter_map(|position| snippet(&entry.text, &entry.text_norm.map, position, first.chars().count()))
-                .take(3).collect();
+            let count = words.iter().map(|word| entry.text_norm.text.matches(word).count()).sum();
             Some((title_match, tag_match, entry.updated_at, SearchResult {
                 id: *id, title: entry.title.clone(), rel_path: entry.rel_path.clone(),
-                title_match, match_count: count, snippets,
+                title_match, match_count: count, snippets: Vec::new(),
             }))
         }).collect();
         matches.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.1.cmp(&a.1))
             .then_with(|| b.3.match_count.cmp(&a.3.match_count))
             .then_with(|| b.2.cmp(&a.2)).then_with(|| a.3.id.cmp(&b.3.id)));
-        matches.into_iter().take(limit).map(|item| item.3).collect()
+        // Snippet oluşturma pahalıdır; yalnızca sıralama sonrası döndürülen sonuçlar için yapılır.
+        matches.into_iter().take(limit).map(|item| {
+            let mut result = item.3;
+            if let Some(entry) = self.entries.get(&result.id) {
+                let mut seen = HashSet::new();
+                result.snippets = occurrences(&entry.text_norm.text, first).into_iter()
+                    .filter(|position| {
+                        let end = position + first.chars().count() - 1;
+                        match (entry.text_norm.map.get(*position), entry.text_norm.map.get(end)) {
+                            (Some(start), Some(end)) => seen.insert((start.0, end.1)),
+                            _ => false,
+                        }
+                    })
+                    .filter_map(|position| snippet(&entry.text, &entry.text_norm.map, position, first.chars().count()))
+                    .take(3).collect();
+            }
+            result
+        }).collect()
     }
 }
 

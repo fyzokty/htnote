@@ -407,9 +407,28 @@ async fn scan_and_replace(state: &AppState) -> Result<Vec<TreeNode>, AppError> {
     let result = tauri::async_runtime::spawn_blocking(move || scan::scan(&root))
         .await.map_err(|error| AppError::Internal(error.to_string()))??;
     let tree = result.tree.clone();
-    state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?.replace_all(result);
-    reindex_all(state)?;
+    let (changed, removed) = {
+        let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
+        let (changed, removed) = scan_diff(&index, &result);
+        index.replace_all(result);
+        (changed, removed)
+    };
+    search::reindex_notes(&state.note_index, &state.search_index, &state.link_index, &changed, &removed)?;
     Ok(tree)
+}
+
+fn scan_diff(index: &crate::index::note_index::NoteIndex, result: &scan::ScanResult) -> (Vec<uuid::Uuid>, Vec<uuid::Uuid>) {
+    let changed = result.notes.iter().filter(|note| {
+        index.by_id.get(&note.metadata.id).is_none_or(|old| {
+            old.rel_path != note.rel_path
+                || old.metadata.updated_at != note.metadata.updated_at
+                || old.metadata.title != note.metadata.title
+                || old.metadata.tags != note.metadata.tags
+        })
+    }).map(|note| note.metadata.id).collect();
+    let current = result.notes.iter().map(|note| note.metadata.id).collect::<std::collections::HashSet<_>>();
+    let removed = index.by_id.keys().filter(|id| !current.contains(id)).copied().collect();
+    (changed, removed)
 }
 
 fn reindex_all(state: &AppState) -> Result<(), AppError> {
@@ -723,6 +742,37 @@ mod tests {
         assert!(tauri::async_runtime::block_on(scan_and_replace(&state)).unwrap().is_empty());
         assert!(state.note_index.read().unwrap().resolve(metadata.id).is_none());
         assert!(state.search_index.read().unwrap().search("Not", 10).is_empty());
+    }
+
+    #[test]
+    fn scan_diff_tracks_added_removed_moved_and_unchanged_notes() {
+        let root = tempfile::tempdir().unwrap();
+        let mut index = crate::index::note_index::NoteIndex::new(root.path().to_path_buf());
+        let old = NoteMetadata::new("Old");
+        let moved = NoteMetadata::new("Moved");
+        let same = NoteMetadata::new("Same");
+        let updated = NoteMetadata::new("Updated");
+        for (metadata, rel_path) in [(&old, "Old"), (&moved, "Moved"), (&same, "Same"), (&updated, "Updated")] {
+            index.by_id.insert(metadata.id, IndexedNote { rel_path: rel_path.into(), metadata: metadata.clone() });
+        }
+        let added = NoteMetadata::new("Added");
+        let mut new_version = updated.clone();
+        new_version.title = "Updated title".into();
+        let result = scan::ScanResult {
+            notes: vec![
+                IndexedNote { rel_path: "Other/Moved".into(), metadata: moved.clone() },
+                IndexedNote { rel_path: "Same".into(), metadata: same.clone() },
+                IndexedNote { rel_path: "Updated".into(), metadata: new_version },
+                IndexedNote { rel_path: "Added".into(), metadata: added.clone() },
+            ],
+            ..Default::default()
+        };
+        let (changed, removed) = scan_diff(&index, &result);
+        assert_eq!(changed.len(), 3);
+        assert!(changed.contains(&moved.id));
+        assert!(changed.contains(&added.id));
+        assert!(changed.contains(&updated.id));
+        assert_eq!(removed, [old.id]);
     }
 
     #[test]

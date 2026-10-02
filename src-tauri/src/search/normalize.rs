@@ -4,17 +4,24 @@ pub struct Folded {
 }
 
 pub fn tr_fold(value: &str) -> Folded {
-    let mut text = String::new();
-    let mut map = Vec::new();
+    let mut text = String::with_capacity(value.len());
+    let mut map = Vec::with_capacity(value.len());
     for (index, ch) in value.chars().enumerate() {
-        let folded = match ch {
-            'İ' => "i".to_string(),
-            'I' => "ı".to_string(),
-            _ => ch.to_lowercase().collect::<String>(),
-        };
-        for lowered in folded.chars() {
-            text.push(lowered);
-            map.push((index, index + 1));
+        match ch {
+            'İ' => {
+                text.push('i');
+                map.push((index, index + 1));
+            }
+            'I' => {
+                text.push('ı');
+                map.push((index, index + 1));
+            }
+            _ => {
+                for lowered in ch.to_lowercase() {
+                    text.push(lowered);
+                    map.push((index, index + 1));
+                }
+            }
         }
     }
     Folded { text, map }

@@ -31,11 +31,17 @@ pub struct BrokenLinkItem {
     pub text: String,
 }
 
+static NOTE_LINK_SELECTOR: std::sync::LazyLock<Selector> = std::sync::LazyLock::new(|| {
+    Selector::parse("a[href^='htnote://note/']").expect("static selector")
+});
+
 pub fn extract_links(html: &str) -> HashMap<Uuid, LinkInfo> {
+    if !html.contains("htnote://note/") {
+        return HashMap::new();
+    }
     let document = Html::parse_document(html);
-    let selector = Selector::parse("a[href^='htnote://note/']").expect("static selector");
     let mut links = HashMap::new();
-    for anchor in document.select(&selector) {
+    for anchor in document.select(&NOTE_LINK_SELECTOR) {
         let Some(target) = anchor.value().attr("href")
             .and_then(|href| href.strip_prefix("htnote://note/"))
             .and_then(|id| Uuid::parse_str(id).ok()) else { continue };
