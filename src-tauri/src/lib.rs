@@ -116,7 +116,13 @@ mod tests {
     fn tauri_conf_version_matches_cargo_version() {
         let conf: serde_json::Value =
             serde_json::from_str(include_str!("../tauri.conf.json")).expect("geçerli JSON");
-        assert_eq!(conf["version"].as_str(), Some(app_version()));
+        if conf["version"] == "../package.json" {
+            let package: serde_json::Value =
+                serde_json::from_str(include_str!("../../package.json")).expect("geçerli package JSON");
+            assert_eq!(package["version"].as_str(), Some(app_version()));
+        } else {
+            assert_eq!(conf["version"].as_str(), Some(app_version()));
+        }
     }
 
     /// Not origin'i capability kapsamına girmemeli; iframe ve IPC kaynakları açıkça sınırlanmalı.
