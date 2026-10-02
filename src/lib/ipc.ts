@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { AppInfo, AssetInfo, BacklinkItem, BrokenLinkItem, NoteData, PreviewDraftPayload, RecoveryDraft, SaveNotePayload, SaveNoteResult, SearchNotesResult, Settings, SettingsPatch, TrashItem, TreeNode, UpdateMetadataPatch, UpdateMetadataResult, WriteDraftPayload } from "@/lib/types";
+import type { AppInfo, AssetInfo, BacklinkItem, BrokenLinkItem, ExportSingleHtmlResult, NoteData, PreviewDraftPayload, RecoveryDraft, SaveNotePayload, SaveNoteResult, SearchNotesResult, Settings, SettingsPatch, TrashItem, TreeNode, UpdateMetadataPatch, UpdateMetadataResult, WriteDraftPayload } from "@/lib/types";
 
 export const ipc = {
   appInfo(): Promise<AppInfo> {
@@ -32,6 +32,9 @@ export const ipc = {
   },
   readNote(id: string): Promise<NoteData> {
     return invoke<NoteData>("read_note", { id });
+  },
+  exportSingleHtml(id: string, targetPath: string): Promise<ExportSingleHtmlResult> {
+    return invoke<ExportSingleHtmlResult>("export_single_html", { id, targetPath });
   },
   saveNote(id: string, payload: SaveNotePayload): Promise<SaveNoteResult> {
     return invoke<SaveNoteResult>("save_note", { id, payload: { ...payload, css: payload.css ?? "", js: payload.js ?? "" } });
