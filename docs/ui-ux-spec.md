@@ -110,14 +110,17 @@ Uygulamanın kullanım hızını artıracak varsayılan kısayol haritası:
 |---|---|---|
 | `Ctrl + N` | `Cmd + N` | Yeni boş not oluştur |
 | `Ctrl + Shift + N` | `Cmd + Shift + N` | Yeni klasör oluştur |
+| `F2` | `F2` | Seçili öğeyi yeniden adlandır |
 | `Ctrl + S` | `Cmd + S` | Açık notu kaydet |
 | `Ctrl + E` | `Cmd + E` | Görüntüle / Düzenle modu arasında geçiş yap |
 | `Ctrl + Shift + F` | `Cmd + Shift + F` | Genel tam metin arama penceresini aç |
 | `Ctrl + W` | `Cmd + W` | Aktif sekmeyi kapat |
 | `Ctrl + Tab` | `Ctrl + Tab` | Sonraki sekmeye geç (`Cmd+Tab` işletim sistemine aittir) |
 | `Ctrl + Shift + Tab` | `Ctrl + Shift + Tab` | Önceki sekmeye geç |
-| `Ctrl + \` | `Cmd + \` | Sol kenar çubuğunu gizle / göster |
+| `Ctrl + \` veya `Ctrl + Shift + B` | `Cmd + \` veya `Cmd + Shift + B` | Sol kenar çubuğunu gizle / göster |
+| `Ctrl + /` | `Cmd + /` | Klavye kısayollarını göster |
 | `Escape` | `Escape` | Açık modal veya arama pencerelerini kapat |
+| `Ctrl + B / I / U / K` | `Cmd + B / I / U / K` | Editörde kalın / italik / altı çizili / not bağlantısı |
 
 ---
 

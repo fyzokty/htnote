@@ -13,7 +13,7 @@ vi.mock("@/features/viewer/NoteViewer", () => ({ NoteViewer: () => null }));
 vi.mock("@/features/viewer/bridgeHost", () => ({ installBridgeHost: () => () => {} }));
 vi.mock("@/features/tree/fsChangeSync", () => ({ startFsChangeSync: () => () => {} }));
 vi.mock("@/features/tree/useTreeActions", () => ({ useTreeActions: () => ({ createNote: vi.fn(), createFolder: vi.fn() }) }));
-vi.mock("@/lib/shortcuts/manager", () => ({ installShortcutListener: () => () => {} }));
+vi.mock("@/lib/shortcuts/manager", () => ({ installShortcutListener: () => () => {}, scheduleUnboundShortcutWarnings: () => () => {} }));
 vi.mock("@/lib/shortcuts/useShortcut", () => ({ useShortcut: () => {} }));
 
 beforeEach(() => {
