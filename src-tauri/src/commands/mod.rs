@@ -71,6 +71,11 @@ pub fn set_root_dir(path: String, app: tauri::AppHandle, state: State<'_, AppSta
     Ok(updated)
 }
 
+#[tauri::command]
+pub fn validate_root_dir(path: String) -> Result<(), AppError> {
+    settings::validate_root_dir(PathBuf::from(path).as_path())
+}
+
 fn switch_root(state: &AppState, app: &tauri::AppHandle, settings: &mut Settings, updated: Settings, root: PathBuf) -> Result<(), AppError> {
     switch_root_with_watcher(state, settings, updated, root, |state| crate::watcher::start_for_app(state, app.clone()))
 }
@@ -503,6 +508,21 @@ mod tests {
     use crate::notes::create::create_note_in;
     use crate::notes::model::{write_metadata_atomic, NoteMetadata};
     use crate::notes::read::read_note_dir;
+
+    #[test]
+    fn validate_root_dir_command_rejects_note_paths_without_side_effects() {
+        let root = tempfile::tempdir().unwrap();
+        let note = root.path().join("Note");
+        std::fs::create_dir(&note).unwrap();
+        std::fs::write(note.join("metadata.json"), "{}").unwrap();
+        std::fs::write(note.join("index.html"), "").unwrap();
+        let child = note.join("nested");
+
+        assert!(matches!(validate_root_dir(note.to_string_lossy().into_owned()), Err(AppError::NotAFolder(_))));
+        assert!(matches!(validate_root_dir(child.to_string_lossy().into_owned()), Err(AppError::NotAFolder(_))));
+        assert!(!child.exists());
+        assert!(!note.join(".trash").exists());
+    }
 
     #[test]
     fn failed_watcher_start_restores_root_settings_and_index() {
