@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { NoteEditor } from "@/features/editor/NoteEditor";
 import { useEditSession } from "@/features/editor/useEditSession";
 import { toggleFavorite } from "@/features/favorites/favorites";
+import { TagInput } from "@/features/tags/TagInput";
+import { deriveTags, setNoteTags } from "@/features/tags/tags";
 import { nextMounted } from "@/features/viewer/lru";
 import { registerFrame } from "@/features/viewer/bridgeHost";
 import { NOTE_IFRAME_SANDBOX, noteUrl } from "@/lib/noteUrl";
@@ -72,6 +74,7 @@ export function NoteViewer() {
   const [now, setNow] = useState(() => Date.now());
   const activeNote = activeId ? findNote(tree, activeId) : null;
   const activeTab = tabs.find((tab) => tab.noteId === activeId);
+  const tagSuggestions = deriveTags(tree);
 
   const mounted = cache.tabs === tabs && cache.activeId === activeId
     ? cache.mounted
@@ -90,7 +93,7 @@ export function NoteViewer() {
           <div className="min-w-0">
             <h2 className="truncate font-semibold">{activeNote?.title ?? activeTab?.doc.removedTitle ?? t("tabs.untitled")}</h2>
             {saved && <p className="text-xs text-app-muted">{t("viewer.lastSaved", { time: saved })}</p>}
-            {activeNote && activeNote.tags.length > 0 && <div className="mt-1 flex flex-wrap gap-1">{activeNote.tags.map((tag) => <span key={tag} className="rounded bg-app-subtle px-2 py-0.5 text-xs">{tag}</span>)}</div>}
+            {activeNote && <TagInput key={activeNote.id} tags={activeNote.tags} suggestions={tagSuggestions} onChange={(tags) => void setNoteTags(activeNote.id, tags)} />}
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <button type="button" disabled={!activeNote} onClick={() => { if (activeNote) void toggleFavorite(activeNote.id, !activeNote.isFavorite); }} aria-label={t("viewer.favorite")} title={t("viewer.favorite")} aria-pressed={activeNote?.isFavorite ?? false} className={`rounded p-2 ${activeNote?.isFavorite ? "text-app-accent" : "text-app-muted"}`}><Star className="size-4" fill={activeNote?.isFavorite ? "currentColor" : "none"} aria-hidden /></button>

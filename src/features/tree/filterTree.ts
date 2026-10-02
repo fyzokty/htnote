@@ -13,7 +13,7 @@ export function filterTree(tree: TreeNode[], query: string, options: { tag?: str
     const result: TreeNode[] = [];
     for (const node of nodes) {
       if (node.type === "note") {
-        if ((!term || folderMatched || textMatch(node.title, term)) && (!tag || node.tags.includes(tag))) result.push(node);
+        if ((!term || folderMatched || textMatch(node.title, term)) && (!tag || node.tags.some((value) => normalizeText(value) === normalizeText(tag)))) result.push(node);
         continue;
       }
       const matched = folderMatched || (!!term && textMatch(node.name, term));
