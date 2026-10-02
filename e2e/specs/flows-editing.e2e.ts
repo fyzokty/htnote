@@ -18,7 +18,8 @@ describe("editing flows", () => {
     await typeInVisualEditor("Visual smoke content");
     await saveShortcut();
     await waitForFile(join(root, note.relPath, "index.html"), (bytes) => bytes.toString().includes("Visual smoke content"));
-    await $('[data-testid="save-note"]').click();
+    await browser.keys(["Control", "e"]);
+    await $('[data-testid="edit-note"]').waitForDisplayed();
     await withNoteFrame(note.id, async () => {
       assert.match(await $("#htnote-content").getText(), /Visual smoke content/);
     });
