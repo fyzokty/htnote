@@ -175,6 +175,42 @@ fn rewrite_srcset(value: &str, context: &mut Context<'_>) -> String {
     }).collect::<Vec<_>>().join(",")
 }
 
+fn decode_css_escapes(value: &str) -> String {
+    let mut chars = value.chars().peekable();
+    let mut decoded = String::with_capacity(value.len());
+    while let Some(ch) = chars.next() {
+        if ch != '\\' {
+            decoded.push(ch);
+            continue;
+        }
+        let mut hex = String::new();
+        while hex.len() < 6 {
+            let Some(digit) = chars.peek().copied().filter(char::is_ascii_hexdigit) else { break };
+            hex.push(digit);
+            chars.next();
+        }
+        if !hex.is_empty() {
+            if chars.peek().is_some_and(|next| next.is_ascii_whitespace()) {
+                chars.next();
+            }
+            if let Some(ch) = u32::from_str_radix(&hex, 16).ok().and_then(char::from_u32) {
+                decoded.push(ch);
+            } else {
+                decoded.push('\u{fffd}');
+            }
+        } else if let Some(next) = chars.next() {
+            if next == '\r' && chars.peek() == Some(&'\n') {
+                chars.next();
+            } else if next != '\n' && next != '\r' && next != '\u{c}' {
+                decoded.push(next);
+            }
+        } else {
+            decoded.push('\\');
+        }
+    }
+    decoded
+}
+
 fn rewrite_css(css: &str, context: &mut Context<'_>) -> String {
     let bytes = css.as_bytes();
     let mut output = String::with_capacity(css.len());
@@ -226,8 +262,9 @@ fn rewrite_css(css: &str, context: &mut Context<'_>) -> String {
         }
         if cursor >= bytes.len() || bytes[cursor] != b')' { index = cursor; continue; }
         let reference = &css[value_start..value_end];
-        let embedded = context.embed(reference);
-        if embedded != reference {
+        let decoded = decode_css_escapes(reference);
+        let embedded = context.embed(&decoded);
+        if embedded != decoded {
             output.push_str(&css[copy_from..value_start]);
             output.push_str(&embedded);
             copy_from = value_end;
@@ -270,5 +307,18 @@ mod tests {
         assert!(built.html.contains("missing.png"));
         assert!(built.warnings.contains(&"MISSING_ASSET:missing.png".into()));
         assert!(built.warnings.contains(&"LARGE_OUTPUT".into()));
+    }
+
+    #[test]
+    fn embeds_css_escaped_local_paths() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("my image.png"), b"png").unwrap();
+        fs::write(root.path().join("style.css"), r#"a{background:url("my\ image.png")}"#).unwrap();
+        fs::write(root.path().join("index.html"), r#"<link rel="stylesheet" href="./style.css"><style>b{background:url(my\ image.png)}</style><div style="background:url('my\20 image.png')"></div>"#).unwrap();
+
+        let built = build_single_html(root.path()).unwrap();
+        assert_eq!(built.html.matches("data:image/png;base64,cG5n").count(), 3);
+        assert!(!built.html.contains("my\\ image.png"));
+        assert!(built.warnings.is_empty());
     }
 }
