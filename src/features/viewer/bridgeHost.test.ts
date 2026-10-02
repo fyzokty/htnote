@@ -142,6 +142,35 @@ it("handles registered messages and resends theme on settings change", () => {
   }
 });
 
+it("sends the current dark theme and queued highlights to a replacement window", () => {
+  useSettingsStore.setState({ settings: { theme: "dark" } as Settings });
+  useTabsStore.getState().openNote(id);
+  const unregisterOld = registerFrame(id, frame);
+  const dispose = installBridgeHost();
+  let unregisterNew = () => {};
+  try {
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }));
+    vi.mocked(frame.postMessage).mockClear();
+    unregisterNew = registerFrame(id, otherFrame);
+    unregisterOld();
+    requestHighlight(id, "yeniden");
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }));
+    expect(frame.postMessage).not.toHaveBeenCalled();
+    expect(otherFrame.postMessage).not.toHaveBeenCalled();
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }, otherFrame));
+    expect(otherFrame.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: "HTNOTE_THEME", mode: "dark" }), NOTE_ORIGIN);
+    expect(otherFrame.postMessage).toHaveBeenLastCalledWith({ type: "HTNOTE_HIGHLIGHT", query: "yeniden" }, NOTE_ORIGIN);
+    const shortcut = vi.fn();
+    const unsubscribe = subscribeShortcut("closeTab", shortcut);
+    try {
+      window.dispatchEvent(message({ type: "HTNOTE_SHORTCUT", key: "w", ctrl: true, shift: false, alt: false, meta: false }, otherFrame));
+      expect(shortcut).toHaveBeenCalledOnce();
+      window.dispatchEvent(message({ type: "HTNOTE_OPEN_NOTE", id: missingId }, otherFrame));
+      expect(useUiStore.getState().toasts[0]?.messageKey).toBe("errors.NOTE_NOT_FOUND");
+    } finally { unsubscribe(); }
+  } finally { dispose(); unregisterNew(); unregisterOld(); }
+});
+
 it("queues highlights until a validated ready message, then dispatches immediately", () => {
   useTabsStore.getState().openNote(id);
   const unregister = registerFrame(id, frame);

@@ -9,7 +9,8 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import { NoteViewer } from "@/features/viewer/NoteViewer";
-import { installBridgeHost, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
+import { installBridgeHost, requestHighlight, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
+import type { Settings } from "@/lib/types";
 import { NOTE_IFRAME_SANDBOX, initNoteOrigin, noteUrl } from "@/lib/noteUrl";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
@@ -54,6 +55,48 @@ describe("NoteViewer", () => {
     expect(screen.getByTitle("Alpha")).toBe(first);
     act(() => useTabsStore.getState().activate("a"));
     await waitFor(() => expect(screen.getByTitle("Alpha")).toBe(first));
+  });
+
+  it("keeps iframe DOM order, windows and the dark-theme bridge after tab reordering", async () => {
+    useSettingsStore.setState({ settings: { theme: "dark" } as Settings });
+    const dispose = installBridgeHost();
+    const viewer = render(<NoteViewer />);
+    const first = await screen.findByTitle("Alpha") as HTMLIFrameElement;
+    act(() => useTabsStore.getState().openNote("b"));
+    const second = await screen.findByTitle("Beta") as HTMLIFrameElement;
+    const parent = first.parentElement!.parentElement!;
+    const children = [...parent.children];
+    const firstWindow = first.contentWindow!;
+    const secondWindow = second.contentWindow!;
+    const firstPost = vi.spyOn(firstWindow, "postMessage");
+    const secondPost = vi.spyOn(secondWindow, "postMessage");
+    const mutations = new MutationObserver(() => {});
+    mutations.observe(parent, { childList: true });
+    try {
+      act(() => useTabsStore.getState().move(0, 1));
+      expect(useTabsStore.getState().tabs.map((tab) => tab.noteId)).toEqual(["b", "a"]);
+      expect([...parent.children]).toEqual(children);
+      expect(mutations.takeRecords()).toEqual([]);
+      expect(first.contentWindow).toBe(firstWindow);
+      expect(second.contentWindow).toBe(secondWindow);
+      for (const source of [firstWindow, secondWindow]) {
+        window.dispatchEvent(new MessageEvent("message", { source, origin: NOTE_ORIGIN, data: { type: "HTNOTE_READY" } }));
+      }
+      for (const post of [firstPost, secondPost]) {
+        expect(post).toHaveBeenCalledWith(expect.objectContaining({ type: "HTNOTE_THEME", mode: "dark" }), NOTE_ORIGIN);
+      }
+      requestHighlight("b", "test");
+      expect(secondPost).toHaveBeenLastCalledWith({ type: "HTNOTE_HIGHLIGHT", query: "test" }, NOTE_ORIGIN);
+      act(() => useTabsStore.getState().activate("a"));
+      expect([...parent.children]).toEqual(children);
+      expect(first.contentWindow).toBe(firstWindow);
+    } finally {
+      mutations.disconnect();
+      viewer.unmount();
+      dispose();
+      firstPost.mockRestore();
+      secondPost.mockRestore();
+    }
   });
 
   it("shows the not-found state for an active missing note", () => {

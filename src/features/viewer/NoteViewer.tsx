@@ -116,7 +116,8 @@ export function NoteViewer() {
       <div className="relative min-h-0 flex-1">
         {!activeId && <div className="flex h-full flex-col items-center justify-center gap-3 text-app-muted"><p>{t("viewer.empty")}</p></div>}
         {activeId && !activeNote && !activeTab?.doc.removedOnDisk && <div className="flex h-full items-center justify-center text-app-muted">{t("viewer.notFound")}</div>}
-        {openIds.filter((id) => mounted.includes(id)).map((id) => {
+        {/* Sabit DOM sırası iframe'lerin sekme sıralamasında taşınıp yeniden yüklenmesini önler. */}
+        {openIds.filter((id) => mounted.includes(id)).sort().map((id) => {
           const note = findNote(tree, id);
           if (!note && !tabs.find((tab) => tab.noteId === id)?.doc.removedOnDisk) return null;
           const doc = tabs.find((tab) => tab.noteId === id)?.doc;
