@@ -165,6 +165,16 @@ impl PdfRunner for WindowsRunner {
     }
 }
 
+#[cfg(not(windows))]
+pub fn export(_app: tauri::AppHandle, _id: uuid::Uuid, _target: &Path) -> Result<ExportResult, AppError> {
+    unsupported_pdf_export()
+}
+
+#[cfg(not(windows))]
+fn unsupported_pdf_export() -> Result<ExportResult, AppError> {
+    Err(AppError::UnsupportedPlatform("PDF export requires Windows".into()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -258,14 +268,4 @@ mod tests {
         assert!(matches!(result, Err(AppError::Busy(_))));
         assert_eq!(runner.closes.load(Ordering::SeqCst), 0);
     }
-}
-
-#[cfg(not(windows))]
-pub fn export(_app: tauri::AppHandle, _id: uuid::Uuid, _target: &Path) -> Result<ExportResult, AppError> {
-    unsupported_pdf_export()
-}
-
-#[cfg(not(windows))]
-fn unsupported_pdf_export() -> Result<ExportResult, AppError> {
-    Err(AppError::UnsupportedPlatform("PDF export requires Windows".into()))
 }
