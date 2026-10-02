@@ -8,6 +8,8 @@ on:
       - 'src-tauri/src/export/pdf.rs'
       - 'src-tauri/src/fs_util.rs'
       - 'src-tauri/src/trash.rs'
+      - 'src-tauri/src/watcher.rs'
+      - 'src-tauri/src/notes/rename.rs'
       - 'e2e/wdio.conf.ts'
   schedule:
     - cron: '0 4 * * 1'

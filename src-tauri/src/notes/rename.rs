@@ -291,7 +291,9 @@ mod tests {
         let node = rename_folder_in(root.path(), "not", "Not").unwrap();
         assert!(matches!(node, TreeNode::Folder { rel_path, .. } if rel_path == "Not"));
         assert!(root.path().join("Not").is_dir());
-        assert!(!root.path().join("not").exists());
+        let names: Vec<_> = fs::read_dir(root.path()).unwrap()
+            .map(|entry| entry.unwrap().file_name()).collect();
+        assert_eq!(names, [std::ffi::OsString::from("Not")]);
     }
 
     #[cfg(target_os = "linux")]

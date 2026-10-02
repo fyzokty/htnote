@@ -82,6 +82,19 @@ fn classify_events(root: &Path, events: &[Event], known: &HashSet<PathBuf>) -> A
     affected
 }
 
+#[cfg(not(windows))]
+fn normalize_event_paths(events: &mut [Event], original_root: &Path, root: &Path) {
+    for event in events {
+        for path in &mut event.paths {
+            if let Ok(relative) = path.strip_prefix(original_root) {
+                *path = root.join(relative);
+            } else if let Ok(canonical) = path.canonicalize() {
+                *path = canonical;
+            }
+        }
+    }
+}
+
 fn sync_title_from_folder(root: &Path, note: &mut IndexedNote) -> Result<bool, AppError> {
     let dir = root.join(&note.rel_path);
     let name = dir.file_name().unwrap_or_default().to_string_lossy();
@@ -178,6 +191,10 @@ pub struct WatcherManager {
 impl WatcherManager {
     fn start(root: PathBuf, index: Arc<RwLock<NoteIndex>>,
         emit: impl Fn(FsChangePayload) + Send + 'static) -> Self {
+        #[cfg(not(windows))]
+        let original_root = root.clone();
+        #[cfg(not(windows))]
+        let root = root.canonicalize().unwrap_or(root);
         let (sender, receiver) = mpsc::channel();
         let (ready_sender, ready_receiver) = mpsc::sync_channel(1);
         let callback = sender.clone();
@@ -200,6 +217,28 @@ impl WatcherManager {
                                     Ok(Message::Stop) | Err(_) => return,
                                     Ok(Message::Events(Ok(events))) => {
                                         let events: Vec<_> = events.into_iter().map(|item| item.event).collect();
+                                        #[cfg(not(windows))]
+                                        let mut events = events;
+                                        #[cfg(not(windows))]
+                                        let watch_error = {
+                                            let mut watch_error = None;
+                                            // Unix bildirimleri ayrı partilerde gelebilir; sessizlik penceresi kopyayı birleştirir.
+                                            loop {
+                                                match receiver.recv_timeout(Duration::from_millis(250)) {
+                                                    Ok(Message::Events(Ok(more))) => {
+                                                        events.extend(more.into_iter().map(|item| item.event));
+                                                    }
+                                                    Ok(Message::Stop) | Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                                                    Ok(Message::Events(Err(errors))) => {
+                                                        watch_error = Some(errors);
+                                                        break;
+                                                    }
+                                                    Err(mpsc::RecvTimeoutError::Timeout) => break,
+                                                }
+                                            }
+                                            normalize_event_paths(&mut events, &original_root, &root);
+                                            watch_error
+                                        };
                                         let handled = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                                             let known: HashSet<_> = index.read().map_err(|error| AppError::Internal(error.to_string()))?
                                                 .by_id.values().map(|note| root.join(&note.rel_path)).collect();
@@ -219,6 +258,15 @@ impl WatcherManager {
                                                 }
                                             }
                                             Err(_) => eprintln!("File watcher batch panicked"),
+                                        }
+                                        #[cfg(not(windows))]
+                                        if let Some(errors) = watch_error {
+                                            eprintln!("File watcher errors: {errors:?}");
+                                            if let Ok(payload) = apply_batch(&root, &index,
+                                                Affected { needs_full_scan: true, ..Default::default() }) {
+                                                if !payload.is_empty() { emit(payload); }
+                                            }
+                                            break;
                                         }
                                     }
                                     Ok(Message::Events(Err(errors))) => {
@@ -244,7 +292,8 @@ impl WatcherManager {
                 }
             }
         });
-        let _ = ready_receiver.recv_timeout(Duration::from_secs(1));
+        let ready_timeout = if cfg!(target_os = "macos") { 5 } else { 1 };
+        let _ = ready_receiver.recv_timeout(Duration::from_secs(ready_timeout));
         Self { sender, worker: Some(worker) }
     }
 }
@@ -313,6 +362,18 @@ mod tests {
         assert!(renamed.structural);
         assert!(classify_events(root, &[event(EventKind::Other, vec![])], &known).needs_full_scan);
         assert!(classify_events(root, &[event(EventKind::Remove(RemoveKind::Folder), vec![root.join("group/note")])], &known).structural);
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn normalizes_paths_for_canonical_root_even_after_removal() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let canonical = root.canonicalize().unwrap();
+        let mut events = [event(EventKind::Remove(RemoveKind::File), vec![root.join("gone.html")])];
+        normalize_event_paths(&mut events, root, &canonical);
+        assert_eq!(events[0].paths, [canonical.join("gone.html")]);
+        assert!(classify_events(&canonical, &events, &HashSet::new()).structural);
     }
 
     #[test]
@@ -445,7 +506,7 @@ mod tests {
         assert!(index.read().unwrap().resolve(old_note.metadata.id).is_none());
 
         let (_, new_note) = create_note_in(second.path(), "", Some("New")).unwrap();
-        let deadline = Instant::now() + Duration::from_secs(5);
+        let deadline = Instant::now() + Duration::from_secs(if cfg!(target_os = "macos") { 15 } else { 5 });
         let payload = loop {
             let remaining = deadline.saturating_duration_since(Instant::now());
             let event = receiver.recv_timeout(remaining).expect("new root event timeout");
@@ -465,7 +526,7 @@ mod tests {
         let (sender, receiver) = mpsc::channel();
         let watcher = WatcherManager::start(root.clone(), Arc::clone(&index), move |payload| { let _ = sender.send(payload); });
         let (_, note) = create_note_in(&root, "", Some("Original")).unwrap();
-        let deadline = Instant::now() + Duration::from_secs(5);
+        let deadline = Instant::now() + Duration::from_secs(if cfg!(target_os = "macos") { 15 } else { 5 });
         let wait_for = |check: &dyn Fn(&NoteIndex) -> bool| {
             while Instant::now() < deadline {
                 if check(&index.read().unwrap()) { return; }
