@@ -431,6 +431,37 @@ mod tests {
     }
 
     #[test]
+    fn saving_dirty_note_after_metadata_update_keeps_favorite_and_tags() {
+        let root = tempfile::tempdir().unwrap();
+        let (_, indexed) = create_note_in(root.path(), "", Some("Başlık")).unwrap();
+        let id = indexed.metadata.id;
+        let now = indexed.metadata.updated_at + chrono::Duration::seconds(1);
+        let state = AppState::new(root.path().to_path_buf(), Settings::default(), root.path().to_path_buf());
+        state.note_index.write().unwrap().upsert(indexed);
+        let dir = resolve_note_dir(&state, id).unwrap();
+        let stale_html = read_note_dir(&dir).unwrap().html;
+
+        let updated = update_metadata_in_state(&state, id, MetadataPatch {
+            is_favorite: Some(true),
+            tags: Some(vec![" etiket ".into()]),
+        }).unwrap();
+        let mut draft = save_input(Some(updated.content_hash));
+        draft.html = stale_html.replace("</body>", "<p>Kirli taslak</p></body>");
+        let saved = save_note_in_state(&state, id, draft, |dir, input| {
+            save::save_note_dir(dir, input, now)
+        }).unwrap();
+
+        assert!(saved.metadata.is_favorite);
+        assert_eq!(saved.metadata.tags, vec!["etiket"]);
+        let on_disk = read_note_dir(&dir).unwrap();
+        assert!(on_disk.metadata.is_favorite);
+        assert_eq!(on_disk.metadata.tags, vec!["etiket"]);
+        assert!(on_disk.html.contains("<p>Kirli taslak</p>"));
+        assert!(on_disk.html.contains("htnote-tags\" content=\"etiket"));
+        assert_eq!(state.note_index.read().unwrap().by_id[&id].metadata.tags, vec!["etiket"]);
+    }
+
+    #[test]
     fn conflict_and_write_failure_keep_index_and_last_saved_hash() {
         let root = tempfile::tempdir().unwrap();
         let (_, indexed) = create_note_in(root.path(), "", Some("Başlık")).unwrap();
