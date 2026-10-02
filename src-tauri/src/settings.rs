@@ -206,19 +206,46 @@ pub fn validate_new_root(path: &Path) -> Result<PathBuf, AppError> {
             }
         }
     }
-    fs::create_dir_all(path)?;
-    let root = path.canonicalize()?;
-    for parent in root.ancestors() {
-        if parent.join("metadata.json").exists() {
-            return Err(AppError::NotAFolder(parent.display().to_string()));
+    let mut missing = Vec::new();
+    let mut existing = path;
+    while !existing.exists() {
+        missing.push(existing.to_path_buf());
+        existing = existing.parent().ok_or_else(|| AppError::InvalidName(path.display().to_string()))?;
+    }
+
+    // Yeni dizinler oluşturulmadan önce üst dizinde dosya açılabildiğini doğrula.
+    probe_writable_dir(existing)?;
+    let mut created = Vec::new();
+    let result = (|| {
+        for directory in missing.iter().rev() {
+            fs::create_dir(directory)?;
+            created.push(directory.to_path_buf());
+        }
+        let root = path.canonicalize()?;
+        for parent in root.ancestors() {
+            if parent.join("metadata.json").exists() {
+                return Err(AppError::NotAFolder(parent.display().to_string()));
+            }
+        }
+        probe_writable_dir(&root)?;
+        fs::create_dir_all(root.join(".trash"))?;
+        Ok(root)
+    })();
+    if result.is_err() {
+        // Yalnızca bu doğrulamanın oluşturduğu boş dizinleri geri al.
+        for directory in created.iter().rev() {
+            let _ = fs::remove_dir(directory);
         }
     }
-    let probe = root.join(format!(".htnote-write-probe-{}", uuid::Uuid::new_v4()));
+    result
+}
+
+fn probe_writable_dir(directory: &Path) -> Result<(), AppError> {
+    let probe = directory.join(format!(".htnote-write-probe-{}", uuid::Uuid::new_v4()));
     let file = fs::OpenOptions::new().write(true).create_new(true).open(&probe)?;
     drop(file);
     fs::remove_file(probe)?;
-    fs::create_dir_all(root.join(".trash"))?;
-    Ok(root)
+    Ok(())
 }
 
 #[cfg(test)]
@@ -256,6 +283,9 @@ mod tests {
         let file = dir.path().join("file");
         fs::write(&file, "content").unwrap();
         assert!(matches!(validate_new_root(&file), Err(AppError::Io(_))));
+        let child = file.join("missing").join("root");
+        assert!(matches!(validate_new_root(&child), Err(AppError::Io(_))));
+        assert!(!child.exists());
     }
 
     #[test]

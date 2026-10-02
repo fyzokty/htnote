@@ -381,7 +381,11 @@ pub async fn reveal_in_explorer(app: tauri::AppHandle, rel_path: String) -> Resu
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
         let root = state.root_dir.read().map_err(|error| AppError::Internal(error.to_string()))?;
-        let path = crate::index::resolve_in_root(&root, &rel_path)?;
+        let path = if std::path::Path::new(&rel_path) == root.as_path() {
+            root.to_path_buf()
+        } else {
+            crate::index::resolve_in_root(&root, &rel_path)?
+        };
         if !path.exists() { return Err(AppError::NotFound(rel_path)); }
         tauri_plugin_opener::reveal_item_in_dir(&path)
             .map_err(|error| AppError::Io(std::io::Error::other(error)))

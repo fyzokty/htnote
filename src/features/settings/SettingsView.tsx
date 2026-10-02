@@ -47,7 +47,7 @@ export function SettingsView() {
           <p className="break-all rounded border border-app-border bg-app-subtle p-3 text-sm">{root}</p>
           <div className="flex flex-wrap gap-2">
             <button type="button" disabled={changing || !root} onClick={() => void changeRoot()} className="rounded border border-app-border px-3 py-2 disabled:opacity-50">{t("settings.changeRoot")}</button>
-            <button type="button" disabled={!root} onClick={() => void ipc.revealInExplorer("").catch(notifyError)} className="rounded border border-app-border px-3 py-2 disabled:opacity-50">{t("settings.showInFolder")}</button>
+            <button type="button" disabled={!root} onClick={() => void ipc.revealInExplorer(root).catch(notifyError)} className="rounded border border-app-border px-3 py-2 disabled:opacity-50">{t("settings.showInFolder")}</button>
           </div>
           <p className="text-sm text-app-muted">{t("settings.notesStay")}</p>
         </section>

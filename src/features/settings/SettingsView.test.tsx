@@ -49,6 +49,13 @@ describe("SettingsView", () => {
     expect(await screen.findByText("Sürüm 0.1.0")).toBeInTheDocument();
   });
 
+  it("reveals the configured root folder", async () => {
+    const reveal = vi.spyOn(ipc, "revealInExplorer").mockResolvedValue();
+    render(<SettingsView />);
+    fireEvent.click(await screen.findByRole("button", { name: "Klasörde göster" }));
+    expect(reveal).toHaveBeenCalledWith("C:/Old");
+  });
+
   it("shows an error toast when the selected root is rejected", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(ipc, "pickDirectory").mockResolvedValue("C:/Invalid");
