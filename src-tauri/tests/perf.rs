@@ -1,19 +1,22 @@
 use std::{fs, time::Instant};
 
 use htnote_lib::index::{note_index::NoteIndex, scan};
+use htnote_lib::{commands, settings::Settings, state::AppState};
+
+#[allow(dead_code)]
+#[path = "../examples/gen_fixture.rs"]
+mod fixture;
 
 #[test]
 #[ignore]
 fn collection_timings() {
-    let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("target/perf-fixture");
-    let root = fixture.as_path();
+    let fixture_dir = tempfile::tempdir().unwrap();
+    let root = fixture_dir.path();
+    fixture::generate(root, 2000, 150, 5, 707).unwrap();
     let start = Instant::now();
     let result = scan::scan(root).unwrap();
     println!("scan_ms={:.2}", start.elapsed().as_secs_f64() * 1000.0);
     assert_eq!(result.notes.len(), 2000);
-    let start = Instant::now();
-    let bytes = serde_json::to_vec(&result.tree).unwrap();
-    println!("tree_serialize_ms={:.2} tree_bytes={}", start.elapsed().as_secs_f64() * 1000.0, bytes.len());
     let mut index = NoteIndex::new(root.to_path_buf());
     index.replace_all(result);
     let mut search = htnote_lib::search::SearchIndex::default();
@@ -25,6 +28,17 @@ fn collection_timings() {
         links.upsert(note.metadata.id, &html);
     }
     println!("search_link_build_ms={:.2}", start.elapsed().as_secs_f64() * 1000.0);
+    let state = AppState::with_drafts_dir(root.to_path_buf(), root.join("drafts"), Settings::default(), root.to_path_buf());
+    *state.note_index.write().unwrap() = index;
+    *state.search_index.write().unwrap() = search;
+    *state.link_index.write().unwrap() = links;
+    let start = Instant::now();
+    let tree = tauri::async_runtime::block_on(commands::scan_and_replace(&state)).unwrap();
+    println!("get_note_tree_command_equivalent_ms={:.2}", start.elapsed().as_secs_f64() * 1000.0);
+    let start = Instant::now();
+    let bytes = serde_json::to_vec(&tree).unwrap();
+    println!("tree_serialize_ms={:.2} tree_bytes={}", start.elapsed().as_secs_f64() * 1000.0, bytes.len());
+    let search = state.search_index.read().unwrap();
     for query in ["İstanbul", "yazılım", "araştırması", "bulunmayan ifade"] {
         let mut times = Vec::new();
         for _ in 0..5 {

@@ -267,7 +267,7 @@ mod tests {
         let mut metadata = NoteMetadata::new(title);
         metadata.tags = tags.iter().map(|tag| (*tag).into()).collect();
         let id = metadata.id;
-        index.upsert(&IndexedNote { rel_path: title.into(), metadata }, html);
+        index.upsert(&IndexedNote { rel_path: title.into(), metadata, content_stamp: None }, html);
         id
     }
 
@@ -324,7 +324,7 @@ mod tests {
         std::fs::create_dir(&dir).unwrap();
         std::fs::write(dir.join("index.html"), "<p>new content</p>").unwrap();
         metadata.tags = Vec::new();
-        let note = IndexedNote { rel_path: "Current".into(), metadata };
+        let note = IndexedNote { rel_path: "Current".into(), metadata, content_stamp: None };
         let mut notes = NoteIndex::new(temp.path().to_path_buf());
         notes.upsert(note.clone());
         let notes = RwLock::new(notes);
@@ -344,7 +344,7 @@ mod tests {
         let temp = tempfile::tempdir().unwrap();
         let metadata = NoteMetadata::new("Gone");
         let id = metadata.id;
-        let note = IndexedNote { rel_path: "Gone".into(), metadata };
+        let note = IndexedNote { rel_path: "Gone".into(), metadata, content_stamp: None };
         let mut notes = NoteIndex::new(temp.path().to_path_buf());
         notes.upsert(note.clone());
         let notes = RwLock::new(notes);
@@ -369,7 +369,7 @@ mod tests {
         std::fs::create_dir(&dir).unwrap();
         std::fs::write(dir.join("index.html"), format!("<a href='htnote://note/{target}'>Target</a>")).unwrap();
         let mut index = NoteIndex::new(temp.path().to_path_buf());
-        index.upsert(IndexedNote { rel_path: "Source".into(), metadata: source });
+        index.upsert(IndexedNote { rel_path: "Source".into(), metadata: source, content_stamp: None });
         let index = Arc::new(RwLock::new(index));
         let search = Arc::new(RwLock::new(SearchIndex::default()));
         let mut link_index = LinkIndex::default();

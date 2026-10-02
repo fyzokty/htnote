@@ -93,8 +93,8 @@ mod tests {
         let mut index = NoteIndex::new(root.path().to_path_buf());
         let first = NoteMetadata::new("First");
         let second = NoteMetadata::new("Second");
-        index.upsert(IndexedNote { rel_path: "A/N1".into(), metadata: first.clone() });
-        index.upsert(IndexedNote { rel_path: "AB/N2".into(), metadata: second.clone() });
+        index.upsert(IndexedNote { rel_path: "A/N1".into(), metadata: first.clone(), content_stamp: None });
+        index.upsert(IndexedNote { rel_path: "AB/N2".into(), metadata: second.clone(), content_stamp: None });
         assert_eq!(index.rel_path(first.id), Some("A/N1"));
         assert_eq!(index.resolve(first.id), Some(root.path().canonicalize().unwrap().join("A/N1")));
         index.remove_subtree("A");
@@ -109,8 +109,8 @@ mod tests {
         let mut index = NoteIndex::new(PathBuf::from("root"));
         let inside = NoteMetadata::new("Inside");
         let outside = NoteMetadata::new("Outside");
-        index.upsert(IndexedNote { rel_path: "a/b/note".into(), metadata: inside.clone() });
-        index.upsert(IndexedNote { rel_path: "ab/note".into(), metadata: outside.clone() });
+        index.upsert(IndexedNote { rel_path: "a/b/note".into(), metadata: inside.clone(), content_stamp: None });
+        index.upsert(IndexedNote { rel_path: "ab/note".into(), metadata: outside.clone(), content_stamp: None });
         index.rename_prefix("a", "moved/a");
         assert_eq!(index.rel_path(inside.id), Some("moved/a/b/note"));
         assert_eq!(index.rel_path(outside.id), Some("ab/note"));

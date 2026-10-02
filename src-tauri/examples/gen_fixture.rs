@@ -1,4 +1,4 @@
-use std::{env, fs, path::PathBuf};
+use std::{env, fs, path::{Path, PathBuf}};
 
 use htnote_lib::notes::model::NoteMetadata;
 use uuid::Uuid;
@@ -20,8 +20,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let notes = option(&args, "--notes", 2000);
     let folders = option(&args, "--folders", 150);
     let depth = option(&args, "--depth", 5).max(1);
-    let mut seed = option(&args, "--seed", 707) as u64;
-    fs::create_dir_all(&root)?;
+    let seed = option(&args, "--seed", 707) as u64;
+    generate(&root, notes, folders, depth, seed)
+}
+
+pub fn generate(root: &Path, notes: usize, folders: usize, depth: usize, mut seed: u64) -> Result<(), Box<dyn std::error::Error>> {
+    fs::create_dir_all(root)?;
     let mut paths = vec![PathBuf::new()];
     let mut depths = vec![0];
     for i in 0..folders {

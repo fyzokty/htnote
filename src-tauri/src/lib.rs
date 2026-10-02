@@ -1,4 +1,4 @@
-mod commands;
+pub mod commands;
 mod drafts;
 mod export;
 mod onboarding;
@@ -8,10 +8,10 @@ pub mod error;
 mod fs_util;
 pub mod index;
 pub mod notes;
-mod settings;
+pub mod settings;
 pub mod search;
 pub mod links;
-mod state;
+pub mod state;
 mod watcher;
 mod trash;
 

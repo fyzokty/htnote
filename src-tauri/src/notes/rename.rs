@@ -153,7 +153,7 @@ fn rename_note_with_writer(
         }
         return Err(error);
     }
-    let updated = IndexedNote { rel_path: relative(root, &target)?, metadata };
+    let updated = IndexedNote { rel_path: relative(root, &target)?, metadata, content_stamp: None };
     Ok((note_node(&updated), updated))
 }
 
@@ -166,7 +166,7 @@ fn folder_node(root: &Path, path: &Path) -> Result<TreeNode, AppError> {
         let child = entry.path();
         if child.join("metadata.json").is_file() {
             let metadata = read_metadata(&child.join("metadata.json"))?;
-            children.push(note_node(&IndexedNote { rel_path: relative(root, &child)?, metadata }));
+            children.push(note_node(&IndexedNote { rel_path: relative(root, &child)?, metadata, content_stamp: None }));
         } else {
             children.push(folder_node(root, &child)?);
         }

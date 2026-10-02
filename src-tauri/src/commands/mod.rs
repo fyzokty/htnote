@@ -221,7 +221,7 @@ fn update_metadata_in_state(state: &AppState, id: uuid::Uuid, patch: MetadataPat
     let indexed = index.by_id.get(&id).cloned().ok_or_else(|| AppError::NotFound(id.to_string()))?;
     let dir = index.resolve(id).ok_or_else(|| AppError::NotFound(id.to_string()))?;
     let result = metadata_update::update_metadata_in(&dir, patch)?;
-    index.upsert(IndexedNote { rel_path: indexed.rel_path, metadata: result.metadata.clone() });
+    index.upsert(IndexedNote { rel_path: indexed.rel_path, metadata: result.metadata.clone(), content_stamp: indexed.content_stamp });
     drop(index);
     search::reindex_notes(&state.note_index, &state.search_index, &state.link_index, &[id], &[])?;
     state.last_saved_hashes.lock().map_err(|error| AppError::Internal(error.to_string()))?
@@ -291,7 +291,7 @@ fn save_note_in_state(
     let indexed = index.by_id.get(&id).cloned().ok_or_else(|| AppError::NotFound(id.to_string()))?;
     let dir = index.resolve(id).ok_or_else(|| AppError::NotFound(id.to_string()))?;
     let result = save(&dir, payload)?;
-    index.upsert(IndexedNote { rel_path: indexed.rel_path, metadata: result.metadata.clone() });
+    index.upsert(IndexedNote { rel_path: indexed.rel_path, metadata: result.metadata.clone(), content_stamp: None });
     drop(index);
     search::reindex_notes(&state.note_index, &state.search_index, &state.link_index, &[id], &[])?;
     state.last_saved_hashes.lock().map_err(|error| AppError::Internal(error.to_string()))?
@@ -402,7 +402,7 @@ pub async fn reveal_in_explorer(app: tauri::AppHandle, rel_path: String) -> Resu
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
 
-async fn scan_and_replace(state: &AppState) -> Result<Vec<TreeNode>, AppError> {
+pub async fn scan_and_replace(state: &AppState) -> Result<Vec<TreeNode>, AppError> {
     let root = state.root_dir.read().map_err(|error| AppError::Internal(error.to_string()))?.clone();
     let result = tauri::async_runtime::spawn_blocking(move || scan::scan(&root))
         .await.map_err(|error| AppError::Internal(error.to_string()))??;
@@ -421,9 +421,8 @@ fn scan_diff(index: &crate::index::note_index::NoteIndex, result: &scan::ScanRes
     let changed = result.notes.iter().filter(|note| {
         index.by_id.get(&note.metadata.id).is_none_or(|old| {
             old.rel_path != note.rel_path
-                || old.metadata.updated_at != note.metadata.updated_at
-                || old.metadata.title != note.metadata.title
-                || old.metadata.tags != note.metadata.tags
+                || old.metadata != note.metadata
+                || old.content_stamp != note.content_stamp
         })
     }).map(|note| note.metadata.id).collect();
     let current = result.notes.iter().map(|note| note.metadata.id).collect::<std::collections::HashSet<_>>();
@@ -753,17 +752,17 @@ mod tests {
         let same = NoteMetadata::new("Same");
         let updated = NoteMetadata::new("Updated");
         for (metadata, rel_path) in [(&old, "Old"), (&moved, "Moved"), (&same, "Same"), (&updated, "Updated")] {
-            index.by_id.insert(metadata.id, IndexedNote { rel_path: rel_path.into(), metadata: metadata.clone() });
+            index.by_id.insert(metadata.id, IndexedNote { rel_path: rel_path.into(), metadata: metadata.clone(), content_stamp: None });
         }
         let added = NoteMetadata::new("Added");
         let mut new_version = updated.clone();
         new_version.title = "Updated title".into();
         let result = scan::ScanResult {
             notes: vec![
-                IndexedNote { rel_path: "Other/Moved".into(), metadata: moved.clone() },
-                IndexedNote { rel_path: "Same".into(), metadata: same.clone() },
-                IndexedNote { rel_path: "Updated".into(), metadata: new_version },
-                IndexedNote { rel_path: "Added".into(), metadata: added.clone() },
+                IndexedNote { rel_path: "Other/Moved".into(), metadata: moved.clone(), content_stamp: None },
+                IndexedNote { rel_path: "Same".into(), metadata: same.clone(), content_stamp: None },
+                IndexedNote { rel_path: "Updated".into(), metadata: new_version, content_stamp: None },
+                IndexedNote { rel_path: "Added".into(), metadata: added.clone(), content_stamp: None },
             ],
             ..Default::default()
         };
@@ -773,6 +772,33 @@ mod tests {
         assert!(changed.contains(&added.id));
         assert!(changed.contains(&updated.id));
         assert_eq!(removed, [old.id]);
+    }
+
+    #[test]
+    fn scan_refreshes_favorite_and_html_without_timestamp_change() {
+        let root = tempfile::tempdir().unwrap();
+        let (_, note) = create_note_in(root.path(), "", Some("Favorite test")).unwrap();
+        let path = root.path().join(&note.rel_path);
+        let state = AppState::new(root.path().to_path_buf(), Settings::default(), root.path().to_path_buf());
+        tauri::async_runtime::block_on(scan_and_replace(&state)).unwrap();
+        let initial = scan::scan(root.path()).unwrap();
+        assert_eq!(scan_diff(&state.note_index.read().unwrap(), &initial), (vec![], vec![]));
+
+        let mut metadata = note.metadata.clone();
+        metadata.is_favorite = true;
+        write_metadata_atomic(&path.join("metadata.json"), &metadata).unwrap();
+        let changed = scan::scan(root.path()).unwrap();
+        assert_eq!(scan_diff(&state.note_index.read().unwrap(), &changed).0, [metadata.id]);
+        let tree = tauri::async_runtime::block_on(scan_and_replace(&state)).unwrap();
+        assert!(matches!(&tree[..], [TreeNode::Note { is_favorite: true, .. }]));
+        assert!(matches!(&state.note_index.read().unwrap().tree[..], [TreeNode::Note { is_favorite: true, .. }]));
+
+        std::fs::write(path.join("index.html"), "<p>Özgün içerik araması</p>").unwrap();
+        let changed = scan::scan(root.path()).unwrap();
+        assert_eq!(scan_diff(&state.note_index.read().unwrap(), &changed).0, [metadata.id]);
+        tauri::async_runtime::block_on(scan_and_replace(&state)).unwrap();
+        assert_eq!(state.search_index.read().unwrap().search("Özgün", 10)[0].id, metadata.id);
+        assert_eq!(scan_diff(&state.note_index.read().unwrap(), &scan::scan(root.path()).unwrap()), (vec![], vec![]));
     }
 
     #[test]
