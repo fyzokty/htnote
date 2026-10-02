@@ -46,6 +46,19 @@ describe("SidebarTree keyboard focus", () => {
     fireEvent.click(screen.getByRole("menuitem", { name: "Çöpe At" }));
     expect(deleteMock).toHaveBeenCalledWith(note);
   });
+
+  it.each([["Linux", "Dışa Aktar ▸ Yazdır / PDF Olarak Kaydet"], ["Win32", "Dışa Aktar ▸ PDF"]])("labels PDF export on %s", (system, label) => {
+    const platform = Object.getOwnPropertyDescriptor(navigator, "platform");
+    Object.defineProperty(navigator, "platform", { configurable: true, value: system });
+    try {
+      useTreeStore.setState({ expanded: new Set(["A"]) });
+      render(<SidebarTree onOpenNote={vi.fn()} />);
+      fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Not: Note" }));
+      expect(screen.getByRole("menuitem", { name: label })).toBeEnabled();
+    } finally {
+      if (platform) Object.defineProperty(navigator, "platform", platform);
+    }
+  });
   it("ignores note rows, prioritizes folders, and accepts empty root space", () => {
     expect(preferTreeRow([{ id: "drop:root" }, { id: "drop:note:A/Note" }])).toEqual([]);
     expect(preferTreeRow([{ id: "drop:root" }, { id: "drop:folder:A" }])).toEqual([{ id: "drop:folder:A" }]);

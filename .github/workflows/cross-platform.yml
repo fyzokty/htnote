@@ -2,6 +2,9 @@ name: Cross-platform
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/cross-platform.yml'
   schedule:
     - cron: '0 4 * * 1'
 

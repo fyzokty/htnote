@@ -17,7 +17,7 @@ import { preferTreeRow } from "@/features/tree/preferTreeRow";
 import { useHoverExpand } from "@/features/tree/useHoverExpand";
 import { nextVisibleNode, visibleNodes } from "@/features/tree/treeNavigation";
 import { useTreeActions } from "@/features/tree/useTreeActions";
-import { canExportPdf, exportNote } from "@/features/viewer/exportNote";
+import { canExportPdf, exportNote, pdfMode } from "@/features/viewer/exportNote";
 import { formatShortcut } from "@/lib/shortcuts/registry";
 import type { TreeKey } from "@/features/tree/treeNavigation";
 import type { TreeNode, TreeSelection } from "@/lib/types";
@@ -216,7 +216,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     { id: "move", label: t("tree.move"), onSelect: () => setMoveSource(menu.node) },
     ...(menu.node.type === "note" ? [{ id: "favorite", label: t(menu.node.isFavorite ? "favorites.remove" : "favorites.add"), onSelect: () => { if (menu.node.type === "note") void toggleFavorite(menu.node.id, !menu.node.isFavorite); } }] : []),
     ...(menu.node.type === "note" ? [
-      { id: "exportPdf", label: `${t("viewer.export")} ▸ ${t("export.pdf")}`, separatorBefore: true, disabled: exportBusy || !canExportPdf(), title: !canExportPdf() ? t("errors.UNSUPPORTED_PLATFORM") : undefined, onSelect: () => { if (menu.node.type === "note") void exportNote(menu.node.id, menu.node.title, "pdf"); } },
+      { id: "exportPdf", label: `${t("viewer.export")} ▸ ${t(pdfMode() === "print" ? "export.printPdf" : "export.pdf")}`, separatorBefore: true, disabled: exportBusy || !canExportPdf(), title: !canExportPdf() ? t("errors.UNSUPPORTED_PLATFORM") : undefined, onSelect: () => { if (menu.node.type === "note") void exportNote(menu.node.id, menu.node.title, "pdf"); } },
       { id: "exportHtml", label: `${t("viewer.export")} ▸ ${t("export.html")}`, disabled: exportBusy, onSelect: () => { if (menu.node.type === "note") void exportNote(menu.node.id, menu.node.title, "html"); } },
       { id: "exportZip", label: `${t("viewer.export")} ▸ ${t("export.zip")}`, disabled: exportBusy, onSelect: () => { if (menu.node.type === "note") void exportNote(menu.node.id, menu.node.title, "zip"); } },
     ] : []),
