@@ -1,8 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import type { AppInfo, AssetInfo, BacklinkItem, BrokenLinkItem, ExportPdfResult, ExportSingleHtmlResult, ExportZipResult, NoteData, PreviewDraftPayload, RecoveryDraft, SaveNotePayload, SaveNoteResult, SearchNotesResult, Settings, SettingsPatch, TrashItem, TreeNode, UpdateMetadataPatch, UpdateMetadataResult, WriteDraftPayload } from "@/lib/types";
 
 export const ipc = {
+  saveExportFile(defaultPath: string, extension: "pdf" | "html" | "zip"): Promise<string | null> {
+    return save({ defaultPath, filters: [{ name: extension.toUpperCase(), extensions: [extension] }] });
+  },
+  revealExportFile(path: string): Promise<void> {
+    return revealItemInDir(path);
+  },
   appInfo(): Promise<AppInfo> {
     return invoke<AppInfo>("app_info");
   },

@@ -52,6 +52,8 @@ pub enum Language {
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub root_dir: Option<String>,
+    #[serde(default)]
+    pub last_export_dir: Option<String>,
     pub theme: Theme,
     pub language: Option<Language>,
     pub sidebar_width: u32,
@@ -76,6 +78,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             root_dir: None,
+            last_export_dir: None,
             theme: Theme::System,
             language: None,
             sidebar_width: 260,
@@ -96,6 +99,8 @@ impl Default for Settings {
 pub struct SettingsPatch {
     #[serde(default, deserialize_with = "nullable_field")]
     pub root_dir: Option<Option<String>>,
+    #[serde(default, deserialize_with = "nullable_field")]
+    pub last_export_dir: Option<Option<String>>,
     pub theme: Option<Theme>,
     #[serde(default, deserialize_with = "nullable_field")]
     pub language: Option<Option<Language>>,
@@ -131,6 +136,7 @@ fn default_backlinks_expanded() -> bool { true }
 pub fn apply_patch(settings: &Settings, patch: SettingsPatch) -> Settings {
     Settings {
         root_dir: patch.root_dir.unwrap_or_else(|| settings.root_dir.clone()),
+        last_export_dir: patch.last_export_dir.unwrap_or_else(|| settings.last_export_dir.clone()),
         theme: patch.theme.unwrap_or_else(|| settings.theme.clone()),
         language: patch.language.unwrap_or_else(|| settings.language.clone()),
         sidebar_width: patch.sidebar_width.unwrap_or(settings.sidebar_width),
@@ -230,6 +236,20 @@ mod tests {
         let settings: Settings = serde_json::from_value(value).unwrap();
         assert!(settings.open_tabs.is_empty());
         assert_eq!(settings.active_tab, None);
+    }
+
+    #[test]
+    fn export_folder_defaults_and_persists() {
+        let mut value = serde_json::to_value(Settings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("lastExportDir");
+        let settings: Settings = serde_json::from_value(value).unwrap();
+        assert_eq!(settings.last_export_dir, None);
+        let patch: SettingsPatch = serde_json::from_str(r#"{"lastExportDir":"C:/Exports"}"#).unwrap();
+        let changed = apply_patch(&settings, patch);
+        assert_eq!(changed.last_export_dir.as_deref(), Some("C:/Exports"));
+        let dir = tempdir().unwrap();
+        save_settings_atomic(dir.path(), &changed).unwrap();
+        assert_eq!(load_settings(dir.path()).unwrap().last_export_dir, changed.last_export_dir);
     }
 
     #[test]

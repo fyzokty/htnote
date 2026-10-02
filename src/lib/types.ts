@@ -8,6 +8,7 @@ export type Language = "tr" | "en";
 
 export interface Settings {
   rootDir: string | null;
+  lastExportDir: string | null;
   theme: Theme;
   language: Language | null;
   sidebarWidth: number;

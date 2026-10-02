@@ -3,18 +3,21 @@ import { Download, Pencil, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { NoteEditor } from "@/features/editor/NoteEditor";
+import { ContextMenu } from "@/components/ui/ContextMenu";
 import { useEditSession } from "@/features/editor/useEditSession";
 import { toggleFavorite } from "@/features/favorites/favorites";
 import { TagInput } from "@/features/tags/TagInput";
 import { BacklinksPanel } from "@/features/viewer/BacklinksPanel";
 import { deriveTags, setNoteTags } from "@/features/tags/tags";
 import { nextMounted } from "@/features/viewer/lru";
+import { canExportPdf, exportNote } from "@/features/viewer/exportNote";
 import { registerFrame } from "@/features/viewer/bridgeHost";
 import { NOTE_IFRAME_SANDBOX, noteUrl } from "@/lib/noteUrl";
 import { useShortcut } from "@/lib/shortcuts/useShortcut";
 import type { NoteNode, TreeNode } from "@/lib/types";
 import { useTabsStore } from "@/stores/tabsStore";
 import { useTreeStore } from "@/stores/treeStore";
+import { useUiStore } from "@/stores/uiStore";
 
 function findNote(nodes: TreeNode[], id: string): NoteNode | null {
   for (const node of nodes) {
@@ -73,6 +76,8 @@ export function NoteViewer() {
   const openIds = tabs.map((tab) => tab.noteId);
   const [cache, setCache] = useState(() => ({ tabs, activeId, mounted: nextMounted([], activeId, openIds) }));
   const [now, setNow] = useState(() => Date.now());
+  const [exportMenu, setExportMenu] = useState<{ x: number; y: number; trigger: HTMLElement } | null>(null);
+  const exportBusy = useUiStore((state) => state.exportBusy);
   const activeNote = activeId ? findNote(tree, activeId) : null;
   const activeTab = tabs.find((tab) => tab.noteId === activeId);
   const tagSuggestions = deriveTags(tree);
@@ -98,7 +103,12 @@ export function NoteViewer() {
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <button type="button" disabled={!activeNote} onClick={() => { if (activeNote) void toggleFavorite(activeNote.id, !activeNote.isFavorite); }} aria-label={t("viewer.favorite")} title={t("viewer.favorite")} aria-pressed={activeNote?.isFavorite ?? false} className={`rounded p-2 ${activeNote?.isFavorite ? "text-app-accent" : "text-app-muted"}`}><Star className="size-4" fill={activeNote?.isFavorite ? "currentColor" : "none"} aria-hidden /></button>
-            <button type="button" disabled aria-label={t("viewer.export")} title={t("viewer.export")} className="rounded p-2 text-app-muted"><Download className="size-4" aria-hidden /></button>
+            <button type="button" disabled={!activeNote || exportBusy} aria-label={exportBusy ? t("export.exporting") : t("viewer.export")} title={t("viewer.export")} onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setExportMenu({ x: rect.left, y: rect.bottom, trigger: event.currentTarget }); }} className="flex items-center gap-1 rounded p-2 text-app-muted"><Download className="size-4" aria-hidden />{exportBusy && t("export.exporting")}</button>
+            {exportMenu && activeNote && <ContextMenu x={exportMenu.x} y={exportMenu.y} trigger={exportMenu.trigger} onClose={() => setExportMenu(null)} items={[
+              { id: "pdf", label: t("export.pdf"), disabled: !canExportPdf(), title: !canExportPdf() ? t("errors.UNSUPPORTED_PLATFORM") : undefined, onSelect: () => void exportNote(activeNote.id, activeNote.title, "pdf") },
+              { id: "html", label: t("export.html"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "html") },
+              { id: "zip", label: t("export.zip"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "zip") },
+            ]} />}
             {tabs.find((tab) => tab.noteId === activeId)?.doc.mode === "view" && <button type="button" onClick={() => { void session.toggleEdit(); }} className="flex items-center gap-1 rounded bg-app-subtle px-3 py-2 text-sm text-app-muted"><Pencil className="size-4" aria-hidden />{t("viewer.edit")}</button>}
           </div>
         </div>
