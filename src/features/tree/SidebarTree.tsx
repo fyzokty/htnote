@@ -10,6 +10,7 @@ import type { ContextMenuItem } from "@/components/ui/ContextMenu";
 import { filterTree, matchRange } from "@/features/tree/filterTree";
 import { InlineRename } from "@/features/tree/InlineRename";
 import { MoveDialog } from "@/features/tree/MoveDialog";
+import { deleteTreeItem } from "@/features/trash/deleteCoordinator";
 import { canDrop } from "@/features/tree/canDrop";
 import { preferTreeRow } from "@/features/tree/preferTreeRow";
 import { useHoverExpand } from "@/features/tree/useHoverExpand";
@@ -170,11 +171,15 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if ((event.target as HTMLElement).closest("input, [role=menu]")) return;
     const keys: TreeKey[] = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"];
-    if (event.key !== "Enter" && !keys.includes(event.key as TreeKey)) return;
+    if (event.key !== "Enter" && event.key !== "Delete" && !keys.includes(event.key as TreeKey)) return;
     event.preventDefault();
     const focusedKey = (event.target as HTMLElement).closest<HTMLElement>("[data-tree-key]")?.dataset.treeKey;
     const current = rows.find(({ node }) => focusedKey === (node.type === "folder" ? `folder:${node.relPath}` : `note:${node.id}`))?.node
       ?? rows.find(({ node }) => isSelected(node, selected))?.node ?? null;
+    if (event.key === "Delete") {
+      if (current) void deleteTreeItem(current);
+      return;
+    }
     if (event.key === "Enter") {
       if (current) {
         choose(current);
@@ -205,7 +210,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     { id: "rename", label: t("tree.rename"), shortcut: formatShortcut("rename"), onSelect: () => setRenaming(menu.node.relPath) },
     { id: "move", label: t("tree.move"), onSelect: () => setMoveSource(menu.node) },
     { id: "reveal", label: t("tree.reveal"), onSelect: () => void revealNode(menu.node) },
-    { id: "trash", label: t("tree.trash"), disabled: true, onSelect: () => {} },
+    { id: "trash", label: t("tree.trash"), onSelect: () => void deleteTreeItem(menu.node) },
   ] : [];
 
   return (

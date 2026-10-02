@@ -6,6 +6,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { installUnsavedWindowGuard } from "@/app/unsavedWindowGuard";
 import { UnsavedChangesDialog } from "@/components/ui/UnsavedChangesDialog";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { RecoveryDialog } from "@/features/editor/RecoveryDialog";
 import { installExternalChangeListener } from "@/features/editor/externalChange";
 import type { RecoveryCandidate } from "@/features/editor/RecoveryDialog";
@@ -14,6 +15,8 @@ import { extractContent } from "@/features/editor/contentRegion";
 import { getDropHandler, toCssPoint } from "@/features/editor/fileDrop";
 import { setDiscardRecoveryDraftHook } from "@/features/editor/unsavedGuard";
 import { SearchModal } from "@/features/search/SearchModal";
+import { TrashView } from "@/features/trash/TrashView";
+import { refreshTrashCount } from "@/features/trash/deleteCoordinator";
 import { SidebarTree } from "@/features/tree/SidebarTree";
 import { handleQuickFilterKeyDown } from "@/features/tree/filterTree";
 import { TabBar } from "@/features/tabs/TabBar";
@@ -41,7 +44,10 @@ export function AppShell() {
   const loadTree = useTreeStore((state) => state.load);
   const filterQuery = useTreeStore((state) => state.filterQuery);
   const setFilterQuery = useTreeStore((state) => state.setFilterQuery);
-  const openNote = useCallback((id: string) => useTabsStore.getState().openNote(id), []);
+  const openNote = useCallback((id: string) => {
+    useUiStore.getState().closeTrash();
+    useTabsStore.getState().openNote(id);
+  }, []);
   const { createNote, createFolder } = useTreeActions(openNote);
   const setRenaming = useTreeStore((state) => state.setRenaming);
   const sidebarVisible = useUiStore((state) => state.sidebarVisible);
@@ -51,6 +57,10 @@ export function AppShell() {
   const [recoveryCandidates, setRecoveryCandidates] = useState<RecoveryCandidate[]>([]);
   const unsavedDialog = useUiStore((state) => state.unsavedDialog);
   const searchOpen = useUiStore((state) => state.searchOpen);
+  const trashOpen = useUiStore((state) => state.trashOpen);
+  const trashCount = useUiStore((state) => state.trashCount);
+  const openTrash = useUiStore((state) => state.openTrash);
+  const closeTrash = useUiStore((state) => state.closeTrash);
   const openSearch = useUiStore((state) => state.openSearch);
   useDraftAutosave();
   const sidebarWidth = dragWidth ?? clampWidth(settings?.sidebarWidth ?? 260);
@@ -77,6 +87,10 @@ export function AppShell() {
     return installUnsavedWindowGuard();
   }, []);
   useEffect(() => startFsChangeSync(), []);
+  useEffect(() => { void refreshTrashCount().catch(() => {}); }, []);
+  useEffect(() => useTabsStore.subscribe((state, previous) => {
+    if (state.activeId && state.activeId !== previous.activeId) useUiStore.getState().closeTrash();
+  }), []);
   useEffect(() => installExternalChangeListener(), []);
   useEffect(() => {
     const internals = (window as Window & { __TAURI_INTERNALS__?: { metadata?: { currentWindow?: unknown } } }).__TAURI_INTERNALS__;
@@ -217,6 +231,7 @@ export function AppShell() {
   return (
     <main className="flex h-screen min-h-0 w-full overflow-hidden bg-app-bg text-app-text">
       <UnsavedChangesDialog />
+      <ConfirmDialog />
       {searchOpen && <SearchModal />}
       {!unsavedDialog && <RecoveryDialog candidates={recoveryCandidates} onRecover={(id) => void recoverDraft(id)} onIgnore={(id) => void ignoreDraft(id)} />}
       {sidebarVisible && (
@@ -245,8 +260,8 @@ export function AppShell() {
           </div>
           <SidebarTree onOpenNote={openNote} />
           <div className="shrink-0 border-t border-app-border p-2">
-            <button type="button" disabled className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm disabled:cursor-default">
-              <Trash2 className="size-4" aria-hidden /> {t("sidebar.trash")}
+            <button type="button" onClick={openTrash} aria-pressed={trashOpen} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-app-subtle">
+              <Trash2 className="size-4" aria-hidden /> {t("sidebar.trash")} <span className="ml-auto">{trashCount}</span>
             </button>
             <button type="button" disabled className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm disabled:cursor-default">
               <Settings2 className="size-4" aria-hidden /> {t("sidebar.settings")}
@@ -294,14 +309,14 @@ export function AppShell() {
         </aside>
       )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex h-14 shrink-0 items-center gap-3 border-b border-app-border bg-app-surface px-3">
+        <header onClickCapture={closeTrash} className="flex h-14 shrink-0 items-center gap-3 border-b border-app-border bg-app-surface px-3">
           <button type="button" onClick={toggleSidebar} title={formatShortcut("toggleSidebar")} aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")} className="rounded-md p-2 text-app-muted hover:bg-app-subtle focus-visible:outline-2 focus-visible:outline-app-accent">
             <Menu className="size-5" aria-hidden />
           </button>
           <TabBar />
         </header>
         <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden" aria-label={t("viewer.workspace")}>
-          <NoteViewer />
+          {trashOpen ? <TrashView /> : <NoteViewer />}
         </section>
       </div>
     </main>

@@ -1,4 +1,5 @@
 import { onFsChange } from "@/lib/events";
+import { refreshTrashCount } from "@/features/trash/deleteCoordinator";
 import { useTreeStore } from "@/stores/treeStore";
 
 export function startFsChangeSync() {
@@ -7,7 +8,9 @@ export function startFsChangeSync() {
   let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
   void onFsChange((payload) => {
-    if (disposed || !payload.treeChanged) return;
+    if (disposed) return;
+    if (payload.trashChanged) void refreshTrashCount().catch(() => {});
+    if (!payload.treeChanged) return;
     if (refreshTimer) clearTimeout(refreshTimer);
     refreshTimer = setTimeout(() => {
       refreshTimer = null;

@@ -9,6 +9,9 @@ import { useTreeActions } from "@/features/tree/useTreeActions";
 import type { TreeNode } from "@/lib/types";
 import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
 
+const deleteMock = vi.hoisted(() => vi.fn());
+vi.mock("@/features/trash/deleteCoordinator", () => ({ deleteTreeItem: deleteMock }));
+
 const note: TreeNode = { type: "note", id: "n", title: "Note", relPath: "A/Note", isFavorite: false, tags: [], updatedAt: "" };
 const tree: TreeNode[] = [{ type: "folder", name: "A", relPath: "A", children: [note] }];
 
@@ -23,11 +26,26 @@ function MoveButton({ node, target }: { node: TreeNode; target: string }) {
 }
 
 beforeEach(() => {
+  deleteMock.mockClear();
   resetTreeStoreForTests();
   useTreeStore.setState({ tree });
 });
 
 describe("SidebarTree keyboard focus", () => {
+  it("deletes the focused tree row with Delete", () => {
+    useTreeStore.setState({ expanded: new Set(["A"]) });
+    render(<SidebarTree onOpenNote={vi.fn()} />);
+    fireEvent.keyDown(screen.getByRole("treeitem", { name: "Not: Note" }), { key: "Delete" });
+    expect(deleteMock).toHaveBeenCalledWith(note);
+  });
+
+  it("offers Move to Trash in the context menu", async () => {
+    useTreeStore.setState({ expanded: new Set(["A"]) });
+    render(<SidebarTree onOpenNote={vi.fn()} />);
+    fireEvent.contextMenu(screen.getByRole("treeitem", { name: "Not: Note" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Çöpe At" }));
+    expect(deleteMock).toHaveBeenCalledWith(note);
+  });
   it("ignores note rows, prioritizes folders, and accepts empty root space", () => {
     expect(preferTreeRow([{ id: "drop:root" }, { id: "drop:note:A/Note" }])).toEqual([]);
     expect(preferTreeRow([{ id: "drop:root" }, { id: "drop:folder:A" }])).toEqual([{ id: "drop:folder:A" }]);
