@@ -71,6 +71,7 @@ pub fn run() {
             commands::read_note,
             commands::save_note,
             commands::export_single_html,
+            commands::export_zip,
             commands::update_metadata,
             commands::copy_asset,
             commands::save_asset_bytes,
