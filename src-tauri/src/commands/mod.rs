@@ -295,14 +295,17 @@ fn reindex_all(state: &AppState) -> Result<(), AppError> {
 #[tauri::command]
 pub async fn delete_item(app: tauri::AppHandle, rel_path: String) -> Result<TrashItem, AppError> {
     tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<AppState>();
-        let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
-        let item = trash::delete_item(&index.root, &rel_path)?;
-        index.refresh_readonly()?;
-        drop(index);
-        reindex_all(&state)?;
-        Ok(item)
+        delete_item_in_state(&app.state::<AppState>(), &rel_path)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+fn delete_item_in_state(state: &AppState, rel_path: &str) -> Result<TrashItem, AppError> {
+    let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
+    let item = trash::delete_item(&index.root, rel_path)?;
+    index.refresh_readonly()?;
+    drop(index);
+    reindex_all(state)?;
+    Ok(item)
 }
 
 #[tauri::command]
@@ -316,15 +319,18 @@ pub async fn list_trash(app: tauri::AppHandle) -> Result<Vec<TrashItem>, AppErro
 #[tauri::command]
 pub async fn restore_from_trash(app: tauri::AppHandle, trash_id: String) -> Result<String, AppError> {
     tauri::async_runtime::spawn_blocking(move || {
-        let state = app.state::<AppState>();
-        let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
-        let ids = index.by_id.keys().copied().collect();
-        let rel = trash::restore_from_trash(&index.root, &trash_id, &ids)?;
-        index.refresh_readonly()?;
-        drop(index);
-        reindex_all(&state)?;
-        Ok(rel)
+        restore_from_trash_in_state(&app.state::<AppState>(), &trash_id)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+fn restore_from_trash_in_state(state: &AppState, trash_id: &str) -> Result<String, AppError> {
+    let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
+    let ids = index.by_id.keys().copied().collect();
+    let rel = trash::restore_from_trash(&index.root, trash_id, &ids)?;
+    index.refresh_readonly()?;
+    drop(index);
+    reindex_all(state)?;
+    Ok(rel)
 }
 
 #[tauri::command]
@@ -456,5 +462,51 @@ mod tests {
         assert!(tauri::async_runtime::block_on(scan_and_replace(&state)).unwrap().is_empty());
         assert!(state.note_index.read().unwrap().resolve(metadata.id).is_none());
         assert!(state.search_index.read().unwrap().search("Not", 10).is_empty());
+    }
+
+    #[test]
+    fn trash_commands_refresh_note_and_search_indexes_for_notes_and_folders() {
+        let root = tempfile::tempdir().unwrap();
+        let (_, single) = create_note_in(root.path(), "", Some("Single")).unwrap();
+        std::fs::create_dir(root.path().join("Folder")).unwrap();
+        let (_, nested) = create_note_in(root.path(), "Folder", Some("Nested")).unwrap();
+        let state = AppState::new(root.path().to_path_buf(), Settings::default(), root.path().to_path_buf());
+        tauri::async_runtime::block_on(scan_and_replace(&state)).unwrap();
+
+        let single_trash = delete_item_in_state(&state, "Single").unwrap();
+        let folder_trash = delete_item_in_state(&state, "Folder").unwrap();
+        for (id, title) in [(single.metadata.id, "Single"), (nested.metadata.id, "Nested")] {
+            assert!(state.note_index.read().unwrap().resolve(id).is_none());
+            assert!(state.search_index.read().unwrap().search(title, 10).is_empty());
+        }
+
+        restore_from_trash_in_state(&state, &single_trash.trash_id).unwrap();
+        restore_from_trash_in_state(&state, &folder_trash.trash_id).unwrap();
+        for (id, path, title) in [(single.metadata.id, "Single", "Single"), (nested.metadata.id, "Folder/Nested", "Nested")] {
+            assert_eq!(state.note_index.read().unwrap().rel_path(id), Some(path));
+            assert_eq!(state.search_index.read().unwrap().search(title, 10)[0].id, id);
+        }
+    }
+
+    #[test]
+    fn restore_collision_keeps_indexed_note_id_and_reassigns_restored_id_on_disk() {
+        let root = tempfile::tempdir().unwrap();
+        let (_, original) = create_note_in(root.path(), "", Some("Original")).unwrap();
+        let state = AppState::new(root.path().to_path_buf(), Settings::default(), root.path().to_path_buf());
+        tauri::async_runtime::block_on(scan_and_replace(&state)).unwrap();
+        let trashed = delete_item_in_state(&state, "Original").unwrap();
+
+        let (_, mut existing) = create_note_in(root.path(), "", Some("Existing")).unwrap();
+        existing.metadata.id = original.metadata.id;
+        write_metadata_atomic(&root.path().join("Existing/metadata.json"), &existing.metadata).unwrap();
+        tauri::async_runtime::block_on(scan_and_replace(&state)).unwrap();
+        let restored_path = restore_from_trash_in_state(&state, &trashed.trash_id).unwrap();
+
+        let restored_id = crate::notes::model::read_metadata(&root.path().join(&restored_path).join("metadata.json")).unwrap().id;
+        assert_ne!(restored_id, original.metadata.id);
+        assert_eq!(state.note_index.read().unwrap().rel_path(original.metadata.id), Some("Existing"));
+        assert_eq!(state.note_index.read().unwrap().rel_path(restored_id), Some(restored_path.as_str()));
+        assert_eq!(state.search_index.read().unwrap().search("Existing", 10)[0].id, original.metadata.id);
+        assert_eq!(state.search_index.read().unwrap().search("Original", 10)[0].id, restored_id);
     }
 }

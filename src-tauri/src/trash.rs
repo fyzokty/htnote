@@ -102,6 +102,10 @@ fn move_error(error: io::Error) -> AppError {
 }
 
 pub fn delete_item(root: &Path, rel: &str) -> Result<TrashItem, AppError> {
+    delete_item_with_rename(root, rel, |source, target| fs::rename(source, target))
+}
+
+fn delete_item_with_rename(root: &Path, rel: &str, rename: impl FnOnce(&Path, &Path) -> io::Result<()>) -> Result<TrashItem, AppError> {
     let source = safe_rel(root, rel)?;
     if !source.is_dir() || source.symlink_metadata()?.file_type().is_symlink() {
         return Err(AppError::NotFound(rel.into()));
@@ -123,7 +127,7 @@ pub fn delete_item(root: &Path, rel: &str) -> Result<TrashItem, AppError> {
         trash_id = format!("{base}-{number}");
     }
     let target = trash.join(&trash_id);
-    fs::rename(&source, &target).map_err(move_error)?;
+    rename(&source, &target).map_err(move_error)?;
     let manifest = TrashManifest { original_rel_path: rel_string(Path::new(rel)), deleted_at, kind: kind.clone(), title: title.clone(), note_ids: ids.clone() };
     let written = serde_json::to_vec_pretty(&manifest).map_err(AppError::from)
         .and_then(|bytes| write_file_atomic(&target.join(MANIFEST), &bytes));
@@ -302,6 +306,31 @@ mod tests {
         fs::write(old_path, serde_json::to_vec(&old).unwrap()).unwrap();
         assert_eq!(list_trash(root.path()).unwrap().iter().map(|item| item.trash_id.as_str()).collect::<Vec<_>>(),
             vec![second.trash_id.as_str(), first.trash_id.as_str()]);
+    }
+
+    #[test]
+    fn rename_failure_preserves_source() {
+        let root = tempfile::tempdir().unwrap();
+        create_note_in(root.path(), "", Some("Keep")).unwrap();
+        let error = delete_item_with_rename(root.path(), "Keep", |_, _| {
+            Err(io::Error::other("rename failed"))
+        }).unwrap_err();
+        assert!(matches!(error, AppError::Io(_)));
+        assert!(root.path().join("Keep/metadata.json").exists());
+        assert!(list_trash(root.path()).unwrap().is_empty());
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn sharing_violation_maps_to_file_locked_and_preserves_source() {
+        let root = tempfile::tempdir().unwrap();
+        create_note_in(root.path(), "", Some("Keep")).unwrap();
+        let error = delete_item_with_rename(root.path(), "Keep", |_, _| {
+            Err(io::Error::from_raw_os_error(32))
+        }).unwrap_err();
+        assert_eq!(error.code(), "FILE_LOCKED");
+        assert!(root.path().join("Keep/metadata.json").exists());
+        assert!(list_trash(root.path()).unwrap().is_empty());
     }
 
     #[cfg(unix)]
