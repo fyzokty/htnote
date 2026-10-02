@@ -15,6 +15,7 @@ import { extractContent } from "@/features/editor/contentRegion";
 import { getDropHandler, toCssPoint } from "@/features/editor/fileDrop";
 import { setDiscardRecoveryDraftHook } from "@/features/editor/unsavedGuard";
 import { SearchModal } from "@/features/search/SearchModal";
+import { SettingsView } from "@/features/settings/SettingsView";
 import { TrashView } from "@/features/trash/TrashView";
 import { refreshTrashCount } from "@/features/trash/deleteCoordinator";
 import { SidebarTree } from "@/features/tree/SidebarTree";
@@ -26,7 +27,6 @@ import { NoteViewer } from "@/features/viewer/NoteViewer";
 import { installBridgeHost } from "@/features/viewer/bridgeHost";
 import { startFsChangeSync } from "@/features/tree/fsChangeSync";
 import { useTreeActions } from "@/features/tree/useTreeActions";
-import { resolveLanguage } from "@/i18n/language";
 import { ipc } from "@/lib/ipc";
 import { onFileDrop } from "@/lib/events";
 import { installShortcutListener } from "@/lib/shortcuts/manager";
@@ -50,6 +50,7 @@ export function AppShell() {
   const setFilterQuery = useTreeStore((state) => state.setFilterQuery);
   const openNote = useCallback((id: string) => {
     useUiStore.getState().closeTrash();
+    useUiStore.getState().closeSettings();
     useTabsStore.getState().openNote(id);
   }, []);
   const { createNote, createFolder } = useTreeActions(openNote);
@@ -62,6 +63,9 @@ export function AppShell() {
   const unsavedDialog = useUiStore((state) => state.unsavedDialog);
   const searchOpen = useUiStore((state) => state.searchOpen);
   const trashOpen = useUiStore((state) => state.trashOpen);
+  const settingsOpen = useUiStore((state) => state.settingsOpen);
+  const openSettings = useUiStore((state) => state.openSettings);
+  const closeSettings = useUiStore((state) => state.closeSettings);
   const trashCount = useUiStore((state) => state.trashCount);
   const openTrash = useUiStore((state) => state.openTrash);
   const closeTrash = useUiStore((state) => state.closeTrash);
@@ -93,7 +97,10 @@ export function AppShell() {
   useEffect(() => startFsChangeSync(), []);
   useEffect(() => { void refreshTrashCount().catch(() => {}); }, []);
   useEffect(() => useTabsStore.subscribe((state, previous) => {
-    if (state.activeId && state.activeId !== previous.activeId) useUiStore.getState().closeTrash();
+    if (state.activeId && state.activeId !== previous.activeId) {
+      useUiStore.getState().closeTrash();
+      useUiStore.getState().closeSettings();
+    }
   }), []);
   useEffect(() => installExternalChangeListener(), []);
   useEffect(() => {
@@ -272,35 +279,9 @@ export function AppShell() {
             <button type="button" onClick={openTrash} aria-pressed={trashOpen} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-app-subtle">
               <Trash2 className="size-4" aria-hidden /> {t("sidebar.trash")} <span className="ml-auto">{trashCount}</span>
             </button>
-            <button type="button" disabled className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm disabled:cursor-default">
+            <button type="button" onClick={openSettings} aria-pressed={settingsOpen} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-app-subtle">
               <Settings2 className="size-4" aria-hidden /> {t("sidebar.settings")}
             </button>
-            <div className="mt-2 flex gap-1 border-t border-app-border pt-2" role="group" aria-label={t("settings.theme")}>
-              {(["system", "light", "dark"] as const).map((theme) => (
-                <button
-                  key={theme}
-                  type="button"
-                  aria-pressed={settings?.theme === theme}
-                  onClick={() => void updateSettings({ theme }).catch(() => {})}
-                  className={`flex-1 rounded-md px-1 py-2 text-xs focus-visible:outline-2 focus-visible:outline-app-accent ${settings?.theme === theme ? "bg-app-accent text-app-accent-text" : "bg-app-subtle text-app-text hover:bg-app-border"}`}
-                >
-                  {t(`settings.${theme}`)}
-                </button>
-              ))}
-            </div>
-            <div className="mt-2 flex gap-1" role="group" aria-label={t("settings.language")}>
-              {(["tr", "en"] as const).map((language) => (
-                <button
-                  key={language}
-                  type="button"
-                  aria-pressed={resolveLanguage(settings?.language, navigator.language) === language}
-                  onClick={() => void updateSettings({ language }).catch(() => {})}
-                  className={`flex-1 rounded-md px-1 py-2 text-xs focus-visible:outline-2 focus-visible:outline-app-accent ${resolveLanguage(settings?.language, navigator.language) === language ? "bg-app-accent text-app-accent-text" : "bg-app-subtle text-app-text hover:bg-app-border"}`}
-                >
-                  {language === "tr" ? t("settings.turkish") : t("settings.english")}
-                </button>
-              ))}
-            </div>
           </div>
           <div
             role="separator"
@@ -318,14 +299,14 @@ export function AppShell() {
         </aside>
       )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header onClickCapture={closeTrash} className="flex h-14 shrink-0 items-center gap-3 border-b border-app-border bg-app-surface px-3">
+        <header onClickCapture={() => { closeTrash(); closeSettings(); }} className="flex h-14 shrink-0 items-center gap-3 border-b border-app-border bg-app-surface px-3">
           <button type="button" onClick={toggleSidebar} title={formatShortcut("toggleSidebar")} aria-label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")} className="rounded-md p-2 text-app-muted hover:bg-app-subtle focus-visible:outline-2 focus-visible:outline-app-accent">
             <Menu className="size-5" aria-hidden />
           </button>
           <TabBar />
         </header>
         <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden" aria-label={t("viewer.workspace")}>
-          {trashOpen ? <TrashView /> : <NoteViewer />}
+          {settingsOpen ? <SettingsView /> : trashOpen ? <TrashView /> : <NoteViewer />}
         </section>
       </div>
     </main>

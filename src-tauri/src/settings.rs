@@ -191,10 +191,72 @@ pub fn resolve_root_dir(settings: &Settings, fallback: &Path) -> Result<PathBuf,
     Ok(root.canonicalize()?)
 }
 
+pub fn validate_new_root(path: &Path) -> Result<PathBuf, AppError> {
+    if !path.is_absolute() {
+        return Err(AppError::InvalidName(path.display().to_string()));
+    }
+    // Oluşturmadan önce mevcut üst dizinleri ve sembolik bağların hedeflerini denetle.
+    for ancestor in path.ancestors() {
+        if ancestor.exists() {
+            let resolved = ancestor.canonicalize()?;
+            for parent in resolved.ancestors() {
+                if parent.join("metadata.json").exists() {
+                    return Err(AppError::NotAFolder(parent.display().to_string()));
+                }
+            }
+        }
+    }
+    fs::create_dir_all(path)?;
+    let root = path.canonicalize()?;
+    for parent in root.ancestors() {
+        if parent.join("metadata.json").exists() {
+            return Err(AppError::NotAFolder(parent.display().to_string()));
+        }
+    }
+    let probe = root.join(format!(".htnote-write-probe-{}", uuid::Uuid::new_v4()));
+    let file = fs::OpenOptions::new().write(true).create_new(true).open(&probe)?;
+    drop(file);
+    fs::remove_file(probe)?;
+    fs::create_dir_all(root.join(".trash"))?;
+    Ok(root)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn new_root_rejects_relative_and_note_paths_before_creation() {
+        let dir = tempdir().unwrap();
+        assert!(matches!(validate_new_root(Path::new("relative")), Err(AppError::InvalidName(_))));
+        let note = dir.path().join("Note");
+        fs::create_dir(&note).unwrap();
+        fs::write(note.join("metadata.json"), "{}").unwrap();
+        fs::write(note.join("index.html"), "").unwrap();
+        assert!(matches!(validate_new_root(&note), Err(AppError::NotAFolder(_))));
+        let child = note.join("nested");
+        assert!(matches!(validate_new_root(&child), Err(AppError::NotAFolder(_))));
+        assert!(!child.exists());
+    }
+
+    #[test]
+    fn new_root_creates_missing_folder_and_trash() {
+        let dir = tempdir().unwrap();
+        let root = dir.path().join("new").join("root");
+        let validated = validate_new_root(&root).unwrap();
+        assert_eq!(validated, root.canonicalize().unwrap());
+        assert!(validated.join(".trash").is_dir());
+        assert!(!fs::read_dir(&validated).unwrap().any(|entry| entry.unwrap().file_name().to_string_lossy().starts_with(".htnote-write-probe")));
+    }
+
+    #[test]
+    fn new_root_rejects_file_as_directory() {
+        let dir = tempdir().unwrap();
+        let file = dir.path().join("file");
+        fs::write(&file, "content").unwrap();
+        assert!(matches!(validate_new_root(&file), Err(AppError::Io(_))));
+    }
 
     #[test]
     fn overrides_are_only_active_in_debug_builds() {
