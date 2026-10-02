@@ -25,10 +25,14 @@ export function deriveTags(tree: TreeNode[]): TagCount[] {
     }
   };
   visit(tree);
-  return [...groups.values()].map(({ count, spellings }) => ({
-    tag: [...spellings].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "tr"))[0][0],
-    count,
-  })).sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, "tr"));
+  return [...groups.values()].map(({ count, spellings }) => {
+    let tag = "";
+    let mostUses = 0;
+    for (const [spelling, uses] of spellings) {
+      if (uses > mostUses) { tag = spelling; mostUses = uses; }
+    }
+    return { tag, count };
+  }).sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag, "tr"));
 }
 
 export function addTag(tags: string[], value: string): string[] {
@@ -40,7 +44,7 @@ export function removeTag(tags: string[], value: string): string[] {
   return tags.filter((tag) => normalizeText(tag) !== normalizeText(value));
 }
 
-interface PendingUpdate { sequence: number; queue: Promise<void>; persisted: string[] }
+interface PendingUpdate { sequence: number; queue: Promise<void>; persisted: string[]; desired: string[] }
 const pending = new Map<string, PendingUpdate>();
 
 export function setNoteTags(id: string, tags: string[]): Promise<void> {
@@ -48,22 +52,26 @@ export function setNoteTags(id: string, tags: string[]): Promise<void> {
   if (!before || (before.tags.length === tags.length && before.tags.every((tag, index) => tag === tags[index]))) return Promise.resolve();
   let state = pending.get(id);
   if (!state) {
-    state = { sequence: 0, queue: Promise.resolve(), persisted: before.tags };
+    state = { sequence: 0, queue: Promise.resolve(), persisted: before.tags, desired: tags };
     pending.set(id, state);
   }
   const current = state;
   const sequence = ++current.sequence;
+  current.desired = tags;
   useTreeStore.getState().patchNote(id, { tags });
   // Disk yazımlarını sıralamak son kullanıcı değişikliğinin son yazım olmasını sağlar.
   const update = current.queue.then(async () => {
+    if (sequence !== current.sequence) return;
     try {
-      const result = await ipc.updateMetadata(id, { tags });
+      const result = await ipc.updateMetadata(id, { tags: current.desired });
       current.persisted = result.metadata.tags;
       useTabsStore.getState().applyMetadataUpdate(id, result.metadata, result.contentHash);
       if (sequence === current.sequence) useTreeStore.getState().patchNote(id, { tags: result.metadata.tags });
     } catch (error) {
-      if (sequence === current.sequence) useTreeStore.getState().patchNote(id, { tags: current.persisted });
-      notifyError(error);
+      if (sequence === current.sequence) {
+        useTreeStore.getState().patchNote(id, { tags: current.persisted });
+        notifyError(error);
+      }
     }
   });
   current.queue = update;

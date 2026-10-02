@@ -23,6 +23,11 @@ describe("tags", () => {
     expect(deriveTags(tree)).toEqual([{ tag: "istanbul", count: 3 }, { tag: "Zeytin", count: 2 }, { tag: "Ankara", count: 1 }]);
   });
 
+  it("keeps the first encountered spelling when usage is tied", () => {
+    expect(deriveTags([note("a", ["İstanbul"]), note("b", ["istanbul"])]))
+      .toEqual([{ tag: "İstanbul", count: 2 }]);
+  });
+
   it("prevents duplicates and removes equivalent spellings", () => {
     const tags = ["İstanbul"];
     expect(addTag(tags, " istanbul ")).toBe(tags);
@@ -37,6 +42,7 @@ describe("tags", () => {
     const completions: Array<(result: { metadata: ReturnType<typeof metadata>; contentHash: string }) => void> = [];
     mockIPC(() => new Promise((resolve) => { completions.push(resolve); }));
     const first = setNoteTags("a", ["one"]);
+    await Promise.resolve();
     const second = setNoteTags("a", ["one", "two"]);
     expect(useTreeStore.getState().findNoteById("a")?.tags).toEqual(["one", "two"]);
     await Promise.resolve();
@@ -47,6 +53,26 @@ describe("tags", () => {
     completions[1]({ metadata: metadata(["one", "two"]), contentHash: "second" });
     await second;
     expect(useTabsStore.getState().tabs[0].doc.base?.contentHash).toBe("second");
+  });
+
+  it("persists the latest tags after an earlier failure without reporting that stale error", async () => {
+    useTreeStore.setState({ tree: [note("a", ["old"])] });
+    let rejectFirst: (reason: unknown) => void = () => {};
+    const writes: string[][] = [];
+    mockIPC((_command, args) => {
+      const tags = (args as { patch: { tags: string[] } }).patch.tags;
+      writes.push(tags);
+      if (writes.length === 1) return new Promise((_resolve, reject) => { rejectFirst = reject; });
+      return { metadata: metadata(tags), contentHash: "latest" };
+    });
+    const first = setNoteTags("a", ["old", "new"]);
+    await Promise.resolve();
+    const second = setNoteTags("a", ["old"]);
+    rejectFirst({ code: "IO_ERROR", message: "failed" });
+    await Promise.all([first, second]);
+    expect(writes).toEqual([["old", "new"], ["old"]]);
+    expect(useTreeStore.getState().findNoteById("a")?.tags).toEqual(["old"]);
+    expect(useUiStore.getState().toasts).toEqual([]);
   });
 
   it("rolls back on failure and reports the error", async () => {
