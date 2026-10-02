@@ -38,7 +38,8 @@
       (event.key === "Escape" && !event.ctrlKey && !event.metaKey && !event.shiftKey) ||
       (event.code === "Tab" && event.ctrlKey && !event.metaKey) ||
       (mod && (
-        (event.shiftKey ? ["n", "f"] : ["s", "e", "w", "n"]).includes(key) ||
+        (event.shiftKey ? ["n", "f", "b"] : ["s", "e", "w", "n"]).includes(key) ||
+        key === "/" ||
         (!event.shiftKey && ["Backslash", "IntlBackslash"].includes(event.code))
       ))
     );

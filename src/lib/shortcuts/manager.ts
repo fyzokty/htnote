@@ -53,8 +53,6 @@ export function installShortcutListener(target: Window = window): () => void {
     };
     const id = matchShortcut(input, getPlatform());
     if (!id || (isEditable(event.target) && !allowShortcutInEditable(id))) return;
-    // TipTap Mod-B kısayolunu düzenleyicide kalın yazı için koru.
-    if (id === "toggleSidebar" && event.code === "KeyB" && event.shiftKey && isEditable(event.target)) return;
     if (!subscribers.get(id)?.size) return;
     event.preventDefault();
     event.stopPropagation();

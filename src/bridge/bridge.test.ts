@@ -85,11 +85,14 @@ describe("note bridge", () => {
     expect(key("Tab", "Tab", { ctrlKey: true }).defaultPrevented).toBe(true);
     expect(key("Tab", "Tab", { ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(true);
     expect(key("\\", "Backslash", { ctrlKey: true }).defaultPrevented).toBe(true);
+    expect(key("/", "Digit7", { ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(true);
+    expect(key("/", "NumpadDivide", { ctrlKey: true }).defaultPrevented).toBe(true);
+    expect(key("B", "KeyB", { ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(true);
     expect(key("Escape", "Escape").defaultPrevented).toBe(true);
     expect(key("x", "KeyX", { ctrlKey: true }).defaultPrevented).toBe(false);
     expect(key("s", "KeyS", { ctrlKey: true, altKey: true }).defaultPrevented).toBe(false);
     expect(key("x", "KeyX").defaultPrevented).toBe(false);
-    expect(messages).toHaveBeenCalledTimes(12);
+    expect(messages).toHaveBeenCalledTimes(15);
     expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_SHORTCUT", key: "s", ctrl: true, shift: false, alt: false, meta: false }, "*");
   });
 
