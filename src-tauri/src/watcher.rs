@@ -493,13 +493,9 @@ mod tests {
     fn real_watcher_reindexes_external_save_patterns_and_directory_removal() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().canonicalize().unwrap();
-        let (_, note) = create_note_in(&root, "", Some("External")).unwrap();
-        let mut initial = NoteIndex::new(root.clone());
-        initial.replace_all(scan::scan(&root).unwrap());
-        let index = Arc::new(RwLock::new(initial));
+        let index = Arc::new(RwLock::new(NoteIndex::new(root.clone())));
         let search = Arc::new(RwLock::new(crate::search::SearchIndex::default()));
         let links = Arc::new(RwLock::new(crate::links::LinkIndex::default()));
-        crate::search::reindex_notes(&index, &search, &links, &[note.metadata.id], &[]).unwrap();
         let worker_index = Arc::clone(&index);
         let worker_search = Arc::clone(&search);
         let (sender, receiver) = mpsc::channel();
@@ -519,6 +515,9 @@ mod tests {
                 let _ = receiver.recv_timeout(Duration::from_millis(50));
             }
         };
+        // Diğer gerçek watcher testleri gibi ilk notu olay üzerinden indeksle.
+        let (_, note) = create_note_in(&root, "", Some("External")).unwrap();
+        wait_for("initial note creation", &|search| search.search("External", 10).len() == 1);
         let html = root.join("External/index.html");
         fs::write(&html, "<p>inplaceword</p>").unwrap();
         wait_for("in-place write", &|search| search.search("inplaceword", 10).len() == 1);
