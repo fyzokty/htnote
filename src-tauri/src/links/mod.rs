@@ -36,7 +36,7 @@ static NOTE_LINK_SELECTOR: std::sync::LazyLock<Selector> = std::sync::LazyLock::
 });
 
 pub fn extract_links(html: &str) -> HashMap<Uuid, LinkInfo> {
-    if !html.contains("htnote://note/") {
+    if !html.as_bytes().windows(6).any(|part| part.eq_ignore_ascii_case(b"htnote")) {
         return HashMap::new();
     }
     let document = Html::parse_document(html);
@@ -96,6 +96,14 @@ mod tests {
         assert_eq!(links[&id].text, "bağlantı");
         assert_eq!(links[&id].snippet.chars().count(), 88);
         assert!(links[&id].snippet.starts_with('😀'));
+    }
+
+    #[test]
+    fn extraction_decodes_encoded_note_link_url() {
+        let id = Uuid::new_v4();
+        let html = format!("<a href=\"htnote&#58;//note/{id}\">Bağlantı</a>");
+        let links = extract_links(&html);
+        assert_eq!(links[&id].text, "Bağlantı");
     }
 
     #[test]
