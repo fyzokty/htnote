@@ -8,7 +8,7 @@ import { useSettingsStore } from "@/stores/settingsStore";
 
 const settings: Settings = {
   rootDir: null, theme: "system", language: null, sidebarWidth: 260,
-  sidebarVisible: true, editorSplitRatio: 35, editorLivePreview: true,
+  sidebarVisible: true, editorSplitRatio: 35, editorLivePreview: true, backlinksExpanded: true,
   openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false,
 };
 

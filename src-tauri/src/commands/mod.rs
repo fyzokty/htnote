@@ -12,6 +12,7 @@ use crate::notes::save::{self, SaveNoteInput, SaveNoteOutput};
 use crate::index::scan::IndexedNote;
 use crate::settings::{self, Settings, SettingsPatch};
 use crate::search::{self, SearchNotesResult};
+use crate::links::{BacklinkItem, BrokenLinkItem};
 use crate::state::AppState;
 use crate::trash::{self, TrashItem};
 use tauri::{Manager, State};
@@ -88,6 +89,35 @@ pub fn search_notes(state: State<'_, AppState>, query: String, limit: Option<usi
     Ok(SearchNotesResult { results, indexing: state.search_indexing.load(Ordering::Acquire) })
 }
 
+fn backlinks_in_state(state: &AppState, id: uuid::Uuid) -> Result<Vec<BacklinkItem>, AppError> {
+    let incoming = state.link_index.read().map_err(|error| AppError::Internal(error.to_string()))?.backlinks(id);
+    let index = state.note_index.read().map_err(|error| AppError::Internal(error.to_string()))?;
+    let mut items = incoming.into_iter().filter_map(|(source, snippet)| {
+        index.by_id.get(&source).map(|note| BacklinkItem {
+            id: source, title: note.metadata.title.clone(), rel_path: note.rel_path.clone(), snippet,
+        })
+    }).collect::<Vec<_>>();
+    items.sort_by(|a, b| a.title.cmp(&b.title).then_with(|| a.id.cmp(&b.id)));
+    Ok(items)
+}
+
+fn broken_links_in_state(state: &AppState, id: uuid::Uuid) -> Result<Vec<BrokenLinkItem>, AppError> {
+    let candidates = state.link_index.read().map_err(|error| AppError::Internal(error.to_string()))?
+        .broken(id, |_| false);
+    let index = state.note_index.read().map_err(|error| AppError::Internal(error.to_string()))?;
+    Ok(candidates.into_iter().filter(|item| !index.by_id.contains_key(&item.target_id)).collect())
+}
+
+#[tauri::command]
+pub fn get_backlinks(state: State<'_, AppState>, id: uuid::Uuid) -> Result<Vec<BacklinkItem>, AppError> {
+    backlinks_in_state(&state, id)
+}
+
+#[tauri::command]
+pub fn get_broken_links(state: State<'_, AppState>, id: uuid::Uuid) -> Result<Vec<BrokenLinkItem>, AppError> {
+    broken_links_in_state(&state, id)
+}
+
 #[tauri::command]
 pub async fn read_note(app: tauri::AppHandle, id: uuid::Uuid) -> Result<NoteData, AppError> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -120,7 +150,7 @@ fn update_metadata_in_state(state: &AppState, id: uuid::Uuid, patch: MetadataPat
     let result = metadata_update::update_metadata_in(&dir, patch)?;
     index.upsert(IndexedNote { rel_path: indexed.rel_path, metadata: result.metadata.clone() });
     drop(index);
-    search::reindex_notes(&state.note_index, &state.search_index, &[id], &[])?;
+    search::reindex_notes(&state.note_index, &state.search_index, &state.link_index, &[id], &[])?;
     state.last_saved_hashes.lock().map_err(|error| AppError::Internal(error.to_string()))?
         .insert(id, result.content_hash.clone());
     Ok(result)
@@ -190,7 +220,7 @@ fn save_note_in_state(
     let result = save(&dir, payload)?;
     index.upsert(IndexedNote { rel_path: indexed.rel_path, metadata: result.metadata.clone() });
     drop(index);
-    search::reindex_notes(&state.note_index, &state.search_index, &[id], &[])?;
+    search::reindex_notes(&state.note_index, &state.search_index, &state.link_index, &[id], &[])?;
     state.last_saved_hashes.lock().map_err(|error| AppError::Internal(error.to_string()))?
         .insert(id, result.content_hash.clone());
     Ok(result)
@@ -231,7 +261,7 @@ pub async fn create_note(app: tauri::AppHandle, parent_rel_path: String, title: 
     }).await.map_err(|error| AppError::Internal(error.to_string()))??;
     let id = indexed.metadata.id;
     state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?.upsert(indexed);
-    search::reindex_notes(&state.note_index, &state.search_index, &[id], &[])?;
+    search::reindex_notes(&state.note_index, &state.search_index, &state.link_index, &[id], &[])?;
     Ok(node)
 }
 
@@ -252,7 +282,7 @@ pub async fn rename_note(app: tauri::AppHandle, id: uuid::Uuid, new_title: Strin
         let (node, _) = rename::rename_note_in(&index.root, &note, &new_title)?;
         index.refresh_readonly()?;
         drop(index);
-        search::reindex_notes(&state.note_index, &state.search_index, &[id], &[])?;
+        search::reindex_notes(&state.note_index, &state.search_index, &state.link_index, &[id], &[])?;
         Ok(node)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
@@ -309,7 +339,8 @@ fn reindex_all(state: &AppState) -> Result<(), AppError> {
     let ids = state.note_index.read().map_err(|error| AppError::Internal(error.to_string()))?
         .by_id.keys().copied().collect::<Vec<_>>();
     state.search_index.write().map_err(|error| AppError::Internal(error.to_string()))?.clear();
-    search::reindex_notes(&state.note_index, &state.search_index, &ids, &[])?;
+    state.link_index.write().map_err(|error| AppError::Internal(error.to_string()))?.clear();
+    search::reindex_notes(&state.note_index, &state.search_index, &state.link_index, &ids, &[])?;
     state.search_indexing.store(false, Ordering::Release);
     Ok(())
 }
@@ -377,6 +408,31 @@ mod tests {
     use crate::notes::create::create_note_in;
     use crate::notes::model::{write_metadata_atomic, NoteMetadata};
     use crate::notes::read::read_note_dir;
+
+    #[test]
+    fn backlink_commands_follow_edits_and_deleted_targets() {
+        let root = tempfile::tempdir().unwrap();
+        let (_, source) = create_note_in(root.path(), "", Some("Source")).unwrap();
+        let (_, target) = create_note_in(root.path(), "", Some("Target")).unwrap();
+        let source_id = source.metadata.id;
+        let target_id = target.metadata.id;
+        let state = AppState::new(root.path().to_path_buf(), Settings::default(), root.path().to_path_buf());
+        state.note_index.write().unwrap().upsert(source.clone());
+        state.note_index.write().unwrap().upsert(target);
+        let path = root.path().join(&source.rel_path).join("index.html");
+        std::fs::write(&path, format!("<p>See <a href='htnote://note/{target_id}'>Target</a> now</p>")).unwrap();
+        search::reindex_notes(&state.note_index, &state.search_index, &state.link_index, &[source_id], &[]).unwrap();
+        let incoming = backlinks_in_state(&state, target_id).unwrap();
+        assert_eq!(incoming.len(), 1);
+        assert_eq!(incoming[0].title, "Source");
+        assert!(incoming[0].snippet.contains("See Target now"));
+        state.note_index.write().unwrap().remove_subtree("Target");
+        assert_eq!(broken_links_in_state(&state, source_id).unwrap()[0].target_id, target_id);
+        std::fs::write(&path, "<p>No link</p>").unwrap();
+        search::reindex_notes(&state.note_index, &state.search_index, &state.link_index, &[source_id], &[]).unwrap();
+        assert!(backlinks_in_state(&state, target_id).unwrap().is_empty());
+        assert!(broken_links_in_state(&state, source_id).unwrap().is_empty());
+    }
 
     fn save_input(expected_hash: Option<String>) -> SaveNoteInput {
         SaveNoteInput {

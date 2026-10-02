@@ -260,9 +260,10 @@ pub fn start_for_app(state: &AppState, app: tauri::AppHandle) -> Result<(), AppE
     let root = state.root_dir.read().map_err(|error| AppError::Internal(error.to_string()))?.clone();
     let index = Arc::clone(&state.note_index);
     let search_index = Arc::clone(&state.search_index);
+    let link_index = Arc::clone(&state.link_index);
     let note_index = Arc::clone(&state.note_index);
     let manager = WatcherManager::start(root, index, move |payload| {
-        if let Err(error) = crate::search::reindex_notes(&note_index, &search_index,
+        if let Err(error) = crate::search::reindex_notes(&note_index, &search_index, &link_index,
             &payload.changed_note_ids, &payload.removed_note_ids) {
             eprintln!("Search index update failed: {error}");
         }
@@ -353,17 +354,21 @@ mod tests {
         let (_, note) = create_note_in(root, "", Some("Searchable")).unwrap();
         let index = RwLock::new(NoteIndex::new(root.to_path_buf()));
         let search = RwLock::new(crate::search::SearchIndex::default());
+        let links = RwLock::new(crate::links::LinkIndex::default());
         let added = apply_batch(root, &index, structural()).unwrap();
-        crate::search::reindex_notes(&index, &search, &added.changed_note_ids, &added.removed_note_ids).unwrap();
+        crate::search::reindex_notes(&index, &search, &links, &added.changed_note_ids, &added.removed_note_ids).unwrap();
         assert_eq!(search.read().unwrap().search("Searchable", 10)[0].id, note.metadata.id);
-        fs::write(root.join("Searchable/index.html"), "<main>İstanbul</main>").unwrap();
+        let target = uuid::Uuid::new_v4();
+        fs::write(root.join("Searchable/index.html"), format!("<main>İstanbul <a href='htnote://note/{target}'>link</a></main>")).unwrap();
         let changed = apply_batch(root, &index, Affected { content_note_dirs: HashSet::from([root.join("Searchable")]), ..Default::default() }).unwrap();
-        crate::search::reindex_notes(&index, &search, &changed.changed_note_ids, &changed.removed_note_ids).unwrap();
+        crate::search::reindex_notes(&index, &search, &links, &changed.changed_note_ids, &changed.removed_note_ids).unwrap();
         assert_eq!(search.read().unwrap().search("istanbul", 10).len(), 1);
+        assert_eq!(links.read().unwrap().backlinks(target).len(), 1);
         fs::remove_dir_all(root.join("Searchable")).unwrap();
         let removed = apply_batch(root, &index, structural()).unwrap();
-        crate::search::reindex_notes(&index, &search, &removed.changed_note_ids, &removed.removed_note_ids).unwrap();
+        crate::search::reindex_notes(&index, &search, &links, &removed.changed_note_ids, &removed.removed_note_ids).unwrap();
         assert!(search.read().unwrap().search("istanbul", 10).is_empty());
+        assert!(links.read().unwrap().backlinks(target).is_empty());
     }
 
     #[test]

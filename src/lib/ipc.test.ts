@@ -44,6 +44,19 @@ describe("ipc.searchNotes", () => {
   });
 });
 
+describe("ipc link commands", () => {
+  it("passes note ids and returns link items", async () => {
+    const incoming = [{ id: "source", title: "Source", relPath: "Source", snippet: "context" }];
+    const broken = [{ targetId: "missing", text: "Missing" }];
+    const handler = vi.fn((command: string) => command === "get_backlinks" ? incoming : broken);
+    mockIPC(handler);
+    await expect(ipc.getBacklinks("target")).resolves.toEqual(incoming);
+    await expect(ipc.getBrokenLinks("target")).resolves.toEqual(broken);
+    expect(handler).toHaveBeenCalledWith("get_backlinks", { id: "target" });
+    expect(handler).toHaveBeenCalledWith("get_broken_links", { id: "target" });
+  });
+});
+
 describe("ipc.saveNote", () => {
   it("sends the note id and content payload", async () => {
     const result = { metadata: { title: "Not" }, contentHash: "hash" };

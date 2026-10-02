@@ -9,6 +9,7 @@ pub mod index;
 pub mod notes;
 mod settings;
 mod search;
+mod links;
 mod state;
 mod watcher;
 mod trash;
@@ -64,6 +65,8 @@ pub fn run() {
             commands::get_note_origin,
             commands::get_note_tree,
             commands::search_notes,
+            commands::get_backlinks,
+            commands::get_broken_links,
             commands::read_note,
             commands::save_note,
             commands::update_metadata,

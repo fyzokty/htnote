@@ -14,6 +14,7 @@ export interface Settings {
   sidebarVisible: boolean;
   editorSplitRatio: number;
   editorLivePreview: boolean;
+  backlinksExpanded: boolean;
   openTabs: string[];
   activeTab: string | null;
   expandedFolders: string[];
@@ -149,4 +150,16 @@ export interface SearchResult {
 export interface SearchNotesResult {
   results: SearchResult[];
   indexing: boolean;
+}
+
+export interface BacklinkItem {
+  id: string;
+  title: string;
+  relPath: string;
+  snippet: string;
+}
+
+export interface BrokenLinkItem {
+  targetId: string;
+  text: string;
 }
