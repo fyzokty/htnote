@@ -76,6 +76,8 @@ export interface ExportSingleHtmlResult {
   warnings: string[];
 }
 
+export type ExportZipResult = ExportSingleHtmlResult;
+
 export interface UpdateMetadataPatch {
   isFavorite?: boolean;
   tags?: string[];

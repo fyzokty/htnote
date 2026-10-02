@@ -1,7 +1,7 @@
 use serde::Serialize;
 
 use crate::error::AppError;
-use crate::export::{single_html, ExportResult};
+use crate::export::{single_html, zip, ExportResult};
 use crate::drafts::{self, DraftData};
 use crate::index::scan::{self, TreeNode};
 use crate::notes::create;
@@ -139,6 +139,19 @@ pub async fn export_single_html(app: tauri::AppHandle, id: uuid::Uuid, target_pa
         let built = single_html::build_single_html(&dir)?;
         crate::fs_util::write_file_atomic(&target, built.html.as_bytes())?;
         Ok(ExportResult { warnings: built.warnings })
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn export_zip(app: tauri::AppHandle, id: uuid::Uuid, target_path: String) -> Result<ExportResult, AppError> {
+    let target = std::path::PathBuf::from(target_path);
+    if !target.is_absolute() {
+        return Err(AppError::InvalidName("Export target must be absolute".into()));
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = resolve_note_dir(&app.state::<AppState>(), id)?;
+        zip::export_zip_to(&dir, &target)?;
+        Ok(ExportResult { warnings: Vec::new() })
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
 
