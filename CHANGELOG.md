@@ -2,7 +2,7 @@
 
 Biçim [Keep a Changelog](https://keepachangelog.com/tr/1.1.0/) düzenini izler.
 
-## [1.0.0]
+## [Unreleased] — v1.0.0 adayı
 
 ### Eklendi
 

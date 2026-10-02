@@ -1,0 +1,10 @@
+{
+  "id": "b9c5621f-6d8b-43ca-b49c-36a0e882fb51",
+  "title": "Yayın kontrol listesi",
+  "createdAt": "2026-09-24T10:00:00.000Z",
+  "updatedAt": "2026-10-01T11:00:00.000Z",
+  "isFavorite": false,
+  "tags": ["proje", "yayın"],
+  "hasCustomCss": false,
+  "hasCustomJs": false
+}
