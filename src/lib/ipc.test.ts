@@ -1,8 +1,11 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
+import { open } from "@tauri-apps/plugin-dialog";
 import { describe, expect, it, vi } from "vitest";
 
 import { ipc } from "@/lib/ipc";
 import type { AppInfo } from "@/lib/types";
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn(), save: vi.fn() }));
 
 describe("ipc.appInfo", () => {
   it("app_info komutundan tipli yanıt döndürür", async () => {
@@ -17,6 +20,21 @@ describe("ipc.appInfo", () => {
 
     await expect(ipc.appInfo()).resolves.toEqual(info);
     expect(handler).toHaveBeenCalledWith("app_info", {});
+  });
+});
+
+describe("ipc.setRootDir", () => {
+  it("passes the selected absolute path", async () => {
+    const handler = vi.fn(() => ({ rootDir: "C:/Notes" }));
+    mockIPC(handler);
+    await expect(ipc.setRootDir("C:/Notes")).resolves.toEqual({ rootDir: "C:/Notes" });
+    expect(handler).toHaveBeenCalledWith("set_root_dir", { path: "C:/Notes" });
+  });
+
+  it("opens a single directory picker", async () => {
+    vi.mocked(open).mockResolvedValue("C:/New");
+    await expect(ipc.pickDirectory("C:/Old")).resolves.toBe("C:/New");
+    expect(open).toHaveBeenCalledWith({ directory: true, multiple: false, defaultPath: "C:/Old" });
   });
 });
 

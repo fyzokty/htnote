@@ -1,10 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
-import { save } from "@tauri-apps/plugin-dialog";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { open, save } from "@tauri-apps/plugin-dialog";
+import { openUrl, revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import type { AppInfo, AssetInfo, BacklinkItem, BrokenLinkItem, ExportPdfResult, ExportSingleHtmlResult, ExportZipResult, NoteData, PreviewDraftPayload, RecoveryDraft, SaveNotePayload, SaveNoteResult, SearchNotesResult, Settings, SettingsPatch, TrashItem, TreeNode, UpdateMetadataPatch, UpdateMetadataResult, WriteDraftPayload } from "@/lib/types";
 
 export const ipc = {
+  openExternalUrl(url: string): Promise<void> {
+    return openUrl(url);
+  },
   saveExportFile(defaultPath: string, extension: "pdf" | "html" | "zip"): Promise<string | null> {
     return save({ defaultPath, filters: [{ name: extension.toUpperCase(), extensions: [extension] }] });
   },
@@ -19,6 +22,12 @@ export const ipc = {
   },
   updateSettings(patch: SettingsPatch): Promise<Settings> {
     return invoke<Settings>("update_settings", { patch });
+  },
+  setRootDir(path: string): Promise<Settings> {
+    return invoke<Settings>("set_root_dir", { path });
+  },
+  pickDirectory(defaultPath?: string): Promise<string | null> {
+    return open({ directory: true, multiple: false, defaultPath });
   },
   getRootDir(): Promise<string> {
     return invoke<string>("get_root_dir");

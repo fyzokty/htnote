@@ -62,6 +62,7 @@ pub fn run() {
             commands::app_info,
             commands::get_settings,
             commands::update_settings,
+            commands::set_root_dir,
             commands::get_root_dir,
             commands::get_note_origin,
             commands::get_note_tree,

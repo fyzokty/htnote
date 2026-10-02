@@ -32,6 +32,9 @@ interface UiState {
   openUnsavedDialog: (noteIds: string[], resolve: (decision: UnsavedDecision) => void, purpose?: "export") => void;
   closeUnsavedDialog: () => void;
   trashOpen: boolean;
+  settingsOpen: boolean;
+  openSettings: () => void;
+  closeSettings: () => void;
   trashCount: number;
   trashRevision: number;
   openTrash: () => void;
@@ -60,9 +63,12 @@ export const useUiStore = create<UiState>((set, get) => ({
   openUnsavedDialog: (noteIds, resolve, purpose) => set({ unsavedDialog: { noteIds, resolve, purpose } }),
   closeUnsavedDialog: () => set({ unsavedDialog: null }),
   trashOpen: false,
+  settingsOpen: false,
+  openSettings: () => set({ settingsOpen: true, trashOpen: false }),
+  closeSettings: () => set({ settingsOpen: false }),
   trashCount: 0,
   trashRevision: 0,
-  openTrash: () => set({ trashOpen: true }),
+  openTrash: () => set({ trashOpen: true, settingsOpen: false }),
   closeTrash: () => set({ trashOpen: false }),
   setTrashCount: (trashCount) => set((state) => ({ trashCount, trashRevision: state.trashRevision + 1 })),
   confirmDialog: null,
