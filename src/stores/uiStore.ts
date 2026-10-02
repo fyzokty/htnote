@@ -31,6 +31,15 @@ interface UiState {
   unsavedDialog: { noteIds: string[]; resolve: (decision: UnsavedDecision) => void } | null;
   openUnsavedDialog: (noteIds: string[], resolve: (decision: UnsavedDecision) => void) => void;
   closeUnsavedDialog: () => void;
+  trashOpen: boolean;
+  trashCount: number;
+  trashRevision: number;
+  openTrash: () => void;
+  closeTrash: () => void;
+  setTrashCount: (count: number) => void;
+  confirmDialog: { titleKey: string; messageKey: string; params?: Record<string, string | number>; resolve: (confirmed: boolean) => void } | null;
+  confirm: (titleKey: string, messageKey: string, params?: Record<string, string | number>) => Promise<boolean>;
+  closeConfirmDialog: () => void;
   sidebarVisible: boolean;
   setSidebarVisible: (visible: boolean) => void;
   toggleSidebar: () => void;
@@ -48,6 +57,17 @@ export const useUiStore = create<UiState>((set, get) => ({
   unsavedDialog: null,
   openUnsavedDialog: (noteIds, resolve) => set({ unsavedDialog: { noteIds, resolve } }),
   closeUnsavedDialog: () => set({ unsavedDialog: null }),
+  trashOpen: false,
+  trashCount: 0,
+  trashRevision: 0,
+  openTrash: () => set({ trashOpen: true }),
+  closeTrash: () => set({ trashOpen: false }),
+  setTrashCount: (trashCount) => set((state) => ({ trashCount, trashRevision: state.trashRevision + 1 })),
+  confirmDialog: null,
+  confirm: (titleKey, messageKey, params) => new Promise<boolean>((resolve) => {
+    set({ confirmDialog: { titleKey, messageKey, params, resolve } });
+  }),
+  closeConfirmDialog: () => set({ confirmDialog: null }),
   sidebarVisible: true,
   toasts: [],
   pushToast: (input) => {
