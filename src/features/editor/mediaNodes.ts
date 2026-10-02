@@ -1,4 +1,5 @@
 import { Extension, Node, mergeAttributes } from "@tiptap/core";
+import type { JSONContent } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 
 import { AudioView, ImageView, VideoView } from "@/features/editor/MediaNodeViews";
@@ -11,7 +12,7 @@ export interface InsertMediaOptions {
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
-    insertMedia: { insertMedia: (options: InsertMediaOptions) => ReturnType };
+    insertMedia: { insertMedia: (options: InsertMediaOptions | InsertMediaOptions[]) => ReturnType };
   }
 }
 
@@ -97,11 +98,13 @@ export const InsertMedia = Extension.create({
   name: "insertMedia",
   addCommands() {
     return {
-      insertMedia: ({ relPath, kind, name }) => ({ commands }) => {
-        if (kind === "file") {
-          return commands.insertContent({ type: "text", text: name, marks: [{ type: "link", attrs: { href: relPath } }] });
-        }
-        return commands.insertContent({ type: kind, attrs: { src: relPath } });
+      insertMedia: (options) => ({ commands }) => {
+        const items = Array.isArray(options) ? options : [options];
+        if (!items.length) return false;
+        // Atomik medya seçili kalabilir; sonraki dosya onu değiştirmesin diye topluca eklenir.
+        return commands.insertContent(items.map(({ relPath, kind, name }): JSONContent => kind === "file"
+          ? { type: "text", text: name, marks: [{ type: "link", attrs: { href: relPath } }] }
+          : { type: kind, attrs: { src: relPath } }));
       },
     };
   },

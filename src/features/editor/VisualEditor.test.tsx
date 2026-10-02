@@ -1,11 +1,16 @@
 import { createRef } from "react";
 import { Editor } from "@tiptap/core";
+import { EditorView } from "@tiptap/pm/view";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createVisualExtensions } from "@/features/editor/extensions";
 import { VisualEditor } from "@/features/editor/VisualEditor";
 import type { VisualEditorHandle } from "@/features/editor/VisualEditor";
+import { fileName, getDropHandler, kindFromPath } from "@/features/editor/fileDrop";
+import { ipc } from "@/lib/ipc";
+import { initNoteOrigin } from "@/lib/noteUrl";
+import { useUiStore } from "@/stores/uiStore";
 
 function normalized(html: string): string {
   const container = document.createElement("div");
@@ -20,9 +25,55 @@ function normalized(html: string): string {
   return container.innerHTML;
 }
 
-afterEach(() => vi.useRealTimers());
+beforeEach(() => initNoteOrigin("http://127.0.0.1:4123"));
+afterEach(() => {
+  vi.useRealTimers();
+  for (const toast of useUiStore.getState().toasts) useUiStore.getState().dismissToast(toast.id);
+});
 
 describe("VisualEditor", () => {
+  it("drops three images and audio together at the drop point in order", async () => {
+    const hitTest = vi.spyOn(EditorView.prototype, "posAtCoords").mockReturnValue({ pos: 7, inside: 0 });
+    const copy = vi.spyOn(ipc, "copyAsset").mockImplementation(async (_noteId, path) => ({
+      relPath: `./assets/${fileName(path)}`, kind: kindFromPath(path), mime: "",
+    }));
+    const ref = createRef<VisualEditorHandle>();
+    const onChange = vi.fn();
+    const view = render(<VisualEditor ref={ref} noteId="note" initialInner="<p>BeforeAfter</p>" onChange={onChange} />);
+    const drop = getDropHandler("note", "visual");
+    expect(drop).toBeDefined();
+    const paths = ["C:\\first.png", "C:\\second.jpg", "C:\\third.webp", "C:\\song.mp3"];
+    await act(async () => {
+      await drop!(paths, { x: 25, y: 50 });
+      ref.current?.flush();
+    });
+    expect(hitTest).toHaveBeenCalledWith({ left: 25, top: 50 });
+    expect(copy.mock.calls).toEqual(paths.map((path) => ["note", path]));
+    expect(onChange).toHaveBeenLastCalledWith('<p>Before</p><img src="./assets/first.png"><img src="./assets/second.jpg"><img src="./assets/third.webp"><audio src="./assets/song.mp3" controls=""></audio><p>After</p>');
+    view.unmount();
+    expect(getDropHandler("note", "visual")).toBeUndefined();
+  });
+
+  it("pastes multiple media files as a single ordered batch", async () => {
+    const save = vi.spyOn(ipc, "saveAssetBytes").mockImplementation(async () => ({
+      relPath: `./assets/pasted-${save.mock.calls.length}.png`, kind: "image", mime: "image/png",
+    }));
+    const ref = createRef<VisualEditorHandle>();
+    const onChange = vi.fn();
+    render(<VisualEditor ref={ref} noteId="note" initialInner="<p></p>" onChange={onChange} />);
+    const files = ["first.png", "second.png", "third.png"].map((name) => {
+      const file = new File(["image"], name, { type: "image/png" });
+      Object.defineProperty(file, "arrayBuffer", { value: async () => new Uint8Array([1, 2, 3]).buffer });
+      return file;
+    });
+    await act(async () => {
+      fireEvent.paste(screen.getByRole("textbox", { name: "Not içeriği" }), { clipboardData: { files, getData: () => "" } });
+    });
+    act(() => ref.current?.flush());
+    expect(save).toHaveBeenCalledTimes(3);
+    expect(onChange).toHaveBeenLastCalledWith('<img src="./assets/pasted-1.png"><img src="./assets/pasted-2.png"><img src="./assets/pasted-3.png">');
+  });
+
   it("round trips supported blocks and marks", () => {
     const fixture = '<h2>Başlık</h2><p><strong>Kalın</strong> <em>İtalik</em> <u>Altı çizili</u> <s>Çizili</s> <a href="https://example.com">Link</a></p><ul><li><p>Madde</p></li></ul><blockquote><p>Alıntı</p></blockquote><pre><code>Kod</code></pre><hr><table><tbody><tr><th><p>Başlık</p></th><td><p>Hücre</p></td></tr></tbody></table>';
     const editor = new Editor({ extensions: createVisualExtensions(""), content: fixture });

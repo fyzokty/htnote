@@ -4,10 +4,10 @@ import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   Bold, Italic, Underline, Strikethrough, List, ListOrdered, Quote, Code2,
-  Table2, Minus, Link2, Link2Off, Rows3, Columns3, Trash2, ImagePlus,
+  Table2, Minus, Link2, Link2Off, Rows3, Columns3, Trash2, ImagePlus, Music, Video,
 } from "lucide-react";
 
-import { fileName, mediaFor, processFilesSequentially } from "@/features/editor/fileDrop";
+import { copyFilesSequentially, fileName, mediaFor } from "@/features/editor/fileDrop";
 import { ipc } from "@/lib/ipc";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -49,22 +49,20 @@ export function EditorToolbar({ editor, noteId = "", onLinkNote }: EditorToolbar
     setLinkError(false);
   };
 
-  const addMedia = async () => {
+  const addMedia = async (filter: { name: string; extensions: string[] }) => {
+    const { from, to } = editor.state.selection;
     try {
       const selected = await open({
         multiple: true,
-        filters: [
-          { name: t("editor.mediaImages"), extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif"] },
-          { name: t("editor.mediaAudio"), extensions: ["mp3", "wav", "ogg", "m4a"] },
-          { name: t("editor.mediaVideo"), extensions: ["mp4", "webm"] },
-          { name: t("editor.mediaAll"), extensions: ["*"] },
-        ],
+        filters: [filter],
       });
       if (!selected) return;
       const paths = Array.isArray(selected) ? selected : [selected];
-      await processFilesSequentially(paths, (path) => ipc.copyAsset(noteId, path),
-        (asset, path) => { editor.commands.insertMedia(mediaFor(asset, fileName(path))); },
+      const copied = await copyFilesSequentially(paths, (path) => ipc.copyAsset(noteId, path),
         (path) => useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.dropCopyFailed", params: { name: fileName(path) } }));
+      if (editor.isDestroyed || !copied.length) return;
+      editor.chain().focus().setTextSelection({ from, to })
+        .insertMedia(copied.map(({ result, path }) => mediaFor(result, fileName(path)))).run();
     } catch {
       useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.mediaOpenFailed" });
     }
@@ -96,7 +94,9 @@ export function EditorToolbar({ editor, noteId = "", onLinkNote }: EditorToolbar
       {action(t("editor.addColumn"), <Columns3 size={16} />, () => editor.chain().focus().addColumnAfter().run(), false, !editor.can().addColumnAfter())}
       {action(t("editor.deleteColumn"), <Trash2 size={16} />, () => editor.chain().focus().deleteColumn().run(), false, !editor.can().deleteColumn())}
       {action(t("editor.horizontalRule"), <Minus size={16} />, () => editor.chain().focus().setHorizontalRule().run())}
-      {action(t("editor.addMedia"), <ImagePlus size={16} />, () => { void addMedia(); })}
+      {action(t("editor.addImage"), <ImagePlus size={16} />, () => { void addMedia({ name: t("editor.mediaImages"), extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif"] }); })}
+      {action(t("editor.addAudio"), <Music size={16} />, () => { void addMedia({ name: t("editor.mediaAudio"), extensions: ["mp3", "wav", "ogg", "m4a"] }); })}
+      {action(t("editor.addVideo"), <Video size={16} />, () => { void addMedia({ name: t("editor.mediaVideo"), extensions: ["mp4", "webm"] }); })}
       {action(t("editor.addLink"), <Link2 size={16} />, () => {
         setLinkUrl(editor.getAttributes("link").href ?? "");
         setLinkError(false);

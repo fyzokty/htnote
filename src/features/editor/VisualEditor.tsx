@@ -6,7 +6,8 @@ import { EditorToolbar } from "@/features/editor/EditorToolbar";
 import { NotePicker } from "@/components/ui/NotePicker";
 import { classifyClipboard, decodeDataUrl, pasteFileName, rewriteDataUrlImages, shouldWarnExternalImages } from "@/features/editor/clipboardPaste";
 import { createVisualExtensions } from "@/features/editor/extensions";
-import { fileName, mediaFor, processFilesSequentially, registerDropHandler } from "@/features/editor/fileDrop";
+import { copyFilesSequentially, fileName, mediaFor, registerDropHandler } from "@/features/editor/fileDrop";
+import type { InsertMediaOptions } from "@/features/editor/mediaNodes";
 import { escapeHtml, noteLinkHref } from "@/features/editor/noteLinks";
 import { unwrapRawBlocks, wrapRawBlocks } from "@/features/editor/visualPipeline";
 import { ipc } from "@/lib/ipc";
@@ -77,19 +78,18 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
         if (kind === "files") {
           const files = Array.from(data.files);
           void (async () => {
-            let position = from;
+            const media: InsertMediaOptions[] = [];
             for (const file of files) {
               try {
                 const asset = await ipc.saveAssetBytes(noteId, pasteFileName(new Date(), file.type), new Uint8Array(await file.arrayBuffer()));
-                const current = editorRef.current;
-                if (!current || current.isDestroyed) return;
-                current.commands.setTextSelection({ from: position, to: position === from ? to : position });
-                current.commands.insertMedia(mediaFor(asset, file.name || pasteFileName(new Date(), file.type)));
-                position = current.state.selection.to;
+                media.push(mediaFor(asset, file.name || pasteFileName(new Date(), file.type)));
               } catch {
                 useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.pasteFailed" });
               }
             }
+            const current = editorRef.current;
+            if (!current || current.isDestroyed || !media.length) return;
+            current.chain().setTextSelection({ from, to }).insertMedia(media).run();
           })();
           return true;
         }
@@ -143,10 +143,11 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
     return registerDropHandler(noteId, "visual", async (paths, point) => {
       const target = editor.view.posAtCoords({ left: point.x, top: point.y });
       if (!target) return;
-      editor.commands.setTextSelection(target.pos);
-      await processFilesSequentially(paths, (path) => ipc.copyAsset(noteId, path),
-        (asset, path) => { editor.commands.insertMedia(mediaFor(asset, fileName(path))); },
+      const copied = await copyFilesSequentially(paths, (path) => ipc.copyAsset(noteId, path),
         (path) => useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.dropCopyFailed", params: { name: fileName(path) } }));
+      if (editor.isDestroyed || !copied.length) return;
+      editor.chain().setTextSelection(target.pos)
+        .insertMedia(copied.map(({ result, path }) => mediaFor(result, fileName(path)))).run();
     });
   }, [editor, noteId]);
 

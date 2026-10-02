@@ -52,16 +52,18 @@ export function getDropHandler(noteId: string, editor: DropEditor): DropHandler 
   return handlers.get(`${noteId}:${editor}`);
 }
 
-export async function processFilesSequentially<T>(
-  paths: string[], copy: (path: string) => Promise<T>, insert: (result: T, path: string) => void,
+export async function copyFilesSequentially<T>(
+  paths: string[], copy: (path: string) => Promise<T>,
   onError: (path: string, error: unknown) => void,
-): Promise<void> {
+): Promise<{ result: T; path: string }[]> {
+  const copied: { result: T; path: string }[] = [];
   for (const path of paths) {
     try {
       const result = await copy(path);
-      insert(result, path);
+      copied.push({ result, path });
     } catch (error) {
       onError(path, error);
     }
   }
+  return copied;
 }
