@@ -136,7 +136,7 @@ mod tests {
         let dialog_permissions: Vec<_> = permissions.iter()
             .filter_map(|permission| permission.as_str().or_else(|| permission["identifier"].as_str()))
             .filter(|identifier| identifier.starts_with("dialog:")).collect();
-        assert_eq!(dialog_permissions, ["dialog:allow-open"]);
+        assert_eq!(dialog_permissions, ["dialog:allow-open", "dialog:allow-save"]);
 
         let csp = conf["app"]["security"]["csp"].as_str().expect("üretim CSP");
         let directives: std::collections::HashMap<_, _> = csp

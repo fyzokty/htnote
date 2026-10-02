@@ -5,6 +5,8 @@ export interface ContextMenuItem {
   label: string;
   shortcut?: string;
   disabled?: boolean;
+  title?: string;
+  separatorBefore?: boolean;
   onSelect: () => void;
 }
 
@@ -44,10 +46,10 @@ export function ContextMenu({ items, x, y, trigger, onClose }: Props) {
       menu.current?.querySelector<HTMLElement>(`[data-index="${next}"]`)?.focus();
     }
   }}>
-    {items.map((item, index) => <button key={item.id} type="button" role="menuitem" data-index={index} tabIndex={-1} aria-disabled={item.disabled || undefined} disabled={item.disabled} onClick={() => activate(item)} onKeyDown={(event) => {
+    {items.map((item, index) => <div key={item.id} title={item.title}>{item.separatorBefore && <div role="separator" className="my-1 border-t border-app-border" />}<button type="button" role="menuitem" data-index={index} tabIndex={-1} title={item.title} aria-disabled={item.disabled || undefined} disabled={item.disabled} onClick={() => activate(item)} onKeyDown={(event) => {
       if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(item); }
     }} className="flex w-full items-center justify-between gap-5 rounded px-3 py-1.5 text-left hover:bg-app-subtle focus:bg-app-subtle focus:outline-none disabled:opacity-50">
       {item.label}{item.shortcut && <span className="text-xs text-app-muted">{item.shortcut}</span>}
-    </button>)}
+    </button></div>)}
   </div>;
 }

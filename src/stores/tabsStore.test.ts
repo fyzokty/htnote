@@ -10,7 +10,7 @@ import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
 import { useUiStore } from "@/stores/uiStore";
 
 const settings: Settings = {
-  rootDir: null, theme: "system", language: null, sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true,
+  rootDir: null, lastExportDir: null, theme: "system", language: null, sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true,
   sidebarVisible: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false,
 };
 const ids = () => useTabsStore.getState().tabs.map((tab) => tab.noteId);

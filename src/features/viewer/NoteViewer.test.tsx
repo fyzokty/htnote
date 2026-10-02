@@ -1,11 +1,20 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { mockIPC } from "@tauri-apps/api/mocks";
+
+vi.mock("@tauri-apps/plugin-dialog", () => ({ save: vi.fn() }));
+vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: vi.fn() }));
+
+import { save } from "@tauri-apps/plugin-dialog";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import { NoteViewer } from "@/features/viewer/NoteViewer";
 import { installBridgeHost, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
 import { NOTE_IFRAME_SANDBOX, initNoteOrigin, noteUrl } from "@/lib/noteUrl";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
+import { useSettingsStore } from "@/stores/settingsStore";
+import { useUiStore } from "@/stores/uiStore";
 
 const notes = [
   { type: "note" as const, id: "a", title: "Alpha", relPath: "Alpha", isFavorite: false, tags: [], updatedAt: "2026-01-01T00:00:00Z" },
@@ -20,6 +29,10 @@ beforeEach(() => {
   resetTreeStoreForTests();
   useTreeStore.setState({ tree: notes });
   useTabsStore.getState().openNote("a");
+  useUiStore.setState({ exportBusy: false, toasts: [] });
+  useSettingsStore.setState({ settings: null });
+  vi.mocked(save).mockReset();
+  vi.mocked(revealItemInDir).mockReset();
 });
 
 describe("NoteViewer", () => {
@@ -66,5 +79,38 @@ describe("NoteViewer", () => {
       dispose();
       post.mockRestore();
     }
+  });
+
+  it("shows formats and disables PDF outside Windows", () => {
+    const platform = Object.getOwnPropertyDescriptor(navigator, "platform");
+    Object.defineProperty(navigator, "platform", { configurable: true, value: "Linux" });
+    try {
+      render(<NoteViewer />);
+      fireEvent.click(screen.getByRole("button", { name: "Dışa Aktar" }));
+      expect(screen.getByRole("menuitem", { name: "PDF" })).toBeDisabled();
+      expect(screen.getByRole("menuitem", { name: "PDF" })).toHaveAttribute("title", expect.stringContaining("Windows"));
+      expect(screen.getByRole("menuitem", { name: "Tek dosya HTML" })).toBeEnabled();
+      expect(screen.getByRole("menuitem", { name: "ZIP paketi" })).toBeEnabled();
+    } finally {
+      if (platform) Object.defineProperty(navigator, "platform", platform);
+    }
+  });
+
+  it("locks the button during export and offers reveal on success", async () => {
+    useSettingsStore.setState({ settings: { rootDir: null, lastExportDir: null, theme: "system", language: "tr", sidebarWidth: 260, sidebarVisible: true, editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false } });
+    vi.mocked(save).mockResolvedValue("C:\\Exports\\Alpha.html");
+    vi.mocked(revealItemInDir).mockResolvedValue();
+    let finish: (result: { warnings: string[] }) => void = () => {};
+    mockIPC((command) => command === "get_backlinks" || command === "get_broken_links" ? [] : command === "update_settings" ? useSettingsStore.getState().settings
+      : command === "export_single_html" ? new Promise<{ warnings: string[] }>((resolve) => { finish = resolve; }) : undefined);
+    render(<NoteViewer />);
+    fireEvent.click(screen.getByRole("button", { name: "Dışa Aktar" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Tek dosya HTML" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Dışa aktarılıyor…" })).toBeDisabled());
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ defaultPath: "Alpha.html" }));
+    await act(async () => finish({ warnings: [] }));
+    expect(useUiStore.getState().toasts).toEqual(expect.arrayContaining([expect.objectContaining({ messageKey: "export.exported" })]));
+    act(() => useUiStore.getState().toasts.find((toast) => toast.messageKey === "export.exported")?.action?.onClick());
+    expect(revealItemInDir).toHaveBeenCalledWith("C:\\Exports\\Alpha.html");
   });
 });

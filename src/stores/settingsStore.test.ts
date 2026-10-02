@@ -5,7 +5,7 @@ import type { Settings } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 const defaults: Settings = {
-  rootDir: null,
+  rootDir: null, lastExportDir: null,
   theme: "system",
   language: null,
   sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true,

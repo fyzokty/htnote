@@ -43,7 +43,7 @@ export function UnsavedChangesDialog() {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="unsaved-title" aria-describedby="unsaved-description" className="w-full max-w-md rounded-lg border border-app-border bg-app-surface p-5 text-app-text shadow-xl">
         <h2 id="unsaved-title" className="text-lg font-semibold">{title}</h2>
-        <p id="unsaved-description" className="mt-2 text-sm text-app-muted">{t("unsaved.description")}</p>
+        <p id="unsaved-description" className="mt-2 text-sm text-app-muted">{t(dialog.purpose === "export" ? "export.unsaved" : "unsaved.description")}</p>
         {dialog.noteIds.length > 1 && <ul className="mt-3 max-h-40 list-disc overflow-auto pl-5 text-sm">{dialog.noteIds.map((id) => {
           const findTitle = (nodes: typeof tree): string | null => {
             for (const node of nodes) {
@@ -56,8 +56,8 @@ export function UnsavedChangesDialog() {
         })}</ul>}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <button ref={cancel} type="button" onClick={() => dialog.resolve("cancel")}>{t("unsaved.cancel")}</button>
-          <button type="button" onClick={() => dialog.resolve("discard")}>{t("unsaved.discard")}</button>
-          <button type="button" onClick={() => dialog.resolve("save")} className="rounded bg-app-accent px-3 py-1 text-app-accent-text">{dialog.noteIds.length > 1 ? t("unsaved.saveAll") : t("unsaved.save")}</button>
+          <button type="button" onClick={() => dialog.resolve("discard")}>{t(dialog.purpose === "export" ? "export.anyway" : "unsaved.discard")}</button>
+          <button type="button" onClick={() => dialog.resolve("save")} className="rounded bg-app-accent px-3 py-1 text-app-accent-text">{dialog.purpose === "export" ? t("export.saveAndExport") : dialog.noteIds.length > 1 ? t("unsaved.saveAll") : t("unsaved.save")}</button>
         </div>
       </div>
     </div>

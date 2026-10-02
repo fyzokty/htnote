@@ -28,8 +28,8 @@ interface UiState {
   openSearch: () => void;
   closeSearch: () => void;
   setLastSearchQuery: (query: string) => void;
-  unsavedDialog: { noteIds: string[]; resolve: (decision: UnsavedDecision) => void } | null;
-  openUnsavedDialog: (noteIds: string[], resolve: (decision: UnsavedDecision) => void) => void;
+  unsavedDialog: { noteIds: string[]; resolve: (decision: UnsavedDecision) => void; purpose?: "export" } | null;
+  openUnsavedDialog: (noteIds: string[], resolve: (decision: UnsavedDecision) => void, purpose?: "export") => void;
   closeUnsavedDialog: () => void;
   trashOpen: boolean;
   trashCount: number;
@@ -41,6 +41,8 @@ interface UiState {
   confirm: (titleKey: string, messageKey: string, params?: Record<string, string | number>) => Promise<boolean>;
   closeConfirmDialog: () => void;
   sidebarVisible: boolean;
+  exportBusy: boolean;
+  setExportBusy: (busy: boolean) => void;
   setSidebarVisible: (visible: boolean) => void;
   toggleSidebar: () => void;
   toasts: Toast[];
@@ -55,7 +57,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   closeSearch: () => set({ searchOpen: false }),
   setLastSearchQuery: (lastSearchQuery) => set({ lastSearchQuery }),
   unsavedDialog: null,
-  openUnsavedDialog: (noteIds, resolve) => set({ unsavedDialog: { noteIds, resolve } }),
+  openUnsavedDialog: (noteIds, resolve, purpose) => set({ unsavedDialog: { noteIds, resolve, purpose } }),
   closeUnsavedDialog: () => set({ unsavedDialog: null }),
   trashOpen: false,
   trashCount: 0,
@@ -69,6 +71,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   }),
   closeConfirmDialog: () => set({ confirmDialog: null }),
   sidebarVisible: true,
+  exportBusy: false,
+  setExportBusy: (exportBusy) => set({ exportBusy }),
   toasts: [],
   pushToast: (input) => {
     const id = ++nextToastId;

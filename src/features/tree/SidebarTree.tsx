@@ -17,10 +17,12 @@ import { preferTreeRow } from "@/features/tree/preferTreeRow";
 import { useHoverExpand } from "@/features/tree/useHoverExpand";
 import { nextVisibleNode, visibleNodes } from "@/features/tree/treeNavigation";
 import { useTreeActions } from "@/features/tree/useTreeActions";
+import { canExportPdf, exportNote } from "@/features/viewer/exportNote";
 import { formatShortcut } from "@/lib/shortcuts/registry";
 import type { TreeKey } from "@/features/tree/treeNavigation";
 import type { TreeNode, TreeSelection } from "@/lib/types";
 import { useTreeStore } from "@/stores/treeStore";
+import { useUiStore } from "@/stores/uiStore";
 
 interface RowProps {
   node: TreeNode;
@@ -94,6 +96,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const filterTag = useTreeStore((state) => state.filterTag);
   const filterExpandedOverride = useTreeStore((state) => state.filterExpandedOverride);
   const selected = useTreeStore((state) => state.selected);
+  const exportBusy = useUiStore((state) => state.exportBusy);
   const select = useTreeStore((state) => state.select);
   const toggle = useTreeStore((state) => state.toggle);
   const renamingRelPath = useTreeStore((state) => state.renamingRelPath);
@@ -212,6 +215,11 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     { id: "rename", label: t("tree.rename"), shortcut: formatShortcut("rename"), onSelect: () => setRenaming(menu.node.relPath) },
     { id: "move", label: t("tree.move"), onSelect: () => setMoveSource(menu.node) },
     ...(menu.node.type === "note" ? [{ id: "favorite", label: t(menu.node.isFavorite ? "favorites.remove" : "favorites.add"), onSelect: () => { if (menu.node.type === "note") void toggleFavorite(menu.node.id, !menu.node.isFavorite); } }] : []),
+    ...(menu.node.type === "note" ? [
+      { id: "exportPdf", label: `${t("viewer.export")} ▸ ${t("export.pdf")}`, separatorBefore: true, disabled: exportBusy || !canExportPdf(), title: !canExportPdf() ? t("errors.UNSUPPORTED_PLATFORM") : undefined, onSelect: () => { if (menu.node.type === "note") void exportNote(menu.node.id, menu.node.title, "pdf"); } },
+      { id: "exportHtml", label: `${t("viewer.export")} ▸ ${t("export.html")}`, disabled: exportBusy, onSelect: () => { if (menu.node.type === "note") void exportNote(menu.node.id, menu.node.title, "html"); } },
+      { id: "exportZip", label: `${t("viewer.export")} ▸ ${t("export.zip")}`, disabled: exportBusy, onSelect: () => { if (menu.node.type === "note") void exportNote(menu.node.id, menu.node.title, "zip"); } },
+    ] : []),
     { id: "reveal", label: t("tree.reveal"), onSelect: () => void revealNode(menu.node) },
     { id: "trash", label: t("tree.trash"), onSelect: () => void deleteTreeItem(menu.node) },
   ] : [];
