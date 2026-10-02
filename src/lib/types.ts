@@ -71,6 +71,16 @@ export interface SaveNoteResult {
   contentHash: string;
 }
 
+export interface UpdateMetadataPatch {
+  isFavorite?: boolean;
+  tags?: string[];
+}
+
+export interface UpdateMetadataResult {
+  metadata: NoteMetadata;
+  contentHash: string;
+}
+
 export type AssetKind = "image" | "audio" | "video" | "file";
 
 export interface AssetInfo {

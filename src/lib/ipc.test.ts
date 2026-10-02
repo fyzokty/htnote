@@ -55,6 +55,16 @@ describe("ipc.saveNote", () => {
   });
 });
 
+describe("ipc.updateMetadata", () => {
+  it("sends the metadata patch", async () => {
+    const result = { metadata: { isFavorite: true }, contentHash: "hash" };
+    const handler = vi.fn(() => result);
+    mockIPC(handler);
+    await expect(ipc.updateMetadata("note-id", { isFavorite: true })).resolves.toEqual(result);
+    expect(handler).toHaveBeenCalledWith("update_metadata", { id: "note-id", patch: { isFavorite: true } });
+  });
+});
+
 describe("ipc asset commands", () => {
   it("maps copy and byte save arguments to Tauri commands", async () => {
     const result = { relPath: "./assets/resim.png", kind: "image", mime: "image/png" };

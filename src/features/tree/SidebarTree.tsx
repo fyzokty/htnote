@@ -6,6 +6,7 @@ import { ChevronDown, ChevronRight, FileText, Folder } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { ContextMenu } from "@/components/ui/ContextMenu";
+import { toggleFavorite } from "@/features/favorites/favorites";
 import type { ContextMenuItem } from "@/components/ui/ContextMenu";
 import { filterTree, matchRange } from "@/features/tree/filterTree";
 import { InlineRename } from "@/features/tree/InlineRename";
@@ -209,6 +210,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     ...(menu.node.type === "folder" ? [{ id: "newFolder", label: t("tree.newFolder"), shortcut: formatShortcut("newFolder"), onSelect: () => void createFolder(menu.node.relPath) }] : []),
     { id: "rename", label: t("tree.rename"), shortcut: formatShortcut("rename"), onSelect: () => setRenaming(menu.node.relPath) },
     { id: "move", label: t("tree.move"), onSelect: () => setMoveSource(menu.node) },
+    ...(menu.node.type === "note" ? [{ id: "favorite", label: t(menu.node.isFavorite ? "favorites.remove" : "favorites.add"), onSelect: () => { if (menu.node.type === "note") void toggleFavorite(menu.node.id, !menu.node.isFavorite); } }] : []),
     { id: "reveal", label: t("tree.reveal"), onSelect: () => void revealNode(menu.node) },
     { id: "trash", label: t("tree.trash"), onSelect: () => void deleteTreeItem(menu.node) },
   ] : [];

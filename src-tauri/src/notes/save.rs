@@ -70,6 +70,7 @@ fn save_note_dir_with_writer(
         return Err(AppError::Conflict("Note content changed on disk".into()));
     }
 
+    // İçerik taslağı eski olabilir; favori ve etiketleri her zaman diskteki metadata'dan koru.
     let mut metadata: NoteMetadata = serde_json::from_slice(old_metadata)?;
     metadata.updated_at = now;
     metadata.has_custom_css = !input.css.trim().is_empty();

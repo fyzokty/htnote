@@ -18,6 +18,7 @@ import { SearchModal } from "@/features/search/SearchModal";
 import { TrashView } from "@/features/trash/TrashView";
 import { refreshTrashCount } from "@/features/trash/deleteCoordinator";
 import { SidebarTree } from "@/features/tree/SidebarTree";
+import { FavoritesSection } from "@/features/favorites/FavoritesSection";
 import { handleQuickFilterKeyDown } from "@/features/tree/filterTree";
 import { TabBar } from "@/features/tabs/TabBar";
 import { NoteViewer } from "@/features/viewer/NoteViewer";
@@ -258,6 +259,7 @@ export function AppShell() {
             </div>
             <input type="search" aria-label={t("sidebar.quickFilter")} placeholder={t("sidebar.quickFilterPlaceholder")} value={filterQuery} onChange={(event) => setFilterQuery(event.target.value)} onKeyDown={(event) => handleQuickFilterKeyDown(event, () => setFilterQuery(""))} className="w-full rounded-md border border-app-border bg-app-bg px-3 py-2 text-sm outline-none focus:border-app-accent" />
           </div>
+          <FavoritesSection onOpenNote={openNote} />
           <SidebarTree onOpenNote={openNote} />
           <div className="shrink-0 border-t border-app-border p-2">
             <button type="button" onClick={openTrash} aria-pressed={trashOpen} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-app-subtle">
