@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import i18n from "@/i18n";
 import type { TrashItem } from "@/lib/types";
-import { resetTreeStoreForTests } from "@/stores/treeStore";
+import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
 import { useUiStore } from "@/stores/uiStore";
 
 import { TrashView } from "./TrashView";
@@ -23,7 +23,7 @@ describe("TrashView", () => {
     mockIPC((command) => {
       if (command === "list_trash") return [item];
       if (command === "restore_from_trash") return restore();
-      if (command === "get_note_tree") return [];
+      if (command === "get_note_tree") return [{ type: "note", id: "restored", title: "Old note", relPath: "Folder/Old note", isFavorite: false, tags: [], updatedAt: "" }];
       return undefined;
     });
     render(<TrashView />);
@@ -33,6 +33,7 @@ describe("TrashView", () => {
     expect(screen.getByText((text) => text.includes(formatted))).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Geri Yükle" }));
     await waitFor(() => expect(restore).toHaveBeenCalledOnce());
+    await waitFor(() => expect(useTreeStore.getState().selected).toEqual({ kind: "note", id: "restored" }));
   });
 
   it("formats deletion times in the selected language", async () => {
@@ -69,7 +70,27 @@ describe("TrashView", () => {
     await waitFor(() => expect(remove).toHaveBeenCalledOnce());
     fireEvent.click(screen.getByRole("button", { name: "Çöpü Boşalt" }));
     expect(empty).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "İptal" }));
+    expect(empty).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Çöpü Boşalt" }));
     fireEvent.click(screen.getByRole("button", { name: "Sil" }));
     await waitFor(() => expect(empty).toHaveBeenCalledOnce());
+  });
+
+  it("focuses Cancel and lets Escape cancel confirmation", async () => {
+    const empty = vi.fn();
+    mockIPC((command) => {
+      if (command === "list_trash") return [item];
+      if (command === "empty_trash") empty();
+      return undefined;
+    });
+    render(<><TrashView /><ConfirmDialog /></>);
+    await screen.findByText("Old note");
+    fireEvent.click(screen.getByRole("button", { name: "Çöpü Boşalt" }));
+    expect(screen.getByRole("button", { name: "İptal" })).toHaveFocus();
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(empty).not.toHaveBeenCalled();
   });
 });

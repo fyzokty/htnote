@@ -1,6 +1,9 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { createElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { UnsavedChangesDialog } from "@/components/ui/UnsavedChangesDialog";
 import { resolveUnsaved } from "@/features/editor/unsavedGuard";
 import type { TreeNode, TrashItem } from "@/lib/types";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
@@ -19,7 +22,7 @@ beforeEach(() => {
   resetTreeStoreForTests();
   resetTabsStoreForTests();
   useTreeStore.setState({ tree: [folder] });
-  useUiStore.setState({ toasts: [], confirmDialog: null, trashCount: 0 });
+  useUiStore.setState({ toasts: [], confirmDialog: null, unsavedDialog: null, trashCount: 0 });
   vi.mocked(resolveUnsaved).mockReset();
   vi.mocked(resolveUnsaved).mockImplementation(async (ids) => ({ resolved: new Set(ids), cancelled: false }));
 });
@@ -89,5 +92,47 @@ describe("delete coordinator", () => {
     await deleting;
     expect(vi.mocked(resolveUnsaved).mock.calls[0][0]).toEqual(["n", "m"]);
     expect(useTabsStore.getState().tabs).toHaveLength(0);
+  });
+
+  it("uses one unsaved dialog for dirty folder notes before closing or deleting", async () => {
+    const another: TreeNode = { ...note, id: "m", title: "More", relPath: "A/More" };
+    const parent: TreeNode = { ...folder, children: [note, another] };
+    useTreeStore.setState({ tree: [parent] });
+    const tabs = useTabsStore.getState();
+    for (const id of ["n", "m"]) {
+      tabs.openNote(id);
+      tabs.enterEdit(id, { html: "old", css: null, js: null, contentHash: "hash" }, "code");
+      tabs.updateDraft(id, { html: `changed ${id}` });
+    }
+    const actualGuard = await vi.importActual<typeof import("@/features/editor/unsavedGuard")>("@/features/editor/unsavedGuard");
+    vi.mocked(resolveUnsaved).mockImplementation(actualGuard.resolveUnsaved);
+    const order: string[] = [];
+    const stop = useTabsStore.subscribe((state, previous) => {
+      if (state.tabs.length < previous.tabs.length) order.push("close");
+    });
+    mockIPC((command) => {
+      if (command === "delete_item") { order.push("delete"); return { ...item, kind: "folder", originalRelPath: "A" }; }
+      if (command === "get_note_tree") return [];
+      if (command === "list_trash") return [item];
+      return undefined;
+    });
+    render(createElement(UnsavedChangesDialog));
+    try {
+      const deleting = deleteTreeItem(parent);
+      useUiStore.getState().confirmDialog?.resolve(true);
+      useUiStore.getState().closeConfirmDialog();
+      await waitFor(() => expect(screen.getByRole("dialog")).toBeInTheDocument());
+      expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["n", "m"]);
+      expect(screen.getByText("Note")).toBeInTheDocument();
+      expect(screen.getByText("More")).toBeInTheDocument();
+      expect(order).toEqual([]);
+      fireEvent.click(screen.getByRole("button", { name: "Kaydetme" }));
+      await deleting;
+      expect(order).toEqual(["close", "close", "delete"]);
+      expect(useTabsStore.getState().tabs).toHaveLength(0);
+      expect(useUiStore.getState().unsavedDialog).toBeNull();
+    } finally {
+      stop();
+    }
   });
 });
