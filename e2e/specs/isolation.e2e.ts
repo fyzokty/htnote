@@ -51,4 +51,65 @@ describe("note isolation", () => {
       await invoke("clear_preview_draft", { id });
     }
   });
+
+  it("rejects traversal and executable asset requests without launching a program", async () => {
+    const id = "1a8f451e-5c7a-42b9-a38b-25f9d771ea40";
+    await browser.refresh();
+    await waitForApp();
+    await (await $(`[data-tree-key="note:${id}"]`)).click();
+    const frame = await $('iframe[title="Safe Note"]');
+    await frame.waitForExist();
+    await browser.execute(() => {
+      const host = window as unknown as {
+        assetProbe?: { calls: { command: string; args?: object; code?: string }[]; restore: () => void };
+      };
+      const original = window.fetch;
+      const calls: { command: string; args?: object; code?: string }[] = [];
+      host.assetProbe = { calls, restore: () => { window.fetch = original; delete host.assetProbe; } };
+      window.fetch = async (input, init) => {
+        const url = new URL(input instanceof Request ? input.url : String(input), location.href);
+        const command = decodeURIComponent(url.pathname.slice(1));
+        if (url.hostname !== "ipc.localhost" || (command !== "open_note_asset" && !command.startsWith("plugin:opener|"))) {
+          return original.call(window, input, init);
+        }
+        const args = JSON.parse(String(init?.body)) as object;
+        const call: { command: string; args?: object; code?: string } = { command, args };
+        calls.push(call);
+        // Genel opener IPC'si regresyonda bile gerçek bir program başlatamaz.
+        if (command.startsWith("plugin:opener|")) {
+          return new Response(JSON.stringify({ code: "UNEXPECTED_OPENER", message: "Unexpected opener IPC" }), {
+            headers: { "Content-Type": "application/json", "Tauri-Response": "error" },
+          });
+        }
+        const response = await original.call(window, input, init);
+        const result = await response.clone().json() as { code?: string };
+        call.code = result.code;
+        return response;
+      };
+    });
+    try {
+      await browser.switchFrame(frame);
+      await browser.waitUntil(async () => await browser.execute(() => document.readyState === "complete"));
+      await browser.execute(() => {
+        window.parent.postMessage({ type: "HTNOTE_OPEN_ASSET", relPath: "assets/../outside.pdf" }, "*");
+        window.parent.postMessage({ type: "HTNOTE_OPEN_ASSET", relPath: "assets/%2e%2e/outside.pdf" }, "*");
+        // Var olmayan hedef kullanılır; testte çalıştırılabilecek bir program yoktur.
+        window.parent.postMessage({ type: "HTNOTE_OPEN_ASSET", relPath: "assets/isolation-never-exists.exe", noteId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }, "*");
+      });
+      await browser.switchFrame(null);
+      await browser.waitUntil(async () => await browser.execute(() => {
+        const probe = (window as unknown as { assetProbe: { calls: { code?: string }[] } }).assetProbe;
+        return probe.calls.some((call) => call.code === "ASSET_TYPE_BLOCKED");
+      }));
+      const calls = await browser.execute(() => (window as unknown as { assetProbe: { calls: object[] } }).assetProbe.calls);
+      assert.deepEqual(calls, [{
+        command: "open_note_asset",
+        args: { noteId: id, relPath: "assets/isolation-never-exists.exe" },
+        code: "ASSET_TYPE_BLOCKED",
+      }]);
+    } finally {
+      await browser.switchFrame(null);
+      await browser.execute(() => (window as unknown as { assetProbe?: { restore: () => void } }).assetProbe?.restore());
+    }
+  });
 });

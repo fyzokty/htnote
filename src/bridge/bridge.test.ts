@@ -61,6 +61,18 @@ describe("note bridge", () => {
     expect(messages).not.toHaveBeenCalled();
   });
 
+  it("forwards relative attachment links without resolving or decoding their paths", () => {
+    for (const href of ["./assets/report.pdf", "assets/report.PDF", "./assets/%C4%B0stanbul%20rapor.pdf", "assets/a%25b%23c.txt"]) {
+      expect(click(href, "auxclick").defaultPrevented).toBe(true);
+      expect(messages).toHaveBeenLastCalledWith({ type: "HTNOTE_OPEN_ASSET", relPath: href }, "*");
+    }
+    messages.mockClear();
+    for (const href of ["../assets/report.pdf", "/assets/report.pdf", "other/report.pdf", "//evil.test/assets/report.pdf"]) {
+      expect(click(href).defaultPrevented).toBe(true);
+    }
+    expect(messages).not.toHaveBeenCalled();
+  });
+
   it("prints only when the parent requests it", () => {
     const print = vi.spyOn(window, "print").mockImplementation(() => {});
     hostMessage({ type: "HTNOTE_PRINT" }, null);

@@ -77,6 +77,7 @@ pub fn run() {
             commands::export_pdf,
             commands::update_metadata,
             commands::copy_asset,
+            commands::open_note_asset,
             commands::save_asset_bytes,
             commands::write_draft,
             commands::read_draft,
@@ -140,6 +141,7 @@ mod tests {
         for permission in permissions {
             let identifier = permission.as_str().or_else(|| permission["identifier"].as_str()).expect("izin kimliği");
             assert!(!identifier.contains('*'), "joker izin: {identifier}");
+            assert_ne!(identifier, "opener:allow-open-path");
         }
         let dialog_permissions: Vec<_> = permissions.iter()
             .filter_map(|permission| permission.as_str().or_else(|| permission["identifier"].as_str()))

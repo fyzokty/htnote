@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { clearHighlight, createRateLimiter, installBridgeHost, parseBridgeMessage, registerFrame, requestHighlight, requestPrint, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
 import { initNoteOrigin } from "@/lib/noteUrl";
+import { ipc } from "@/lib/ipc";
 import { subscribeShortcut } from "@/lib/shortcuts/manager";
 import type { Settings } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -40,6 +41,27 @@ afterEach(() => {
 
 describe("parseBridgeMessage", () => {
   it.each([
+    undefined, null, 1, {}, "", "assets/", "assets/../outside.pdf", "../assets/file.pdf",
+    "assets/%2e%2e/outside.pdf", "assets/a/%2E%2E/file.pdf", "assets/%2F..%2Foutside.pdf",
+    "/assets/file.pdf", "C:/assets/file.pdf", "assets/C:file.pdf", "assets/file.pdf:stream",
+    "assets/a\\file.pdf", "assets/a%5cfile.pdf", "assets/a\0file.pdf", "assets/a%00file.pdf",
+    "file:///assets/file.pdf", "https://evil.test/assets/file.pdf", "//evil.test/assets/file.pdf",
+    "assets/./file.pdf", "assets//file.pdf", "assets/file.pdf.", "assets/file.pdf%20",
+    "assets/file.pdf?x=1", "assets/file.pdf#page=1", "assets/%zz.pdf", "assets/%FF.pdf",
+    `assets/${"a".repeat(4096)}.pdf`,
+  ])("rejects an invalid asset path %j", (relPath) => {
+    expect(parseBridgeMessage(message({ type: "HTNOTE_OPEN_ASSET", relPath }), frame, NOTE_ORIGIN)).toBeNull();
+  });
+
+  it("validates asset messages and ignores a forged note id", () => {
+    for (const relPath of ["assets/report.pdf", "./assets/%C4%B0stanbul%20rapor.PDF", "assets/a%25b%23c.txt"]) {
+      const data = { type: "HTNOTE_OPEN_ASSET", relPath, noteId: otherId };
+      expect(parseBridgeMessage(message(data), frame, NOTE_ORIGIN)).toEqual({ type: data.type, relPath });
+      expect(parseBridgeMessage(message(data, otherFrame), frame, NOTE_ORIGIN)).toBeNull();
+      expect(parseBridgeMessage(message(data, frame, "https://evil.test"), frame, NOTE_ORIGIN)).toBeNull();
+    }
+  });
+  it.each([
     ["wrong source", message({ type: "HTNOTE_READY" }, otherFrame)],
     ["wrong origin", message({ type: "HTNOTE_READY" }, frame, "https://evil.test")],
     ["unknown type", message({ type: "HTNOTE_UNKNOWN" })],
@@ -70,6 +92,52 @@ describe("parseBridgeMessage", () => {
       .toEqual({ type: "HTNOTE_SCROLL", scrollY: 23 });
     expect(parseBridgeMessage(message({ type: "HTNOTE_SCROLL", scrollY: -1 }), frame, NOTE_ORIGIN)).toBeNull();
   });
+});
+
+it("opens attachments for their registered frame and shares the external open rate limit", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(10000);
+  const open = vi.spyOn(ipc, "openNoteAsset").mockResolvedValue(undefined);
+  const unregister = registerFrame(id, frame);
+  const unregisterOther = registerFrame(otherId, otherFrame);
+  const dispose = installBridgeHost();
+  try {
+    const data = { type: "HTNOTE_OPEN_ASSET", relPath: "./assets/report.pdf", noteId: otherId };
+    window.dispatchEvent(message(data, frame, "https://evil.test"));
+    window.dispatchEvent(message({ ...data, relPath: "assets/../outside.pdf" }));
+    expect(open).not.toHaveBeenCalled();
+    window.dispatchEvent(message(data));
+    window.dispatchEvent(message(data));
+    window.dispatchEvent(message({ type: "HTNOTE_OPEN_EXTERNAL", url: "https://example.com" }));
+    expect(open).toHaveBeenCalledExactlyOnceWith(id, data.relPath);
+    expect(openUrl).not.toHaveBeenCalled();
+    window.dispatchEvent(message(data, otherFrame));
+    expect(open).toHaveBeenLastCalledWith(otherId, data.relPath);
+    vi.advanceTimersByTime(1000);
+    window.dispatchEvent(message(data));
+    expect(open).toHaveBeenCalledTimes(3);
+    unregister();
+    vi.advanceTimersByTime(1000);
+    window.dispatchEvent(message(data));
+    expect(open).toHaveBeenCalledTimes(3);
+    await Promise.resolve();
+  } finally {
+    dispose(); unregister(); unregisterOther(); open.mockRestore();
+  }
+});
+
+it.each(["ASSET_TYPE_BLOCKED", "ASSET_NOT_FOUND", "IO_ERROR"])("shows an attachment error toast for %s", async (code) => {
+  const testFrame = { postMessage: vi.fn() } as unknown as Window;
+  const open = vi.spyOn(ipc, "openNoteAsset").mockRejectedValue({ code, message: "details" });
+  const log = vi.spyOn(console, "error").mockImplementation(() => {});
+  const unregister = registerFrame(id, testFrame);
+  const dispose = installBridgeHost();
+  try {
+    window.dispatchEvent(message({ type: "HTNOTE_OPEN_ASSET", relPath: "assets/file.exe" }, testFrame));
+    await vi.waitFor(() => expect(useUiStore.getState().toasts[0]).toMatchObject({ kind: "error", messageKey: `errors.${code}` }));
+  } finally {
+    dispose(); unregister(); open.mockRestore(); log.mockRestore();
+  }
 });
 
 it("limits external opens independently per frame for one second", () => {

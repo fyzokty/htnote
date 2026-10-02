@@ -5,6 +5,10 @@ use thiserror::Error;
 pub enum AppError {
     #[error("Note not found: {0}")]
     NotFound(String),
+    #[error("Asset not found: {0}")]
+    AssetNotFound(String),
+    #[error("Asset type blocked: {0}")]
+    AssetTypeBlocked(String),
     #[error("Not a folder: {0}")]
     NotAFolder(String),
     #[error("Name conflict: {0}")]
@@ -39,6 +43,8 @@ impl AppError {
     pub fn code(&self) -> &'static str {
         match self {
             Self::NotFound(_) => "NOTE_NOT_FOUND",
+            Self::AssetNotFound(_) => "ASSET_NOT_FOUND",
+            Self::AssetTypeBlocked(_) => "ASSET_TYPE_BLOCKED",
             Self::NotAFolder(_) => "NOT_A_FOLDER",
             Self::NameConflict(_) => "NAME_CONFLICT",
             Self::Conflict(_) => "CONFLICT",
@@ -77,6 +83,8 @@ mod tests {
     fn each_variant_serializes_with_its_code_and_message() {
         let cases = [
             (AppError::NotFound("missing".into()), "NOTE_NOT_FOUND"),
+            (AppError::AssetNotFound("missing.pdf".into()), "ASSET_NOT_FOUND"),
+            (AppError::AssetTypeBlocked("blocked.exe".into()), "ASSET_TYPE_BLOCKED"),
             (AppError::NotAFolder("note".into()), "NOT_A_FOLDER"),
             (AppError::NameConflict("used".into()), "NAME_CONFLICT"),
             (AppError::Conflict("changed".into()), "CONFLICT"),

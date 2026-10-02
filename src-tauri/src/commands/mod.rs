@@ -17,6 +17,7 @@ use crate::links::{BacklinkItem, BrokenLinkItem};
 use crate::state::AppState;
 use crate::trash::{self, TrashItem};
 use tauri::{Manager, State};
+use tauri_plugin_opener::OpenerExt;
 use std::sync::atomic::Ordering;
 use std::path::PathBuf;
 
@@ -239,6 +240,18 @@ pub async fn copy_asset(app: tauri::AppHandle, note_id: uuid::Uuid, source_path:
     tauri::async_runtime::spawn_blocking(move || {
         let dir = resolve_note_dir(&app.state::<AppState>(), note_id)?;
         asset::copy_asset(&dir, std::path::Path::new(&source_path))
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn open_note_asset(app: tauri::AppHandle, note_id: uuid::Uuid, rel_path: String) -> Result<(), AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let dir = resolve_note_dir(&app.state::<AppState>(), note_id)?;
+        asset::open_asset(&dir, &rel_path, |path| {
+            let display_path = crate::fs_util::display_path(path);
+            app.opener().open_path(display_path.to_string_lossy(), None::<&str>)
+                .map_err(|error| AppError::Io(std::io::Error::other(error)))
+        })
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
 

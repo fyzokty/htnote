@@ -1,5 +1,7 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 
+import { notifyError } from "@/lib/errors";
+import { ipc } from "@/lib/ipc";
 import { getNoteOrigin } from "@/lib/noteUrl";
 import { dispatchShortcut } from "@/lib/shortcuts/manager";
 import { getPlatform, matchShortcut } from "@/lib/shortcuts/registry";
@@ -14,6 +16,7 @@ export type BridgeMessage =
   | { type: "HTNOTE_READY" }
   | { type: "HTNOTE_OPEN_NOTE"; id: string }
   | { type: "HTNOTE_OPEN_EXTERNAL"; url: string }
+  | { type: "HTNOTE_OPEN_ASSET"; relPath: string }
   | { type: "HTNOTE_SHORTCUT"; input: KeyInput }
   | { type: "HTNOTE_SCROLL"; scrollY: number };
 
@@ -59,6 +62,20 @@ export function parseBridgeMessage(event: MessageEvent, expectedWindow: Window, 
     case "HTNOTE_OPEN_NOTE":
       return typeof data.id === "string" && uuidPattern.test(data.id)
         ? { type: "HTNOTE_OPEN_NOTE", id: data.id } : null;
+    case "HTNOTE_OPEN_ASSET": {
+      if (typeof data.relPath !== "string" || !data.relPath || data.relPath.length > 4096
+        || /[?#]/.test(data.relPath)) return null;
+      try {
+        const path = decodeURIComponent(data.relPath).replace(/^\.\//, "");
+        if (!path.startsWith("assets/") || /[\\:]/.test(path)
+          || [...path].some((char) => char.charCodeAt(0) < 32 || (char.charCodeAt(0) >= 127 && char.charCodeAt(0) <= 159))
+          || path.split("/").some((part) => !part || part === "." || part === ".." || /[. ]$/.test(part))) return null;
+        // Kodlama Rust'ta da yalnızca bir kez çözülür; mesajdaki not kimliği kullanılmaz.
+        return { type: "HTNOTE_OPEN_ASSET", relPath: data.relPath };
+      } catch {
+        return null;
+      }
+    }
     case "HTNOTE_OPEN_EXTERNAL": {
       if (typeof data.url !== "string") return null;
       try {
@@ -127,8 +144,9 @@ export function sendThemeToAll() {
 const allowExternalOpen = createRateLimiter(1000);
 
 export function handleBridgeMessage(event: MessageEvent) {
-  const frame = [...frames.values()].find((candidate) => candidate === event.source);
-  if (!frame) return;
+  const entry = [...frames].find(([, candidate]) => candidate === event.source);
+  if (!entry) return;
+  const [noteId, frame] = entry;
   const message = parseBridgeMessage(event, frame, getNoteOrigin());
   if (!message) return;
   switch (message.type) {
@@ -149,6 +167,9 @@ export function handleBridgeMessage(event: MessageEvent) {
       break;
     case "HTNOTE_OPEN_EXTERNAL":
       if (allowExternalOpen(frame)) void openUrl(message.url).catch(() => {});
+      break;
+    case "HTNOTE_OPEN_ASSET":
+      if (allowExternalOpen(frame)) void ipc.openNoteAsset(noteId, message.relPath).catch(notifyError);
       break;
     case "HTNOTE_SHORTCUT": {
       const shortcut = matchShortcut(message.input, getPlatform());

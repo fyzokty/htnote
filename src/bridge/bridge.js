@@ -21,6 +21,7 @@
     const match = note.exec(href);
     if (match) send("HTNOTE_OPEN_NOTE", { id: match[1] });
     else if (external.test(href)) send("HTNOTE_OPEN_EXTERNAL", { url: href });
+    else if (/^(\.\/)?assets\//.test(href)) send("HTNOTE_OPEN_ASSET", { relPath: href });
   }
   document.addEventListener("click", followLink, true);
   document.addEventListener("auxclick", followLink, true);
