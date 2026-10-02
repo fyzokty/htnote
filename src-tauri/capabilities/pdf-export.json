@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "pdf-export",
+  "description": "Untrusted note rendering for PDF export",
+  "windows": ["pdf-export-*"],
+  "permissions": []
+}

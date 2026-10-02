@@ -11,6 +11,8 @@ export const appErrorCodes = [
   "IO_ERROR",
   "JSON_ERROR",
   "INTERNAL",
+  "UNSUPPORTED_PLATFORM",
+  "BUSY",
 ] as const;
 
 export type AppErrorCode = (typeof appErrorCodes)[number];

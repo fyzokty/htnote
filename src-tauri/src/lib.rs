@@ -72,6 +72,7 @@ pub fn run() {
             commands::save_note,
             commands::export_single_html,
             commands::export_zip,
+            commands::export_pdf,
             commands::update_metadata,
             commands::copy_asset,
             commands::save_asset_bytes,
@@ -150,6 +151,14 @@ mod tests {
         assert_eq!(directives.get("script-src"), Some(&"'self'"));
         assert!(!csp.contains("'unsafe-eval'"));
         assert!(!csp.contains("script-src 'self' 'unsafe-inline'"));
+    }
+
+    #[test]
+    fn pdf_capability_grants_no_permissions() {
+        let capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/pdf-export.json")).unwrap();
+        assert_eq!(capability["windows"], serde_json::json!(["pdf-export-*"]));
+        assert_eq!(capability["permissions"], serde_json::json!([]));
+        assert!(capability.get("remote").is_none());
     }
 
     #[test]

@@ -162,4 +162,16 @@ describe("note bridge", () => {
     frame.mockRestore();
     scrollTo.mockRestore();
   });
+
+  it("uses light theme for print mode", () => {
+    history.replaceState(null, "", `${location.pathname}?print=1`);
+    try {
+      window.eval(source);
+      expect(document.documentElement.dataset.htTheme).toBe("light");
+      expect(document.documentElement.style.getPropertyValue("--ht-bg")).toBe("#f9fafb");
+      expect(document.documentElement.style.getPropertyValue("--ht-text")).toBe("#111827");
+    } finally {
+      history.replaceState(null, "", location.pathname);
+    }
+  });
 });

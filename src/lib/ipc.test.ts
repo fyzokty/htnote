@@ -68,13 +68,23 @@ describe("ipc.saveNote", () => {
   });
 });
 
-describe("ipc.exportSingleHtml", () => {
+  describe("ipc.exportSingleHtml", () => {
   it("passes the note and absolute target path", async () => {
     const result = { warnings: ["LARGE_OUTPUT"] };
     const handler = vi.fn(() => result);
     mockIPC(handler);
     await expect(ipc.exportSingleHtml("note-id", "C:/Exports/Note.html")).resolves.toEqual(result);
     expect(handler).toHaveBeenCalledWith("export_single_html", { id: "note-id", targetPath: "C:/Exports/Note.html" });
+  });
+
+  describe("ipc.exportPdf", () => {
+    it("passes the note and absolute target path", async () => {
+      const result = { warnings: [] };
+      const handler = vi.fn(() => result);
+      mockIPC(handler);
+      await expect(ipc.exportPdf("note-id", "C:/Exports/Note.pdf")).resolves.toEqual(result);
+      expect(handler).toHaveBeenCalledWith("export_pdf", { id: "note-id", targetPath: "C:/Exports/Note.pdf" });
+    });
   });
 });
 

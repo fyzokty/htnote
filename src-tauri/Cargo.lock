@@ -1629,6 +1629,8 @@ dependencies = [
  "tiny_http",
  "unicode-segmentation",
  "uuid",
+ "webview2-com",
+ "windows",
  "zip",
 ]
 
