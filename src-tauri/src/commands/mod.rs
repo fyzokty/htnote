@@ -3,7 +3,7 @@ use serde::Serialize;
 use crate::error::AppError;
 use crate::export::{pdf, single_html, zip, ExportResult};
 use crate::drafts::{self, DraftData};
-use crate::index::scan::{self, ScanResult, TreeNode};
+use crate::index::scan::{self, TreeNode};
 use crate::notes::create;
 use crate::notes::metadata_update::{self, MetadataPatch, MetadataUpdateResult};
 use crate::notes::asset::{self, AssetInfo};
@@ -72,23 +72,30 @@ pub fn set_root_dir(path: String, app: tauri::AppHandle, state: State<'_, AppSta
 }
 
 fn switch_root(state: &AppState, app: &tauri::AppHandle, settings: &mut Settings, updated: Settings, root: PathBuf) -> Result<(), AppError> {
-    let result = scan::scan(&root)?;
-    settings::save_settings_atomic(&state.config_dir, &updated)?;
-    *settings = updated;
-    {
-        *state.watcher.lock().map_err(|error| AppError::Internal(error.to_string()))? = None;
-        replace_root_index(state, root, result)?;
-        search::start_build(state);
-        crate::watcher::start_for_app(state, app.clone())?;
-    }
-    Ok(())
+    switch_root_with_watcher(state, settings, updated, root, |state| crate::watcher::start_for_app(state, app.clone()))
 }
 
-fn replace_root_index(state: &AppState, root: PathBuf, result: ScanResult) -> Result<(), AppError> {
-    *state.root_dir.write().map_err(|error| AppError::Internal(error.to_string()))? = root.clone();
-    let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
-    index.root = root;
-    index.replace_all(result);
+fn switch_root_with_watcher(state: &AppState, settings: &mut Settings, updated: Settings, root: PathBuf,
+    start_watcher: impl FnOnce(&AppState) -> Result<(), AppError>) -> Result<(), AppError> {
+    let result = scan::scan(&root)?;
+    let mut live_root = state.root_dir.write().map_err(|error| AppError::Internal(error.to_string()))?;
+    let mut live_index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
+    let previous_settings = settings.clone();
+    settings::save_settings_atomic(&state.config_dir, &updated)?;
+    let previous_root = std::mem::replace(&mut *live_root, root.clone());
+    let mut replacement = crate::index::note_index::NoteIndex::new(root);
+    replacement.replace_all(result);
+    let previous_index = std::mem::replace(&mut *live_index, replacement);
+    drop(live_root);
+    drop(live_index);
+    if let Err(error) = start_watcher(state) {
+        *state.root_dir.write().map_err(|lock| AppError::Internal(lock.to_string()))? = previous_root;
+        *state.note_index.write().map_err(|lock| AppError::Internal(lock.to_string()))? = previous_index;
+        settings::save_settings_atomic(&state.config_dir, &previous_settings)?;
+        return Err(error);
+    }
+    *settings = updated;
+    search::start_build(state);
     Ok(())
 }
 
@@ -477,15 +484,42 @@ mod tests {
     use crate::notes::read::read_note_dir;
 
     #[test]
+    fn failed_watcher_start_restores_root_settings_and_index() {
+        let old = tempfile::tempdir().unwrap();
+        let new = tempfile::tempdir().unwrap();
+        let (_, old_note) = create_note_in(old.path(), "", Some("Old")).unwrap();
+        let (_, new_note) = create_note_in(new.path(), "", Some("New")).unwrap();
+        let mut original = Settings::default();
+        original.root_dir = Some(old.path().to_string_lossy().into_owned());
+        let state = AppState::new(old.path().to_path_buf(), original.clone(), old.path().to_path_buf());
+        state.note_index.write().unwrap().upsert(old_note.clone());
+        settings::save_settings_atomic(&state.config_dir, &original).unwrap();
+        let mut updated = original.clone();
+        updated.root_dir = Some(new.path().to_string_lossy().into_owned());
+        let mut live_settings = original.clone();
+        let error = switch_root_with_watcher(&state, &mut live_settings, updated, new.path().to_path_buf(), |_| {
+            Err(AppError::Internal("watcher failed".into()))
+        });
+        assert!(matches!(error, Err(AppError::Internal(message)) if message == "watcher failed"));
+        assert_eq!(live_settings, original);
+        assert_eq!(*state.root_dir.read().unwrap(), old.path());
+        let index = state.note_index.read().unwrap();
+        assert_eq!(index.root, old.path());
+        assert!(index.by_id.contains_key(&old_note.metadata.id));
+        assert!(!index.by_id.contains_key(&new_note.metadata.id));
+        assert_eq!(settings::load_settings(&state.config_dir).unwrap(), original);
+    }
+
+    #[test]
     fn root_index_switch_replaces_old_notes_and_rebuilds_search_and_links() {
         let old = tempfile::tempdir().unwrap();
         let new = tempfile::tempdir().unwrap();
         let (_, old_note) = create_note_in(old.path(), "", Some("Old")).unwrap();
         let (_, new_note) = create_note_in(new.path(), "", Some("New")).unwrap();
         let state = AppState::new(old.path().to_path_buf(), Settings::default(), old.path().to_path_buf());
-        replace_root_index(&state, old.path().to_path_buf(), scan::scan(old.path()).unwrap()).unwrap();
-        replace_root_index(&state, new.path().to_path_buf(), scan::scan(new.path()).unwrap()).unwrap();
-        search::start_build(&state);
+        state.note_index.write().unwrap().upsert(old_note.clone());
+        let mut settings = Settings::default();
+        switch_root_with_watcher(&state, &mut settings, Settings::default(), new.path().to_path_buf(), |_| Ok(())).unwrap();
         for _ in 0..100 {
             if !state.search_indexing.load(Ordering::Acquire) { break; }
             std::thread::sleep(std::time::Duration::from_millis(10));

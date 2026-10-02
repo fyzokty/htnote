@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { openUrl } from "@tauri-apps/plugin-opener";
 
 import { changeRootFlow } from "@/features/settings/changeRoot";
 import { notifyError } from "@/lib/errors";
@@ -35,7 +34,7 @@ export function SettingsView() {
   }
 
   function external(url: string) {
-    void openUrl(url).catch(notifyError);
+    void ipc.openExternalUrl(url).catch(notifyError);
   }
 
   return (

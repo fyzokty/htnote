@@ -56,6 +56,13 @@ describe("SettingsView", () => {
     expect(reveal).toHaveBeenCalledWith("C:/Old");
   });
 
+  it("opens about links through the IPC wrapper", async () => {
+    const openExternalUrl = vi.spyOn(ipc, "openExternalUrl").mockResolvedValue();
+    render(<SettingsView />);
+    fireEvent.click(screen.getByRole("button", { name: "Lisans" }));
+    expect(openExternalUrl).toHaveBeenCalledWith("https://github.com/fyzokty/htnote");
+  });
+
   it("shows an error toast when the selected root is rejected", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(ipc, "pickDirectory").mockResolvedValue("C:/Invalid");

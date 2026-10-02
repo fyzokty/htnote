@@ -200,7 +200,7 @@ pub fn validate_new_root(path: &Path) -> Result<PathBuf, AppError> {
         if ancestor.exists() {
             let resolved = ancestor.canonicalize()?;
             for parent in resolved.ancestors() {
-                if parent.join("metadata.json").exists() {
+                if is_note_package(parent) {
                     return Err(AppError::NotAFolder(parent.display().to_string()));
                 }
             }
@@ -223,7 +223,7 @@ pub fn validate_new_root(path: &Path) -> Result<PathBuf, AppError> {
         }
         let root = path.canonicalize()?;
         for parent in root.ancestors() {
-            if parent.join("metadata.json").exists() {
+            if is_note_package(parent) {
                 return Err(AppError::NotAFolder(parent.display().to_string()));
             }
         }
@@ -238,6 +238,10 @@ pub fn validate_new_root(path: &Path) -> Result<PathBuf, AppError> {
         }
     }
     result
+}
+
+fn is_note_package(path: &Path) -> bool {
+    path.join("metadata.json").is_file() && path.join("index.html").is_file()
 }
 
 fn probe_writable_dir(directory: &Path) -> Result<(), AppError> {
@@ -275,6 +279,14 @@ mod tests {
         assert_eq!(validated, root.canonicalize().unwrap());
         assert!(validated.join(".trash").is_dir());
         assert!(!fs::read_dir(&validated).unwrap().any(|entry| entry.unwrap().file_name().to_string_lossy().starts_with(".htnote-write-probe")));
+    }
+
+    #[test]
+    fn metadata_without_html_is_not_a_note_package() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("metadata.json"), "{}").unwrap();
+        let root = validate_new_root(&dir.path().join("nested")).unwrap();
+        assert!(root.join(".trash").is_dir());
     }
 
     #[test]
