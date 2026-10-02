@@ -9,6 +9,7 @@ import { useUiStore } from "@/stores/uiStore";
 export async function changeRootFlow(currentRoot: string): Promise<boolean> {
   const selected = await ipc.pickDirectory(currentRoot);
   if (!selected || selected === currentRoot) return false;
+  await ipc.validateRootDir(selected);
   if (!await useUiStore.getState().confirm("settings.changeRootTitle", "settings.changeRootWarning", { path: selected })) return false;
 
   const ids = useTabsStore.getState().tabs.map((tab) => tab.noteId);

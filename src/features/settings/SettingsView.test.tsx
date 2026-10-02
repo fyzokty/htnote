@@ -63,15 +63,21 @@ describe("SettingsView", () => {
     expect(openExternalUrl).toHaveBeenCalledWith("https://github.com/fyzokty/htnote");
   });
 
-  it("shows an error toast when the selected root is rejected", async () => {
+  it("shows an error toast without confirming or closing tabs when the selected root is rejected", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(ipc, "pickDirectory").mockResolvedValue("C:/Invalid");
     vi.spyOn(useUiStore.getState(), "confirm").mockResolvedValue(true);
+    vi.spyOn(ipc, "validateRootDir").mockRejectedValue({ code: "NOT_A_FOLDER", message: "note package" });
+    const close = vi.spyOn(useTabsStore.getState(), "close");
     vi.mocked(resolveUnsaved).mockResolvedValue({ resolved: new Set(), cancelled: false });
-    vi.spyOn(ipc, "setRootDir").mockRejectedValue({ code: "NOT_A_FOLDER", message: "note package" });
+    const setRoot = vi.spyOn(ipc, "setRootDir");
     render(<SettingsView />);
     fireEvent.click(await screen.findByRole("button", { name: "Değiştir…" }));
     await waitFor(() => expect(useUiStore.getState().toasts.slice(-1)[0]?.messageKey).toBe("errors.NOT_A_FOLDER"));
+    expect(useUiStore.getState().confirm).not.toHaveBeenCalled();
+    expect(resolveUnsaved).not.toHaveBeenCalled();
+    expect(close).not.toHaveBeenCalled();
+    expect(setRoot).not.toHaveBeenCalled();
     expect(useSettingsStore.getState().settings?.rootDir).toBe("C:/Old");
   });
 });
@@ -80,6 +86,7 @@ describe("changeRootFlow", () => {
   it("confirms, guards, closes tabs, switches root and refreshes", async () => {
     const order: string[] = [];
     vi.spyOn(ipc, "pickDirectory").mockImplementation(async () => { order.push("pick"); return "C:/New"; });
+    vi.spyOn(ipc, "validateRootDir").mockImplementation(async () => { order.push("validate"); });
     vi.spyOn(useUiStore.getState(), "confirm").mockImplementation(async () => { order.push("confirm"); return true; });
     vi.mocked(resolveUnsaved).mockImplementation(async () => { order.push("guard"); return { resolved: new Set(["a"]), cancelled: false }; });
     useTabsStore.setState({ tabs: [{ noteId: "a", doc: { dirty: false } as never }] });
@@ -88,11 +95,12 @@ describe("changeRootFlow", () => {
     vi.spyOn(useTreeStore.getState(), "refresh").mockImplementation(async () => { order.push("refresh"); });
     vi.spyOn(ipc, "listTrash").mockImplementation(async () => { order.push("trash"); return []; });
     expect(await changeRootFlow("C:/Old")).toBe(true);
-    expect(order).toEqual(["pick", "confirm", "guard", "close", "set", "refresh", "trash"]);
+    expect(order).toEqual(["pick", "validate", "confirm", "guard", "close", "set", "refresh", "trash"]);
   });
 
   it("stops when selection, confirmation or unsaved guard is cancelled", async () => {
     const pick = vi.spyOn(ipc, "pickDirectory").mockResolvedValue(null);
+    vi.spyOn(ipc, "validateRootDir").mockResolvedValue();
     const confirm = vi.spyOn(useUiStore.getState(), "confirm").mockResolvedValue(false);
     const setRoot = vi.spyOn(ipc, "setRootDir");
     expect(await changeRootFlow("C:/Old")).toBe(false);
@@ -103,5 +111,15 @@ describe("changeRootFlow", () => {
     vi.mocked(resolveUnsaved).mockResolvedValue({ resolved: new Set(), cancelled: true });
     expect(await changeRootFlow("C:/Old")).toBe(false);
     expect(setRoot).not.toHaveBeenCalled();
+  });
+
+  it("validates the selected root before confirmation or closing tabs", async () => {
+    const order: string[] = [];
+    vi.spyOn(ipc, "pickDirectory").mockResolvedValue("C:/Invalid");
+    vi.spyOn(ipc, "validateRootDir").mockImplementation(async () => { order.push("validate"); throw new Error("invalid root"); });
+    vi.spyOn(useUiStore.getState(), "confirm").mockImplementation(async () => { order.push("confirm"); return true; });
+    vi.spyOn(useTabsStore.getState(), "close").mockImplementation(async () => { order.push("close"); return true; });
+    await expect(changeRootFlow("C:/Old")).rejects.toThrow("invalid root");
+    expect(order).toEqual(["validate"]);
   });
 });

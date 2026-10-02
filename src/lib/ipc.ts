@@ -26,6 +26,9 @@ export const ipc = {
   setRootDir(path: string): Promise<Settings> {
     return invoke<Settings>("set_root_dir", { path });
   },
+  validateRootDir(path: string): Promise<void> {
+    return invoke<void>("validate_root_dir", { path });
+  },
   pickDirectory(defaultPath?: string): Promise<string | null> {
     return open({ directory: true, multiple: false, defaultPath });
   },

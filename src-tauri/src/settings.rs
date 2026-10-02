@@ -192,6 +192,7 @@ pub fn resolve_root_dir(settings: &Settings, fallback: &Path) -> Result<PathBuf,
 }
 
 pub fn validate_new_root(path: &Path) -> Result<PathBuf, AppError> {
+    validate_root_dir(path)?;
     if !path.is_absolute() {
         return Err(AppError::InvalidName(path.display().to_string()));
     }
@@ -240,6 +241,27 @@ pub fn validate_new_root(path: &Path) -> Result<PathBuf, AppError> {
     result
 }
 
+/// Checks whether a path can be used as a root without creating directories or files.
+pub fn validate_root_dir(path: &Path) -> Result<(), AppError> {
+    if !path.is_absolute() {
+        return Err(AppError::InvalidName(path.display().to_string()));
+    }
+    for ancestor in path.ancestors() {
+        if ancestor.exists() {
+            let resolved = ancestor.canonicalize()?;
+            if !resolved.is_dir() {
+                return Err(AppError::Io(std::io::Error::new(ErrorKind::NotADirectory, "root path is not a directory")));
+            }
+            for parent in resolved.ancestors() {
+                if is_note_package(parent) {
+                    return Err(AppError::NotAFolder(parent.display().to_string()));
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 fn is_note_package(path: &Path) -> bool {
     path.join("metadata.json").is_file() && path.join("index.html").is_file()
 }
@@ -269,6 +291,22 @@ mod tests {
         let child = note.join("nested");
         assert!(matches!(validate_new_root(&child), Err(AppError::NotAFolder(_))));
         assert!(!child.exists());
+    }
+
+    #[test]
+    fn validate_root_dir_rejects_note_package_without_side_effects() {
+        let dir = tempdir().unwrap();
+        let note = dir.path().join("Note");
+        fs::create_dir(&note).unwrap();
+        fs::write(note.join("metadata.json"), "{}").unwrap();
+        fs::write(note.join("index.html"), "").unwrap();
+        let child = note.join("nested");
+
+        assert!(matches!(validate_root_dir(&note), Err(AppError::NotAFolder(_))));
+        assert!(matches!(validate_root_dir(&child), Err(AppError::NotAFolder(_))));
+        assert!(!child.exists());
+        assert!(!note.join(".trash").exists());
+        assert!(!fs::read_dir(&note).unwrap().any(|entry| entry.unwrap().file_name().to_string_lossy().starts_with(".htnote-write-probe")));
     }
 
     #[test]
