@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { codeTagFor, fileName, kindFromPath, mediaFor, processFilesSequentially, toCssPoint } from "@/features/editor/fileDrop";
+import { codeTagFor, copyFilesSequentially, fileName, kindFromPath, mediaFor, toCssPoint } from "@/features/editor/fileDrop";
 import type { AssetInfo } from "@/lib/types";
 
 describe("file drop conversion", () => {
@@ -31,16 +31,16 @@ describe("file drop conversion", () => {
   });
 });
 
-it("copies and inserts sequentially while continuing after an error", async () => {
+it("collects successful copies in order while continuing after an error", async () => {
   const order: string[] = [];
   const copy = vi.fn(async (path: string) => {
     order.push(`copy:${path}`);
     if (path === "bad") throw new Error("copy failed");
     return path.toUpperCase();
   });
-  const insert = vi.fn((result: string) => { order.push(`insert:${result}`); });
   const onError = vi.fn((path: string) => { order.push(`error:${path}`); });
-  await processFilesSequentially(["first", "bad", "last"], copy, insert, onError);
-  expect(order).toEqual(["copy:first", "insert:FIRST", "copy:bad", "error:bad", "copy:last", "insert:LAST"]);
+  const copied = await copyFilesSequentially(["first", "bad", "last"], copy, onError);
+  expect(order).toEqual(["copy:first", "copy:bad", "error:bad", "copy:last"]);
+  expect(copied).toEqual([{ result: "FIRST", path: "first" }, { result: "LAST", path: "last" }]);
   expect(onError).toHaveBeenCalledOnce();
 });
