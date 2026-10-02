@@ -9,7 +9,7 @@ const note: TreeNode = { type: "note", id: "n", title: "Başlık", relPath: "A/B
 const tree: TreeNode[] = [{ type: "folder", name: "A", relPath: "A", children: [
   { type: "folder", name: "B", relPath: "A/B", children: [note] },
 ] }];
-const settings: Settings = { rootDir: null, theme: "system", language: null, sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true, sidebarVisible: true, openTabs: [], activeTab: null, expandedFolders: ["A"], onboardingDone: false };
+const settings: Settings = { rootDir: null, theme: "system", language: null, sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true, sidebarVisible: true, openTabs: [], activeTab: null, expandedFolders: ["A"], onboardingDone: false };
 
 beforeEach(() => {
   vi.useRealTimers();

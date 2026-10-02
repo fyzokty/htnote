@@ -13,6 +13,7 @@ use crate::error::AppError;
 use crate::index::note_index::NoteIndex;
 use crate::index::scan::IndexedNote;
 use crate::state::AppState;
+use crate::links::LinkIndex;
 
 use self::extract::extract_text;
 use self::normalize::{tr_fold, Folded};
@@ -144,7 +145,7 @@ impl SearchIndex {
 }
 
 // Not indeksi kilidi bırakılmadan arama indeksi kilidi alınmaz.
-pub fn reindex_notes(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, ids: &[Uuid], removed: &[Uuid]) -> Result<(), AppError> {
+pub fn reindex_notes(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, links: &RwLock<LinkIndex>, ids: &[Uuid], removed: &[Uuid]) -> Result<(), AppError> {
     // Dosya okuma sürerken başlayan daha yeni bir güncelleme eski sonucu geçersiz kılar.
     let (generation, versions) = {
         let mut search = search.write().map_err(|error| AppError::Internal(error.to_string()))?;
@@ -176,17 +177,18 @@ pub fn reindex_notes(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, id
     }).collect::<Result<Vec<_>, _>>()?;
     let mut search = search.write().map_err(|error| AppError::Internal(error.to_string()))?;
     if search.generation != generation { return Ok(()); }
+    let mut links = links.write().map_err(|error| AppError::Internal(error.to_string()))?;
     for id in removed.iter().chain(&missing) {
-        if search.versions.get(id) == versions.get(id) { search.remove(*id); }
+        if search.versions.get(id) == versions.get(id) { search.remove(*id); links.remove(*id); }
     }
     for (note, html) in loaded {
         let id = note.metadata.id;
-        if search.versions.get(&id) == versions.get(&id) { search.upsert(&note, &html); }
+        if search.versions.get(&id) == versions.get(&id) { search.upsert(&note, &html); links.upsert(id, &html); }
     }
     Ok(())
 }
 
-fn index_initial_note(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, id: Uuid, generation: u64) -> Result<(), AppError> {
+fn index_initial_note(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, links: &RwLock<LinkIndex>, id: Uuid, generation: u64) -> Result<(), AppError> {
     let version = {
         let search = search.read().map_err(|error| AppError::Internal(error.to_string()))?;
         if search.generation != generation { return Ok(()); }
@@ -203,7 +205,10 @@ fn index_initial_note(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, i
         Err(error) => return Err(error.into()),
     };
     let mut search = search.write().map_err(|error| AppError::Internal(error.to_string()))?;
-    search.upsert_initial(&note, &html, generation, version);
+    if search.generation == generation && search.versions.get(&id).copied().unwrap_or_default() == version {
+        search.upsert_initial(&note, &html, generation, version);
+        links.write().map_err(|error| AppError::Internal(error.to_string()))?.upsert(id, &html);
+    }
     Ok(())
 }
 
@@ -211,6 +216,7 @@ pub fn start_build(state: &AppState) {
     let generation = match state.search_index.write() {
         Ok(mut search) => {
             search.clear();
+            if let Ok(mut links) = state.link_index.write() { links.clear(); }
             state.search_indexing.store(true, Ordering::Release);
             search.generation
         }
@@ -221,11 +227,12 @@ pub fn start_build(state: &AppState) {
     };
     let index = Arc::clone(&state.note_index);
     let search = Arc::clone(&state.search_index);
+    let links = Arc::clone(&state.link_index);
     let indexing = Arc::clone(&state.search_indexing);
     std::thread::spawn(move || {
         let ids = index.read().map(|locked| locked.by_id.keys().copied().collect::<Vec<_>>()).unwrap_or_default();
         for id in ids {
-            if let Err(error) = index_initial_note(&index, &search, id, generation) {
+            if let Err(error) = index_initial_note(&index, &search, &links, id, generation) {
                 eprintln!("Search indexing failed: {error}");
             }
         }
@@ -307,7 +314,8 @@ mod tests {
         notes.upsert(note.clone());
         let notes = RwLock::new(notes);
         let search = RwLock::new(SearchIndex::default());
-        reindex_notes(&notes, &search, &[id], &[]).unwrap();
+        let links = RwLock::new(LinkIndex::default());
+        reindex_notes(&notes, &search, &links, &[id], &[]).unwrap();
         search.write().unwrap().upsert_initial(&note, "<p>stale content</p>", 0, 0);
         assert_eq!(search.read().unwrap().search("new content", 10).len(), 1);
         assert!(search.read().unwrap().search("stale content", 10).is_empty());
@@ -328,9 +336,10 @@ mod tests {
         let mut search = SearchIndex::default();
         search.upsert(&note, "<p>find me</p>");
         let search = RwLock::new(search);
+        let links = RwLock::new(LinkIndex::default());
 
         notes.write().unwrap().remove_subtree("Gone");
-        reindex_notes(&notes, &search, &[id], &[]).unwrap();
+        reindex_notes(&notes, &search, &links, &[id], &[]).unwrap();
         assert!(search.read().unwrap().search("find me", 10).is_empty());
     }
 }

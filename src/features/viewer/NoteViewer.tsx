@@ -6,6 +6,7 @@ import { NoteEditor } from "@/features/editor/NoteEditor";
 import { useEditSession } from "@/features/editor/useEditSession";
 import { toggleFavorite } from "@/features/favorites/favorites";
 import { TagInput } from "@/features/tags/TagInput";
+import { BacklinksPanel } from "@/features/viewer/BacklinksPanel";
 import { deriveTags, setNoteTags } from "@/features/tags/tags";
 import { nextMounted } from "@/features/viewer/lru";
 import { registerFrame } from "@/features/viewer/bridgeHost";
@@ -114,6 +115,7 @@ export function NoteViewer() {
             : note ? <NoteFrame key={`${id}:${doc?.lastSavedAt ?? ""}:${doc?.baseVersion ?? 0}`} id={id} active={id === activeId} title={note.title} /> : null;
         })}
       </div>
+      {activeId && activeNote && activeTab?.doc.mode === "view" && <BacklinksPanel id={activeId} saveRevision={tabs.map((tab) => tab.doc.lastSavedAt ?? "").join(":")} />}
     </div>
   );
 }

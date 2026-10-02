@@ -10,6 +10,7 @@ const defaults: Settings = {
   language: null,
   sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true,
   sidebarVisible: true,
+  backlinksExpanded: true,
   openTabs: [],
   activeTab: null,
   expandedFolders: [],

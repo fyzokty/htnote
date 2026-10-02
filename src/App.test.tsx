@@ -10,7 +10,7 @@ const defaults: Settings = {
   rootDir: null,
   theme: "system",
   language: "tr",
-  sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true,
+  sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true,
   sidebarVisible: true,
   openTabs: [],
   activeTab: null,
