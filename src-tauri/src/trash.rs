@@ -11,7 +11,8 @@ use crate::error::AppError;
 use crate::fs_util::write_file_atomic;
 use crate::index::{rel_string, resolve_in_root};
 use crate::notes::model::{read_metadata, write_metadata_atomic};
-use crate::notes::naming::{exists_ci, unique_name};
+use crate::notes::naming::{exists_ci, sanitize_name, unique_name};
+use crate::notes::html::sync_head;
 
 const MANIFEST: &str = ".htnote-trash.json";
 
@@ -181,10 +182,45 @@ fn restore_from_trash_with_writer(
     let parent = original.parent().ok_or_else(|| AppError::InvalidTrashId(id.into()))?;
     fs::create_dir_all(parent)?;
     let name = original.file_name().unwrap_or_default().to_string_lossy().into_owned();
-    let siblings = fs::read_dir(parent)?.map(|entry| entry.map(|entry| entry.file_name().to_string_lossy().into_owned()))
+    let siblings = fs::read_dir(parent)?.map(|entry| entry.map(|entry| entry.path()))
         .collect::<Result<Vec<_>, _>>()?;
-    let target = parent.join(unique_name(&name, exists_ci(&siblings)));
+    let (target_name, restored_title) = if manifest.kind == TrashKind::Note {
+        let metadata = read_metadata(&source.join("metadata.json"))?;
+        let mut occupied = Vec::new();
+        let mut sibling_names = Vec::new();
+        for sibling in &siblings {
+            let sibling_name = sibling.file_name().unwrap_or_default().to_string_lossy().into_owned();
+            occupied.push(sibling_name.clone());
+            sibling_names.push(sibling_name);
+            if sibling.join("metadata.json").is_file() {
+                if let Ok(sibling_metadata) = read_metadata(&sibling.join("metadata.json")) {
+                    occupied.push(sibling_metadata.title);
+                }
+            }
+        }
+        let title = unique_name(&metadata.title, exists_ci(&occupied));
+        let folder_base = if title == metadata.title { name } else { sanitize_name(&title) };
+        let folder_name = unique_name(&folder_base, exists_ci(&sibling_names));
+        (folder_name, (title != metadata.title).then_some(title))
+    } else {
+        let names = siblings.iter().map(|path| path.file_name().unwrap_or_default().to_string_lossy().into_owned()).collect::<Vec<_>>();
+        (unique_name(&name, exists_ci(&names)), None)
+    };
+    let target = parent.join(target_name);
     fs::rename(&source, &target).map_err(move_error)?;
+    if let Some(title) = restored_title {
+        let metadata_path = target.join("metadata.json");
+        let original_metadata = fs::read(&metadata_path)?;
+        let mut metadata = read_metadata(&metadata_path)?;
+        let original_html = fs::read_to_string(target.join("index.html"))?;
+        metadata.title = title;
+        let html = sync_head(&original_html, &metadata, target.join("style.css").is_file(), target.join("script.js").is_file());
+        if let Err(error) = write_metadata(&metadata_path, &metadata).and_then(|_| write_file_atomic(&target.join("index.html"), html.as_bytes())) {
+            let _ = write_file_atomic(&metadata_path, &original_metadata);
+            fs::rename(&target, &source).map_err(|rollback| AppError::Internal(format!("Title update error: {error}; rollback error: {rollback}")))?;
+            return Err(error);
+        }
+    }
     if let Err(error) = reassign_collisions(&target, indexed_ids, &mut write_metadata) {
         fs::rename(&target, &source).map_err(|rollback| {
             AppError::Internal(format!("Metadata error: {error}; rollback error: {rollback}"))
@@ -297,7 +333,79 @@ mod tests {
         create_note_in(root.path(), "", Some("Note")).unwrap();
         let restored = restore_from_trash(root.path(), &second.trash_id, &HashSet::from([first.metadata.id])).unwrap();
         assert_eq!(restored, "Note (2)");
-        assert_ne!(read_metadata(&root.path().join("Note (2)/metadata.json")).unwrap().id, first.metadata.id);
+        let metadata = read_metadata(&root.path().join("Note (2)/metadata.json")).unwrap();
+        assert_eq!(metadata.title, "Note (2)");
+        assert_ne!(metadata.id, first.metadata.id);
+        let html = fs::read_to_string(root.path().join("Note (2)/index.html")).unwrap();
+        assert!(html.contains("<title>Note (2)</title>"));
+    }
+
+    #[test]
+    fn restore_note_collision_checks_visible_sibling_titles_and_preserves_id() {
+        let root = tempfile::tempdir().unwrap();
+        let (_, restored_note) = create_note_in(root.path(), "", Some("Başlık")).unwrap();
+        let item = delete_item(root.path(), "Başlık").unwrap();
+        fs::create_dir(root.path().join("Different folder")).unwrap();
+        let (_, sibling) = create_note_in(root.path(), "Different folder", Some("Başlık")).unwrap();
+        // A sibling note's displayed title can collide even when its folder is nested.
+        let (_, direct_sibling) = create_note_in(root.path(), "", Some("Başlık")).unwrap();
+        let restored = restore_from_trash(root.path(), &item.trash_id, &HashSet::new()).unwrap();
+        assert_eq!(restored, "Başlık (2)");
+        let metadata = read_metadata(&root.path().join("Başlık (2)/metadata.json")).unwrap();
+        assert_eq!(metadata.title, "Başlık (2)");
+        assert_eq!(metadata.id, restored_note.metadata.id);
+        assert_ne!(metadata.id, sibling.metadata.id);
+        assert_ne!(metadata.id, direct_sibling.metadata.id);
+        let html = fs::read_to_string(root.path().join("Başlık (2)/index.html")).unwrap();
+        assert!(html.contains("<title>Başlık (2)</title>"));
+    }
+
+    #[test]
+    fn restore_folder_name_collision_adds_suffix() {
+        let root = tempfile::tempdir().unwrap();
+        fs::create_dir(root.path().join("Folder")).unwrap();
+        let item = delete_item(root.path(), "Folder").unwrap();
+        fs::create_dir(root.path().join("Folder")).unwrap();
+        assert_eq!(restore_from_trash(root.path(), &item.trash_id, &HashSet::new()).unwrap(), "Folder (2)");
+        assert!(root.path().join("Folder (2)").is_dir());
+    }
+
+    #[test]
+    fn restore_title_collision_sanitizes_invalid_folder_characters() {
+        let root = tempfile::tempdir().unwrap();
+        let (_, trashed_note) = create_note_in(root.path(), "", Some("Başlık:/?*")).unwrap();
+        let item = delete_item(root.path(), "Başlık----").unwrap();
+        create_note_in(root.path(), "", Some("Başlık:/?*")).unwrap();
+
+        let restored = restore_from_trash(root.path(), &item.trash_id, &HashSet::new()).unwrap();
+        assert_eq!(restored, "Başlık---- (2)");
+        let metadata = read_metadata(&root.path().join(&restored).join("metadata.json")).unwrap();
+        assert_eq!(metadata.title, "Başlık---- (2)");
+        assert_eq!(metadata.id, trashed_note.metadata.id);
+    }
+
+    #[test]
+    fn restore_note_folder_name_collision_is_unique_even_without_title_collision() {
+        let root = tempfile::tempdir().unwrap();
+        create_note_in(root.path(), "", Some("Different title")).unwrap();
+        fs::rename(root.path().join("Different title"), root.path().join("Shared")).unwrap();
+        let item = delete_item(root.path(), "Shared").unwrap();
+        fs::create_dir(root.path().join("Shared")).unwrap();
+
+        assert_eq!(restore_from_trash(root.path(), &item.trash_id, &HashSet::new()).unwrap(), "Shared (2)");
+        assert_eq!(read_metadata(&root.path().join("Shared (2)/metadata.json")).unwrap().title, "Different title");
+    }
+
+    #[test]
+    fn restore_ignores_malformed_sibling_metadata() {
+        let root = tempfile::tempdir().unwrap();
+        create_note_in(root.path(), "", Some("Note")).unwrap();
+        let item = delete_item(root.path(), "Note").unwrap();
+        fs::create_dir(root.path().join("Unrelated")).unwrap();
+        fs::write(root.path().join("Unrelated/metadata.json"), b"not valid json").unwrap();
+
+        assert_eq!(restore_from_trash(root.path(), &item.trash_id, &HashSet::new()).unwrap(), "Note");
+        assert!(root.path().join("Note/metadata.json").is_file());
     }
 
     #[test]
