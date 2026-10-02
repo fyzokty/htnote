@@ -117,20 +117,45 @@ useEffect(() => {
 
 React ön yüzü ile Rust arka planı arasındaki standart komut sözleşmesi (Tauri Commands):
 
-> Bu tablo başlangıç taslağıdır; güncel ve tam komut listesi task'larda tanımlanır. Notlar **id** ile, klasörler kök dizine göre **göreli yol** ile adreslenir; aşağıdaki `note_path` parametreleri `note_id` olarak uygulanır. Hatalar `AppError { code, message }` döner (D18).
+Bu tablo `src-tauri/src/lib.rs` içindeki `generate_handler!` kaydıyla eşleşir. Notlar UUID `id` ile, klasörler kök dizine göre göreli yolla adreslenir. Parametre adları Rust tarafındaki adları gösterir; frontend IPC yükünde camelCase kullanılır. Komutlar `Result<T, AppError>` döner; hata `{ code, message }` biçimindedir.
 
 | Komut Adı | Parametreler | Dönüş Tipi | Açıklama |
 |---|---|---|---|
-| `get_note_tree` | `root_dir: String` | `Vec<TreeNode>` | Klasör ağacını ve altındaki notları `metadata.json` ile birlikte getirir. |
-| `read_note` | `note_path: String` | `NoteData` | `metadata.json`, `index.html`, `style.css`, `script.js` içeriklerini döndürür. |
-| `save_note` | `note_path: String, data: SaveNotePayload` | `Result<(), String>` | Not dosyalarını diske yazar, metadata ve `<head>` etiketlerini senkronize eder. |
-| `create_note` | `folder_path: String, title: String` | `NoteData` | Temiz bir not paketi (klasör + `index.html` + `metadata.json`) üretir. |
-| `delete_note` | `note_path: String` | `Result<(), String>` | Not klasörünü `.trash/` dizinine taşır. |
-| `restore_from_trash`| `trash_item_id: String` | `Result<(), String>` | Çöp kutusundaki notu orijinal yerine geri taşır. |
-| `empty_trash` | - | `Result<(), String>` | `.trash/` klasörünü tamamen temizler. |
-| `copy_asset` | `note_path: String, file_path: String` | `String` (Yeni göreceli yol) | Sürüklenen medyayı notun `assets/` klasörüne kopyalar. |
-| `search_notes` | `query: String` | `Vec<SearchResult>` | Tüm notların `index.html` metinlerinde arama yapar. |
-| `export_note` | `note_path: String, format: "pdf" \| "html" \| "zip"` | `String` (Çıktı dosya yolu) | Notu istenen formatta dışa aktarır. |
+| `app_info` | — | `AppInfo` | Uygulama sürümü. |
+| `get_settings` | — | `Settings` | Kayıtlı ayarlar. |
+| `update_settings` | `patch: SettingsPatch` | `Settings` | Ayarları günceller. |
+| `set_root_dir` | `path: String` | `Settings` | Not kökünü değiştirir. |
+| `get_root_dir` | — | `String` | Etkin not kökü. |
+| `get_note_origin` | — | `String` | İzole not sunucusu origin'i. |
+| `get_note_tree` | — | `Vec<TreeNode>` | Not ve klasör ağacı. |
+| `search_notes` | `query: String, limit?: usize` | `SearchNotesResult` | Tam metin araması. |
+| `get_backlinks` | `id: UUID` | `Vec<BacklinkItem>` | Geri bağlantılar. |
+| `get_broken_links` | `id: UUID` | `Vec<BrokenLinkItem>` | Kırık iç bağlantılar. |
+| `read_note` | `id: UUID` | `NoteData` | Not içeriği ve metadata. |
+| `save_note` | `id: UUID, payload: SaveNoteInput` | `SaveNoteOutput` | Notu kaydeder. |
+| `export_single_html` | `id: UUID, target_path: String` | `ExportResult` | Tek dosya HTML. |
+| `export_zip` | `id: UUID, target_path: String` | `ExportResult` | ZIP paketi. |
+| `export_pdf` | `id: UUID, target_path: String` | `ExportResult` | PDF. |
+| `update_metadata` | `id: UUID, patch: MetadataPatch` | `MetadataUpdateResult` | Başlık, etiket ve favori metadata'sı. |
+| `copy_asset` | `note_id: UUID, source_path: String` | `AssetInfo` | Dosyayı nota kopyalar. |
+| `save_asset_bytes` | `note_id: UUID, suggested_name: String, bytes: Vec<u8>` | `AssetInfo` | Medya baytlarını kaydeder. |
+| `write_draft` | `id: UUID, payload: WriteDraftInput` | `()` | Taslak yazar. |
+| `read_draft` | `id: UUID` | `DraftData` | Taslak okur. |
+| `delete_draft` | `id: UUID` | `()` | Taslağı siler. |
+| `list_drafts` | — | `Vec<DraftData>` | Taslakları listeler. |
+| `set_preview_draft` | `id: UUID, html/css/js: String` | `u64` | Canlı önizleme içeriği. |
+| `clear_preview_draft` | `id: UUID` | `()` | Önizleme taslağını kaldırır. |
+| `create_note` | `parent_rel_path: String, title?: String` | `TreeNode` | Not oluşturur. |
+| `create_folder` | `parent_rel_path: String, name: String` | `TreeNode` | Klasör oluşturur. |
+| `rename_note` | `id: UUID, new_title: String` | `TreeNode` | Notu yeniden adlandırır. |
+| `rename_folder` | `rel_path: String, new_name: String` | `TreeNode` | Klasörü yeniden adlandırır. |
+| `move_item` | `rel_path: String, target_folder_rel_path: String` | `String` | Öğeyi taşır. |
+| `reveal_in_explorer` | `rel_path: String` | `()` | Öğeyi dosya yöneticisinde gösterir. |
+| `delete_item` | `rel_path: String` | `TrashItem` | Öğeyi çöp kutusuna taşır. |
+| `list_trash` | — | `Vec<TrashItem>` | Çöp kutusunu listeler. |
+| `restore_from_trash` | `trash_id: String` | `String` | Öğeyi geri yükler. |
+| `delete_permanently` | `trash_id: String` | `()` | Öğeyi kalıcı siler. |
+| `empty_trash` | — | `()` | Çöp kutusunu boşaltır. |
 
 ---
 

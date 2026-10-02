@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "test:e2e": "tauri build --debug --no-bundle && wdio run e2e/wdio.conf.ts",
+    "docs:screenshots": "tauri build --debug --no-bundle && wdio run e2e/wdio.screenshots.conf.ts",
     "clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
     "version:check": "node scripts/version-check.mjs",
     "verify:analyze": "npm run version:check && npm run lint && npm run typecheck && npm run clippy",

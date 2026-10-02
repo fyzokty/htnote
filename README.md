@@ -12,6 +12,34 @@ HTNote; kullanıcıların notlarını açık standart olan **HTML, CSS ve JavaSc
 
 Kaynak koddan Windows kurulum paketleri üretmek için Node.js, Rust ve Windows derleme araçlarını kurup `npm ci` ve `npm run tauri build` çalıştırın.
 
+## Hızlı kullanım
+
+Sol ağaçtan not ve klasör oluşturun; bir nota tıklayınca sekmede görüntüleme modu açılır. **Düzenle** ile görsel editöre, editörde **Kod** ile HTML/CSS/JS ve canlı önizlemeye geçin. Resim, ses ve videoyu editöre bıraktığınızda dosyalar notun `assets/` klasörüne kopyalanır. `htnote://note/<uuid>` bağlantıları başka notları açar; geri bağlantılar, favoriler ve etiketler notlar arasında gezinmeyi kolaylaştırır.
+
+Sol paneldeki filtre başlıkları hızla daraltır; **Arama** (`Ctrl+Shift+F`) notların tam metnini arar. Silinen not veya klasör çöp kutusuna taşınır; oradan geri yükleyebilir, kalıcı silebilir veya kutuyu boşaltabilirsiniz. Notu tek dosya HTML, ZIP ya da PDF olarak dışa aktarabilirsiniz. **Ayarlar** bölümünde not kökünü, sistem/açık/koyu temayı ve Türkçe/İngilizce dili seçin. Kısayol listesini `Ctrl+/` ile açın; `Ctrl+S` kaydeder, `Ctrl+E` düzenleme modunu değiştirir, `Ctrl+W` sekmeyi kapatır. macOS'ta ilgili kısayollarda `Ctrl` yerine `⌘` kullanılır.
+
+Her not bir klasördür: `metadata.json`, `index.html` ve gerektiğinde `style.css`, `script.js`, `assets/` içerir. Ayrıntılar [not yazarlığı rehberinde](docs/note-authoring.md).
+
+## Ekran görüntüleri
+
+| Ana görünüm | Görsel editör | Kod editörü |
+|---|---|---|
+| ![Ana görünüm](docs/images/main-view.png) | ![Görsel editör](docs/images/editor-visual.png) | ![Kod editörü](docs/images/editor-code.png) |
+
+| Arama | Ayarlar |
+|---|---|
+| ![Arama](docs/images/search.png) | ![Ayarlar](docs/images/settings.png) |
+
+Geliştiriciler bu görselleri `npm run docs:screenshots` ile fixture notlardan yeniden üretebilir.
+
+## Lisans
+
+Lisans henüz belirlenmedi.
+
+## English summary
+
+HTNote is an offline desktop note app that stores notes as local HTML, CSS, and JavaScript bundles. It offers visual and code editing, sandboxed viewing, search, tabs, media assets, and HTML, ZIP, and PDF export. Download Windows installers from [Releases](https://github.com/fyzokty/htnote/releases); see the [developer guide](docs/development.md) to build from source.
+
 ---
 
 ## 🌟 Temel Felsefe ve Öne Çıkan Özellikler
@@ -59,3 +87,6 @@ Bu mimari planlama serisi projenin tüm yönlerini ele alan modüler dokümanlar
 3. 🏗️ [Teknik Mimari ve Güvenlik](docs/architecture.md) - Tauri/Rust backend, React frontend, IPC haberleşmesi, iframe sandbox ve `postMessage` protokolü.
 4. 🎨 [UI / UX Spesifikasyonu](docs/ui-ux-spec.md) - Arayüz bileşenleri, layout yerleşimi, split-view kodlama ve klavye kısayolları.
 5. 🚀 [Uygulama Yol Haritası (Roadmap)](docs/roadmap.md) - Sıfırdan çalışan bir MVP'ye adım adım geliştirme aşamaları.
+6. 🛠️ [Geliştirme rehberi](docs/development.md) - Kurulum, doğrulama ve sürüm akışı.
+7. ✍️ [Not yazarlığı](docs/note-authoring.md) - Not paketi, tema ve bağlantılar.
+8. 📜 [Değişiklik günlüğü](CHANGELOG.md) - Sürüm özeti.
