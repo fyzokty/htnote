@@ -49,6 +49,10 @@ const playbackAttributes = {
   sources: { default: [], parseHTML: parseSources, renderHTML: () => ({}) },
 };
 
+function stopMediaEvent({ event }: { event: Event }): boolean {
+  return event.target instanceof Element && !!event.target.closest("audio, video, .htnote-media-toolbar");
+}
+
 export const Image = Node.create<MediaOptions>({
   name: "image",
   group: "block",
@@ -63,7 +67,7 @@ export const Image = Node.create<MediaOptions>({
   },
   parseHTML() { return [{ tag: "img" }]; },
   renderHTML({ HTMLAttributes }) { return ["img", mergeAttributes(HTMLAttributes)]; },
-  addNodeView() { return ReactNodeViewRenderer(ImageView); },
+  addNodeView() { return ReactNodeViewRenderer(ImageView, { stopEvent: stopMediaEvent }); },
 });
 
 export const Audio = Node.create<MediaOptions>({
@@ -77,7 +81,7 @@ export const Audio = Node.create<MediaOptions>({
   renderHTML({ node, HTMLAttributes }) {
     return ["audio", mergeAttributes(mediaAttributes(HTMLAttributes)), ...sourceNodes(node.attrs.sources)];
   },
-  addNodeView() { return ReactNodeViewRenderer(AudioView); },
+  addNodeView() { return ReactNodeViewRenderer(AudioView, { stopEvent: stopMediaEvent }); },
 });
 
 export const Video = Node.create<MediaOptions>({
@@ -91,7 +95,7 @@ export const Video = Node.create<MediaOptions>({
   renderHTML({ node, HTMLAttributes }) {
     return ["video", mergeAttributes(mediaAttributes(HTMLAttributes)), ...sourceNodes(node.attrs.sources)];
   },
-  addNodeView() { return ReactNodeViewRenderer(VideoView); },
+  addNodeView() { return ReactNodeViewRenderer(VideoView, { stopEvent: stopMediaEvent }); },
 });
 
 export const InsertMedia = Extension.create({
