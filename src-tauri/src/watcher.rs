@@ -251,7 +251,11 @@ impl WatcherManager {
                                             let known: HashSet<_> = index.read().map_err(|error| AppError::Internal(error.to_string()))?
                                                 .by_id.values().map(|note| root.join(&note.rel_path)).collect();
                                             let affected = classify_events(&root, &events, &known);
+                                            #[cfg(all(test, target_os = "macos"))]
+                                            eprintln!("watcher diagnostic: root={root:?}, events={events:?}, affected={affected:?}");
                                             let payload = apply_batch(&root, &index, affected)?;
+                                            #[cfg(all(test, target_os = "macos"))]
+                                            eprintln!("watcher diagnostic: payload={payload:?}");
                                             if !payload.is_empty() { emit(payload); }
                                             Ok::<(), AppError>(())
                                         }));
