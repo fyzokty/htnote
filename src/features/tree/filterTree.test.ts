@@ -42,6 +42,17 @@ describe("filterTree", () => {
     expect(filterTree(tree, "", { tag: "missing" }).tree).toEqual([]);
   });
 
+  it("combines text and Turkish-insensitive tag matching", () => {
+    const tagged: TreeNode[] = [
+      { type: "folder", name: "Arşiv", relPath: "archive", children: [note("İğne", ["İstanbul"]), note("Başka", ["ISTANBUL"])] },
+      note("İğne dış", ["Başka"]),
+    ];
+    const result = filterTree(tagged, "iğne", { tag: "istanbul" });
+    expect(result.tree).toMatchObject([{ type: "folder", children: [note("İğne", ["İstanbul"])] }]);
+    expect([...result.autoExpanded]).toEqual(["archive"]);
+    expect(filterTree(tagged, "", { tag: "istanbul" }).tree).toMatchObject([{ type: "folder", children: [note("İğne", ["İstanbul"]), note("Başka", ["ISTANBUL"])] }]);
+  });
+
   it.each([
     ["İğne", "igne", [0, 4]],
     ["ışık", "isik", [0, 4]],

@@ -91,6 +91,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const tree = useTreeStore((state) => state.tree);
   const expanded = useTreeStore((state) => state.expanded);
   const filterQuery = useTreeStore((state) => state.filterQuery);
+  const filterTag = useTreeStore((state) => state.filterTag);
   const filterExpandedOverride = useTreeStore((state) => state.filterExpandedOverride);
   const selected = useTreeStore((state) => state.selected);
   const select = useTreeStore((state) => state.select);
@@ -108,17 +109,17 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const rootRef = useRef<HTMLDivElement>(null);
   const setRootRef = (element: HTMLDivElement | null) => { rootRef.current = element; rootDrop.setNodeRef(element); };
   const pendingFocusKey = useRef<string | null>(null);
-  const filtered = useMemo(() => filterTree(tree, filterQuery), [tree, filterQuery]);
+  const filtered = useMemo(() => filterTree(tree, filterQuery, { tag: filterTag ?? undefined }), [tree, filterQuery, filterTag]);
   const visibleTree = filtered.tree;
   const effectiveExpanded = useMemo(() => {
-    if (!filterQuery.trim()) return expanded;
+    if (!filterQuery.trim() && !filterTag) return expanded;
     const paths = new Set([...expanded, ...filtered.autoExpanded]);
     for (const path of filterExpandedOverride) {
       if (paths.has(path)) paths.delete(path);
       else paths.add(path);
     }
     return paths;
-  }, [expanded, filtered, filterExpandedOverride, filterQuery]);
+  }, [expanded, filtered, filterExpandedOverride, filterQuery, filterTag]);
   const rows = visibleNodes(visibleTree, effectiveExpanded);
   const selectedVisible = rows.some(({ node }) => isSelected(node, selected));
   const dropValid = dragSource !== null && dropPath !== null && canDrop(dragSource, dropPath, tree);
@@ -127,7 +128,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     const path = dropPath;
     hover(path, !!path && !!dragSource && canDrop(dragSource, path, tree) && !effectiveExpanded.has(path), () => {
       const current = useTreeStore.getState();
-      const open = current.expanded.has(path ?? "") || filterTree(current.tree, current.filterQuery).autoExpanded.has(path ?? "");
+      const open = current.expanded.has(path ?? "") || filterTree(current.tree, current.filterQuery, { tag: current.filterTag ?? undefined }).autoExpanded.has(path ?? "");
       return !!dragSource && !!path && canDrop(dragSource, path, current.tree) && (current.filterExpandedOverride.has(path) ? open : !open);
     });
     return clear;
@@ -218,7 +219,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   return (
     <DndContext sensors={sensors} collisionDetection={treeCollisionDetection} onDragStart={(event: DragStartEvent) => setDragSource(event.active.data.current?.node as TreeNode ?? null)} onDragOver={dragOver} onDragEnd={finishDrag} onDragCancel={() => finishDrag()}>
     <div ref={setRootRef} role="tree" aria-label={t("tree.label")} tabIndex={rows.length === 0 ? 0 : -1} onKeyDown={onKeyDown} className={`flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2 outline-none ${dragSource && dropPath === "" ? (dropValid ? "ring-2 ring-inset ring-app-accent" : "ring-2 ring-inset ring-red-500") : ""}`}>
-      {visibleTree.length === 0 ? <p className="py-4 text-center text-sm text-app-muted">{t(filterQuery.trim() ? "sidebar.noMatches" : "tree.empty")}</p> : rows.map(({ node, depth }) => (
+      {visibleTree.length === 0 ? <p className="py-4 text-center text-sm text-app-muted">{t(filterQuery.trim() || filterTag ? "sidebar.noMatches" : "tree.empty")}</p> : rows.map(({ node, depth }) => (
         <TreeRow key={node.type === "folder" ? `folder:${node.relPath}` : `note:${node.id}`} node={node} depth={depth} expanded={node.type === "folder" && effectiveExpanded.has(node.relPath)} selected={isSelected(node, selected)} tabbable={selectedVisible ? isSelected(node, selected) : node === rows[0].node} onSelect={choose} onMenu={openMenu} renaming={renamingRelPath === node.relPath} onRename={(item, name) => void renameNode(item, name)} onCancelRename={() => setRenaming(null)} dragSource={dragSource} dropPath={dropPath} dropValid={dropValid} filterQuery={filterQuery} />
       ))}
       {menu && <ContextMenu items={menuItems} x={menu.x} y={menu.y} trigger={menu.trigger} onClose={() => setMenu(null)} />}
