@@ -52,8 +52,12 @@ pub fn update_metadata_in(dir: &Path, patch: MetadataPatch) -> Result<MetadataUp
         }
         write_file_atomic(&html_path, updated.as_bytes())?;
         if let Err(error) = write_metadata_atomic(&metadata_path, &metadata) {
-            write_file_atomic(&html_path, &previous)?;
-            return Err(error);
+            return match write_file_atomic(&html_path, &previous) {
+                Ok(()) => Err(error),
+                Err(rollback_error) => Err(AppError::Io(std::io::Error::other(format!(
+                    "Metadata update failed: {error}; rollback failed: {rollback_error}"
+                )))),
+            };
         }
     } else {
         write_metadata_atomic(&metadata_path, &metadata)?;

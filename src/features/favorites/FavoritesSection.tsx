@@ -6,16 +6,32 @@ import { ContextMenu } from "@/components/ui/ContextMenu";
 import { deriveFavorites, toggleFavorite } from "@/features/favorites/favorites";
 import { useTreeStore } from "@/stores/treeStore";
 
+function readExpanded(): boolean {
+  try {
+    return localStorage.getItem("htnote:favoritesExpanded") !== "false";
+  } catch {
+    return true;
+  }
+}
+
+function writeExpanded(expanded: boolean): void {
+  try {
+    localStorage.setItem("htnote:favoritesExpanded", String(expanded));
+  } catch {
+    // Depolama kullanılamasa da bölüm açık kalabilir.
+  }
+}
+
 export function FavoritesSection({ onOpenNote }: { onOpenNote: (id: string) => void }) {
   const { t } = useTranslation();
   const tree = useTreeStore((state) => state.tree);
   const favorites = useMemo(() => deriveFavorites(tree), [tree]);
-  const [expanded, setExpanded] = useState(() => localStorage.getItem("htnote:favoritesExpanded") !== "false");
+  const [expanded, setExpanded] = useState(readExpanded);
   const [menu, setMenu] = useState<{ id: string; x: number; y: number; trigger: HTMLElement } | null>(null);
   if (favorites.length === 0) return null;
   return (
     <section className="shrink-0 px-3 pt-2" aria-label={t("favorites.title")}>
-      <button type="button" aria-expanded={expanded} onClick={() => { localStorage.setItem("htnote:favoritesExpanded", String(!expanded)); setExpanded(!expanded); }} className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm font-medium hover:bg-app-subtle">
+      <button type="button" aria-expanded={expanded} onClick={() => { writeExpanded(!expanded); setExpanded(!expanded); }} className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-sm font-medium hover:bg-app-subtle">
         {expanded ? <ChevronDown className="size-4" aria-hidden /> : <ChevronRight className="size-4" aria-hidden />}
         <Star className="size-4" aria-hidden />{t("favorites.title")}
       </button>
