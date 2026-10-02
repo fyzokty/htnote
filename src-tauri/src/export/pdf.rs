@@ -175,6 +175,22 @@ mod tests {
         closes: AtomicUsize,
         outcome: bool,
         loaded: bool,
+        print_completed: bool,
+        load_sender: Mutex<Option<mpsc::Sender<()>>>,
+        print_sender: Mutex<Option<mpsc::Sender<Result<(), AppError>>>>,
+    }
+
+    impl MockRunner {
+        fn new(outcome: bool, loaded: bool, print_completed: bool) -> Self {
+            Self {
+                closes: AtomicUsize::new(0),
+                outcome,
+                loaded,
+                print_completed,
+                load_sender: Mutex::new(None),
+                print_sender: Mutex::new(None),
+            }
+        }
     }
 
     impl PdfRunner for MockRunner {
@@ -183,14 +199,18 @@ mod tests {
         fn open(&self, _: &str) -> Result<(Self::Window, mpsc::Receiver<()>), AppError> {
             let (sender, receiver) = mpsc::channel();
             if self.loaded { sender.send(()).unwrap(); }
-            else { drop(sender); }
+            else { *self.load_sender.lock().unwrap() = Some(sender); }
             Ok(((), receiver))
         }
 
         fn print(&self, _: &Self::Window, path: &Path) -> Result<mpsc::Receiver<Result<(), AppError>>, AppError> {
             std::fs::write(path, b"%PDF-mock")?;
             let (sender, receiver) = mpsc::channel();
-            sender.send(if self.outcome { Ok(()) } else { Err(AppError::Internal("print failed".into())) }).unwrap();
+            if self.print_completed {
+                sender.send(if self.outcome { Ok(()) } else { Err(AppError::Internal("print failed".into())) }).unwrap();
+            } else {
+                *self.print_sender.lock().unwrap() = Some(sender);
+            }
             Ok(receiver)
         }
 
@@ -202,25 +222,32 @@ mod tests {
         let _test_lock = TEST_LOCK.lock().unwrap();
         let dir = tempfile::tempdir().unwrap();
         let target = dir.path().join("note.pdf");
-        let runner = MockRunner { closes: AtomicUsize::new(0), outcome: true, loaded: true };
+        let runner = MockRunner::new(true, true, true);
         assert!(export_with_runner(&runner, "note", &target, TIMEOUT).is_ok());
         assert_eq!(runner.closes.load(Ordering::SeqCst), 1);
         assert_eq!(std::fs::read(&target).unwrap(), b"%PDF-mock");
         std::fs::remove_file(&target).unwrap();
-        let runner = MockRunner { closes: AtomicUsize::new(0), outcome: false, loaded: true };
+        let runner = MockRunner::new(false, true, true);
         assert!(export_with_runner(&runner, "note", &target, TIMEOUT).is_err());
         assert_eq!(runner.closes.load(Ordering::SeqCst), 1);
         assert!(std::fs::read_dir(dir.path()).unwrap().next().is_none());
-        let runner = MockRunner { closes: AtomicUsize::new(0), outcome: true, loaded: false };
-        assert!(export_with_runner(&runner, "note", &target, Duration::ZERO).is_err());
+        let runner = MockRunner::new(true, false, true);
+        let result = export_with_runner(&runner, "note", &target, Duration::ZERO);
+        assert!(matches!(result, Err(AppError::Internal(message)) if message.contains("timed out")));
         assert_eq!(runner.closes.load(Ordering::SeqCst), 1);
+        assert!(std::fs::read_dir(dir.path()).unwrap().next().is_none());
+        let runner = MockRunner::new(true, true, false);
+        let result = export_with_runner(&runner, "note", &target, Duration::from_millis(750));
+        assert!(matches!(result, Err(AppError::Internal(message)) if message.contains("timed out")));
+        assert_eq!(runner.closes.load(Ordering::SeqCst), 1);
+        assert!(std::fs::read_dir(dir.path()).unwrap().next().is_none());
     }
 
     #[test]
     fn concurrent_export_is_busy() {
         let _test_lock = TEST_LOCK.lock().unwrap();
         let _lock = EXPORT_LOCK.lock().unwrap();
-        let runner = MockRunner { closes: AtomicUsize::new(0), outcome: true, loaded: true };
+        let runner = MockRunner::new(true, true, true);
         let result = export_with_runner(&runner, "note", Path::new("unused.pdf"), TIMEOUT);
         assert!(matches!(result, Err(AppError::Busy(_))));
         assert_eq!(runner.closes.load(Ordering::SeqCst), 0);
