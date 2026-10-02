@@ -2,6 +2,12 @@
   "use strict";
 
   const noteId = location.pathname.split("/")[1];
+  const printing = new URLSearchParams(location.search).get("print") === "1";
+  if (printing) {
+    const root = document.documentElement;
+    root.style.cssText += ";--ht-bg:#f9fafb;--ht-text:#111827;--ht-accent:#4f46e5;--ht-muted:#6b7280;--ht-border:#e5e7eb;--ht-code-bg:#f3f4f6";
+    root.dataset.htTheme = "light";
+  }
   window.htnote = Object.freeze({ noteId, version: 1 });
   const send = (type, payload = {}) => window.parent.postMessage({ type, ...payload }, "*");
   const external = /^(https?:|mailto:)/i;
@@ -110,7 +116,7 @@
   window.addEventListener("message", (event) => {
     if (event.source !== window.parent || !event.data || typeof event.data !== "object") return;
     const { type, vars, mode, query, scrollY, token } = event.data;
-    if (type === "HTNOTE_THEME") {
+    if (type === "HTNOTE_THEME" && !printing) {
       if (vars && typeof vars === "object") {
         for (const [name, value] of Object.entries(vars)) {
           if (/^--ht-[\w-]+$/.test(name) && typeof value === "string") {

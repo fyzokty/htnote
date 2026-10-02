@@ -29,6 +29,10 @@ pub enum AppError {
     Json(#[from] serde_json::Error),
     #[error("Internal error: {0}")]
     Internal(String),
+    #[error("Unsupported platform: {0}")]
+    UnsupportedPlatform(String),
+    #[error("Busy: {0}")]
+    Busy(String),
 }
 
 impl AppError {
@@ -47,6 +51,8 @@ impl AppError {
             Self::Io(_) => "IO_ERROR",
             Self::Json(_) => "JSON_ERROR",
             Self::Internal(_) => "INTERNAL",
+            Self::UnsupportedPlatform(_) => "UNSUPPORTED_PLATFORM",
+            Self::Busy(_) => "BUSY",
         }
     }
 }

@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { AppInfo, AssetInfo, BacklinkItem, BrokenLinkItem, ExportSingleHtmlResult, ExportZipResult, NoteData, PreviewDraftPayload, RecoveryDraft, SaveNotePayload, SaveNoteResult, SearchNotesResult, Settings, SettingsPatch, TrashItem, TreeNode, UpdateMetadataPatch, UpdateMetadataResult, WriteDraftPayload } from "@/lib/types";
+import type { AppInfo, AssetInfo, BacklinkItem, BrokenLinkItem, ExportPdfResult, ExportSingleHtmlResult, ExportZipResult, NoteData, PreviewDraftPayload, RecoveryDraft, SaveNotePayload, SaveNoteResult, SearchNotesResult, Settings, SettingsPatch, TrashItem, TreeNode, UpdateMetadataPatch, UpdateMetadataResult, WriteDraftPayload } from "@/lib/types";
 
 export const ipc = {
   appInfo(): Promise<AppInfo> {
@@ -38,6 +38,9 @@ export const ipc = {
   },
   exportZip(id: string, targetPath: string): Promise<ExportZipResult> {
     return invoke<ExportZipResult>("export_zip", { id, targetPath });
+  },
+  exportPdf(id: string, targetPath: string): Promise<ExportPdfResult> {
+    return invoke<ExportPdfResult>("export_pdf", { id, targetPath });
   },
   saveNote(id: string, payload: SaveNotePayload): Promise<SaveNoteResult> {
     return invoke<SaveNoteResult>("save_note", { id, payload: { ...payload, css: payload.css ?? "", js: payload.js ?? "" } });

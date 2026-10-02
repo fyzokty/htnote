@@ -77,6 +77,7 @@ export interface ExportSingleHtmlResult {
 }
 
 export type ExportZipResult = ExportSingleHtmlResult;
+export type ExportPdfResult = ExportSingleHtmlResult;
 
 export interface UpdateMetadataPatch {
   isFavorite?: boolean;
