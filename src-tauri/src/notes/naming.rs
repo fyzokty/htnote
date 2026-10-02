@@ -128,6 +128,13 @@ mod tests {
     }
 
     #[test]
+    fn windows_names_remain_portable_on_every_platform() {
+        assert_eq!(sanitize_name("CON.txt"), "CON_.txt");
+        assert_eq!(sanitize_name("report. "), "report");
+        assert_eq!(sanitize_name("a:b?c"), "a-b-c");
+    }
+
+    #[test]
     fn unique_name_uses_suffixes_and_ignores_case() {
         let occupied = vec!["Not".into(), "NOT (2)".into(), "not (3)".into()];
         assert!(names_equal_ci("Not", "nOT"));

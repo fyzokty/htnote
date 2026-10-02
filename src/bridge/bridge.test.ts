@@ -35,7 +35,7 @@ describe("note bridge", () => {
 
   it("exposes frozen note metadata within the size limit", () => {
     expect(Object.isFrozen((window as unknown as { htnote: object }).htnote)).toBe(true);
-    expect(new TextEncoder().encode(source).length).toBeLessThan(6144);
+    expect(new TextEncoder().encode(source).length).toBeLessThan(7168);
   });
 
   it("routes note and external links, blocks unsafe links, and leaves anchors alone", () => {
@@ -59,6 +59,15 @@ describe("note bridge", () => {
     messages.mockClear();
     expect(window.open("javascript:alert(1)")).toBeNull();
     expect(messages).not.toHaveBeenCalled();
+  });
+
+  it("prints only when the parent requests it", () => {
+    const print = vi.spyOn(window, "print").mockImplementation(() => {});
+    hostMessage({ type: "HTNOTE_PRINT" }, null);
+    expect(print).not.toHaveBeenCalled();
+    hostMessage({ type: "HTNOTE_PRINT" });
+    expect(print).toHaveBeenCalledOnce();
+    print.mockRestore();
   });
 
   it("forwards modifier shortcuts and Escape, preventing only recognized combinations", () => {
@@ -94,8 +103,8 @@ describe("note bridge", () => {
     try {
       expect(key("s", "KeyS", { metaKey: true }).defaultPrevented).toBe(true);
       expect(key("s", "KeyS", { ctrlKey: true }).defaultPrevented).toBe(false);
-      expect(key("Tab", "Tab", { metaKey: true }).defaultPrevented).toBe(true);
-      expect(key("Tab", "Tab", { metaKey: true, shiftKey: true }).defaultPrevented).toBe(true);
+      expect(key("Tab", "Tab", { metaKey: true }).defaultPrevented).toBe(false);
+      expect(key("Tab", "Tab", { metaKey: true, shiftKey: true }).defaultPrevented).toBe(false);
       expect(key("Tab", "Tab", { ctrlKey: true }).defaultPrevented).toBe(true);
       expect(key("Tab", "Tab", { ctrlKey: true, shiftKey: true }).defaultPrevented).toBe(true);
       expect(key("Escape", "Escape", { ctrlKey: true }).defaultPrevented).toBe(false);

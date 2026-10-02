@@ -171,6 +171,12 @@ mod tests {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static TEST_LOCK: Mutex<()> = Mutex::new(());
 
+    #[cfg(not(windows))]
+    #[test]
+    fn native_pdf_is_unsupported_on_unix() {
+        assert!(matches!(unsupported_pdf_export(), Err(AppError::UnsupportedPlatform(_))));
+    }
+
     struct MockRunner {
         closes: AtomicUsize,
         outcome: bool,
@@ -256,5 +262,10 @@ mod tests {
 
 #[cfg(not(windows))]
 pub fn export(_app: tauri::AppHandle, _id: uuid::Uuid, _target: &Path) -> Result<ExportResult, AppError> {
+    unsupported_pdf_export()
+}
+
+#[cfg(not(windows))]
+fn unsupported_pdf_export() -> Result<ExportResult, AppError> {
     Err(AppError::UnsupportedPlatform("PDF export requires Windows".into()))
 }

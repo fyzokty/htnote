@@ -10,7 +10,7 @@ import { TagInput } from "@/features/tags/TagInput";
 import { BacklinksPanel } from "@/features/viewer/BacklinksPanel";
 import { deriveTags, setNoteTags } from "@/features/tags/tags";
 import { nextMounted } from "@/features/viewer/lru";
-import { canExportPdf, exportNote } from "@/features/viewer/exportNote";
+import { exportNote, pdfMode } from "@/features/viewer/exportNote";
 import { registerFrame } from "@/features/viewer/bridgeHost";
 import { NOTE_IFRAME_SANDBOX, noteUrl } from "@/lib/noteUrl";
 import { useShortcut } from "@/lib/shortcuts/useShortcut";
@@ -105,7 +105,7 @@ export function NoteViewer() {
             <button type="button" disabled={!activeNote} onClick={() => { if (activeNote) void toggleFavorite(activeNote.id, !activeNote.isFavorite); }} aria-label={t("viewer.favorite")} title={t("viewer.favorite")} aria-pressed={activeNote?.isFavorite ?? false} className={`rounded p-2 ${activeNote?.isFavorite ? "text-app-accent" : "text-app-muted"}`}><Star className="size-4" fill={activeNote?.isFavorite ? "currentColor" : "none"} aria-hidden /></button>
             <button type="button" disabled={!activeNote || exportBusy} aria-label={exportBusy ? t("export.exporting") : t("viewer.export")} title={t("viewer.export")} onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setExportMenu({ x: rect.left, y: rect.bottom, trigger: event.currentTarget }); }} className="flex items-center gap-1 rounded p-2 text-app-muted"><Download className="size-4" aria-hidden />{exportBusy && t("export.exporting")}</button>
             {exportMenu && activeNote && <ContextMenu x={exportMenu.x} y={exportMenu.y} trigger={exportMenu.trigger} onClose={() => setExportMenu(null)} items={[
-              { id: "pdf", label: t("export.pdf"), disabled: !canExportPdf(), title: !canExportPdf() ? t("errors.UNSUPPORTED_PLATFORM") : undefined, onSelect: () => void exportNote(activeNote.id, activeNote.title, "pdf") },
+              { id: "pdf", label: t(pdfMode() === "print" ? "export.printPdf" : "export.pdf"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "pdf") },
               { id: "html", label: t("export.html"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "html") },
               { id: "zip", label: t("export.zip"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "zip") },
             ]} />}
