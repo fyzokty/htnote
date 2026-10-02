@@ -22,6 +22,7 @@ interface TreeState {
   select: (selection: TreeSelection | null) => void;
   revealNote: (id: string) => void;
   findNoteById: (id: string) => NoteNode | null;
+  patchNote: (id: string, partial: Partial<NoteNode>) => void;
   flatNotes: () => FlatNote[];
 }
 
@@ -169,6 +170,12 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     let found: NoteNode | null = null;
     walk(get().tree, (node) => { if (node.type === "note" && node.id === id) found = node; });
     return found;
+  },
+  patchNote(id, partial) {
+    const patch = (nodes: TreeNode[]): TreeNode[] => nodes.map((node) => node.type === "folder"
+      ? { ...node, children: patch(node.children) }
+      : node.id === id ? { ...node, ...partial } : node);
+    set({ tree: patch(get().tree) });
   },
   flatNotes() {
     const notes: FlatNote[] = [];

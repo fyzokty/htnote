@@ -4,6 +4,7 @@ use crate::error::AppError;
 use crate::drafts::{self, DraftData};
 use crate::index::scan::{self, TreeNode};
 use crate::notes::create;
+use crate::notes::metadata_update::{self, MetadataPatch, MetadataUpdateResult};
 use crate::notes::asset::{self, AssetInfo};
 use crate::notes::read::{self, NoteData};
 use crate::notes::rename;
@@ -102,6 +103,27 @@ pub async fn save_note(app: tauri::AppHandle, id: uuid::Uuid, payload: SaveNoteI
         let state = app.state::<AppState>();
         save_note_in_state(&state, id, payload, |dir, input| save::save_note_dir(dir, input, chrono::Utc::now()))
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn update_metadata(app: tauri::AppHandle, id: uuid::Uuid, patch: MetadataPatch) -> Result<MetadataUpdateResult, AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        update_metadata_in_state(&state, id, patch)
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+fn update_metadata_in_state(state: &AppState, id: uuid::Uuid, patch: MetadataPatch) -> Result<MetadataUpdateResult, AppError> {
+    let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
+    let indexed = index.by_id.get(&id).cloned().ok_or_else(|| AppError::NotFound(id.to_string()))?;
+    let dir = index.resolve(id).ok_or_else(|| AppError::NotFound(id.to_string()))?;
+    let result = metadata_update::update_metadata_in(&dir, patch)?;
+    index.upsert(IndexedNote { rel_path: indexed.rel_path, metadata: result.metadata.clone() });
+    drop(index);
+    search::reindex_notes(&state.note_index, &state.search_index, &[id], &[])?;
+    state.last_saved_hashes.lock().map_err(|error| AppError::Internal(error.to_string()))?
+        .insert(id, result.content_hash.clone());
+    Ok(result)
 }
 
 #[tauri::command]
@@ -389,6 +411,23 @@ mod tests {
         assert!(index.by_id[&id].metadata.has_custom_css);
         assert_eq!(saved.content_hash, read_note_dir(&dir).unwrap().content_hash);
         assert_eq!(state.last_saved_hashes.lock().unwrap().get(&id), Some(&saved.content_hash));
+    }
+
+    #[test]
+    fn metadata_update_refreshes_index_search_and_last_saved_hash() {
+        let root = tempfile::tempdir().unwrap();
+        let (_, indexed) = create_note_in(root.path(), "", Some("Başlık")).unwrap();
+        let id = indexed.metadata.id;
+        let original_updated_at = crate::notes::model::read_metadata(&root.path().join(&indexed.rel_path).join("metadata.json")).unwrap().updated_at;
+        let state = AppState::new(root.path().to_path_buf(), Settings::default(), root.path().to_path_buf());
+        state.note_index.write().unwrap().upsert(indexed);
+        let result = update_metadata_in_state(&state, id, MetadataPatch { is_favorite: Some(true), tags: Some(vec!["etiket".into()]) }).unwrap();
+        assert_eq!(state.note_index.read().unwrap().by_id[&id].metadata.tags, vec!["etiket"]);
+        assert!(state.note_index.read().unwrap().by_id[&id].metadata.is_favorite);
+        assert_eq!(result.metadata.updated_at, original_updated_at);
+        assert_eq!(state.last_saved_hashes.lock().unwrap().get(&id), Some(&result.content_hash));
+        assert_eq!(result.content_hash, read_note_dir(&resolve_note_dir(&state, id).unwrap()).unwrap().content_hash);
+        assert_eq!(state.search_index.read().unwrap().search("etiket", 10)[0].id, id);
     }
 
     #[test]

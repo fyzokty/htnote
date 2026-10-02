@@ -7,6 +7,7 @@ import {
 import type { DocBase, DocDraft, DocState } from "@/features/editor/docState";
 import { resolveUnsaved } from "@/features/editor/unsavedGuard";
 import { ipc } from "@/lib/ipc";
+import type { NoteMetadata } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTreeStore } from "@/stores/treeStore";
 
@@ -38,6 +39,7 @@ interface TabsState {
   saveFailed: (id: string) => void;
   cancelEdit: (id: string) => void;
   reloadBase: (id: string, newBase: DocBase) => void;
+  applyMetadataUpdate: (id: string, metadata: NoteMetadata, contentHash: string) => void;
   markConflict: (id: string, diskHash: string) => void;
   keepMine: (id: string, diskBase: DocBase) => void;
   loadFromDisk: (id: string, base: DocBase) => void;
@@ -225,6 +227,12 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   },
   reloadBase(id, newBase) {
     set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => reloadBase(doc, newBase)) }));
+  },
+  applyMetadataUpdate(id, metadata, contentHash) {
+    void metadata;
+    set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => doc.base
+      ? { ...doc, base: { ...doc.base, contentHash } }
+      : doc) }));
   },
   markConflict(id, diskHash) {
     set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => markConflict(doc, diskHash)) }));
