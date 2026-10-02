@@ -1,6 +1,3 @@
-import { save } from "@tauri-apps/plugin-dialog";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
-
 import { flushEditor, saveTab } from "@/features/editor/saveTab";
 import type { UnsavedDecision } from "@/features/editor/unsavedGuard";
 import { ipc } from "@/lib/ipc";
@@ -50,7 +47,7 @@ export async function exportNote(id: string, title: string, format: ExportFormat
     const folder = useSettingsStore.getState().settings?.lastExportDir;
     const name = exportFileName(title, format);
     const defaultPath = folder ? `${folder.replace(/[\\/]$/, "")}${folder.includes("\\") ? "\\" : "/"}${name}` : name;
-    const target = await save({ defaultPath, filters: [{ name: format.toUpperCase(), extensions: [format] }] });
+    const target = await ipc.saveExportFile(defaultPath, format);
     if (!target) return;
     const separator = Math.max(target.lastIndexOf("/"), target.lastIndexOf("\\"));
     const dir = separator === 0 ? target.slice(0, 1) : target.slice(0, separator);
@@ -60,7 +57,7 @@ export async function exportNote(id: string, title: string, format: ExportFormat
       void useSettingsStore.getState().update({ lastExportDir: dir }).catch(() => {});
     }
     useUiStore.getState().pushToast({ kind: "success", messageKey: "export.exported", action: {
-      labelKey: "export.showInFolder", onClick: () => { void revealItemInDir(target).catch((error: unknown) => {
+      labelKey: "export.showInFolder", onClick: () => { void ipc.revealExportFile(target).catch((error: unknown) => {
         const code = typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : "UNKNOWN";
         useUiStore.getState().pushToast({ kind: "error", messageKey: `errors.${code}` });
       }); },
