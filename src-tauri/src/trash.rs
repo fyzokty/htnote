@@ -170,7 +170,12 @@ pub fn restore_from_trash(root: &Path, id: &str, indexed_ids: &HashSet<Uuid>) ->
     // Çakışan kimlikler diskte taşımadan önce düzeltilir; mevcut indeks yolu kimliği korur.
     reassign_collisions(&source, indexed_ids)?;
     fs::rename(&source, &target).map_err(move_error)?;
-    fs::remove_file(target.join(MANIFEST))?;
+    if let Err(error) = fs::remove_file(target.join(MANIFEST)) {
+        fs::rename(&target, &source).map_err(|rollback| {
+            AppError::Internal(format!("Manifest cleanup error: {error}; rollback error: {rollback}"))
+        })?;
+        return Err(AppError::Io(error));
+    }
     Ok(rel_string(target.strip_prefix(root.canonicalize()?).map_err(|error| AppError::Internal(error.to_string()))?))
 }
 
