@@ -16,6 +16,7 @@ import { getDropHandler, toCssPoint } from "@/features/editor/fileDrop";
 import { setDiscardRecoveryDraftHook } from "@/features/editor/unsavedGuard";
 import { SearchModal } from "@/features/search/SearchModal";
 import { SettingsView } from "@/features/settings/SettingsView";
+import { ShortcutsModal } from "@/features/settings/ShortcutsModal";
 import { TrashView } from "@/features/trash/TrashView";
 import { refreshTrashCount } from "@/features/trash/deleteCoordinator";
 import { SidebarTree } from "@/features/tree/SidebarTree";
@@ -29,7 +30,7 @@ import { startFsChangeSync } from "@/features/tree/fsChangeSync";
 import { useTreeActions } from "@/features/tree/useTreeActions";
 import { ipc } from "@/lib/ipc";
 import { onFileDrop } from "@/lib/events";
-import { installShortcutListener } from "@/lib/shortcuts/manager";
+import { installShortcutListener, scheduleUnboundShortcutWarnings } from "@/lib/shortcuts/manager";
 import { formatShortcut } from "@/lib/shortcuts/registry";
 import { useShortcut } from "@/lib/shortcuts/useShortcut";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -59,6 +60,8 @@ export function AppShell() {
   const setSidebarVisible = useUiStore((state) => state.setSidebarVisible);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
   const [dragWidth, setDragWidth] = useState<number | null>(null);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const previousFocus = useRef<HTMLElement | null>(null);
   const [recoveryCandidates, setRecoveryCandidates] = useState<RecoveryCandidate[]>([]);
   const unsavedDialog = useUiStore((state) => state.unsavedDialog);
   const searchOpen = useUiStore((state) => state.searchOpen);
@@ -76,6 +79,22 @@ export function AppShell() {
   const draggingRef = useRef(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const openShortcuts = () => {
+    if (shortcutsOpen) return;
+    previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setShortcutsOpen(true);
+  };
+  const closeShortcuts = () => {
+    setShortcutsOpen(false);
+  };
+  useEffect(() => {
+    if (!shortcutsOpen && previousFocus.current) {
+      previousFocus.current.focus();
+      previousFocus.current = null;
+    }
+  }, [shortcutsOpen]);
+
+  useShortcut("showShortcuts", openShortcuts);
   useShortcut("toggleSidebar", toggleSidebar);
   useShortcut("globalSearch", openSearch);
   useShortcut("newNote", () => { void createNote(); });
@@ -88,6 +107,7 @@ export function AppShell() {
     }
   });
   useEffect(() => installShortcutListener(), []);
+  useEffect(() => scheduleUnboundShortcutWarnings(), []);
   useEffect(() => installBridgeHost(), []);
   useEffect(() => {
     const internals = (window as Window & { __TAURI_INTERNALS__?: { metadata?: { currentWindow?: unknown; currentWebview?: unknown } } }).__TAURI_INTERNALS__;
@@ -244,6 +264,7 @@ export function AppShell() {
       <UnsavedChangesDialog />
       <ConfirmDialog />
       {searchOpen && <SearchModal />}
+      {shortcutsOpen && <ShortcutsModal onClose={closeShortcuts} />}
       {!unsavedDialog && <RecoveryDialog candidates={recoveryCandidates} onRecover={(id) => void recoverDraft(id)} onIgnore={(id) => void ignoreDraft(id)} />}
       {sidebarVisible && (
         <aside
@@ -306,7 +327,7 @@ export function AppShell() {
           <TabBar />
         </header>
         <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden" aria-label={t("viewer.workspace")}>
-          {settingsOpen ? <SettingsView /> : trashOpen ? <TrashView /> : <NoteViewer />}
+          {settingsOpen ? <SettingsView onShowShortcuts={openShortcuts} /> : trashOpen ? <TrashView /> : <NoteViewer />}
         </section>
       </div>
     </main>

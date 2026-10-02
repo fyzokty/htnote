@@ -34,6 +34,9 @@ describe("matchShortcut", () => {
     { name: "Bridge key without code", platform: "windows", input: { key: "\\", ctrl: true }, expected: "toggleSidebar" },
     { name: "AltGr does not trigger sidebar", platform: "windows", input: { key: "\\", code: "Backslash", ctrl: true, alt: true }, expected: null },
     { name: "macOS Cmd+Backslash", platform: "mac", input: { key: "\\", code: "Backslash", meta: true }, expected: "toggleSidebar" },
+    { name: "Turkish Q sidebar alternative", platform: "windows", input: { key: "B", code: "KeyB", ctrl: true, shift: true }, expected: "toggleSidebar" },
+    { name: "macOS sidebar alternative", platform: "mac", input: { key: "B", code: "KeyB", meta: true, shift: true }, expected: "toggleSidebar" },
+    { name: "shortcut help", platform: "windows", input: { key: "/", code: "Slash", ctrl: true }, expected: "showShortcuts" },
     { name: "Ctrl+B remains in editor", platform: "windows", input: { key: "b", code: "KeyB", ctrl: true }, expected: null },
     { name: "Escape", platform: "linux", input: { key: "Escape", code: "Escape" }, expected: "escape" },
   ])("$name", ({ platform, input, expected }) => {
@@ -45,10 +48,12 @@ describe("formatShortcut", () => {
   it("Windows ve macOS etiketlerini üretir", () => {
     expect(formatShortcut("newNote", "windows")).toBe("Ctrl+N");
     expect(formatShortcut("newFolder", "linux")).toBe("Ctrl+Shift+N");
-    expect(formatShortcut("toggleSidebar", "windows")).toBe("Ctrl+\\");
+    expect(formatShortcut("toggleSidebar", "windows")).toBe("Ctrl+\\ / Ctrl+Shift+B");
     expect(formatShortcut("newNote", "mac")).toBe("⌘N");
     expect(formatShortcut("globalSearch", "mac")).toBe("⌘⇧F");
     expect(formatShortcut("prevTab", "mac")).toBe("⌃⇧Tab");
     expect(formatShortcut("escape", "mac")).toBe("Escape");
+    expect(formatShortcut("showShortcuts", "mac")).toBe("⌘/");
+    expect(formatShortcut("toggleSidebar", "mac")).toBe("⌘\\ / ⌘⇧B");
   });
 });

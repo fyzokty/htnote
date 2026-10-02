@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { dispatchShortcut, installShortcutListener } from "@/lib/shortcuts/manager";
+import { dispatchShortcut, installShortcutListener, scheduleUnboundShortcutWarnings, subscribeShortcut } from "@/lib/shortcuts/manager";
 import { useShortcut } from "@/lib/shortcuts/useShortcut";
 
 let removeListener: (() => void) | undefined;
@@ -72,7 +72,7 @@ describe("capture listener", () => {
     render(createElement(Subscriber, { handler }));
     removeListener = installShortcutListener();
     const editor = document.createElement("div");
-    editor.contentEditable = "true";
+    editor.setAttribute("contenteditable", "true");
     document.body.append(editor);
     for (const key of ["b", "i", "u"]) {
       const event = new KeyboardEvent("keydown", { key, code: `Key${key.toUpperCase()}`, ctrlKey: true, bubbles: true, cancelable: true });
@@ -117,6 +117,24 @@ describe("capture listener", () => {
     input.remove();
   });
 
+  it("leaves Ctrl+Shift+B to the editor but toggles sidebar outside it", () => {
+    const handler = vi.fn();
+    render(createElement(Subscriber, { handler }));
+    removeListener = installShortcutListener();
+    const editor = document.createElement("div");
+    editor.setAttribute("contenteditable", "true");
+    document.body.append(editor);
+    const input = { key: "B", code: "KeyB", ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true };
+    const editorEvent = new KeyboardEvent("keydown", input);
+    editor.dispatchEvent(editorEvent);
+    expect(editorEvent.defaultPrevented).toBe(false);
+    const pageEvent = new KeyboardEvent("keydown", input);
+    document.body.dispatchEvent(pageEvent);
+    expect(pageEvent.defaultPrevented).toBe(true);
+    expect(handler).toHaveBeenCalledOnce();
+    editor.remove();
+  });
+
   it("Escape'i odaktaki input'a bırakır", () => {
     const handler = vi.fn();
     function EscapeSubscriber() {
@@ -130,5 +148,24 @@ describe("capture listener", () => {
     fireEvent(input, event);
     expect(handler).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(false);
+  });
+});
+
+describe("unbound shortcut check", () => {
+  it("warns once per unbound shortcut after three seconds", () => {
+    vi.useFakeTimers();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const unsubscribe = subscribeShortcut("showShortcuts", () => {});
+    const cancel = scheduleUnboundShortcutWarnings();
+    vi.advanceTimersByTime(2999);
+    expect(warn).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(warn).toHaveBeenCalledWith("Unbound shortcut: newNote");
+    expect(warn).not.toHaveBeenCalledWith("Unbound shortcut: showShortcuts");
+    expect(warn).not.toHaveBeenCalledWith("Unbound shortcut: editorBold");
+    cancel();
+    unsubscribe();
+    warn.mockRestore();
+    vi.useRealTimers();
   });
 });

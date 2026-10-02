@@ -8,7 +8,7 @@ import { useSettingsStore } from "@/stores/settingsStore";
 
 const repository = "https://github.com/fyzokty/htnote";
 
-export function SettingsView() {
+export function SettingsView({ onShowShortcuts }: { onShowShortcuts?: () => void }) {
   const { t } = useTranslation();
   const settings = useSettingsStore((state) => state.settings);
   const update = useSettingsStore((state) => state.update);
@@ -71,6 +71,7 @@ export function SettingsView() {
           <h3 id="settings-about" className="font-semibold">{t("settings.about")}</h3>
           <p>{t("settings.version", { version })}</p>
           <div className="flex gap-4">
+            <button type="button" onClick={onShowShortcuts} className="text-app-accent underline">{t("shortcuts.title")}</button>
             <button type="button" onClick={() => external(repository)} className="text-app-accent underline">{t("settings.license")}</button>
             <button type="button" onClick={() => external(`${repository}/tree/main/docs`)} className="text-app-accent underline">{t("settings.docs")}</button>
           </div>

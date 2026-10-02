@@ -1,4 +1,4 @@
-import { allowShortcutInEditable, getPlatform, matchShortcut } from "@/lib/shortcuts/registry";
+import { allowShortcutInEditable, getPlatform, listShortcuts, matchShortcut, setShortcutBound } from "@/lib/shortcuts/registry";
 import type { KeyInput, ShortcutId } from "@/lib/shortcuts/registry";
 
 type Handler = () => void;
@@ -9,10 +9,24 @@ export function subscribeShortcut(id: ShortcutId, handler: Handler): () => void 
   const handlers = subscribers.get(id) ?? new Set<Handler>();
   handlers.add(handler);
   subscribers.set(id, handlers);
+  setShortcutBound(id, true);
   return () => {
     handlers.delete(handler);
-    if (handlers.size === 0) subscribers.delete(id);
+    if (handlers.size === 0) {
+      subscribers.delete(id);
+      setShortcutBound(id, false);
+    }
   };
+}
+
+export function scheduleUnboundShortcutWarnings(): () => void {
+  if (!import.meta.env.DEV) return () => {};
+  const timer = setTimeout(() => {
+    for (const shortcut of listShortcuts()) {
+      if (!shortcut.bound) console.warn(`Unbound shortcut: ${shortcut.id}`);
+    }
+  }, 3000);
+  return () => clearTimeout(timer);
 }
 
 export function dispatchShortcut(id: ShortcutId): boolean {
@@ -39,6 +53,8 @@ export function installShortcutListener(target: Window = window): () => void {
     };
     const id = matchShortcut(input, getPlatform());
     if (!id || (isEditable(event.target) && !allowShortcutInEditable(id))) return;
+    // TipTap Mod-B kısayolunu düzenleyicide kalın yazı için koru.
+    if (id === "toggleSidebar" && event.code === "KeyB" && event.shiftKey && isEditable(event.target)) return;
     if (!subscribers.get(id)?.size) return;
     event.preventDefault();
     event.stopPropagation();
