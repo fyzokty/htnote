@@ -76,7 +76,7 @@ fn switch_root(state: &AppState, app: &tauri::AppHandle, settings: &mut Settings
 }
 
 fn switch_root_with_watcher(state: &AppState, settings: &mut Settings, updated: Settings, root: PathBuf,
-    start_watcher: impl FnOnce(&AppState) -> Result<(), AppError>) -> Result<(), AppError> {
+    mut start_watcher: impl FnMut(&AppState) -> Result<(), AppError>) -> Result<(), AppError> {
     let result = scan::scan(&root)?;
     let mut live_root = state.root_dir.write().map_err(|error| AppError::Internal(error.to_string()))?;
     let mut live_index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
@@ -92,6 +92,9 @@ fn switch_root_with_watcher(state: &AppState, settings: &mut Settings, updated: 
         *state.root_dir.write().map_err(|lock| AppError::Internal(lock.to_string()))? = previous_root;
         *state.note_index.write().map_err(|lock| AppError::Internal(lock.to_string()))? = previous_index;
         settings::save_settings_atomic(&state.config_dir, &previous_settings)?;
+        if let Err(restart_error) = start_watcher(state) {
+            eprintln!("File watcher rollback restart failed: {restart_error}");
+        }
         return Err(error);
     }
     *settings = updated;
@@ -499,10 +502,17 @@ mod tests {
         let mut updated = original.clone();
         updated.root_dir = Some(new.path().to_string_lossy().into_owned());
         let mut live_settings = original.clone();
-        let error = switch_root_with_watcher(&state, &mut live_settings, updated, new.path().to_path_buf(), |_| {
-            Err(AppError::Internal("watcher failed".into()))
+        let mut watcher_roots = Vec::new();
+        let error = switch_root_with_watcher(&state, &mut live_settings, updated, new.path().to_path_buf(), |state| {
+            watcher_roots.push(state.root_dir.read().unwrap().clone());
+            if watcher_roots.len() == 1 {
+                Err(AppError::Internal("watcher failed".into()))
+            } else {
+                Ok(())
+            }
         });
         assert!(matches!(error, Err(AppError::Internal(message)) if message == "watcher failed"));
+        assert_eq!(watcher_roots, vec![new.path().to_path_buf(), old.path().to_path_buf()]);
         assert_eq!(live_settings, original);
         assert_eq!(*state.root_dir.read().unwrap(), old.path());
         let index = state.note_index.read().unwrap();
