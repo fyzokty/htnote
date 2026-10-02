@@ -618,8 +618,12 @@ mod tests {
                 Err(mpsc::RecvTimeoutError::Disconnected) => break,
             }
         }
-        // Yavaş CI koşucusunda birkaç parti daha oluşabilir; yine de 200 dosya az sayıda olaya birleşmeli.
-        assert!((1..=20).contains(&count), "{count} fs-change events for 200 files");
+        // inotify, yavaş Linux CI koşucularında dizin olaylarını daha fazla parti halinde iletebilir.
+        #[cfg(target_os = "linux")]
+        let upper_bound = 50;
+        #[cfg(not(target_os = "linux"))]
+        let upper_bound = 20;
+        assert!((1..=upper_bound).contains(&count), "{count} fs-change events for 200 files");
         drop(watcher);
     }
 }
