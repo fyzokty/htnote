@@ -128,3 +128,21 @@ describe("ipc rename and move commands", () => {
     expect(handler).toHaveBeenCalledWith("reveal_in_explorer", { relPath: "moved/path" });
   });
 });
+
+describe("ipc trash commands", () => {
+  it("passes paths and IDs to the matching commands", async () => {
+    const item = { trashId: "Note__20261002-120000", title: "Note", kind: "note", originalRelPath: "Note", deletedAt: "2026-10-02T12:00:00Z", noteCount: 1 };
+    const handler = vi.fn((command: string) => command === "list_trash" ? [item] : command === "restore_from_trash" ? "Note (2)" : item);
+    mockIPC(handler);
+    await expect(ipc.deleteItem("Note")).resolves.toEqual(item);
+    await expect(ipc.listTrash()).resolves.toEqual([item]);
+    await expect(ipc.restoreFromTrash(item.trashId)).resolves.toBe("Note (2)");
+    await ipc.deletePermanently(item.trashId);
+    await ipc.emptyTrash();
+    expect(handler).toHaveBeenCalledWith("delete_item", { relPath: "Note" });
+    expect(handler).toHaveBeenCalledWith("list_trash", {});
+    expect(handler).toHaveBeenCalledWith("restore_from_trash", { trashId: item.trashId });
+    expect(handler).toHaveBeenCalledWith("delete_permanently", { trashId: item.trashId });
+    expect(handler).toHaveBeenCalledWith("empty_trash", {});
+  });
+});
