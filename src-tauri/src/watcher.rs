@@ -71,15 +71,27 @@ fn classify_events(root: &Path, events: &[Event], known: &HashSet<PathBuf>) -> A
                 if matches!(event.kind, EventKind::Create(notify_debouncer_full::notify::event::CreateKind::Folder)
                     | EventKind::Remove(notify_debouncer_full::notify::event::RemoveKind::Folder)) {
                     affected.structural = true;
-                } else {
-                    affected.content_note_dirs.insert(dir.clone());
                 }
+                affected.content_note_dirs.insert(dir.clone());
             } else {
                 affected.structural = true;
             }
         }
     }
     affected
+}
+
+#[cfg(not(windows))]
+fn normalize_event_paths(events: &mut [Event], original_root: &Path, root: &Path) {
+    for event in events {
+        for path in &mut event.paths {
+            if let Ok(relative) = path.strip_prefix(original_root) {
+                *path = root.join(relative);
+            } else if let Ok(canonical) = path.canonicalize() {
+                *path = canonical;
+            }
+        }
+    }
 }
 
 fn sync_title_from_folder(root: &Path, note: &mut IndexedNote) -> Result<bool, AppError> {
@@ -140,6 +152,11 @@ fn apply_batch(root: &Path, index: &RwLock<NoteIndex>, affected: Affected) -> Re
         for id in current.keys() {
             if !previous.contains_key(id) { payload.changed_note_ids.push(*id); }
         }
+        for (id, note) in &current {
+            if affected.content_note_dirs.contains(&root.join(&note.rel_path)) {
+                payload.changed_note_ids.push(*id);
+            }
+        }
         let old_tree = serde_json::to_value(&index.read().map_err(|error| AppError::Internal(error.to_string()))?.tree)?;
         payload.tree_changed = old_tree != serde_json::to_value(&result.tree)?;
         index.write().map_err(|error| AppError::Internal(error.to_string()))?.replace_all(result);
@@ -178,6 +195,10 @@ pub struct WatcherManager {
 impl WatcherManager {
     fn start(root: PathBuf, index: Arc<RwLock<NoteIndex>>,
         emit: impl Fn(FsChangePayload) + Send + 'static) -> Self {
+        #[cfg(not(windows))]
+        let original_root = root.clone();
+        #[cfg(not(windows))]
+        let root = root.canonicalize().unwrap_or(root);
         let (sender, receiver) = mpsc::channel();
         let (ready_sender, ready_receiver) = mpsc::sync_channel(1);
         let callback = sender.clone();
@@ -200,6 +221,28 @@ impl WatcherManager {
                                     Ok(Message::Stop) | Err(_) => return,
                                     Ok(Message::Events(Ok(events))) => {
                                         let events: Vec<_> = events.into_iter().map(|item| item.event).collect();
+                                        #[cfg(not(windows))]
+                                        let mut events = events;
+                                        #[cfg(not(windows))]
+                                        let watch_error = {
+                                            let mut watch_error = None;
+                                            // Unix bildirimleri ayrı partilerde gelebilir; sessizlik penceresi kopyayı birleştirir.
+                                            loop {
+                                                match receiver.recv_timeout(Duration::from_millis(250)) {
+                                                    Ok(Message::Events(Ok(more))) => {
+                                                        events.extend(more.into_iter().map(|item| item.event));
+                                                    }
+                                                    Ok(Message::Stop) | Err(mpsc::RecvTimeoutError::Disconnected) => return,
+                                                    Ok(Message::Events(Err(errors))) => {
+                                                        watch_error = Some(errors);
+                                                        break;
+                                                    }
+                                                    Err(mpsc::RecvTimeoutError::Timeout) => break,
+                                                }
+                                            }
+                                            normalize_event_paths(&mut events, &original_root, &root);
+                                            watch_error
+                                        };
                                         let handled = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                                             let known: HashSet<_> = index.read().map_err(|error| AppError::Internal(error.to_string()))?
                                                 .by_id.values().map(|note| root.join(&note.rel_path)).collect();
@@ -219,6 +262,15 @@ impl WatcherManager {
                                                 }
                                             }
                                             Err(_) => eprintln!("File watcher batch panicked"),
+                                        }
+                                        #[cfg(not(windows))]
+                                        if let Some(errors) = watch_error {
+                                            eprintln!("File watcher errors: {errors:?}");
+                                            if let Ok(payload) = apply_batch(&root, &index,
+                                                Affected { needs_full_scan: true, ..Default::default() }) {
+                                                if !payload.is_empty() { emit(payload); }
+                                            }
+                                            break;
                                         }
                                     }
                                     Ok(Message::Events(Err(errors))) => {
@@ -244,7 +296,8 @@ impl WatcherManager {
                 }
             }
         });
-        let _ = ready_receiver.recv_timeout(Duration::from_secs(1));
+        let ready_timeout = if cfg!(target_os = "macos") { 5 } else { 1 };
+        let _ = ready_receiver.recv_timeout(Duration::from_secs(ready_timeout));
         Self { sender, worker: Some(worker) }
     }
 }
@@ -315,6 +368,18 @@ mod tests {
         assert!(classify_events(root, &[event(EventKind::Remove(RemoveKind::Folder), vec![root.join("group/note")])], &known).structural);
     }
 
+    #[cfg(not(windows))]
+    #[test]
+    fn normalizes_paths_for_canonical_root_even_after_removal() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let canonical = root.canonicalize().unwrap();
+        let mut events = [event(EventKind::Remove(RemoveKind::File), vec![root.join("gone.html")])];
+        normalize_event_paths(&mut events, root, &canonical);
+        assert_eq!(events[0].paths, [canonical.join("gone.html")]);
+        assert!(classify_events(&canonical, &events, &HashSet::new()).structural);
+    }
+
     #[test]
     fn applies_changes_and_syncs_external_rename_once() {
         let temp = tempfile::tempdir().unwrap();
@@ -345,6 +410,27 @@ mod tests {
         assert!(removed.tree_changed);
         let trash = apply_batch(root, &index, Affected { trash_changed: true, ..Default::default() }).unwrap();
         assert!(trash.trash_changed);
+    }
+
+    #[test]
+    fn merged_folder_and_file_events_report_content_change_after_full_scan() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let (_, note) = create_note_in(root, "", Some("Bulk")).unwrap();
+        let note_dir = root.join("Bulk");
+        let index = RwLock::new(NoteIndex::new(root.to_path_buf()));
+        apply_batch(root, &index, structural()).unwrap();
+        fs::create_dir(note_dir.join("assets")).unwrap();
+        fs::write(note_dir.join("assets/image.svg"), "<svg/>").unwrap();
+        let events = [
+            event(EventKind::Create(CreateKind::Folder), vec![note_dir.join("assets")]),
+            event(EventKind::Create(CreateKind::File), vec![note_dir.join("assets/image.svg")]),
+        ];
+        let affected = classify_events(root, &events, &HashSet::from([note_dir.clone()]));
+        assert!(affected.structural);
+        assert_eq!(affected.content_note_dirs, HashSet::from([note_dir]));
+        let payload = apply_batch(root, &index, affected).unwrap();
+        assert_eq!(payload.changed_note_ids, vec![note.metadata.id]);
     }
 
     #[test]
@@ -445,7 +531,7 @@ mod tests {
         assert!(index.read().unwrap().resolve(old_note.metadata.id).is_none());
 
         let (_, new_note) = create_note_in(second.path(), "", Some("New")).unwrap();
-        let deadline = Instant::now() + Duration::from_secs(5);
+        let deadline = Instant::now() + Duration::from_secs(if cfg!(target_os = "macos") { 15 } else { 5 });
         let payload = loop {
             let remaining = deadline.saturating_duration_since(Instant::now());
             let event = receiver.recv_timeout(remaining).expect("new root event timeout");
@@ -465,7 +551,7 @@ mod tests {
         let (sender, receiver) = mpsc::channel();
         let watcher = WatcherManager::start(root.clone(), Arc::clone(&index), move |payload| { let _ = sender.send(payload); });
         let (_, note) = create_note_in(&root, "", Some("Original")).unwrap();
-        let deadline = Instant::now() + Duration::from_secs(5);
+        let deadline = Instant::now() + Duration::from_secs(if cfg!(target_os = "macos") { 15 } else { 5 });
         let wait_for = |check: &dyn Fn(&NoteIndex) -> bool| {
             while Instant::now() < deadline {
                 if check(&index.read().unwrap()) { return; }
@@ -532,8 +618,12 @@ mod tests {
                 Err(mpsc::RecvTimeoutError::Disconnected) => break,
             }
         }
-        // Yavaş CI koşucusunda birkaç parti daha oluşabilir; yine de 200 dosya az sayıda olaya birleşmeli.
-        assert!((1..=20).contains(&count), "{count} fs-change events for 200 files");
+        // inotify, yavaş Linux CI koşucularında dizin olaylarını daha fazla parti halinde iletebilir.
+        #[cfg(target_os = "linux")]
+        let upper_bound = 50;
+        #[cfg(not(target_os = "linux"))]
+        let upper_bound = 20;
+        assert!((1..=upper_bound).contains(&count), "{count} fs-change events for 200 files");
         drop(watcher);
     }
 }

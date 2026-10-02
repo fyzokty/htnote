@@ -98,6 +98,10 @@ fn move_error(error: io::Error) -> AppError {
     if matches!(error.raw_os_error(), Some(5 | 32 | 33)) {
         return AppError::Locked(error.to_string());
     }
+    #[cfg(unix)]
+    if matches!(error.raw_os_error(), Some(16 | 26)) {
+        return AppError::Locked(error.to_string());
+    }
     AppError::Io(error)
 }
 
@@ -399,6 +403,20 @@ mod tests {
         assert_eq!(error.code(), "FILE_LOCKED");
         assert!(root.path().join("Keep/metadata.json").exists());
         assert!(list_trash(root.path()).unwrap().is_empty());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn busy_unix_files_map_to_file_locked_and_preserve_source() {
+        for code in [16, 26] {
+            let root = tempfile::tempdir().unwrap();
+            create_note_in(root.path(), "", Some("Keep")).unwrap();
+            let error = delete_item_with_rename(root.path(), "Keep", |_, _| {
+                Err(io::Error::from_raw_os_error(code))
+            }).unwrap_err();
+            assert_eq!(error.code(), "FILE_LOCKED");
+            assert!(root.path().join("Keep/metadata.json").exists());
+        }
     }
 
     #[cfg(unix)]

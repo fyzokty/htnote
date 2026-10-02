@@ -38,6 +38,13 @@ export function clearHighlight(noteId: string) {
   if (frame && readyFrames.has(frame)) frame.postMessage({ type: "HTNOTE_CLEAR_HIGHLIGHT" }, getNoteOrigin());
 }
 
+export function requestPrint(noteId: string): boolean {
+  const frame = frames.get(noteId);
+  if (!frame || !readyFrames.has(frame)) return false;
+  frame.postMessage({ type: "HTNOTE_PRINT" }, getNoteOrigin());
+  return true;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }

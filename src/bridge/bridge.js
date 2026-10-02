@@ -36,7 +36,7 @@
       ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
     const known = !event.altKey && (
       (event.key === "Escape" && !event.ctrlKey && !event.metaKey && !event.shiftKey) ||
-      (event.code === "Tab" && (mod || event.ctrlKey && !event.metaKey)) ||
+      (event.code === "Tab" && event.ctrlKey && !event.metaKey) ||
       (mod && (
         (event.shiftKey ? ["n", "f"] : ["s", "e", "w", "n"]).includes(key) ||
         (!event.shiftKey && ["Backslash", "IntlBackslash"].includes(event.code))
@@ -125,7 +125,8 @@
         }
       }
       if (typeof mode === "string") document.documentElement.setAttribute("data-ht-theme", mode);
-    } else if (type === "HTNOTE_HIGHLIGHT") highlight(query);
+    } else if (type === "HTNOTE_PRINT") window.print();
+    else if (type === "HTNOTE_HIGHLIGHT") highlight(query);
     else if (type === "HTNOTE_CLEAR_HIGHLIGHT") clearHighlights();
     else if (type === "HTNOTE_SCROLL_RESTORE" && Number.isFinite(scrollY) && scrollY >= 0) {
       if (typeof token === "string") scrollToken = token;

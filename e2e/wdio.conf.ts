@@ -45,8 +45,10 @@ export const config = {
     const root = join(testDirectory, "notes");
     const configDir = join(testDirectory, "config");
     await cp(resolve("e2e", "fixtures"), root, { recursive: true });
-    const driverArgs = process.env.MSEDGEDRIVER_PATH
-      ? ["--native-driver", process.env.MSEDGEDRIVER_PATH]
+    const nativeDriver = process.env.TAURI_DRIVER_NATIVE_DRIVER
+      ?? (process.platform === "win32" ? process.env.MSEDGEDRIVER_PATH : undefined);
+    const driverArgs = nativeDriver
+      ? ["--native-driver", nativeDriver]
       : [];
     const logDirectory = resolve("e2e", "logs");
     await mkdir(logDirectory, { recursive: true });

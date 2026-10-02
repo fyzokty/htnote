@@ -81,17 +81,48 @@ describe("NoteViewer", () => {
     }
   });
 
-  it("shows formats and disables PDF outside Windows", () => {
+  it("shows enabled print PDF outside Windows", () => {
     const platform = Object.getOwnPropertyDescriptor(navigator, "platform");
     Object.defineProperty(navigator, "platform", { configurable: true, value: "Linux" });
     try {
       render(<NoteViewer />);
       fireEvent.click(screen.getByRole("button", { name: "Dışa Aktar" }));
-      expect(screen.getByRole("menuitem", { name: "PDF" })).toBeDisabled();
-      expect(screen.getByRole("menuitem", { name: "PDF" })).toHaveAttribute("title", expect.stringContaining("Windows"));
+      expect(screen.getByRole("menuitem", { name: "Yazdır / PDF Olarak Kaydet" })).toBeEnabled();
       expect(screen.getByRole("menuitem", { name: "Tek dosya HTML" })).toBeEnabled();
       expect(screen.getByRole("menuitem", { name: "ZIP paketi" })).toBeEnabled();
     } finally {
+      if (platform) Object.defineProperty(navigator, "platform", platform);
+    }
+  });
+
+  it("keeps the Windows PDF export label and action", () => {
+    const platform = Object.getOwnPropertyDescriptor(navigator, "platform");
+    Object.defineProperty(navigator, "platform", { configurable: true, value: "Win32" });
+    try {
+      render(<NoteViewer />);
+      fireEvent.click(screen.getByRole("button", { name: "Dışa Aktar" }));
+      expect(screen.getByRole("menuitem", { name: "PDF" })).toBeEnabled();
+    } finally {
+      if (platform) Object.defineProperty(navigator, "platform", platform);
+    }
+  });
+
+  it("prints the ready note frame on Linux without opening a save dialog", async () => {
+    const platform = Object.getOwnPropertyDescriptor(navigator, "platform");
+    Object.defineProperty(navigator, "platform", { configurable: true, value: "Linux" });
+    const dispose = installBridgeHost();
+    try {
+      render(<NoteViewer />);
+      const frame = await screen.findByTitle("Alpha") as HTMLIFrameElement;
+      const post = vi.spyOn(frame.contentWindow!, "postMessage");
+      window.dispatchEvent(new MessageEvent("message", { source: frame.contentWindow, origin: NOTE_ORIGIN, data: { type: "HTNOTE_READY" } }));
+      fireEvent.click(screen.getByRole("button", { name: "Dışa Aktar" }));
+      fireEvent.click(screen.getByRole("menuitem", { name: "Yazdır / PDF Olarak Kaydet" }));
+      await waitFor(() => expect(post).toHaveBeenCalledWith({ type: "HTNOTE_PRINT" }, NOTE_ORIGIN));
+      expect(save).not.toHaveBeenCalled();
+      post.mockRestore();
+    } finally {
+      dispose();
       if (platform) Object.defineProperty(navigator, "platform", platform);
     }
   });

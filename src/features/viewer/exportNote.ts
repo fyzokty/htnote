@@ -1,5 +1,6 @@
 import { flushEditor, saveTab } from "@/features/editor/saveTab";
 import type { UnsavedDecision } from "@/features/editor/unsavedGuard";
+import { requestPrint } from "@/features/viewer/bridgeHost";
 import { ipc } from "@/lib/ipc";
 import { getPlatform } from "@/lib/shortcuts/registry";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -22,7 +23,11 @@ export function shouldExport(dirty: boolean, decision: UnsavedDecision, saved: b
 }
 
 export function canExportPdf(): boolean {
-  return getPlatform() === "windows";
+  return true;
+}
+
+export function pdfMode(): "webview2" | "print" {
+  return getPlatform() === "windows" ? "webview2" : "print";
 }
 
 async function checkUnsaved(id: string): Promise<boolean> {
@@ -40,10 +45,14 @@ async function checkUnsaved(id: string): Promise<boolean> {
 
 export async function exportNote(id: string, title: string, format: ExportFormat): Promise<void> {
   const ui = useUiStore.getState();
-  if (ui.exportBusy || (format === "pdf" && !canExportPdf())) return;
+  if (ui.exportBusy) return;
   ui.setExportBusy(true);
   try {
     if (!await checkUnsaved(id)) return;
+    if (format === "pdf" && pdfMode() === "print") {
+      if (!requestPrint(id)) useUiStore.getState().pushToast({ kind: "error", messageKey: "errors.UNKNOWN" });
+      return;
+    }
     const folder = useSettingsStore.getState().settings?.lastExportDir;
     const name = exportFileName(title, format);
     const defaultPath = folder ? `${folder.replace(/[\\/]$/, "")}${folder.includes("\\") ? "\\" : "/"}${name}` : name;

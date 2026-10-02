@@ -1,7 +1,7 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { clearHighlight, createRateLimiter, installBridgeHost, parseBridgeMessage, registerFrame, requestHighlight, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
+import { clearHighlight, createRateLimiter, installBridgeHost, parseBridgeMessage, registerFrame, requestHighlight, requestPrint, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
 import { initNoteOrigin } from "@/lib/noteUrl";
 import { subscribeShortcut } from "@/lib/shortcuts/manager";
 import type { Settings } from "@/lib/types";
@@ -159,6 +159,24 @@ it("queues highlights until a validated ready message, then dispatches immediate
     expect(frame.postMessage).toHaveBeenNthCalledWith(3, { type: "HTNOTE_CLEAR_HIGHLIGHT" }, NOTE_ORIGIN);
     clearHighlight(id);
     expect(frame.postMessage).toHaveBeenLastCalledWith({ type: "HTNOTE_CLEAR_HIGHLIGHT" }, NOTE_ORIGIN);
+  } finally { dispose(); unregister(); }
+});
+
+it("prints only registered frames after a validated ready message", () => {
+  const unregister = registerFrame(id, frame);
+  const dispose = installBridgeHost();
+  try {
+    expect(requestPrint(id)).toBe(false);
+    expect(requestPrint(missingId)).toBe(false);
+    expect(frame.postMessage).not.toHaveBeenCalled();
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }, frame, "https://evil.test"));
+    expect(requestPrint(id)).toBe(false);
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }));
+    expect(requestPrint(id)).toBe(true);
+    expect(frame.postMessage).toHaveBeenCalledWith({ type: "HTNOTE_PRINT" }, NOTE_ORIGIN);
+    expect(requestPrint(missingId)).toBe(false);
+    unregister();
+    expect(requestPrint(id)).toBe(false);
   } finally { dispose(); unregister(); }
 });
 

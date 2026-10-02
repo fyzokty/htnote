@@ -80,4 +80,17 @@ mod tests {
         assert!(write_file_atomic(&destination, b"contents").is_err());
         assert_eq!(std::fs::read_dir(directory.path()).unwrap().count(), 1);
     }
+
+    #[cfg(unix)]
+    #[test]
+    fn replace_file_overwrites_existing_destination() {
+        let directory = tempfile::tempdir().unwrap();
+        let source = directory.path().join("source");
+        let destination = directory.path().join("destination");
+        std::fs::write(&source, b"new").unwrap();
+        std::fs::write(&destination, b"old").unwrap();
+        replace_file(&source, &destination).unwrap();
+        assert_eq!(std::fs::read(&destination).unwrap(), b"new");
+        assert!(!source.exists());
+    }
 }
