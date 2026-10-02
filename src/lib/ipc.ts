@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { AppInfo, AssetInfo, NoteData, PreviewDraftPayload, RecoveryDraft, SaveNotePayload, SaveNoteResult, SearchNotesResult, Settings, SettingsPatch, TreeNode, WriteDraftPayload } from "@/lib/types";
+import type { AppInfo, AssetInfo, NoteData, PreviewDraftPayload, RecoveryDraft, SaveNotePayload, SaveNoteResult, SearchNotesResult, Settings, SettingsPatch, TrashItem, TreeNode, WriteDraftPayload } from "@/lib/types";
 
 export const ipc = {
   appInfo(): Promise<AppInfo> {
@@ -71,5 +71,20 @@ export const ipc = {
   },
   revealInExplorer(relPath: string): Promise<void> {
     return invoke<void>("reveal_in_explorer", { relPath });
+  },
+  deleteItem(relPath: string): Promise<TrashItem> {
+    return invoke<TrashItem>("delete_item", { relPath });
+  },
+  listTrash(): Promise<TrashItem[]> {
+    return invoke<TrashItem[]>("list_trash");
+  },
+  restoreFromTrash(trashId: string): Promise<string> {
+    return invoke<string>("restore_from_trash", { trashId });
+  },
+  deletePermanently(trashId: string): Promise<void> {
+    return invoke<void>("delete_permanently", { trashId });
+  },
+  emptyTrash(): Promise<void> {
+    return invoke<void>("empty_trash");
   },
 };

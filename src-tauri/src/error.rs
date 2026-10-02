@@ -15,6 +15,10 @@ pub enum AppError {
     InvalidName(String),
     #[error("Invalid move: {0}")]
     InvalidMove(String),
+    #[error("Invalid trash ID: {0}")]
+    InvalidTrashId(String),
+    #[error("File locked: {0}")]
+    Locked(String),
     #[error("Path outside root: {0}")]
     PathOutsideRoot(String),
     #[error("Payload too large: {0} bytes")]
@@ -36,6 +40,8 @@ impl AppError {
             Self::Conflict(_) => "CONFLICT",
             Self::InvalidName(_) => "INVALID_NAME",
             Self::InvalidMove(_) => "INVALID_MOVE",
+            Self::InvalidTrashId(_) => "INVALID_TRASH_ID",
+            Self::Locked(_) => "FILE_LOCKED",
             Self::PathOutsideRoot(_) => "PATH_OUTSIDE_ROOT",
             Self::PayloadTooLarge(_) => "PAYLOAD_TOO_LARGE",
             Self::Io(_) => "IO_ERROR",

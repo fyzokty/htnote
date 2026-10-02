@@ -11,6 +11,7 @@ mod settings;
 mod search;
 mod state;
 mod watcher;
+mod trash;
 
 use tauri::Manager;
 
@@ -78,7 +79,12 @@ pub fn run() {
             commands::rename_note,
             commands::rename_folder,
             commands::move_item,
-            commands::reveal_in_explorer
+            commands::reveal_in_explorer,
+            commands::delete_item,
+            commands::list_trash,
+            commands::restore_from_trash,
+            commands::delete_permanently,
+            commands::empty_trash
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

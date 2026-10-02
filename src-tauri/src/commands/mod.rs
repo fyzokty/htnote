@@ -12,6 +12,7 @@ use crate::index::scan::IndexedNote;
 use crate::settings::{self, Settings, SettingsPatch};
 use crate::search::{self, SearchNotesResult};
 use crate::state::AppState;
+use crate::trash::{self, TrashItem};
 use tauri::{Manager, State};
 use std::sync::atomic::Ordering;
 
@@ -289,6 +290,57 @@ fn reindex_all(state: &AppState) -> Result<(), AppError> {
     search::reindex_notes(&state.note_index, &state.search_index, &ids, &[])?;
     state.search_indexing.store(false, Ordering::Release);
     Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_item(app: tauri::AppHandle, rel_path: String) -> Result<TrashItem, AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
+        let item = trash::delete_item(&index.root, &rel_path)?;
+        index.refresh_readonly()?;
+        drop(index);
+        reindex_all(&state)?;
+        Ok(item)
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn list_trash(app: tauri::AppHandle) -> Result<Vec<TrashItem>, AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let root = app.state::<AppState>().root_dir.read().map_err(|error| AppError::Internal(error.to_string()))?.clone();
+        trash::list_trash(&root)
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn restore_from_trash(app: tauri::AppHandle, trash_id: String) -> Result<String, AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
+        let ids = index.by_id.keys().copied().collect();
+        let rel = trash::restore_from_trash(&index.root, &trash_id, &ids)?;
+        index.refresh_readonly()?;
+        drop(index);
+        reindex_all(&state)?;
+        Ok(rel)
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn delete_permanently(app: tauri::AppHandle, trash_id: String) -> Result<(), AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let root = app.state::<AppState>().root_dir.read().map_err(|error| AppError::Internal(error.to_string()))?.clone();
+        trash::delete_permanently(&root, &trash_id)
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn empty_trash(app: tauri::AppHandle) -> Result<(), AppError> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let root = app.state::<AppState>().root_dir.read().map_err(|error| AppError::Internal(error.to_string()))?.clone();
+        trash::empty_trash(&root)
+    }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
 
 #[cfg(test)]

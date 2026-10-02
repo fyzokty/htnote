@@ -95,6 +95,17 @@ export type WriteDraftPayload = Omit<RecoveryDraft, "id">;
 
 export type TreeNode = FolderNode | NoteNode;
 
+export type TrashKind = "note" | "folder" | "unknown";
+
+export interface TrashItem {
+  trashId: string;
+  title: string;
+  kind: TrashKind;
+  originalRelPath: string;
+  deletedAt: string;
+  noteCount: number;
+}
+
 export interface FsChangePayload {
   changedNoteIds: string[];
   removedNoteIds: string[];

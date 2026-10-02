@@ -5,6 +5,8 @@ export const appErrorCodes = [
   "CONFLICT",
   "INVALID_NAME",
   "INVALID_MOVE",
+  "INVALID_TRASH_ID",
+  "FILE_LOCKED",
   "PATH_OUTSIDE_ROOT",
   "IO_ERROR",
   "JSON_ERROR",
