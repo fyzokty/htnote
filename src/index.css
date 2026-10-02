@@ -61,6 +61,25 @@
 .htnote-visual-editor .tiptap .htnote-note-link { color: var(--app-accent); text-decoration: underline; }
 .htnote-visual-editor .tiptap .htnote-note-link::before { content: "↗"; margin-right: 0.2em; }
 .htnote-visual-editor .tiptap .htnote-note-link-broken { color: #dc2626; text-decoration-style: wavy; }
+.htnote-media { position: relative; margin: 0.75rem 0; }
+.htnote-media-preview { display: block; max-width: 100%; border-radius: 0.5rem; }
+.htnote-media-video video { max-height: 28rem; }
+.htnote-media-audio { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; }
+.htnote-media-audio audio { width: min(100%, 28rem); }
+.htnote-media.is-selected > .htnote-media-preview { outline: 2px solid var(--app-accent); outline-offset: 3px; }
+.htnote-media-toolbar { position: absolute; top: 0.5rem; left: 0.5rem; z-index: 5; display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; max-width: calc(100% - 1rem); padding: 0.5rem; border: 1px solid var(--app-border); border-radius: 0.65rem; background: var(--app-surface); background: color-mix(in srgb, var(--app-surface) 90%, transparent); backdrop-filter: blur(6px); color: var(--app-text); box-shadow: 0 0.25rem 1rem #0002; font-size: 0.8rem; line-height: 1.3; }
+.htnote-media-audio .htnote-media-toolbar { position: static; max-width: 100%; background: var(--app-surface); backdrop-filter: none; }
+.htnote-media-toolbar button { display: inline-flex; align-items: center; justify-content: center; min-height: 1.9rem; padding: 0.3rem 0.5rem; border-radius: 0.3rem; color: var(--app-text); background: var(--app-subtle); cursor: pointer; }
+.htnote-media-toolbar button:hover { box-shadow: inset 0 0 0 1px var(--app-accent); }
+.htnote-media-toolbar button:disabled { opacity: 0.4; cursor: default; }
+.htnote-media-toolbar :is(button, input):focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+.htnote-media-alt { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem; }
+.htnote-media-alt label { color: var(--app-muted); }
+.htnote-media-alt input { width: 10rem; min-width: 0; padding: 0.35rem 0.5rem; border: 1px solid var(--app-border); border-radius: 0.3rem; background: var(--app-bg); color: var(--app-text); }
+.htnote-media-alt input::placeholder { color: var(--app-muted); }
+.htnote-media-width { display: flex; gap: 2px; padding: 2px; border: 1px solid var(--app-border); border-radius: 0.4rem; background: var(--app-subtle); }
+.htnote-media-width button[aria-pressed="true"] { background: var(--app-accent); color: var(--app-accent-text); }
+.htnote-media-toolbar .htnote-media-delete { margin-left: auto; }
 .htnote-note-picker-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: #0008; }
 .htnote-note-picker { width: min(28rem, calc(100vw - 2rem)); max-height: 70vh; overflow: auto; padding: 1rem; border: 1px solid var(--app-border); border-radius: 0.5rem; background: var(--app-surface); color: var(--app-text); box-shadow: 0 1rem 3rem #0004; }
 .htnote-note-picker-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
