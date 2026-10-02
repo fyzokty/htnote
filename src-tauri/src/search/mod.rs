@@ -144,48 +144,51 @@ impl SearchIndex {
     }
 }
 
-// Not indeksi kilidi bırakılmadan arama indeksi kilidi alınmaz.
+// İndeks kilit sırası: note_index -> search_index -> link_index; not kilidi arama kilidinden önce bırakılır.
 pub fn reindex_notes(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, links: &RwLock<LinkIndex>, ids: &[Uuid], removed: &[Uuid]) -> Result<(), AppError> {
-    // Dosya okuma sürerken başlayan daha yeni bir güncelleme eski sonucu geçersiz kılar.
-    let (generation, versions) = {
-        let mut search = search.write().map_err(|error| AppError::Internal(error.to_string()))?;
-        for id in ids.iter().chain(removed) {
-            let version = search.versions.entry(*id).or_default();
-            *version = version.wrapping_add(1);
-        }
-        (search.generation, ids.iter().chain(removed).map(|id| (*id, search.versions[id])).collect::<HashMap<_, _>>())
-    };
-    let (notes, missing) = {
-        let index = index.read().map_err(|error| AppError::Internal(error.to_string()))?;
-        let mut notes = Vec::new();
-        let mut missing = Vec::new();
-        for id in ids {
-            match index.by_id.get(id).and_then(|note| index.resolve(*id).map(|dir| (note.clone(), dir))) {
-                Some(note) => notes.push(note),
-                None => missing.push(*id),
+    loop {
+        // Dosya okuma sürerken başlayan daha yeni bir güncelleme eski sonucu geçersiz kılar.
+        let (generation, versions) = {
+            let mut search = search.write().map_err(|error| AppError::Internal(error.to_string()))?;
+            for id in ids.iter().chain(removed) {
+                let version = search.versions.entry(*id).or_default();
+                *version = version.wrapping_add(1);
             }
-        }
-        (notes, missing)
-    };
-    let loaded = notes.into_iter().map(|(note, dir)| {
-        let html = match std::fs::read_to_string(dir.join("index.html")) {
-            Ok(html) => html,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
-            Err(error) => return Err(error.into()),
+            (search.generation, ids.iter().chain(removed).map(|id| (*id, search.versions[id])).collect::<HashMap<_, _>>())
         };
-        Ok::<_, AppError>((note, html))
-    }).collect::<Result<Vec<_>, _>>()?;
-    let mut search = search.write().map_err(|error| AppError::Internal(error.to_string()))?;
-    if search.generation != generation { return Ok(()); }
-    let mut links = links.write().map_err(|error| AppError::Internal(error.to_string()))?;
-    for id in removed.iter().chain(&missing) {
-        if search.versions.get(id) == versions.get(id) { search.remove(*id); links.remove(*id); }
+        let (notes, missing) = {
+            let index = index.read().map_err(|error| AppError::Internal(error.to_string()))?;
+            let mut notes = Vec::new();
+            let mut missing = Vec::new();
+            for id in ids {
+                match index.by_id.get(id).and_then(|note| index.resolve(*id).map(|dir| (note.clone(), dir))) {
+                    Some(note) => notes.push(note),
+                    None => missing.push(*id),
+                }
+            }
+            (notes, missing)
+        };
+        let loaded = notes.into_iter().map(|(note, dir)| {
+            let html = match std::fs::read_to_string(dir.join("index.html")) {
+                Ok(html) => html,
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
+                Err(error) => return Err(error.into()),
+            };
+            Ok::<_, AppError>((note, html))
+        }).collect::<Result<Vec<_>, _>>()?;
+        let mut search = search.write().map_err(|error| AppError::Internal(error.to_string()))?;
+        // Yeniden kurulum araya girdiyse eski okuma yeni link indeksine yazılamaz; güncel kökten tekrar oku.
+        if search.generation != generation { continue; }
+        let mut links = links.write().map_err(|error| AppError::Internal(error.to_string()))?;
+        for id in removed.iter().chain(&missing) {
+            if search.versions.get(id) == versions.get(id) { search.remove(*id); links.remove(*id); }
+        }
+        for (note, html) in loaded {
+            let id = note.metadata.id;
+            if search.versions.get(&id) == versions.get(&id) { search.upsert(&note, &html); links.upsert(id, &html); }
+        }
+        return Ok(());
     }
-    for (note, html) in loaded {
-        let id = note.metadata.id;
-        if search.versions.get(&id) == versions.get(&id) { search.upsert(&note, &html); links.upsert(id, &html); }
-    }
-    Ok(())
 }
 
 fn index_initial_note(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, links: &RwLock<LinkIndex>, id: Uuid, generation: u64) -> Result<(), AppError> {
@@ -341,5 +344,48 @@ mod tests {
         notes.write().unwrap().remove_subtree("Gone");
         reindex_notes(&notes, &search, &links, &[id], &[]).unwrap();
         assert!(search.read().unwrap().search("find me", 10).is_empty());
+    }
+
+    #[test]
+    fn generation_change_retries_link_updates_and_removals() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = NoteMetadata::new("Source");
+        let source_id = source.id;
+        let target = Uuid::new_v4();
+        let removed = Uuid::new_v4();
+        let dir = temp.path().join("Source");
+        std::fs::create_dir(&dir).unwrap();
+        std::fs::write(dir.join("index.html"), format!("<a href='htnote://note/{target}'>Target</a>")).unwrap();
+        let mut index = NoteIndex::new(temp.path().to_path_buf());
+        index.upsert(IndexedNote { rel_path: "Source".into(), metadata: source });
+        let index = Arc::new(RwLock::new(index));
+        let search = Arc::new(RwLock::new(SearchIndex::default()));
+        let mut link_index = LinkIndex::default();
+        link_index.upsert(removed, &format!("<a href='htnote://note/{target}'>Old</a>"));
+        let links = Arc::new(RwLock::new(link_index));
+
+        // Not kilidi yeniden indekslemeyi bekletirken arama nesli değiştirilir.
+        let held_index = index.write().unwrap();
+        let worker_index = Arc::clone(&index);
+        let worker_search = Arc::clone(&search);
+        let worker_links = Arc::clone(&links);
+        let worker = std::thread::spawn(move || {
+            reindex_notes(&worker_index, &worker_search, &worker_links, &[source_id], &[removed])
+        });
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            if search.read().unwrap().versions.contains_key(&source_id) { break; }
+            assert!(std::time::Instant::now() < deadline, "reindex did not start");
+            std::thread::yield_now();
+        }
+        {
+            let mut locked = search.write().unwrap();
+            locked.clear();
+            links.write().unwrap().clear();
+        }
+        drop(held_index);
+        worker.join().unwrap().unwrap();
+        assert_eq!(links.read().unwrap().backlinks(target).len(), 1);
+        assert_eq!(links.read().unwrap().backlinks(target)[0].0, source_id);
     }
 }

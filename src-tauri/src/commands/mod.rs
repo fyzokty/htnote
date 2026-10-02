@@ -90,9 +90,9 @@ pub fn search_notes(state: State<'_, AppState>, query: String, limit: Option<usi
 }
 
 fn backlinks_in_state(state: &AppState, id: uuid::Uuid) -> Result<Vec<BacklinkItem>, AppError> {
+    let incoming = state.link_index.read().map_err(|error| AppError::Internal(error.to_string()))?.backlinks(id);
     let index = state.note_index.read().map_err(|error| AppError::Internal(error.to_string()))?;
-    let links = state.link_index.read().map_err(|error| AppError::Internal(error.to_string()))?;
-    let mut items = links.backlinks(id).into_iter().filter_map(|(source, snippet)| {
+    let mut items = incoming.into_iter().filter_map(|(source, snippet)| {
         index.by_id.get(&source).map(|note| BacklinkItem {
             id: source, title: note.metadata.title.clone(), rel_path: note.rel_path.clone(), snippet,
         })
@@ -102,9 +102,10 @@ fn backlinks_in_state(state: &AppState, id: uuid::Uuid) -> Result<Vec<BacklinkIt
 }
 
 fn broken_links_in_state(state: &AppState, id: uuid::Uuid) -> Result<Vec<BrokenLinkItem>, AppError> {
+    let candidates = state.link_index.read().map_err(|error| AppError::Internal(error.to_string()))?
+        .broken(id, |_| false);
     let index = state.note_index.read().map_err(|error| AppError::Internal(error.to_string()))?;
-    let links = state.link_index.read().map_err(|error| AppError::Internal(error.to_string()))?;
-    Ok(links.broken(id, |target| index.by_id.contains_key(&target)))
+    Ok(candidates.into_iter().filter(|item| !index.by_id.contains_key(&item.target_id)).collect())
 }
 
 #[tauri::command]
