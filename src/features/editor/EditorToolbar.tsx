@@ -30,8 +30,8 @@ export function EditorToolbar({ editor, noteId = "", onLinkNote }: EditorToolbar
     };
   }, [editor]);
 
-  const action = (label: string, icon: React.ReactNode, run: () => void, active = false, disabled = false, shortcut?: string) => (
-    <button type="button" aria-label={label} title={shortcut ? `${label} (${shortcut})` : label}
+  const action = (label: string, icon: React.ReactNode, run: () => void, active = false, disabled = false, shortcut?: string, testId?: string) => (
+    <button type="button" data-testid={testId} aria-label={label} title={shortcut ? `${label} (${shortcut})` : label}
       aria-pressed={active} disabled={disabled} onMouseDown={(event) => event.preventDefault()} onClick={run}>
       {icon}
     </button>
@@ -102,7 +102,7 @@ export function EditorToolbar({ editor, noteId = "", onLinkNote }: EditorToolbar
         setLinkError(false);
         setLinkOpen(true);
       }, editor.isActive("link"))}
-      {onLinkNote && action(t("editor.linkNote"), <Link2 size={16} />, onLinkNote, false, false, "Ctrl+K")}
+      {onLinkNote && action(t("editor.linkNote"), <Link2 size={16} />, onLinkNote, false, false, "Ctrl+K", "link-note")}
       {action(t("editor.removeLink"), <Link2Off size={16} />, () => editor.chain().focus().unsetLink().run(), false, !editor.isActive("link"))}
       {linkOpen && <div className="htnote-editor-link">
         <input aria-label={t("editor.linkUrl")} type="url" value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)}

@@ -49,7 +49,7 @@ export function SearchModal() {
           <h2 className="font-semibold">{t("search.title")}</h2>
           <button type="button" onClick={closeSearch} aria-label={t("search.close")} className="rounded px-2 py-1 text-app-muted hover:bg-app-subtle">×</button>
         </div>
-        <input ref={input} type="search" aria-label={t("search.placeholder")} placeholder={t("search.placeholder")} value={query} onChange={(event) => { setSelected(0); setQuery(event.target.value); }} className="mt-3 w-full rounded-md border border-app-border bg-app-bg px-3 py-2 outline-none focus:border-app-accent" />
+        <input ref={input} data-testid="search-input" type="search" aria-label={t("search.placeholder")} placeholder={t("search.placeholder")} value={query} onChange={(event) => { setSelected(0); setQuery(event.target.value); }} className="mt-3 w-full rounded-md border border-app-border bg-app-bg px-3 py-2 outline-none focus:border-app-accent" />
         <div className="mt-2 flex gap-3 text-xs text-app-muted" aria-live="polite">
           {indexing && <span>{t("search.indexing")}</span>}
           {loading && <span>{t("search.loading")}</span>}
@@ -58,7 +58,7 @@ export function SearchModal() {
         <div role="listbox" aria-label={t("search.results")} className="mt-2 min-h-0 overflow-y-auto">
           {!loading && query.trim().length >= 2 && results.length === 0 && !error && <p className="p-3 text-sm text-app-muted">{t("search.empty")}</p>}
           {results.map((result, index) => (
-            <button key={result.id} type="button" role="option" aria-selected={selected === index} onMouseEnter={() => setSelected(index)} onClick={(event) => open(result, event.ctrlKey || event.metaKey)} className={`block w-full rounded-md p-3 text-left hover:bg-app-subtle ${selected === index ? "bg-app-subtle" : ""}`}>
+            <button key={result.id} data-testid="search-result" type="button" role="option" aria-selected={selected === index} onMouseEnter={() => setSelected(index)} onClick={(event) => open(result, event.ctrlKey || event.metaKey)} className={`block w-full rounded-md p-3 text-left hover:bg-app-subtle ${selected === index ? "bg-app-subtle" : ""}`}>
               <span className="block font-medium">{result.title}</span>
               <span className="block truncate text-xs text-app-muted">{result.relPath.split("/").slice(0, -1).join("/") || t("search.root")}</span>
               <span className="block text-xs text-app-muted">{t("search.matchCount", { count: result.matchCount })}</span>

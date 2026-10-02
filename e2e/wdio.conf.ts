@@ -37,7 +37,7 @@ export const config = {
   }],
   framework: "mocha",
   reporters: ["spec"],
-  mochaOpts: { timeout: 60000 },
+  mochaOpts: { timeout: 120000 },
   connectionRetryTimeout: 120000,
   connectionRetryCount: 1,
   async onPrepare() {
@@ -66,5 +66,12 @@ export const config = {
     driver?.kill();
     driverLog?.end();
     if (testDirectory) await rm(testDirectory, { recursive: true, force: true });
+  },
+  async afterTest(test: { title: string; file?: string }, _context: unknown, result: { error?: Error }) {
+    if (!result.error) return;
+    const directory = resolve("e2e", ".artifacts");
+    await mkdir(directory, { recursive: true });
+    const name = `${test.file ?? "spec"}-${test.title}`.replace(/[^a-z0-9.-]+/gi, "-").slice(-180);
+    await browser.saveScreenshot(join(directory, `${name}.png`));
   },
 };

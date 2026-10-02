@@ -109,7 +109,7 @@ export function NoteViewer() {
               { id: "html", label: t("export.html"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "html") },
               { id: "zip", label: t("export.zip"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "zip") },
             ]} />}
-            {tabs.find((tab) => tab.noteId === activeId)?.doc.mode === "view" && <button type="button" onClick={() => { void session.toggleEdit(); }} className="flex items-center gap-1 rounded bg-app-subtle px-3 py-2 text-sm text-app-muted"><Pencil className="size-4" aria-hidden />{t("viewer.edit")}</button>}
+            {tabs.find((tab) => tab.noteId === activeId)?.doc.mode === "view" && <button type="button" data-testid="edit-note" onClick={() => { void session.toggleEdit(); }} className="flex items-center gap-1 rounded bg-app-subtle px-3 py-2 text-sm text-app-muted"><Pencil className="size-4" aria-hidden />{t("viewer.edit")}</button>}
           </div>
         </div>
       )}
