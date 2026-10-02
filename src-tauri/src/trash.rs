@@ -161,6 +161,15 @@ pub fn list_trash(root: &Path) -> Result<Vec<TrashItem>, AppError> {
 }
 
 pub fn restore_from_trash(root: &Path, id: &str, indexed_ids: &HashSet<Uuid>) -> Result<String, AppError> {
+    restore_from_trash_with_writer(root, id, indexed_ids, write_metadata_atomic)
+}
+
+fn restore_from_trash_with_writer(
+    root: &Path,
+    id: &str,
+    indexed_ids: &HashSet<Uuid>,
+    mut write_metadata: impl FnMut(&Path, &crate::notes::model::NoteMetadata) -> Result<(), AppError>,
+) -> Result<String, AppError> {
     let source = item_path(root, id)?;
     let manifest: TrashManifest = serde_json::from_slice(&fs::read(source.join(MANIFEST))?)?;
     if !matches!(manifest.kind, TrashKind::Note | TrashKind::Folder) { return Err(AppError::InvalidTrashId(id.into())); }
@@ -171,9 +180,13 @@ pub fn restore_from_trash(root: &Path, id: &str, indexed_ids: &HashSet<Uuid>) ->
     let siblings = fs::read_dir(parent)?.map(|entry| entry.map(|entry| entry.file_name().to_string_lossy().into_owned()))
         .collect::<Result<Vec<_>, _>>()?;
     let target = parent.join(unique_name(&name, exists_ci(&siblings)));
-    // Çakışan kimlikler diskte taşımadan önce düzeltilir; mevcut indeks yolu kimliği korur.
-    reassign_collisions(&source, indexed_ids)?;
     fs::rename(&source, &target).map_err(move_error)?;
+    if let Err(error) = reassign_collisions(&target, indexed_ids, &mut write_metadata) {
+        fs::rename(&target, &source).map_err(|rollback| {
+            AppError::Internal(format!("Metadata error: {error}; rollback error: {rollback}"))
+        })?;
+        return Err(error);
+    }
     if let Err(error) = fs::remove_file(target.join(MANIFEST)) {
         fs::rename(&target, &source).map_err(|rollback| {
             AppError::Internal(format!("Manifest cleanup error: {error}; rollback error: {rollback}"))
@@ -183,20 +196,49 @@ pub fn restore_from_trash(root: &Path, id: &str, indexed_ids: &HashSet<Uuid>) ->
     Ok(rel_string(target.strip_prefix(root.canonicalize()?).map_err(|error| AppError::Internal(error.to_string()))?))
 }
 
-fn reassign_collisions(dir: &Path, indexed_ids: &HashSet<Uuid>) -> Result<(), AppError> {
+fn reassign_collisions(
+    dir: &Path,
+    indexed_ids: &HashSet<Uuid>,
+    write_metadata: &mut impl FnMut(&Path, &crate::notes::model::NoteMetadata) -> Result<(), AppError>,
+) -> Result<(), AppError> {
+    let mut changes = Vec::new();
+    collect_collisions(dir, indexed_ids, &mut changes)?;
+    for (index, (path, _, metadata)) in changes.iter().enumerate() {
+        if let Err(error) = write_metadata(path, metadata) {
+            let mut rollback_error = None;
+            for (path, original, _) in changes[..index].iter().rev() {
+                if let Err(rollback) = write_file_atomic(path, original) {
+                    rollback_error = Some(rollback);
+                }
+            }
+            if let Some(rollback) = rollback_error {
+                return Err(AppError::Internal(format!("Metadata error: {error}; rollback error: {rollback}")));
+            }
+            return Err(error);
+        }
+    }
+    Ok(())
+}
+
+fn collect_collisions(
+    dir: &Path,
+    indexed_ids: &HashSet<Uuid>,
+    changes: &mut Vec<(std::path::PathBuf, Vec<u8>, crate::notes::model::NoteMetadata)>,
+) -> Result<(), AppError> {
     if dir.join("metadata.json").is_file() {
         let path = dir.join("metadata.json");
         let mut metadata = read_metadata(&path)?;
         if indexed_ids.contains(&metadata.id) {
+            let original = fs::read(&path)?;
             metadata.id = Uuid::new_v4();
             while indexed_ids.contains(&metadata.id) { metadata.id = Uuid::new_v4(); }
-            write_metadata_atomic(&path, &metadata)?;
+            changes.push((path, original, metadata));
         }
     } else {
         for entry in fs::read_dir(dir)? {
             let entry = entry?;
             if entry.file_type()?.is_dir() && !entry.file_type()?.is_symlink() {
-                reassign_collisions(&entry.path(), indexed_ids)?;
+                collect_collisions(&entry.path(), indexed_ids, changes)?;
             }
         }
     }
@@ -318,6 +360,32 @@ mod tests {
         assert!(matches!(error, AppError::Io(_)));
         assert!(root.path().join("Keep/metadata.json").exists());
         assert!(list_trash(root.path()).unwrap().is_empty());
+    }
+
+    #[test]
+    fn failed_restore_keeps_trash_metadata_ids() {
+        let root = tempfile::tempdir().unwrap();
+        fs::create_dir(root.path().join("Folder")).unwrap();
+        let (_, first) = create_note_in(root.path(), "Folder", Some("First")).unwrap();
+        let (_, second) = create_note_in(root.path(), "Folder", Some("Second")).unwrap();
+        let item = delete_item(root.path(), "Folder").unwrap();
+        let mut writes = 0;
+        let error = restore_from_trash_with_writer(
+            root.path(),
+            &item.trash_id,
+            &HashSet::from([first.metadata.id, second.metadata.id]),
+            |path, metadata| {
+                writes += 1;
+                if writes == 2 { return Err(AppError::Internal("simulated write failure".into())); }
+                write_metadata_atomic(path, metadata)
+            },
+        ).unwrap_err();
+        assert!(matches!(error, AppError::Internal(_)));
+        assert_eq!(writes, 2);
+        assert!(!root.path().join("Folder").exists());
+        let trashed = root.path().join(".trash").join(&item.trash_id);
+        assert_eq!(read_metadata(&trashed.join("First/metadata.json")).unwrap().id, first.metadata.id);
+        assert_eq!(read_metadata(&trashed.join("Second/metadata.json")).unwrap().id, second.metadata.id);
     }
 
     #[cfg(windows)]
