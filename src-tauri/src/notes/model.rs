@@ -9,7 +9,7 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::fs_util::write_file_atomic;
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct NoteMetadata {
     pub id: Uuid,

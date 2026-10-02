@@ -81,7 +81,7 @@ fn create_note_with_writer(
         tags: metadata.tags.clone(),
         updated_at: metadata.updated_at,
     };
-    Ok((node, IndexedNote { rel_path, metadata }))
+    Ok((node, IndexedNote { rel_path, metadata, content_stamp: None }))
 }
 
 #[cfg(test)]

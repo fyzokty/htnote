@@ -18,7 +18,16 @@ pub fn extract_text(html: &str) -> String {
         if block { output.push(' '); }
     }
     visit(document.root_element(), &mut output);
-    output.split_whitespace().collect::<Vec<_>>().join(" ")
+    let mut result = String::with_capacity(output.len());
+    let mut words = output.split_whitespace();
+    if let Some(first) = words.next() {
+        result.push_str(first);
+        for word in words {
+            result.push(' ');
+            result.push_str(word);
+        }
+    }
+    result
 }
 
 #[cfg(test)]

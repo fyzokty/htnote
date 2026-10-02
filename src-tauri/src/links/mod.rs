@@ -31,11 +31,17 @@ pub struct BrokenLinkItem {
     pub text: String,
 }
 
+static NOTE_LINK_SELECTOR: std::sync::LazyLock<Selector> = std::sync::LazyLock::new(|| {
+    Selector::parse("a[href^='htnote://note/']").expect("static selector")
+});
+
 pub fn extract_links(html: &str) -> HashMap<Uuid, LinkInfo> {
+    if !html.as_bytes().windows(6).any(|part| part.eq_ignore_ascii_case(b"htnote")) {
+        return HashMap::new();
+    }
     let document = Html::parse_document(html);
-    let selector = Selector::parse("a[href^='htnote://note/']").expect("static selector");
     let mut links = HashMap::new();
-    for anchor in document.select(&selector) {
+    for anchor in document.select(&NOTE_LINK_SELECTOR) {
         let Some(target) = anchor.value().attr("href")
             .and_then(|href| href.strip_prefix("htnote://note/"))
             .and_then(|id| Uuid::parse_str(id).ok()) else { continue };
@@ -90,6 +96,14 @@ mod tests {
         assert_eq!(links[&id].text, "bağlantı");
         assert_eq!(links[&id].snippet.chars().count(), 88);
         assert!(links[&id].snippet.starts_with('😀'));
+    }
+
+    #[test]
+    fn extraction_decodes_encoded_note_link_url() {
+        let id = Uuid::new_v4();
+        let html = format!("<a href=\"htnote&#58;//note/{id}\">Bağlantı</a>");
+        let links = extract_links(&html);
+        assert_eq!(links[&id].text, "Bağlantı");
     }
 
     #[test]

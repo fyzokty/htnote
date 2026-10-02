@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json",
     "test": "vitest run",
+    "bench": "cargo test --manifest-path src-tauri/Cargo.toml --release --test perf -- --ignored --nocapture && vitest run -c vitest.perf.config.ts",
     "test:watch": "vitest",
     "test:rust": "cargo test --manifest-path src-tauri/Cargo.toml",
     "test:e2e": "tauri build --debug --no-bundle && wdio run e2e/wdio.conf.ts",

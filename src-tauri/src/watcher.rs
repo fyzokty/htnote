@@ -156,7 +156,7 @@ fn apply_batch(root: &Path, index: &RwLock<NoteIndex>, affected: Affected) -> Re
                 }
                 let mut locked = index.write().map_err(|error| AppError::Internal(error.to_string()))?;
                 let old_tree = serde_json::to_value(&locked.tree)?;
-                locked.upsert(IndexedNote { rel_path: relative, metadata });
+                locked.upsert(IndexedNote { rel_path: relative, metadata, content_stamp: None });
                 payload.tree_changed |= old_tree != serde_json::to_value(&locked.tree)?;
                 payload.changed_note_ids.push(id);
             }

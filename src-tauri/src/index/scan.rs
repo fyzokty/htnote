@@ -25,6 +25,7 @@ pub enum TreeNode {
 pub struct IndexedNote {
     pub rel_path: String,
     pub metadata: NoteMetadata,
+    pub content_stamp: Option<(u64, std::time::SystemTime)>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -111,7 +112,9 @@ fn scan_dir(root: &Path, dir: &Path, notes: &mut Vec<IndexedNote>, repairs: &mut
             }
         }
         tree.push(TreeNode::Note { id: metadata.id, title: metadata.title.clone(), rel_path: rel_path.clone(), is_favorite: metadata.is_favorite, tags: metadata.tags.clone(), updated_at: metadata.updated_at });
-        notes.push(IndexedNote { rel_path, metadata });
+        let content_stamp = fs::metadata(path.join("index.html")).ok()
+            .and_then(|file| file.modified().ok().map(|modified| (file.len(), modified)));
+        notes.push(IndexedNote { rel_path, metadata, content_stamp });
     }
     Ok(tree)
 }
