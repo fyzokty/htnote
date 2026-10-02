@@ -489,8 +489,10 @@ mod tests {
         let new = tempfile::tempdir().unwrap();
         let (_, old_note) = create_note_in(old.path(), "", Some("Old")).unwrap();
         let (_, new_note) = create_note_in(new.path(), "", Some("New")).unwrap();
-        let mut original = Settings::default();
-        original.root_dir = Some(old.path().to_string_lossy().into_owned());
+        let original = Settings {
+            root_dir: Some(old.path().to_string_lossy().into_owned()),
+            ..Settings::default()
+        };
         let state = AppState::new(old.path().to_path_buf(), original.clone(), old.path().to_path_buf());
         state.note_index.write().unwrap().upsert(old_note.clone());
         settings::save_settings_atomic(&state.config_dir, &original).unwrap();
