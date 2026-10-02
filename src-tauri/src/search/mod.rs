@@ -180,14 +180,15 @@ pub fn reindex_notes(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, li
             }
             (notes, missing)
         };
-        let loaded = notes.into_iter().map(|(note, dir)| {
+        let mut load_error = None;
+        let loaded = notes.into_iter().filter_map(|(note, dir)| {
             let html = match std::fs::read_to_string(dir.join("index.html")) {
                 Ok(html) => html,
                 Err(error) if error.kind() == std::io::ErrorKind::NotFound => String::new(),
-                Err(error) => return Err(error.into()),
+                Err(error) => { load_error = Some(AppError::from(error)); return None; }
             };
-            Ok::<_, AppError>((note, html))
-        }).collect::<Result<Vec<_>, _>>()?;
+            Some((note, html))
+        }).collect::<Vec<_>>();
         let mut search = search.write().map_err(|error| AppError::Internal(error.to_string()))?;
         // Yeniden kurulum araya girdiyse eski okuma yeni link indeksine yazılamaz; güncel kökten tekrar oku.
         if search.generation != generation { continue; }
@@ -199,7 +200,7 @@ pub fn reindex_notes(index: &RwLock<NoteIndex>, search: &RwLock<SearchIndex>, li
             let id = note.metadata.id;
             if search.versions.get(&id) == versions.get(&id) { search.upsert(&note, &html); links.upsert(id, &html); }
         }
-        return Ok(());
+        return load_error.map_or(Ok(()), Err);
     }
 }
 
@@ -356,6 +357,36 @@ mod tests {
         notes.write().unwrap().remove_subtree("Gone");
         reindex_notes(&notes, &search, &links, &[id], &[]).unwrap();
         assert!(search.read().unwrap().search("find me", 10).is_empty());
+    }
+
+    #[test]
+    fn failed_content_read_does_not_prevent_other_updates_or_removals() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut notes = NoteIndex::new(temp.path().to_path_buf());
+        let mut search = SearchIndex::default();
+        let mut ids = Vec::new();
+        for title in ["Unreadable", "Healthy", "Removed"] {
+            let metadata = NoteMetadata::new(title);
+            ids.push(metadata.id);
+            let dir = temp.path().join(title);
+            std::fs::create_dir(&dir).unwrap();
+            std::fs::write(dir.join("index.html"), "<p>beforeword</p>").unwrap();
+            let note = IndexedNote { rel_path: title.into(), metadata, content_stamp: None };
+            search.upsert(&note, "<p>beforeword</p>");
+            notes.upsert(note);
+        }
+        std::fs::write(temp.path().join("Unreadable/index.html"), [0xff]).unwrap();
+        std::fs::write(temp.path().join("Healthy/index.html"), "<p>afterword</p>").unwrap();
+        notes.remove_subtree("Removed");
+        let notes = RwLock::new(notes);
+        let search = RwLock::new(search);
+        let links = RwLock::new(LinkIndex::default());
+        assert!(reindex_notes(&notes, &search, &links, &ids[..2], &ids[2..]).is_err());
+        assert!(search.read().unwrap().search("Removed", 10).is_empty());
+        assert_eq!(search.read().unwrap().search("afterword", 10)[0].id, ids[1]);
+        std::fs::write(temp.path().join("Unreadable/index.html"), "<p>recoveredword</p>").unwrap();
+        reindex_notes(&notes, &search, &links, &ids[..2], &ids[2..]).unwrap();
+        assert_eq!(search.read().unwrap().search("recoveredword", 10)[0].id, ids[0]);
     }
 
     #[test]

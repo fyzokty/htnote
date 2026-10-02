@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 
 import { useSearch } from "@/features/search/useSearch";
 import { clearHighlight, requestHighlight } from "@/features/viewer/bridgeHost";
+import { notifyError } from "@/lib/errors";
+import { ipc } from "@/lib/ipc";
 import type { SearchResult } from "@/lib/types";
 import { useTabsStore } from "@/stores/tabsStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -20,7 +22,13 @@ export function SearchModal() {
     input.current?.select();
   }, []);
 
-  function open(result: SearchResult, background = false) {
+  async function open(result: SearchResult, background = false) {
+    try {
+      await ipc.readNote(result.id);
+    } catch (error) {
+      notifyError(error);
+      return;
+    }
     useTabsStore.getState().openNote(result.id, { activate: !background });
     const doc = useTabsStore.getState().tabs.find((tab) => tab.noteId === result.id)?.doc;
     clearHighlight(result.id);
@@ -38,7 +46,7 @@ export function SearchModal() {
       setSelected((current) => results.length ? (current + (event.key === "ArrowDown" ? 1 : -1) + results.length) % results.length : 0);
     } else if (event.key === "Enter" && results[selected]) {
       event.preventDefault();
-      open(results[selected], event.ctrlKey || event.metaKey);
+      void open(results[selected], event.ctrlKey || event.metaKey);
     }
   }
 
@@ -58,7 +66,7 @@ export function SearchModal() {
         <div role="listbox" aria-label={t("search.results")} className="mt-2 min-h-0 overflow-y-auto">
           {!loading && query.trim().length >= 2 && results.length === 0 && !error && <p className="p-3 text-sm text-app-muted">{t("search.empty")}</p>}
           {results.map((result, index) => (
-            <button key={result.id} data-testid="search-result" type="button" role="option" aria-selected={selected === index} onMouseEnter={() => setSelected(index)} onClick={(event) => open(result, event.ctrlKey || event.metaKey)} className={`block w-full rounded-md p-3 text-left hover:bg-app-subtle ${selected === index ? "bg-app-subtle" : ""}`}>
+            <button key={result.id} data-testid="search-result" type="button" role="option" aria-selected={selected === index} onMouseEnter={() => setSelected(index)} onClick={(event) => void open(result, event.ctrlKey || event.metaKey)} className={`block w-full rounded-md p-3 text-left hover:bg-app-subtle ${selected === index ? "bg-app-subtle" : ""}`}>
               <span className="block font-medium">{result.title}</span>
               <span className="block truncate text-xs text-app-muted">{result.relPath.split("/").slice(0, -1).join("/") || t("search.root")}</span>
               <span className="block text-xs text-app-muted">{t("search.matchCount", { count: result.matchCount })}</span>

@@ -111,6 +111,9 @@ fn sync_title_from_folder(root: &Path, note: &mut IndexedNote) -> Result<bool, A
 }
 
 fn apply_batch(root: &Path, index: &RwLock<NoteIndex>, affected: Affected) -> Result<FsChangePayload, AppError> {
+    // Silme olayının türü Windows'ta Any olabilir; artık bulunmayan not tam tarama gerektirir.
+    let affected = Affected { structural: affected.structural
+        || affected.content_note_dirs.iter().any(|dir| !dir.join("metadata.json").is_file()), ..affected };
     let mut payload = FsChangePayload { trash_changed: affected.trash_changed, ..Default::default() };
     if affected.structural || affected.needs_full_scan {
         let previous = index.read().map_err(|error| AppError::Internal(error.to_string()))?
@@ -145,7 +148,8 @@ fn apply_batch(root: &Path, index: &RwLock<NoteIndex>, affected: Affected) -> Re
         for (id, old) in &previous {
             if !current.contains_key(id) { payload.removed_note_ids.push(*id); }
             else if current[id].rel_path != old.rel_path || current[id].metadata.updated_at != old.metadata.updated_at
-                || current[id].metadata.title != old.metadata.title {
+                || current[id].metadata.title != old.metadata.title
+                || current[id].content_stamp != old.content_stamp || affected.needs_full_scan {
                 payload.changed_note_ids.push(*id);
             }
         }
@@ -206,9 +210,9 @@ impl WatcherManager {
             let mut retries = 0;
             let mut ready_sender = Some(ready_sender);
             loop {
-                let callback = callback.clone();
+                let event_sender = callback.clone();
                 let started = new_debouncer(Duration::from_millis(250), None,
-                    move |events| { let _ = callback.send(Message::Events(events)); });
+                    move |events| { let _ = event_sender.send(Message::Events(events)); });
                 match started {
                     Ok(mut debouncer) => {
                         if let Err(error) = debouncer.watch(&root, RecursiveMode::Recursive) {
@@ -259,6 +263,8 @@ impl WatcherManager {
                                                 if let Ok(payload) = apply_batch(&root, &index,
                                                     Affected { needs_full_scan: true, ..Default::default() }) {
                                                     if !payload.is_empty() { emit(payload); }
+                                                } else {
+                                                    eprintln!("File watcher recovery scan failed");
                                                 }
                                             }
                                             Err(_) => eprintln!("File watcher batch panicked"),
@@ -292,7 +298,8 @@ impl WatcherManager {
                 // Hata sonrası bekleme bloklayıcıdır; Stop mesajı beklemeyi keser.
                 match receiver.recv_timeout(Duration::from_secs(2)) {
                     Ok(Message::Stop) | Err(mpsc::RecvTimeoutError::Disconnected) => return,
-                    _ => (),
+                    Ok(message) => { let _ = callback.send(message); }
+                    Err(mpsc::RecvTimeoutError::Timeout) => (),
                 }
             }
         });
@@ -316,9 +323,15 @@ pub fn start_for_app(state: &AppState, app: tauri::AppHandle) -> Result<(), AppE
     let link_index = Arc::clone(&state.link_index);
     let note_index = Arc::clone(&state.note_index);
     let manager = WatcherManager::start(root, index, move |payload| {
-        if let Err(error) = crate::search::reindex_notes(&note_index, &search_index, &link_index,
-            &payload.changed_note_ids, &payload.removed_note_ids) {
-            eprintln!("Search index update failed: {error}");
+        for attempt in 0..3 {
+            match crate::search::reindex_notes(&note_index, &search_index, &link_index,
+                &payload.changed_note_ids, &payload.removed_note_ids) {
+                Ok(()) => break,
+                Err(error) => {
+                    eprintln!("Search index update failed (attempt {}): {error}", attempt + 1);
+                    if attempt < 2 { thread::sleep(Duration::from_millis(100)); }
+                }
+            }
         }
         if let Err(error) = app.emit("fs-change", payload) {
             eprintln!("File watcher emit failed: {error}");
@@ -455,6 +468,76 @@ mod tests {
         crate::search::reindex_notes(&index, &search, &links, &removed.changed_note_ids, &removed.removed_note_ids).unwrap();
         assert!(search.read().unwrap().search("istanbul", 10).is_empty());
         assert!(links.read().unwrap().backlinks(target).is_empty());
+    }
+
+    #[test]
+    fn rescan_and_untyped_removal_report_search_changes() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let (_, note) = create_note_in(root, "", Some("External")).unwrap();
+        let index = RwLock::new(NoteIndex::new(root.to_path_buf()));
+        apply_batch(root, &index, structural()).unwrap();
+        fs::write(root.join("External/index.html"), "<p>changed content</p>").unwrap();
+        let payload = apply_batch(root, &index, structural()).unwrap();
+        assert_eq!(payload.changed_note_ids, vec![note.metadata.id]);
+        let payload = apply_batch(root, &index, Affected { needs_full_scan: true, ..Default::default() }).unwrap();
+        assert_eq!(payload.changed_note_ids, vec![note.metadata.id]);
+        fs::remove_dir_all(root.join("External")).unwrap();
+        let affected = classify_events(root, &[event(EventKind::Remove(RemoveKind::Any), vec![root.join("External")])],
+            &HashSet::from([root.join("External")]));
+        let payload = apply_batch(root, &index, affected).unwrap();
+        assert_eq!(payload.removed_note_ids, vec![note.metadata.id]);
+    }
+
+    #[test]
+    fn real_watcher_reindexes_external_save_patterns_and_directory_removal() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().to_path_buf();
+        let (_, note) = create_note_in(&root, "", Some("External")).unwrap();
+        let mut initial = NoteIndex::new(root.clone());
+        initial.replace_all(scan::scan(&root).unwrap());
+        let index = Arc::new(RwLock::new(initial));
+        let search = Arc::new(RwLock::new(crate::search::SearchIndex::default()));
+        let links = Arc::new(RwLock::new(crate::links::LinkIndex::default()));
+        crate::search::reindex_notes(&index, &search, &links, &[note.metadata.id], &[]).unwrap();
+        let worker_index = Arc::clone(&index);
+        let worker_search = Arc::clone(&search);
+        let (sender, receiver) = mpsc::channel();
+        let watcher = WatcherManager::start(root.clone(), Arc::clone(&index), move |payload| {
+            crate::search::reindex_notes(&worker_index, &worker_search, &links,
+                &payload.changed_note_ids, &payload.removed_note_ids).unwrap();
+            let _ = sender.send(payload);
+        });
+        let wait_for = |check: &dyn Fn(&crate::search::SearchIndex) -> bool| {
+            let deadline = Instant::now() + Duration::from_secs(15);
+            loop {
+                if check(&search.read().unwrap()) { return; }
+                assert!(Instant::now() < deadline, "watcher search timeout");
+                let _ = receiver.recv_timeout(Duration::from_millis(50));
+            }
+        };
+        let html = root.join("External/index.html");
+        fs::write(&html, "<p>inplaceword</p>").unwrap();
+        wait_for(&|search| search.search("inplaceword", 10).len() == 1);
+        let temporary = root.join("External/.editor-save");
+        fs::write(&temporary, "<p>atomicword</p>").unwrap();
+        // Windows rename mevcut hedefin yerine geçmez; eski dosya önce taşınır.
+        let backup = root.join("External/.editor-backup");
+        fs::rename(&html, &backup).unwrap();
+        fs::rename(&temporary, &html).unwrap();
+        fs::remove_file(&backup).unwrap();
+        wait_for(&|search| search.search("atomicword", 10).len() == 1 && search.search("inplaceword", 10).is_empty());
+        fs::remove_file(&html).unwrap();
+        wait_for(&|search| search.search("atomicword", 10).is_empty());
+        fs::write(&html, "<p>recreatedword</p>").unwrap();
+        wait_for(&|search| search.search("recreatedword", 10).len() == 1);
+        fs::remove_file(&html).unwrap();
+        fs::write(&html, "<p>rapidword</p>").unwrap();
+        wait_for(&|search| search.search("rapidword", 10).len() == 1 && search.search("recreatedword", 10).is_empty());
+        fs::remove_dir_all(root.join("External")).unwrap();
+        wait_for(&|search| search.search("External", 10).is_empty());
+        assert!(!index.read().unwrap().by_id.contains_key(&note.metadata.id));
+        drop(watcher);
     }
 
     #[test]
