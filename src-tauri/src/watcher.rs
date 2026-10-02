@@ -251,11 +251,7 @@ impl WatcherManager {
                                             let known: HashSet<_> = index.read().map_err(|error| AppError::Internal(error.to_string()))?
                                                 .by_id.values().map(|note| root.join(&note.rel_path)).collect();
                                             let affected = classify_events(&root, &events, &known);
-                                            #[cfg(all(test, target_os = "macos"))]
-                                            eprintln!("watcher diagnostic: root={root:?}, events={events:?}, affected={affected:?}");
                                             let payload = apply_batch(&root, &index, affected)?;
-                                            #[cfg(all(test, target_os = "macos"))]
-                                            eprintln!("watcher diagnostic: payload={payload:?}");
                                             if !payload.is_empty() { emit(payload); }
                                             Ok::<(), AppError>(())
                                         }));
@@ -352,6 +348,11 @@ mod tests {
     use notify_debouncer_full::notify::event::{CreateKind, ModifyKind, RemoveKind, RenameMode};
     use std::fs;
     use std::time::Instant;
+
+    // notify'nin FSEvents kapanışı aygıttaki bekleyen olayları temizler;
+    // paralel gerçek watcher testleri birbirlerinin olaylarını kaybedebilir.
+    #[cfg(target_os = "macos")]
+    static REAL_WATCHER_TEST: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     fn event(kind: EventKind, paths: Vec<PathBuf>) -> Event {
         Event { kind, paths, attrs: Default::default() }
@@ -495,6 +496,8 @@ mod tests {
 
     #[test]
     fn real_watcher_reindexes_external_save_patterns_and_directory_removal() {
+        #[cfg(target_os = "macos")]
+        let _guard = REAL_WATCHER_TEST.lock().unwrap_or_else(|error| error.into_inner());
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().canonicalize().unwrap();
         let index = Arc::new(RwLock::new(NoteIndex::new(root.clone())));
@@ -597,6 +600,8 @@ mod tests {
 
     #[test]
     fn replacing_watcher_observes_only_new_root() {
+        #[cfg(target_os = "macos")]
+        let _guard = REAL_WATCHER_TEST.lock().unwrap_or_else(|error| error.into_inner());
         let first = tempfile::tempdir().unwrap();
         let second = tempfile::tempdir().unwrap();
         let index = Arc::new(RwLock::new(NoteIndex::new(first.path().to_path_buf())));
@@ -634,6 +639,8 @@ mod tests {
 
     #[test]
     fn watcher_observes_file_operations() {
+        #[cfg(target_os = "macos")]
+        let _guard = REAL_WATCHER_TEST.lock().unwrap_or_else(|error| error.into_inner());
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().to_path_buf();
         let index = Arc::new(RwLock::new(NoteIndex::new(root.clone())));
@@ -684,6 +691,8 @@ mod tests {
 
     #[test]
     fn bulk_file_copy_is_debounced() {
+        #[cfg(target_os = "macos")]
+        let _guard = REAL_WATCHER_TEST.lock().unwrap_or_else(|error| error.into_inner());
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().to_path_buf();
         let (_, note) = create_note_in(&root, "", Some("Bulk")).unwrap();
