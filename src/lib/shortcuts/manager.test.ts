@@ -117,7 +117,7 @@ describe("capture listener", () => {
     input.remove();
   });
 
-  it("leaves Ctrl+Shift+B to the editor but toggles sidebar outside it", () => {
+  it("toggles sidebar with Ctrl+Shift+B while the editor is focused", () => {
     const handler = vi.fn();
     render(createElement(Subscriber, { handler }));
     removeListener = installShortcutListener();
@@ -127,11 +127,12 @@ describe("capture listener", () => {
     const input = { key: "B", code: "KeyB", ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true };
     const editorEvent = new KeyboardEvent("keydown", input);
     editor.dispatchEvent(editorEvent);
-    expect(editorEvent.defaultPrevented).toBe(false);
+    expect(editorEvent.defaultPrevented).toBe(true);
+    expect(handler).toHaveBeenCalledOnce();
     const pageEvent = new KeyboardEvent("keydown", input);
     document.body.dispatchEvent(pageEvent);
     expect(pageEvent.defaultPrevented).toBe(true);
-    expect(handler).toHaveBeenCalledOnce();
+    expect(handler).toHaveBeenCalledTimes(2);
     editor.remove();
   });
 

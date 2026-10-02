@@ -55,9 +55,9 @@ const SHORTCUTS: Record<ShortcutId, ShortcutDefinition> = {
   closeTab: { codes: ["KeyW"], key: "W", modifier: "mod", shift: false, category: "tabs", bound: false },
   nextTab: { codes: ["Tab"], key: "Tab", modifier: "ctrl", shift: false, category: "tabs", bound: false },
   prevTab: { codes: ["Tab"], key: "Tab", modifier: "ctrl", shift: true, category: "tabs", bound: false },
-  toggleSidebar: { codes: ["Backslash", "IntlBackslash"], key: "\\", modifier: "mod", shift: false, category: "general", bound: false, alternatives: [{ codes: ["KeyB"], key: "B", modifier: "mod", shift: true }] },
+  toggleSidebar: { codes: ["Backslash", "IntlBackslash"], key: "\\", modifier: "mod", shift: false, allowInEditable: true, category: "general", bound: false, alternatives: [{ codes: ["KeyB"], key: "B", modifier: "mod", shift: true }] },
   escape: { codes: ["Escape"], key: "Escape", modifier: "none", shift: false, category: "general", displayOnly: true, bound: true },
-  showShortcuts: { codes: ["Slash"], key: "/", modifier: "mod", shift: false, allowInEditable: true, category: "general", bound: false },
+  showShortcuts: { codes: ["Slash", "NumpadDivide"], key: "/", modifier: "mod", shift: false, allowInEditable: true, category: "general", bound: false },
   editorBold: { codes: ["KeyB"], key: "B", modifier: "mod", shift: false, category: "editor", displayOnly: true, bound: true },
   editorItalic: { codes: ["KeyI"], key: "I", modifier: "mod", shift: false, category: "editor", displayOnly: true, bound: true },
   editorUnderline: { codes: ["KeyU"], key: "U", modifier: "mod", shift: false, category: "editor", displayOnly: true, bound: true },
@@ -88,10 +88,15 @@ export function matchShortcut(input: KeyInput, platform: Platform): ShortcutId |
     if (shortcut.displayOnly && id !== "escape") continue;
     for (const binding of [shortcut, ...(shortcut.alternatives ?? [])]) {
       // Bridge payload'ında code yoktur; yalnızca bu durumda key'e dönülür.
-      const matchesKey = input.code
-        ? binding.codes.includes(input.code)
-        : input.key.toLowerCase() === binding.key.toLowerCase();
-      if (!matchesKey || input.shift !== binding.shift || input.alt !== (binding.alt ?? false)) continue;
+      const matchesCode = input.code !== undefined && binding.codes.includes(input.code);
+      const matchesProducedKey = input.key.toLowerCase() === binding.key.toLowerCase();
+      const matchesKey = binding.key === "/"
+        ? matchesProducedKey
+        : matchesCode || matchesProducedKey;
+      const shiftMatches = matchesProducedKey && binding.key === "/"
+        ? true
+        : input.shift === binding.shift;
+      if (!matchesKey || !shiftMatches || input.alt !== (binding.alt ?? false)) continue;
 
       if (binding.modifier === "none" && !input.ctrl && !input.meta) return id;
       if (binding.modifier === "ctrl" && input.ctrl && !input.meta) return id;

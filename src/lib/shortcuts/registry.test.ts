@@ -40,6 +40,10 @@ describe("matchShortcut", () => {
     { name: "Turkish Q sidebar alternative", platform: "windows", input: { key: "B", code: "KeyB", ctrl: true, shift: true }, expected: "toggleSidebar" },
     { name: "macOS sidebar alternative", platform: "mac", input: { key: "B", code: "KeyB", meta: true, shift: true }, expected: "toggleSidebar" },
     { name: "shortcut help", platform: "windows", input: { key: "/", code: "Slash", ctrl: true }, expected: "showShortcuts" },
+    { name: "Turkish Q physical slash key produces period", platform: "windows", input: { key: ".", code: "Slash", ctrl: true }, expected: null },
+    { name: "Turkish Q shifted slash key", platform: "windows", input: { key: "/", code: "Digit7", ctrl: true, shift: true }, expected: "showShortcuts" },
+    { name: "numpad divide shortcut", platform: "windows", input: { key: "/", code: "NumpadDivide", ctrl: true }, expected: "showShortcuts" },
+    { name: "bridge shifted slash payload", platform: "windows", input: { key: "/", ctrl: true, shift: true }, expected: "showShortcuts" },
     { name: "Ctrl+B remains in editor", platform: "windows", input: { key: "b", code: "KeyB", ctrl: true }, expected: null },
     { name: "Escape", platform: "linux", input: { key: "Escape", code: "Escape" }, expected: "escape" },
   ])("$name", ({ platform, input, expected }) => {
