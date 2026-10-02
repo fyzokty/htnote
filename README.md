@@ -6,6 +6,12 @@
 
 HTNote; kullanıcıların notlarını açık standart olan **HTML, CSS ve JavaScript** ekosisteminde saklayan, modern, hafif ve tamamen internetsiz (offline) çalışan masaüstü not alma uygulamasıdır. Sıradan not defterlerinden farklı olarak notların içerisinde JavaScript çalıştırabilir, interaktif araçlar, hesaplamalar, ses kayıtları ve dinamik tablolar barındırabilirsiniz.
 
+## Kurulum / Installation (Windows)
+
+[Releases](https://github.com/fyzokty/htnote/releases) sayfasından `-setup.exe` (NSIS) veya `.msi` kurulum dosyasını indirin ve çalıştırın. Paketler imzalanmadığı için Windows SmartScreen uyarısı gösterebilir. Dosyayı bu projenin yayınından indirdiyseniz uyarıda **Ek bilgi (More info)**, ardından **Yine de çalıştır (Run anyway)** seçeneğini kullanabilirsiniz.
+
+Kaynak koddan Windows kurulum paketleri üretmek için Node.js, Rust ve Windows derleme araçlarını kurup `npm ci` ve `npm run tauri build` çalıştırın.
+
 ---
 
 ## 🌟 Temel Felsefe ve Öne Çıkan Özellikler
