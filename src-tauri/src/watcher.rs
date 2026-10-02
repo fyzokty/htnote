@@ -492,7 +492,7 @@ mod tests {
     #[test]
     fn real_watcher_reindexes_external_save_patterns_and_directory_removal() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().to_path_buf();
+        let root = temp.path().canonicalize().unwrap();
         let (_, note) = create_note_in(&root, "", Some("External")).unwrap();
         let mut initial = NoteIndex::new(root.clone());
         initial.replace_all(scan::scan(&root).unwrap());
@@ -508,17 +508,20 @@ mod tests {
                 &payload.changed_note_ids, &payload.removed_note_ids).unwrap();
             let _ = sender.send(payload);
         });
-        let wait_for = |check: &dyn Fn(&crate::search::SearchIndex) -> bool| {
+        // watch() hazır sinyalinden sonra FSEvents akışının da başlamasını bekle.
+        #[cfg(target_os = "macos")]
+        thread::sleep(Duration::from_secs(1));
+        let wait_for = |step: &str, check: &dyn Fn(&crate::search::SearchIndex) -> bool| {
             let deadline = Instant::now() + Duration::from_secs(15);
             loop {
                 if check(&search.read().unwrap()) { return; }
-                assert!(Instant::now() < deadline, "watcher search timeout");
+                assert!(Instant::now() < deadline, "watcher search timeout: {step}");
                 let _ = receiver.recv_timeout(Duration::from_millis(50));
             }
         };
         let html = root.join("External/index.html");
         fs::write(&html, "<p>inplaceword</p>").unwrap();
-        wait_for(&|search| search.search("inplaceword", 10).len() == 1);
+        wait_for("in-place write", &|search| search.search("inplaceword", 10).len() == 1);
         let temporary = root.join("External/.editor-save");
         fs::write(&temporary, "<p>atomicword</p>").unwrap();
         // Windows rename mevcut hedefin yerine geçmez; eski dosya önce taşınır.
@@ -526,16 +529,16 @@ mod tests {
         fs::rename(&html, &backup).unwrap();
         fs::rename(&temporary, &html).unwrap();
         fs::remove_file(&backup).unwrap();
-        wait_for(&|search| search.search("atomicword", 10).len() == 1 && search.search("inplaceword", 10).is_empty());
+        wait_for("temporary file + rename", &|search| search.search("atomicword", 10).len() == 1 && search.search("inplaceword", 10).is_empty());
         fs::remove_file(&html).unwrap();
-        wait_for(&|search| search.search("atomicword", 10).is_empty());
+        wait_for("file removal", &|search| search.search("atomicword", 10).is_empty());
         fs::write(&html, "<p>recreatedword</p>").unwrap();
-        wait_for(&|search| search.search("recreatedword", 10).len() == 1);
+        wait_for("file recreation", &|search| search.search("recreatedword", 10).len() == 1);
         fs::remove_file(&html).unwrap();
         fs::write(&html, "<p>rapidword</p>").unwrap();
-        wait_for(&|search| search.search("rapidword", 10).len() == 1 && search.search("recreatedword", 10).is_empty());
+        wait_for("rapid removal + write", &|search| search.search("rapidword", 10).len() == 1 && search.search("recreatedword", 10).is_empty());
         fs::remove_dir_all(root.join("External")).unwrap();
-        wait_for(&|search| search.search("External", 10).is_empty());
+        wait_for("directory removal", &|search| search.search("External", 10).is_empty());
         assert!(!index.read().unwrap().by_id.contains_key(&note.metadata.id));
         drop(watcher);
     }
