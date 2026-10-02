@@ -124,3 +124,25 @@ it("reports a deleted result instead of opening a missing note", async () => {
   expect(useTabsStore.getState().tabs).toEqual([]);
   expect(useUiStore.getState().searchOpen).toBe(true);
 });
+
+
+it("allows snippet selection without opening the result on the trailing mouse click", async () => {
+  mockIPC((command) => command === "search_notes" ? results : undefined);
+  render(<SearchModal />);
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "alpha" } });
+  const text = await screen.findByText("<img src=x>");
+  expect(text.parentElement).toHaveClass("select-text");
+  const selection = window.getSelection()!;
+  const range = document.createRange();
+  range.selectNodeContents(text);
+  selection.addRange(range);
+  try {
+    fireEvent.click(screen.getByRole("option", { name: /Alpha/ }), { detail: 1 });
+    expect(useTabsStore.getState().tabs).toHaveLength(0);
+    expect(useUiStore.getState().searchOpen).toBe(true);
+  } finally {
+    selection.removeAllRanges();
+  }
+  fireEvent.click(screen.getByRole("option", { name: /Alpha/ }), { detail: 1 });
+  await waitFor(() => expect(useTabsStore.getState().activeId).toBe("a"));
+});

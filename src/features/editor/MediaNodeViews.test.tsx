@@ -95,7 +95,10 @@ describe("media node views", () => {
     fireEvent.click(media);
     const label = kind === "audio" ? "Sesi sil" : "Videoyu sil";
     const button = screen.getByRole("button", { name: label });
-    expect(button).toHaveAttribute("title", label);
+    expect(button).not.toHaveAttribute("title");
+    fireEvent.focus(button);
+    expect(screen.getByRole("tooltip")).toHaveTextContent(label);
+    expect(button).toHaveAttribute("aria-describedby", screen.getByRole("tooltip").id);
     expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
     fireEvent.click(button);
     expect(editor.getHTML()).toBe("<p>Kept</p>");

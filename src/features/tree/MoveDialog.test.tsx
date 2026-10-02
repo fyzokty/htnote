@@ -13,6 +13,8 @@ it("disables invalid folders and moves to a keyboard-selected destination", () =
   render(<MoveDialog source={source} tree={[source, destination]} onMove={move} onClose={vi.fn()} />);
   expect(screen.getByRole("option", { name: "A" })).toBeDisabled();
   expect(screen.getByRole("option", { name: "Child" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "İptal" })).toHaveClass("htnote-button-secondary");
+  expect(screen.getByRole("button", { name: "Taşı" })).toHaveClass("htnote-button-primary");
   const listbox = screen.getByRole("listbox");
   expect(listbox).toHaveFocus();
   fireEvent.keyDown(listbox, { key: "ArrowDown" });

@@ -38,6 +38,35 @@ describe("note bridge", () => {
     expect(new TextEncoder().encode(source).length).toBeLessThan(7168);
   });
 
+  it("injects one low-specificity scrollbar stylesheet and follows trusted theme tokens", () => {
+    const styles = document.querySelectorAll("#htnote-scrollbars");
+    expect(styles).toHaveLength(1);
+    expect(styles[0].parentElement).toBe(document.head);
+    expect(document.head.firstElementChild).toBe(styles[0]);
+    expect(styles[0].textContent).toContain(":where(*)::-webkit-scrollbar-thumb");
+    expect(styles[0].textContent).toContain("scrollbar-width:thin");
+    expect(styles[0].textContent).not.toContain("!important");
+    for (const mode of ["light", "dark"]) {
+      const vars = { "--ht-scrollbar": `var(--${mode}-thumb)`, "--ht-scrollbar-hover": `var(--${mode}-hover)` };
+      hostMessage({ type: "HTNOTE_THEME", vars, mode }, null);
+      expect(document.documentElement.style.getPropertyValue("--ht-scrollbar")).not.toBe(vars["--ht-scrollbar"]);
+      hostMessage({ type: "HTNOTE_THEME", vars, mode });
+      expect(document.documentElement.style.getPropertyValue("--ht-scrollbar")).toBe(vars["--ht-scrollbar"]);
+      expect(document.documentElement.style.getPropertyValue("--ht-scrollbar-hover")).toBe(vars["--ht-scrollbar-hover"]);
+      expect(document.documentElement.dataset.htTheme).toBe(mode);
+    }
+    expect(document.querySelectorAll("#htnote-scrollbars")).toHaveLength(1);
+    const author = document.createElement("style");
+    author.textContent = ".author-scroll { scrollbar-width: auto; }";
+    document.head.append(author);
+    const scroller = document.createElement("div");
+    document.body.append(scroller);
+    expect(getComputedStyle(scroller).scrollbarWidth).toBe("thin");
+    scroller.className = "author-scroll";
+    expect(getComputedStyle(scroller).scrollbarWidth).toBe("auto");
+    author.remove();
+  });
+
   it("routes note and external links, blocks unsafe links, and leaves anchors alone", () => {
     const id = "123e4567-e89b-12d3-a456-426614174000";
     expect(click(`htnote://note/${id}`).defaultPrevented).toBe(true);
@@ -191,6 +220,7 @@ describe("note bridge", () => {
     history.replaceState(null, "", `${location.pathname}?print=1`);
     try {
       window.eval(source);
+      expect(document.querySelectorAll("#htnote-scrollbars")).toHaveLength(1);
       expect(document.documentElement.dataset.htTheme).toBe("light");
       expect(document.documentElement.style.getPropertyValue("--ht-bg")).toBe("#f9fafb");
       expect(document.documentElement.style.getPropertyValue("--ht-text")).toBe("#111827");

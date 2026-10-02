@@ -31,5 +31,5 @@ export function InlineRename({ name, label, onConfirm, onCancel }: Props) {
     event.stopPropagation();
     if (event.key === "Enter") { event.preventDefault(); confirm(); }
     if (event.key === "Escape") { event.preventDefault(); cancel(); }
-  }} className="min-w-0 flex-1 rounded bg-app-bg px-1 text-app-text outline outline-app-accent" />;
+  }} className="select-text min-w-0 flex-1 rounded bg-app-bg px-1 text-app-text outline outline-app-accent" />;
 }

@@ -72,7 +72,7 @@ const TreeRow = memo(function TreeRow({ node, depth, expanded, selected, tabbabl
           onMenu(node, rect.left, rect.bottom, event.currentTarget);
         }
       }}
-      className={`flex min-w-0 cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-app-accent ${drag.isDragging ? "opacity-50" : ""} ${isTarget ? (dropValid ? "ring-2 ring-app-accent" : "ring-2 ring-red-500 cursor-not-allowed") : ""} ${selected ? "bg-app-accent text-app-accent-text" : "text-app-text hover:bg-app-subtle"}`}
+      className={`select-none flex min-w-0 cursor-pointer items-center gap-1 rounded-md py-1 pr-2 text-left text-sm focus-visible:outline-2 focus-visible:outline-app-accent ${drag.isDragging ? "opacity-50" : ""} ${isTarget ? (dropValid ? "ring-2 ring-app-accent" : "ring-2 ring-app-danger cursor-not-allowed") : ""} ${selected ? "bg-app-accent text-app-accent-text hover:bg-app-accent-hover" : "text-app-text hover:bg-app-subtle"}`}
       style={{ paddingLeft: depth * 16 + 4 }}
     >
       {isFolder ? (expanded ? <ChevronDown className="size-4 shrink-0" aria-hidden /> : <ChevronRight className="size-4 shrink-0" aria-hidden />) : <span className="size-4 shrink-0" />}
@@ -226,7 +226,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
 
   return (
     <DndContext sensors={sensors} collisionDetection={treeCollisionDetection} onDragStart={(event: DragStartEvent) => setDragSource(event.active.data.current?.node as TreeNode ?? null)} onDragOver={dragOver} onDragEnd={finishDrag} onDragCancel={() => finishDrag()}>
-    <div ref={setRootRef} role="tree" aria-label={t("tree.label")} tabIndex={rows.length === 0 ? 0 : -1} onKeyDown={onKeyDown} className={`flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2 outline-none ${dragSource && dropPath === "" ? (dropValid ? "ring-2 ring-inset ring-app-accent" : "ring-2 ring-inset ring-red-500") : ""}`}>
+    <div ref={setRootRef} role="tree" aria-label={t("tree.label")} tabIndex={rows.length === 0 ? 0 : -1} onKeyDown={onKeyDown} className={`flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2 outline-none ${dragSource && dropPath === "" ? (dropValid ? "ring-2 ring-inset ring-app-accent" : "ring-2 ring-inset ring-app-danger") : ""}`}>
       {visibleTree.length === 0 ? <p className="py-4 text-center text-sm text-app-muted">{t(filterQuery.trim() || filterTag ? "sidebar.noMatches" : "tree.empty")}</p> : rows.map(({ node, depth }) => (
         <TreeRow key={node.type === "folder" ? `folder:${node.relPath}` : `note:${node.id}`} node={node} depth={depth} expanded={node.type === "folder" && effectiveExpanded.has(node.relPath)} selected={isSelected(node, selected)} tabbable={selectedVisible ? isSelected(node, selected) : node === rows[0].node} onSelect={choose} onMenu={openMenu} renaming={renamingRelPath === node.relPath} onRename={(item, name) => void renameNode(item, name)} onCancelRename={() => setRenaming(null)} dragSource={dragSource} dropPath={dropPath} dropValid={dropValid} filterQuery={filterQuery} />
       ))}

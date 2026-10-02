@@ -96,6 +96,7 @@ describe("changeRootFlow", () => {
     vi.spyOn(ipc, "listTrash").mockImplementation(async () => { order.push("trash"); return []; });
     expect(await changeRootFlow("C:/Old")).toBe(true);
     expect(order).toEqual(["pick", "validate", "confirm", "guard", "close", "set", "refresh", "trash"]);
+    expect(useUiStore.getState().confirm).toHaveBeenCalledWith("settings.changeRootTitle", "settings.changeRootWarning", expect.any(Object), { variant: "primary", labelKey: "ui.confirm" });
   });
 
   it("stops when selection, confirmation or unsaved guard is cancelled", async () => {

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Pencil, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { IconButton } from "@/components/ui/IconButton";
+import { Button } from "@/components/ui/Button";
 import { NoteEditor } from "@/features/editor/NoteEditor";
 import { ContextMenu } from "@/components/ui/ContextMenu";
 import { useEditSession } from "@/features/editor/useEditSession";
@@ -102,14 +104,14 @@ export function NoteViewer() {
             {activeNote && <TagInput key={activeNote.id} tags={activeNote.tags} suggestions={tagSuggestions} onChange={(tags) => void setNoteTags(activeNote.id, tags)} />}
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            <button type="button" disabled={!activeNote} onClick={() => { if (activeNote) void toggleFavorite(activeNote.id, !activeNote.isFavorite); }} aria-label={t("viewer.favorite")} title={t("viewer.favorite")} aria-pressed={activeNote?.isFavorite ?? false} className={`rounded p-2 ${activeNote?.isFavorite ? "text-app-accent" : "text-app-muted"}`}><Star className="size-4" fill={activeNote?.isFavorite ? "currentColor" : "none"} aria-hidden /></button>
-            <button type="button" disabled={!activeNote || exportBusy} aria-label={exportBusy ? t("export.exporting") : t("viewer.export")} title={t("viewer.export")} onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setExportMenu({ x: rect.left, y: rect.bottom, trigger: event.currentTarget }); }} className="flex items-center gap-1 rounded p-2 text-app-muted"><Download className="size-4" aria-hidden />{exportBusy && t("export.exporting")}</button>
+            <IconButton type="button" disabled={!activeNote} onClick={() => { if (activeNote) void toggleFavorite(activeNote.id, !activeNote.isFavorite); }} label={t("viewer.favorite")} aria-pressed={activeNote?.isFavorite ?? false} className={`rounded p-2 ${activeNote?.isFavorite ? "text-app-accent" : "text-app-muted"}`}><Star className="size-4" fill={activeNote?.isFavorite ? "currentColor" : "none"} aria-hidden /></IconButton>
+            <IconButton type="button" disabled={!activeNote || exportBusy} label={exportBusy ? t("export.exporting") : t("viewer.export")} onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setExportMenu({ x: rect.left, y: rect.bottom, trigger: event.currentTarget }); }} className="text-app-muted"><Download className="size-4" aria-hidden /></IconButton>
             {exportMenu && activeNote && <ContextMenu x={exportMenu.x} y={exportMenu.y} trigger={exportMenu.trigger} onClose={() => setExportMenu(null)} items={[
               { id: "pdf", label: t(pdfMode() === "print" ? "export.printPdf" : "export.pdf"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "pdf") },
               { id: "html", label: t("export.html"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "html") },
               { id: "zip", label: t("export.zip"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "zip") },
             ]} />}
-            {tabs.find((tab) => tab.noteId === activeId)?.doc.mode === "view" && <button type="button" data-testid="edit-note" onClick={() => { void session.toggleEdit(); }} className="flex items-center gap-1 rounded bg-app-subtle px-3 py-2 text-sm text-app-muted"><Pencil className="size-4" aria-hidden />{t("viewer.edit")}</button>}
+            {tabs.find((tab) => tab.noteId === activeId)?.doc.mode === "view" && <Button type="button" data-testid="edit-note" onClick={() => { void session.toggleEdit(); }} ><Pencil className="size-4" aria-hidden />{t("viewer.edit")}</Button>}
           </div>
         </div>
       )}

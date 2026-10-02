@@ -6,6 +6,7 @@ import { SortableContext, horizontalListSortingStrategy } from "@dnd-kit/sortabl
 import { Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { IconButton } from "@/components/ui/IconButton";
 import { ContextMenu } from "@/components/ui/ContextMenu";
 import { TabItem } from "@/features/tabs/TabItem";
 import { resolveCreateTarget } from "@/features/tree/treeNavigation";
@@ -74,9 +75,9 @@ export function TabBar() {
           </div>
         </SortableContext>
       </DndContext>
-      <button type="button" onClick={newNote} aria-label={t("tabs.newNote")} title={t("tabs.newNote")} className="mx-1 shrink-0 rounded-md p-2 text-app-muted hover:bg-app-subtle focus-visible:outline-2 focus-visible:outline-app-accent">
+      <IconButton type="button" onClick={newNote} label={t("tabs.newNote")} className="mx-1 text-app-muted">
         <Plus className="size-4" aria-hidden />
-      </button>
+      </IconButton>
       {menu && <ContextMenu x={menu.x} y={menu.y} trigger={menu.trigger} onClose={() => setMenu(null)} items={[
         { id: "close", label: t("tabs.close"), shortcut: formatShortcut("closeTab"), onSelect: () => { void useTabsStore.getState().close(menu.noteId); } },
         { id: "closeOthers", label: t("tabs.closeOthers"), onSelect: () => { void useTabsStore.getState().closeOthers(menu.noteId); } },

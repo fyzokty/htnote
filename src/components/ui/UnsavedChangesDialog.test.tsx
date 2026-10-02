@@ -16,6 +16,9 @@ it("handles actions, Escape and focus trapping", () => {
   const dialog = screen.getByRole("dialog");
   expect(dialog).toHaveAttribute("aria-modal", "true");
   const cancel = screen.getByRole("button", { name: "İptal" });
+  expect(cancel).toHaveClass("htnote-button-secondary");
+  expect(screen.getByTestId("discard-changes")).toHaveClass("htnote-button-danger");
+  expect(screen.getByTestId("save-changes")).toHaveClass("htnote-button-primary");
   expect(cancel).toHaveFocus();
   fireEvent.keyDown(document, { key: "Tab", shiftKey: true });
   expect(screen.getByRole("button", { name: "Tümünü kaydet" })).toHaveFocus();

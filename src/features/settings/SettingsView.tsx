@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/Button";
 import { changeRootFlow } from "@/features/settings/changeRoot";
 import { notifyError } from "@/lib/errors";
 import { ipc } from "@/lib/ipc";
@@ -38,15 +39,15 @@ export function SettingsView({ onShowShortcuts }: { onShowShortcuts?: () => void
   }
 
   return (
-    <div className="min-h-0 w-full overflow-y-auto p-6 text-app-text">
+    <div className="select-none min-h-0 w-full overflow-y-auto p-6 text-app-text">
       <h2 className="mb-6 text-xl font-semibold">{t("sidebar.settings")}</h2>
       <div className="max-w-2xl space-y-8">
         <section aria-labelledby="settings-storage" className="space-y-3">
           <h3 id="settings-storage" className="font-semibold">{t("settings.storage")}</h3>
-          <p className="break-all rounded border border-app-border bg-app-subtle p-3 text-sm">{root}</p>
+          <p className="select-text break-all rounded border border-app-border bg-app-subtle p-3 text-sm">{root}</p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" disabled={changing || !root} onClick={() => void changeRoot()} className="rounded border border-app-border px-3 py-2 disabled:opacity-50">{t("settings.changeRoot")}</button>
-            <button type="button" disabled={!root} onClick={() => void ipc.revealInExplorer(root).catch(notifyError)} className="rounded border border-app-border px-3 py-2 disabled:opacity-50">{t("settings.showInFolder")}</button>
+            <Button type="button" disabled={changing || !root} onClick={() => void changeRoot()} >{t("settings.changeRoot")}</Button>
+            <Button type="button" disabled={!root} onClick={() => void ipc.revealInExplorer(root).catch(notifyError)} >{t("settings.showInFolder")}</Button>
           </div>
           <p className="text-sm text-app-muted">{t("settings.notesStay")}</p>
         </section>
@@ -71,9 +72,9 @@ export function SettingsView({ onShowShortcuts }: { onShowShortcuts?: () => void
           <h3 id="settings-about" className="font-semibold">{t("settings.about")}</h3>
           <p>{t("settings.version", { version })}</p>
           <div className="flex gap-4">
-            <button type="button" onClick={onShowShortcuts} className="text-app-accent underline">{t("shortcuts.title")}</button>
-            <button type="button" onClick={() => external(repository)} className="text-app-accent underline">{t("settings.license")}</button>
-            <button type="button" onClick={() => external(`${repository}/tree/main/docs`)} className="text-app-accent underline">{t("settings.docs")}</button>
+            <Button type="button" onClick={onShowShortcuts} variant="ghost" className="text-app-accent">{t("shortcuts.title")}</Button>
+            <Button type="button" onClick={() => external(repository)} variant="ghost" className="text-app-accent">{t("settings.license")}</Button>
+            <Button type="button" onClick={() => external(`${repository}/tree/main/docs`)} variant="ghost" className="text-app-accent">{t("settings.docs")}</Button>
           </div>
         </section>
       </div>

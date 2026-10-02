@@ -5,6 +5,8 @@ import { NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/IconButton";
 import { resolveMediaSrc } from "@/features/editor/mediaSrc";
 
 type Source = Record<string, string>;
@@ -16,9 +18,9 @@ function noteIdFrom(props: NodeViewProps): string {
 function DeleteMedia({ kind, deleteNode }: { kind: "image" | "audio" | "video"; deleteNode: () => void }) {
   const { t } = useTranslation();
   const label = t(`editor.${kind}.delete`);
-  return <button className="htnote-media-delete" type="button" onClick={deleteNode} title={label} aria-label={label}>
+  return <IconButton size="sm" variant="danger" className="htnote-media-delete" type="button" onClick={deleteNode} label={label}>
     <Trash2 size={16} aria-hidden="true" />
-  </button>;
+  </IconButton>;
 }
 
 function ImageToolbar({ node, updateAttributes, deleteNode }: NodeViewProps) {
@@ -44,21 +46,21 @@ function ImageToolbar({ node, updateAttributes, deleteNode }: NodeViewProps) {
               else setAlt(originalAlt);
             }
           }} />
-        <button type="button" onClick={applyAlt} disabled={alt === originalAlt}
-          aria-label={t("editor.image.applyAlt")} title={t("editor.image.applyAlt")}>
+        <IconButton size="sm" type="button" onClick={applyAlt} disabled={alt === originalAlt}
+          label={t("editor.image.applyAlt")}>
           <Check size={16} aria-hidden="true" />
-        </button>
-        <button type="button" onClick={() => setAlt(originalAlt)} disabled={alt === originalAlt}
-          aria-label={t("editor.cancel")} title={t("editor.cancel")}>
+        </IconButton>
+        <IconButton size="sm" type="button" onClick={() => setAlt(originalAlt)} disabled={alt === originalAlt}
+          label={t("editor.cancel")}>
           <X size={16} aria-hidden="true" />
-        </button>
+        </IconButton>
       </div>
       <div className="htnote-media-width" role="group" aria-label={t("editor.image.width")}>
         {(["25%", "50%", "100%", null] as const).map((value) => (
-          <button key={value ?? "original"} type="button" aria-pressed={(node.attrs.width ?? null) === value}
+          <Button size="sm" key={value ?? "original"} type="button" aria-pressed={(node.attrs.width ?? null) === value}
             onClick={() => updateAttributes({ width: value })}>
             {value ?? t("editor.image.original")}
-          </button>
+          </Button>
         ))}
       </div>
       <DeleteMedia kind="image" deleteNode={deleteNode} />
