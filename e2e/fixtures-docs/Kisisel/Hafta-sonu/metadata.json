@@ -1,0 +1,10 @@
+{
+  "id": "e2f8954c-90be-46fd-a7bf-69d31bb5ce84",
+  "title": "Hafta sonu fikirleri",
+  "createdAt": "2026-09-26T12:00:00.000Z",
+  "updatedAt": "2026-09-28T12:00:00.000Z",
+  "isFavorite": false,
+  "tags": ["kişisel", "fikirler"],
+  "hasCustomCss": false,
+  "hasCustomJs": false
+}

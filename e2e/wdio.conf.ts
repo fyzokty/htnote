@@ -44,7 +44,7 @@ export const config = {
     testDirectory = await mkdtemp(join(tmpdir(), "htnote-e2e-"));
     const root = join(testDirectory, "notes");
     const configDir = join(testDirectory, "config");
-    await cp(resolve("e2e", "fixtures"), root, { recursive: true });
+    await cp(process.env.HTNOTE_E2E_FIXTURE_DIR ?? resolve("e2e", "fixtures"), root, { recursive: true });
     const nativeDriver = process.env.TAURI_DRIVER_NATIVE_DRIVER
       ?? (process.platform === "win32" ? process.env.MSEDGEDRIVER_PATH : undefined);
     const driverArgs = nativeDriver
