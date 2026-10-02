@@ -7,6 +7,36 @@ use uuid::Uuid;
 
 use crate::error::AppError;
 
+/// Returns a path suitable for display to external applications.
+/// Windows canonical paths may use the verbatim namespace, which some openers do not accept.
+pub(crate) fn display_path(path: &Path) -> PathBuf {
+    #[cfg(windows)]
+    {
+        use std::path::{Component, Prefix};
+
+        let mut components = path.components();
+        if let Some(Component::Prefix(prefix)) = components.next() {
+            let root = match prefix.kind() {
+                Prefix::VerbatimDisk(letter) => Some(PathBuf::from(format!("{}:\\", letter as char))),
+                Prefix::VerbatimUNC(server, share) => {
+                    Some(PathBuf::from(format!(
+                        r"\\{}\{}\",
+                        server.to_string_lossy(),
+                        share.to_string_lossy()
+                    )))
+                }
+                _ => None,
+            };
+            if let Some(mut display) = root {
+                display.extend(components.skip(1));
+                return display;
+            }
+        }
+    }
+
+    path.to_path_buf()
+}
+
 pub(crate) fn write_file_atomic(path: &Path, bytes: &[u8]) -> Result<(), AppError> {
     let (temporary, mut file) = loop {
         let mut temporary_name: OsString = path.as_os_str().to_owned();
@@ -70,6 +100,24 @@ pub(crate) fn replace_file(source: &Path, destination: &Path) -> io::Result<()> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn display_path_preserves_paths_without_verbatim_prefix() {
+        let path = Path::new(r"C:\notes\report.pdf");
+        assert_eq!(display_path(path), path);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn display_path_strips_verbatim_drive_prefix() {
+        assert_eq!(display_path(Path::new(r"\\?\C:\notes\report.pdf")), PathBuf::from(r"C:\notes\report.pdf"));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn display_path_converts_verbatim_unc_prefix() {
+        assert_eq!(display_path(Path::new(r"\\?\UNC\server\share\report.pdf")), PathBuf::from(r"\\server\share\report.pdf"));
+    }
 
     #[test]
     fn failed_replace_removes_temporary_file() {

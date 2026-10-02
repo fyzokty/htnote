@@ -117,6 +117,12 @@ describe("ipc.updateMetadata", () => {
 });
 
 describe("ipc asset commands", () => {
+  it("opens an attachment through the restricted Rust command", async () => {
+    const handler = vi.fn(() => undefined);
+    mockIPC(handler);
+    await ipc.openNoteAsset("note-id", "./assets/report%20name.pdf");
+    expect(handler).toHaveBeenCalledWith("open_note_asset", { noteId: "note-id", relPath: "./assets/report%20name.pdf" });
+  });
   it("maps copy and byte save arguments to Tauri commands", async () => {
     const result = { relPath: "./assets/resim.png", kind: "image", mime: "image/png" };
     const handler = vi.fn(() => result);

@@ -1,5 +1,7 @@
 export const appErrorCodes = [
   "NOTE_NOT_FOUND",
+  "ASSET_NOT_FOUND",
+  "ASSET_TYPE_BLOCKED",
   "NOT_A_FOLDER",
   "NAME_CONFLICT",
   "CONFLICT",

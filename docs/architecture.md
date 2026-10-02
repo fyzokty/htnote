@@ -138,6 +138,7 @@ Bu tablo `src-tauri/src/lib.rs` içindeki `generate_handler!` kaydıyla eşleşi
 | `export_pdf` | `id: UUID, target_path: String` | `ExportResult` | PDF. |
 | `update_metadata` | `id: UUID, patch: MetadataPatch` | `MetadataUpdateResult` | Başlık, etiket ve favori metadata'sı. |
 | `copy_asset` | `note_id: UUID, source_path: String` | `AssetInfo` | Dosyayı nota kopyalar. |
+| `open_note_asset` | `note_id: UUID, rel_path: String` | `()` | Yalnızca notun `assets/` altındaki normal dosyaları, canonical yol ve uzantı allowlist denetiminden sonra Rust opener ile açar. |
 | `save_asset_bytes` | `note_id: UUID, suggested_name: String, bytes: Vec<u8>` | `AssetInfo` | Medya baytlarını kaydeder. |
 | `write_draft` | `id: UUID, payload: WriteDraftInput` | `()` | Taslak yazar. |
 | `read_draft` | `id: UUID` | `DraftData` | Taslak okur. |

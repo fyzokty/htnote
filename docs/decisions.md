@@ -98,6 +98,7 @@
   | `HTNOTE_READY` | `{ noteId }` | Bridge yüklendi |
   | `HTNOTE_OPEN_NOTE` | `{ id }` | `htnote://note/<id>` linki tıklandı |
   | `HTNOTE_OPEN_EXTERNAL` | `{ url }` | `http(s):`/`mailto:` linki tıklandı → sistem tarayıcısında açılır |
+  | `HTNOTE_OPEN_ASSET` | `{ relPath }` | Notun `assets/` eki → kayıtlı frame'in not kimliğiyle Rust'ta yol ve uzantı denetlenir, sistem uygulamasında açılır |
   | `HTNOTE_SHORTCUT` | `{ key, ctrl, shift, alt, meta }` | Uygulama kısayolu iframe odaktayken basıldı (D16) |
 - **host → iframe** mesajları:
   | type | payload | Anlam |

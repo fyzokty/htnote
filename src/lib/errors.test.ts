@@ -46,6 +46,13 @@ describe("toErrorMessageKey", () => {
 });
 
 describe("notifyError", () => {
+  it("translates attachment errors in both languages", async () => {
+    expect(i18n.t("errors.ASSET_TYPE_BLOCKED")).toBe("Bu dosya türü güvenlik nedeniyle açılamaz");
+    expect(i18n.t("errors.ASSET_NOT_FOUND")).toBe("Ek dosya bulunamadı.");
+    await i18n.changeLanguage("en");
+    expect(i18n.t("errors.ASSET_TYPE_BLOCKED")).toBe("This file type cannot be opened for security reasons");
+    expect(i18n.t("errors.ASSET_NOT_FOUND")).toBe("Attachment not found.");
+  });
   it("CONFLICT mesajını iki dilde çevirir", async () => {
     expect(toErrorMessageKey({ code: "CONFLICT" })).toBe("errors.CONFLICT");
     expect(i18n.t("errors.CONFLICT")).toBe("Not diskte değiştirildi. Yeniden yükleyin veya üzerine yazın.");

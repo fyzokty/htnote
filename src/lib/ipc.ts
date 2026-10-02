@@ -71,6 +71,9 @@ export const ipc = {
   copyAsset(noteId: string, sourcePath: string): Promise<AssetInfo> {
     return invoke<AssetInfo>("copy_asset", { noteId, sourcePath });
   },
+  openNoteAsset(noteId: string, relPath: string): Promise<void> {
+    return invoke<void>("open_note_asset", { noteId, relPath });
+  },
   saveAssetBytes(noteId: string, suggestedName: string, bytes: Uint8Array): Promise<AssetInfo> {
     return invoke<AssetInfo>("save_asset_bytes", { noteId, suggestedName, bytes: Array.from(bytes) });
   },
