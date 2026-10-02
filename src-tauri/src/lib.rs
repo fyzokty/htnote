@@ -1,5 +1,6 @@
 mod commands;
 mod drafts;
+mod export;
 mod onboarding;
 mod protocol;
 mod note_server;
@@ -69,6 +70,7 @@ pub fn run() {
             commands::get_broken_links,
             commands::read_note,
             commands::save_note,
+            commands::export_single_html,
             commands::update_metadata,
             commands::copy_asset,
             commands::save_asset_bytes,

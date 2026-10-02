@@ -72,6 +72,10 @@ export interface SaveNoteResult {
   contentHash: string;
 }
 
+export interface ExportSingleHtmlResult {
+  warnings: string[];
+}
+
 export interface UpdateMetadataPatch {
   isFavorite?: boolean;
   tags?: string[];
