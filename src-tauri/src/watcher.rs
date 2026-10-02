@@ -71,9 +71,8 @@ fn classify_events(root: &Path, events: &[Event], known: &HashSet<PathBuf>) -> A
                 if matches!(event.kind, EventKind::Create(notify_debouncer_full::notify::event::CreateKind::Folder)
                     | EventKind::Remove(notify_debouncer_full::notify::event::RemoveKind::Folder)) {
                     affected.structural = true;
-                } else {
-                    affected.content_note_dirs.insert(dir.clone());
                 }
+                affected.content_note_dirs.insert(dir.clone());
             } else {
                 affected.structural = true;
             }
@@ -152,6 +151,11 @@ fn apply_batch(root: &Path, index: &RwLock<NoteIndex>, affected: Affected) -> Re
         }
         for id in current.keys() {
             if !previous.contains_key(id) { payload.changed_note_ids.push(*id); }
+        }
+        for (id, note) in &current {
+            if affected.content_note_dirs.contains(&root.join(&note.rel_path)) {
+                payload.changed_note_ids.push(*id);
+            }
         }
         let old_tree = serde_json::to_value(&index.read().map_err(|error| AppError::Internal(error.to_string()))?.tree)?;
         payload.tree_changed = old_tree != serde_json::to_value(&result.tree)?;
@@ -406,6 +410,27 @@ mod tests {
         assert!(removed.tree_changed);
         let trash = apply_batch(root, &index, Affected { trash_changed: true, ..Default::default() }).unwrap();
         assert!(trash.trash_changed);
+    }
+
+    #[test]
+    fn merged_folder_and_file_events_report_content_change_after_full_scan() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let (_, note) = create_note_in(root, "", Some("Bulk")).unwrap();
+        let note_dir = root.join("Bulk");
+        let index = RwLock::new(NoteIndex::new(root.to_path_buf()));
+        apply_batch(root, &index, structural()).unwrap();
+        fs::create_dir(note_dir.join("assets")).unwrap();
+        fs::write(note_dir.join("assets/image.svg"), "<svg/>").unwrap();
+        let events = [
+            event(EventKind::Create(CreateKind::Folder), vec![note_dir.join("assets")]),
+            event(EventKind::Create(CreateKind::File), vec![note_dir.join("assets/image.svg")]),
+        ];
+        let affected = classify_events(root, &events, &HashSet::from([note_dir.clone()]));
+        assert!(affected.structural);
+        assert_eq!(affected.content_note_dirs, HashSet::from([note_dir]));
+        let payload = apply_batch(root, &index, affected).unwrap();
+        assert_eq!(payload.changed_note_ids, vec![note.metadata.id]);
     }
 
     #[test]
