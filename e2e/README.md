@@ -27,7 +27,13 @@ the run. The two overrides are compiled only in debug builds.
    `tauri-driver` use that binary even if another driver appears first on `PATH`.
 
 Run `npm run test:e2e`. This builds the debug executable without an installer,
-then runs both specs. The E2E suite is separate from `verify:test`.
+then runs all specs. The E2E suite is separate from `verify:test`.
+
+Each session and test returns to the main frame and waits for the loaded React
+shell and Tauri IPC before executing host commands. The save shortcut also waits
+for the editor's save acknowledgement before another shortcut is sent; a file
+appearing on disk alone does not mean the editor has finished saving. Conditions
+have bounded timeouts for slower CI runners, without fixed sleeps or test retries.
 
 If session creation fails, first check that both drivers are on `PATH` and that
 the EdgeDriver major version matches WebView2. If a security assertion fails,
@@ -38,4 +44,6 @@ Driver output is also saved to `e2e/logs/tauri-driver.log`. CI prints the driver
 and WebView2 versions, launches the debug app directly with temporary root and
 config overrides, and uploads `e2e/logs/` on failure. The app startup diagnostic
 captures its stdout and stderr there as separate files.
+Failed tests save screenshots in `e2e/logs/` and print the current frame URL,
+document readiness and security probe results to the test log.
 CI E2E is pinned to `windows-2022` until [runner image issue 14738](https://github.com/actions/runner-images/issues/14738) is resolved.

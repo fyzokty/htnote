@@ -5,6 +5,8 @@ import { cp, mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
+import { waitForApp } from "./helpers/app";
+
 let driver: ChildProcess | undefined;
 let testDirectory: string | undefined;
 let driverLog: ReturnType<typeof createWriteStream> | undefined;
@@ -40,6 +42,16 @@ export const config = {
   mochaOpts: { timeout: 120000 },
   connectionRetryTimeout: 120000,
   connectionRetryCount: 1,
+  waitforTimeout: 30000,
+  waitforInterval: 100,
+  async before() {
+    await browser.setTimeout({ script: 60000 });
+    await waitForApp();
+  },
+  async beforeTest() {
+    await browser.releaseActions();
+    await waitForApp();
+  },
   async onPrepare() {
     testDirectory = await mkdtemp(join(tmpdir(), "htnote-e2e-"));
     const root = join(testDirectory, "notes");
@@ -70,10 +82,19 @@ export const config = {
     if (testDirectory) await rm(testDirectory, { recursive: true, force: true });
   },
   async afterTest(test: { title: string; file?: string }, _context: unknown, result: { error?: Error }) {
-    if (!result.error) return;
-    const directory = resolve("e2e", ".artifacts");
-    await mkdir(directory, { recursive: true });
-    const name = `${test.file ?? "spec"}-${test.title}`.replace(/[^a-z0-9.-]+/gi, "-").slice(-180);
-    await browser.saveScreenshot(join(directory, `${name}.png`));
+    try {
+      if (result.error) {
+        const directory = resolve("e2e", "logs");
+        await mkdir(directory, { recursive: true });
+        const name = `${test.file ?? "spec"}-${test.title}`.replace(/[^a-z0-9.-]+/gi, "-").slice(-180);
+        await browser.saveScreenshot(join(directory, `${name}.png`));
+        console.info("Failure frame:", await browser.execute(() => ({
+          url: location.href, readyState: document.readyState,
+          dataset: { ...document.documentElement.dataset },
+        })));
+      }
+    } finally {
+      await browser.switchFrame(null);
+    }
   },
 };

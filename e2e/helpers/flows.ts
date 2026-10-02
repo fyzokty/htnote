@@ -3,20 +3,23 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import { waitForApp, waitForSavedEditor } from "./app";
+
 export interface NoteNode { type: "note"; id: string; title: string; relPath: string }
 interface FolderNode { type: "folder"; relPath: string; children: TreeNode[] }
 export type TreeNode = NoteNode | FolderNode;
 
 export async function invoke<T>(command: string, args: object = {}): Promise<T> {
+  await waitForApp();
   const result = await browser.executeAsync((name, payload, done) => {
     const api = (window as unknown as { __TAURI_INTERNALS__: { invoke: (command: string, args: object) => Promise<unknown> } }).__TAURI_INTERNALS__;
     void api.invoke(name, payload).then(
       (value) => done({ ok: true, value }),
       (error) => done({ ok: false, error: JSON.stringify(error) }),
     );
-  }, command, args) as { ok: boolean; value: T; error?: string };
+  }, command, args) as { ok: true; value: unknown } | { ok: false; error: string };
   if (!result.ok) throw new Error(`${command}: ${result.error}`);
-  return result.value;
+  return result.value as T;
 }
 
 export function flatten(nodes: TreeNode[]): NoteNode[] {
@@ -32,14 +35,14 @@ export async function useTempRoot(): Promise<{ root: string; restore: () => Prom
   const root = await mkdtemp(join(tmpdir(), "htnote-flow-"));
   await invoke("set_root_dir", { path: root });
   await browser.refresh();
-  await $("[role=tree]").waitForExist();
+  await waitForApp();
   await browser.waitUntil(async () => (await tree()).length === 0, { timeout: 10000 });
   return {
     root,
     restore: async () => {
       await invoke("set_root_dir", { path: original });
       await browser.refresh();
-      await $("[role=tree]").waitForExist();
+      await waitForApp();
       await rm(root, { recursive: true, force: true });
     },
   };
@@ -71,12 +74,20 @@ export async function openNote(id: string): Promise<void> {
 export async function withNoteFrame<T>(id: string, run: () => Promise<T>): Promise<T> {
   const note = flatten(await tree()).find((item) => item.id === id);
   assert.ok(note);
-  const frame = await $(`iframe[title="${note.title}"]`);
-  // Kaydetme ve dosya olayları iframe'i yeniden oluşturur; her çağrı güncel öğeyi bulur.
-  await frame.waitForExist({ timeout: 15000 });
-  await browser.switchFrame(frame);
   try {
-    await $("#htnote-content").waitForExist({ timeout: 15000 });
+    // Dosya olayları beklerken de iframe'i değiştirebilir; hazır olana kadar güncel öğeyi bul.
+    await browser.waitUntil(async () => {
+      await browser.switchFrame(null);
+      const frame = await $(`iframe[title="${note.title}"]`);
+      if (!await frame.isExisting()) return false;
+      try {
+        await browser.switchFrame(frame);
+        return await browser.execute(() => window !== window.top && document.getElementById("htnote-content") !== null);
+      } catch (error) {
+        if (error instanceof Error && /stale element|no such (frame|element)|frame detached/i.test(error.message)) return false;
+        throw error;
+      }
+    }, { timeout: 15000, interval: 100, timeoutMsg: `Note iframe did not become ready: ${id}` });
     return await run();
   } finally {
     await browser.switchFrame(null);
@@ -104,6 +115,7 @@ export async function typeInVisualEditor(text: string): Promise<void> {
 
 export async function saveShortcut(): Promise<void> {
   await browser.keys(["Control", "s"]);
+  await waitForSavedEditor();
 }
 
 export async function editNote(): Promise<void> {
