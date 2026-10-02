@@ -6,7 +6,11 @@ use std::time::Duration;
 
 use chrono::Utc;
 use notify_debouncer_full::notify::{Event, EventKind, RecursiveMode};
-use notify_debouncer_full::{new_debouncer, DebounceEventResult};
+#[cfg(not(target_os = "macos"))]
+use notify_debouncer_full::new_debouncer;
+#[cfg(target_os = "macos")]
+use notify_debouncer_full::notify::Watcher;
+use notify_debouncer_full::DebounceEventResult;
 use serde::Serialize;
 use tauri::Emitter;
 use uuid::Uuid;
@@ -211,8 +215,19 @@ impl WatcherManager {
             let mut ready_sender = Some(ready_sender);
             loop {
                 let event_sender = callback.clone();
+                #[cfg(not(target_os = "macos"))]
                 let started = new_debouncer(Duration::from_millis(250), None,
                     move |events| { let _ = event_sender.send(Message::Events(events)); });
+                // FSEvents aynı yolda Create + Remove bayraklarını birlikte verebilir.
+                // Tam debouncer bunları iptal eder; macOS'ta aşağıdaki sessizlik
+                // penceresinde ham olayları birleştirip son disk durumunu tararız.
+                #[cfg(target_os = "macos")]
+                let started = notify_debouncer_full::notify::recommended_watcher(
+                    move |event: notify_debouncer_full::notify::Result<Event>| {
+                        let events = event.map(|event| vec![notify_debouncer_full::DebouncedEvent::new(
+                            event, std::time::Instant::now())]).map_err(|error| vec![error]);
+                        let _ = event_sender.send(Message::Events(events));
+                    });
                 match started {
                     Ok(mut debouncer) => {
                         if let Err(error) = debouncer.watch(&root, RecursiveMode::Recursive) {
@@ -490,16 +505,32 @@ mod tests {
     }
 
     #[test]
+    fn coalesced_folder_creation_and_removal_removes_indexed_note() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let (_, note) = create_note_in(root, "", Some("External")).unwrap();
+        let index = RwLock::new(NoteIndex::new(root.to_path_buf()));
+        apply_batch(root, &index, structural()).unwrap();
+        let dir = root.join("External");
+        fs::remove_dir_all(&dir).unwrap();
+        let events = [
+            event(EventKind::Create(CreateKind::Folder), vec![dir.clone()]),
+            event(EventKind::Remove(RemoveKind::Folder), vec![dir.clone()]),
+        ];
+        let affected = classify_events(root, &events, &HashSet::from([dir]));
+        let payload = apply_batch(root, &index, affected).unwrap();
+        assert_eq!(payload.removed_note_ids, vec![note.metadata.id]);
+        assert!(payload.tree_changed);
+        assert!(!index.read().unwrap().by_id.contains_key(&note.metadata.id));
+    }
+
+    #[test]
     fn real_watcher_reindexes_external_save_patterns_and_directory_removal() {
         let temp = tempfile::tempdir().unwrap();
-        let root = temp.path().to_path_buf();
-        let (_, note) = create_note_in(&root, "", Some("External")).unwrap();
-        let mut initial = NoteIndex::new(root.clone());
-        initial.replace_all(scan::scan(&root).unwrap());
-        let index = Arc::new(RwLock::new(initial));
+        let root = temp.path().canonicalize().unwrap();
+        let index = Arc::new(RwLock::new(NoteIndex::new(root.clone())));
         let search = Arc::new(RwLock::new(crate::search::SearchIndex::default()));
         let links = Arc::new(RwLock::new(crate::links::LinkIndex::default()));
-        crate::search::reindex_notes(&index, &search, &links, &[note.metadata.id], &[]).unwrap();
         let worker_index = Arc::clone(&index);
         let worker_search = Arc::clone(&search);
         let (sender, receiver) = mpsc::channel();
@@ -508,17 +539,23 @@ mod tests {
                 &payload.changed_note_ids, &payload.removed_note_ids).unwrap();
             let _ = sender.send(payload);
         });
-        let wait_for = |check: &dyn Fn(&crate::search::SearchIndex) -> bool| {
+        // watch() hazır sinyalinden sonra FSEvents akışının da başlamasını bekle.
+        #[cfg(target_os = "macos")]
+        thread::sleep(Duration::from_secs(1));
+        let wait_for = |step: &str, check: &dyn Fn(&crate::search::SearchIndex) -> bool| {
             let deadline = Instant::now() + Duration::from_secs(15);
             loop {
                 if check(&search.read().unwrap()) { return; }
-                assert!(Instant::now() < deadline, "watcher search timeout");
+                assert!(Instant::now() < deadline, "watcher search timeout: {step}");
                 let _ = receiver.recv_timeout(Duration::from_millis(50));
             }
         };
+        // Diğer gerçek watcher testleri gibi ilk notu olay üzerinden indeksle.
+        let (_, note) = create_note_in(&root, "", Some("External")).unwrap();
+        wait_for("initial note creation", &|search| search.search("External", 10).len() == 1);
         let html = root.join("External/index.html");
         fs::write(&html, "<p>inplaceword</p>").unwrap();
-        wait_for(&|search| search.search("inplaceword", 10).len() == 1);
+        wait_for("in-place write", &|search| search.search("inplaceword", 10).len() == 1);
         let temporary = root.join("External/.editor-save");
         fs::write(&temporary, "<p>atomicword</p>").unwrap();
         // Windows rename mevcut hedefin yerine geçmez; eski dosya önce taşınır.
@@ -526,16 +563,16 @@ mod tests {
         fs::rename(&html, &backup).unwrap();
         fs::rename(&temporary, &html).unwrap();
         fs::remove_file(&backup).unwrap();
-        wait_for(&|search| search.search("atomicword", 10).len() == 1 && search.search("inplaceword", 10).is_empty());
+        wait_for("temporary file + rename", &|search| search.search("atomicword", 10).len() == 1 && search.search("inplaceword", 10).is_empty());
         fs::remove_file(&html).unwrap();
-        wait_for(&|search| search.search("atomicword", 10).is_empty());
+        wait_for("file removal", &|search| search.search("atomicword", 10).is_empty());
         fs::write(&html, "<p>recreatedword</p>").unwrap();
-        wait_for(&|search| search.search("recreatedword", 10).len() == 1);
+        wait_for("file recreation", &|search| search.search("recreatedword", 10).len() == 1);
         fs::remove_file(&html).unwrap();
         fs::write(&html, "<p>rapidword</p>").unwrap();
-        wait_for(&|search| search.search("rapidword", 10).len() == 1 && search.search("recreatedword", 10).is_empty());
+        wait_for("rapid removal + write", &|search| search.search("rapidword", 10).len() == 1 && search.search("recreatedword", 10).is_empty());
         fs::remove_dir_all(root.join("External")).unwrap();
-        wait_for(&|search| search.search("External", 10).is_empty());
+        wait_for("directory removal", &|search| search.search("External", 10).is_empty());
         assert!(!index.read().unwrap().by_id.contains_key(&note.metadata.id));
         drop(watcher);
     }
