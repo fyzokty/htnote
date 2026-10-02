@@ -278,13 +278,13 @@ export function AppShell() {
           </div>
           <div className="shrink-0 space-y-3 p-3">
             <div className="flex gap-1">
-              <button type="button" onClick={() => void createNote()} title={formatShortcut("newNote")} className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-accent px-2 py-2 text-xs font-medium text-app-accent-text">
+              <button type="button" data-testid="new-note" onClick={() => void createNote()} title={formatShortcut("newNote")} className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-accent px-2 py-2 text-xs font-medium text-app-accent-text">
                 <FilePlus2 className="size-4 shrink-0" aria-hidden /> {t("sidebar.newNote")}
               </button>
-              <button type="button" onClick={() => void createFolder()} title={formatShortcut("newFolder")} className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-subtle px-2 py-2 text-xs font-medium">
+              <button type="button" data-testid="new-folder" onClick={() => void createFolder()} title={formatShortcut("newFolder")} className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-subtle px-2 py-2 text-xs font-medium">
                 <FolderPlus className="size-4 shrink-0" aria-hidden /> {t("sidebar.newFolder")}
               </button>
-              <button type="button" onClick={openSearch} title={formatShortcut("globalSearch")} className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-subtle px-2 py-2 text-xs font-medium">
+              <button type="button" data-testid="global-search" onClick={openSearch} title={formatShortcut("globalSearch")} className="flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md bg-app-subtle px-2 py-2 text-xs font-medium">
                 <Search className="size-4 shrink-0" aria-hidden /> {t("sidebar.search")}
               </button>
             </div>
@@ -297,7 +297,7 @@ export function AppShell() {
           <SidebarTree onOpenNote={openNote} />
           <TagsSection />
           <div className="shrink-0 border-t border-app-border p-2">
-            <button type="button" onClick={openTrash} aria-pressed={trashOpen} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-app-subtle">
+            <button type="button" data-testid="trash" onClick={openTrash} aria-pressed={trashOpen} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-app-subtle">
               <Trash2 className="size-4" aria-hidden /> {t("sidebar.trash")} <span className="ml-auto">{trashCount}</span>
             </button>
             <button type="button" onClick={openSettings} aria-pressed={settingsOpen} className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-app-subtle">

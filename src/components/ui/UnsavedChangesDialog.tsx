@@ -56,8 +56,8 @@ export function UnsavedChangesDialog() {
         })}</ul>}
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <button ref={cancel} type="button" onClick={() => dialog.resolve("cancel")}>{t("unsaved.cancel")}</button>
-          <button type="button" onClick={() => dialog.resolve("discard")}>{t(dialog.purpose === "export" ? "export.anyway" : "unsaved.discard")}</button>
-          <button type="button" onClick={() => dialog.resolve("save")} className="rounded bg-app-accent px-3 py-1 text-app-accent-text">{dialog.purpose === "export" ? t("export.saveAndExport") : dialog.noteIds.length > 1 ? t("unsaved.saveAll") : t("unsaved.save")}</button>
+          <button type="button" data-testid="discard-changes" onClick={() => dialog.resolve("discard")}>{t(dialog.purpose === "export" ? "export.anyway" : "unsaved.discard")}</button>
+          <button type="button" data-testid="save-changes" onClick={() => dialog.resolve("save")} className="rounded bg-app-accent px-3 py-1 text-app-accent-text">{dialog.purpose === "export" ? t("export.saveAndExport") : dialog.noteIds.length > 1 ? t("unsaved.saveAll") : t("unsaved.save")}</button>
         </div>
       </div>
     </div>
