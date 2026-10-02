@@ -167,7 +167,17 @@ fn escape_end_tag(value: &str, tag: &str) -> String {
 }
 
 fn rewrite_srcset(value: &str, context: &mut Context<'_>) -> String {
-    value.split(',').map(|candidate| {
+    // Data URI içindeki virgül aday ayırıcı değildir.
+    let mut candidates = Vec::new();
+    let mut start = 0;
+    for (index, ch) in value.char_indices() {
+        if ch == ',' && value[index + 1..].chars().next().is_some_and(char::is_whitespace) {
+            candidates.push(&value[start..index]);
+            start = index + 1;
+        }
+    }
+    candidates.push(&value[start..]);
+    candidates.into_iter().map(|candidate| {
         let trimmed = candidate.trim_start();
         let leading = &candidate[..candidate.len() - trimmed.len()];
         let end = trimmed.find(char::is_whitespace).unwrap_or(trimmed.len());
@@ -223,18 +233,18 @@ fn rewrite_css(css: &str, context: &mut Context<'_>) -> String {
             index = (index + 2).min(bytes.len());
             continue;
         }
-        if bytes[index] == b'\'' || bytes[index] == b'"' {
-            let quote = bytes[index];
-            index += 1;
-            while index < bytes.len() {
-                if bytes[index] == b'\\' { index = (index + 2).min(bytes.len()); }
-                else if bytes[index] == quote { index += 1; break; }
-                else { index += 1; }
-            }
-            continue;
-        }
         if index + 4 > bytes.len() || !bytes[index..index + 4].eq_ignore_ascii_case(b"url(")
             || (index > 0 && (bytes[index - 1].is_ascii_alphanumeric() || bytes[index - 1] == b'-')) {
+            if bytes[index] == b'\'' || bytes[index] == b'"' {
+                let quote = bytes[index];
+                index += 1;
+                while index < bytes.len() {
+                    if bytes[index] == b'\\' { index = (index + 2).min(bytes.len()); }
+                    else if bytes[index] == quote { index += 1; break; }
+                    else { index += 1; }
+                }
+                continue;
+            }
             index += 1;
             continue;
         }
@@ -319,6 +329,31 @@ mod tests {
         let built = build_single_html(root.path()).unwrap();
         assert_eq!(built.html.matches("data:image/png;base64,cG5n").count(), 3);
         assert!(!built.html.contains("my\\ image.png"));
+        assert!(built.warnings.is_empty());
+    }
+
+    #[test]
+    fn embeds_quoted_css_urls_in_each_location_and_escapes_style_end_tag() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("a.png"), b"png").unwrap();
+        fs::write(root.path().join("style.css"), r#"a{background:url("a.png")} b{content:"</StYlE"}"#).unwrap();
+        fs::write(root.path().join("index.html"), r#"<link rel="stylesheet" href="./style.css"><style>b{background:url('a.png')}</style><div style='background:url("a.png")'></div>"#).unwrap();
+
+        let built = build_single_html(root.path()).unwrap();
+        assert_eq!(built.html.matches("data:image/png;base64,cG5n").count(), 3, "{}", built.html);
+        assert!(built.html.contains("<\\/StYlE"));
+        assert!(!built.html.contains("</StYlE"));
+    }
+
+    #[test]
+    fn keeps_data_uri_srcset_candidate_intact() {
+        let root = tempfile::tempdir().unwrap();
+        fs::write(root.path().join("a.png"), b"png").unwrap();
+        fs::write(root.path().join("index.html"), r#"<img srcset="data:image/png;base64,AAAA 1x, a.png 2x">"#).unwrap();
+
+        let built = build_single_html(root.path()).unwrap();
+        assert!(built.html.contains("data:image/png;base64,AAAA 1x"));
+        assert!(built.html.contains("data:image/png;base64,cG5n 2x"));
         assert!(built.warnings.is_empty());
     }
 }
