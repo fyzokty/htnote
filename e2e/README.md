@@ -35,6 +35,13 @@ for the editor's save acknowledgement before another shortcut is sent; a file
 appearing on disk alone does not mean the editor has finished saving. Conditions
 have bounded timeouts for slower CI runners, without fixed sleeps or test retries.
 
+Settings controls use stable test IDs rather than translated button text; the
+tab sizing flow runs in both Turkish and English. Outside media clicks must leave
+a gap cursor immediately before or after that media, keep the same position on
+mouseup, and leave its toolbar hidden. WebView2 versions can resolve outside
+coordinates to either adjacent boundary; the unit tests separately verify the
+application's left/right placement with fixed geometry.
+
 CodeMirror virtualizes off-screen lines, so `.cm-content.getText()` reads only
 the rendered viewport, not the entire HTML document. Scroll the relevant content
 into view before asserting its source (the color flow uses Ctrl+End to reveal

@@ -105,6 +105,12 @@ describe("editing flows", () => {
         const formatter = await $('[data-testid="format-document"]');
         assert.equal(await formatter.isEnabled(), true);
         await formatter.click();
+        // CodeMirror only renders viewport lines. CI's smaller viewport leaves
+        // the main element below the rendered range even after formatting.
+        await browser.keys(["Control", "End"]);
+        await browser.waitUntil(async () => /<main id="htnote-content">\s*\n\s*<h1>/.test(
+          await $('.htnote-code-host .cm-content').getText()),
+        { timeoutMsg: "Formatted note content did not appear in the code viewport" });
         const formattedHtml = await $('.htnote-code-host .cm-content').getText();
         assert.match(formattedHtml, /<main id="htnote-content">\s*\n\s*<h1>/);
         await browser.keys(["Control", "z"]);

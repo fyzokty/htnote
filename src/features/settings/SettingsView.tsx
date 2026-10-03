@@ -68,7 +68,7 @@ export function SettingsView({ onShowShortcuts }: { onShowShortcuts?: () => void
           <div className="flex flex-wrap items-center justify-between gap-3">
             <span id="settings-tab-sizing">{t("settings.tabSizing")}</span>
             <SegmentedControl label={t("settings.tabSizing")} value={settings?.tabSizing ?? "fixed"}
-              options={(["fixed", "fit"] as const).map((value) => ({ value, label: t(`settings.tabSizingOptions.${value}`), disabled: !settings }))}
+              options={(["fixed", "fit"] as const).map((value) => ({ value, label: t(`settings.tabSizingOptions.${value}`), testId: `tab-sizing-${value}`, disabled: !settings }))}
               onChange={(tabSizing) => void update({ tabSizing }).catch(notifyError)} />
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3">

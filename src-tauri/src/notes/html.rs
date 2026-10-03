@@ -278,6 +278,17 @@ mod tests {
     }
 
     #[test]
+    fn crlf_template_preserves_new_note_content_indentation() {
+        let meta = fixture_meta();
+        let template = include_str!("../../templates/note.html").replace("\r\n", "\n");
+        let lf = render_note_template(&template, &meta);
+        let crlf = render_note_template(&template.replace('\n', "\r\n"), &meta);
+        assert!(crlf.contains("<main id=\"htnote-content\">\r\n      <h1>"));
+        assert_eq!(crlf.replace("\r\n", "\n"), lf);
+        assert_eq!(sync_head(&crlf, &meta, false, false), crlf);
+    }
+
+    #[test]
     fn new_note_uses_two_space_document_and_content_indentation() {
         let html = render_new_note_html(&NoteMetadata::new("Title"));
         assert!(html.starts_with("<!DOCTYPE html>\n<html lang=\"tr\">\n  <head>\n    <meta"));

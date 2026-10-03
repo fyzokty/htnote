@@ -34,12 +34,13 @@ describe("tab reordering", () => {
   let restore: (() => Promise<void>) | undefined;
   let theme: string;
   let tabSizing: string;
+  let language: string | null;
   beforeEach(async () => {
-    ({ theme, tabSizing } = await invoke<{ theme: string; tabSizing: string }>("get_settings"));
+    ({ theme, tabSizing, language } = await invoke<{ theme: string; tabSizing: string; language: string | null }>("get_settings"));
     ({ restore } = await useTempRoot());
   });
   afterEach(async () => {
-    await invoke("update_settings", { patch: { theme, tabSizing } });
+    await invoke("update_settings", { patch: { theme, tabSizing, language } });
     await restore?.();
   });
 
@@ -119,16 +120,21 @@ describe("tab reordering", () => {
     assert.equal(await $(`[role="tab"][data-note-id="${note.id}"]`).getAttribute("aria-selected"), "true");
   });
 
-  it("changes tab sizing in settings and restores only note tabs", async () => {
+  for (const language of ["tr", "en"]) it(`changes tab sizing in ${language} settings and restores only note tabs`, async () => {
+    await invoke("update_settings", { patch: { language } });
     const note = await createNote("A long title for checking the size of a note tab");
     await openNote(note.id);
     await $('[data-testid="settings"]').click();
-    const fit = await $('button*=Başlığa göre');
+    const fit = await $('[data-testid="tab-sizing-fit"]');
+    await fit.waitForDisplayed();
     await fit.click();
     await browser.waitUntil(async () => (await invoke<{ tabSizing: string }>("get_settings")).tabSizing === "fit");
     assert.equal(await $(`[role="tab"][data-note-id="${note.id}"]`).getAttribute("data-sizing"), "fit");
-    await $('button*=Sabit genişlik').click();
+    assert.equal(await fit.getAttribute("aria-pressed"), "true");
+    await $('[data-testid="tab-sizing-fixed"]').click();
     await browser.waitUntil(async () => (await invoke<{ tabSizing: string }>("get_settings")).tabSizing === "fixed");
+    assert.equal(await $(`[role="tab"][data-note-id="${note.id}"]`).getAttribute("data-sizing"), "fixed");
+    assert.equal(await $('[data-testid="tab-sizing-fixed"]').getAttribute("aria-pressed"), "true");
     await $('[data-testid="trash"]').click();
     await browser.waitUntil(async () => {
       const saved = await invoke<{ openTabs: string[]; activeTab: string | null }>("get_settings");

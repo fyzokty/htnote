@@ -57,21 +57,21 @@ async function clickMediaGap(selector: string, side: "left" | "right" = "right")
     const editor = surface.getBoundingClientRect();
     const preview = document.querySelector<HTMLElement>(selector)!;
     const media = preview.getBoundingClientRect();
-    let boundary: number | null = null;
+    let boundaries: number[] = [];
     surface.editor.state.doc.descendants((node, pos) => {
       if (surface.editor.view.nodeDOM(pos) === preview.closest(".htnote-media-node")) {
-        boundary = pos + (side === "right" ? node.nodeSize : 0);
+        boundaries = [pos, pos + node.nodeSize];
       }
     });
     return {
       x: Math.round(side === "right" ? editor.right - 8 : editor.left + 8),
       y: Math.round(media.top + media.height / 2),
       edge: side === "right" ? media.right : media.left,
-      boundary,
+      boundaries,
     };
   }, selector, side);
   assert.ok(side === "right" ? point.x > point.edge : point.x < point.edge, "Click must be outside the media preview");
-  assert.notEqual(point.boundary, null);
+  assert.equal(point.boundaries.length, 2);
   const selection = () => browser.execute(() => {
     const editor = (document.querySelector(".tiptap") as HTMLElement & { editor: Editor }).editor;
     return editor.state.selection.toJSON() as { type: string; pos?: number };
@@ -80,11 +80,16 @@ async function clickMediaGap(selector: string, side: "left" | "right" = "right")
     await browser.performActions([{ type: "pointer", id: "media-gap", parameters: { pointerType: "mouse" }, actions: [
       { type: "pointerMove", origin: "viewport", x: point.x, y: point.y }, { type: "pointerDown", button: 0 },
     ] }]);
-    assert.deepEqual(await selection(), { type: "gapcursor", pos: point.boundary }, "Outside mousedown must place the cursor at the media boundary");
+    // WebView2 versions can resolve the same outside point to either adjacent
+    // gap. Both are valid, but selecting the atom or a distant gap is a failure.
+    const down = await selection();
+    assert.equal(down.type, "gapcursor", "Outside mousedown must place a gap cursor, not select media");
+    assert.ok(down.pos !== undefined && point.boundaries.includes(down.pos),
+      `Outside mousedown must use a boundary of the clicked media (${point.boundaries}), got ${down.pos}`);
     await browser.performActions([{ type: "pointer", id: "media-gap", parameters: { pointerType: "mouse" }, actions: [
       { type: "pointerUp", button: 0 },
     ] }]);
-    assert.deepEqual(await selection(), { type: "gapcursor", pos: point.boundary }, "Outside mouseup must keep the cursor at the media boundary");
+    assert.deepEqual(await selection(), down, "Outside mouseup must keep the cursor at the same media boundary");
     await browser.waitUntil(async () => browser.execute(() => !document.querySelector(".htnote-media.is-selected")),
       { timeout: 5000, timeoutMsg: "Outside click left a media preview selected" });
   } finally {
@@ -169,6 +174,9 @@ describe("visual media previews", () => {
     await clickMediaGap(".tiptap img[alt='SVG preview']");
     await clickMediaGap(".tiptap .ht-audio-card");
     await clickMediaGap(".tiptap video");
+    for (const selector of [".tiptap img[alt='Preview']", ".tiptap img[alt='SVG preview']", ".tiptap .ht-audio-card", ".tiptap video"]) {
+      await clickMediaGap(selector, "left");
+    }
     await $(".tiptap img[alt='Preview']").click();
     await $(".htnote-media-image .htnote-media-toolbar").waitForDisplayed();
     const themeWasDark = await browser.execute(() => document.documentElement.classList.contains("dark"));
