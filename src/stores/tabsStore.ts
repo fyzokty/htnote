@@ -11,7 +11,12 @@ import type { NoteMetadata } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTreeStore } from "@/stores/treeStore";
 
+export type SpecialTabKind = "settings" | "trash";
+export const specialTabId = (kind: SpecialTabKind) => `special:${kind}`;
+export const isSpecialTabId = (id: string) => id.startsWith("special:");
+
 export interface Tab {
+  special?: SpecialTabKind;
   noteId: string;
   doc: DocState;
 }
@@ -23,6 +28,8 @@ interface TabsState {
   activeId: string | null;
   restored: boolean;
   openNote: (id: string, options?: { activate?: boolean }) => void;
+  openSpecial: (kind: SpecialTabKind) => void;
+  toggleSpecial: (kind: SpecialTabKind) => void;
   close: (id: string) => Promise<boolean>;
   closeOthers: (id: string) => Promise<void>;
   activate: (id: string) => void;
@@ -61,8 +68,8 @@ function persist(tabs: Tab[], activeId: string | null) {
     saveTimer = null;
     if (useSettingsStore.getState().settings) {
       void useSettingsStore.getState().update({
-        openTabs: tabs.map((tab) => tab.noteId),
-        activeTab: activeId,
+        openTabs: tabs.filter((tab) => !tab.special).map((tab) => tab.noteId),
+        activeTab: activeId && !isSpecialTabId(activeId) ? activeId : tabs.find((tab) => !tab.special)?.noteId ?? null,
       }).catch(() => {});
     }
   }, 500);
@@ -79,6 +86,7 @@ function removeTab(tabs: Tab[], activeId: string | null, id: string) {
 }
 
 function clearClosedPreview(id: string) {
+  if (isSpecialTabId(id)) return;
   void ipc.clearPreviewDraft(id).catch((error: unknown) => {
     console.warn("Could not clear preview draft for closed tab", id, error);
   });
@@ -86,7 +94,7 @@ function clearClosedPreview(id: string) {
 
 function updateTabDoc(tabs: Tab[], id: string, transition: (doc: DocState) => DocState): Tab[] {
   const index = tabs.findIndex((tab) => tab.noteId === id);
-  if (index < 0) return tabs;
+  if (index < 0 || tabs[index].special) return tabs;
   const doc = transition(tabs[index].doc);
   if (doc === tabs[index].doc) return tabs;
   const next = [...tabs];
@@ -99,6 +107,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   activeId: null,
   restored: false,
   openNote(id, { activate = true } = {}) {
+    if (isSpecialTabId(id)) return;
     const current = get();
     const alreadyOpen = current.tabs.some((tab) => tab.noteId === id);
     const tabs = alreadyOpen
@@ -111,17 +120,33 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     }
     if (activate) useTreeStore.getState().revealNote(id);
   },
+  openSpecial(kind) {
+    const id = specialTabId(kind);
+    const current = get();
+    const tabs = current.tabs.some((tab) => tab.noteId === id)
+      ? current.tabs
+      : [...current.tabs, { noteId: id, special: kind, doc: createDocState() }];
+    set({ tabs, activeId: id });
+    persist(tabs, id);
+  },
+  toggleSpecial(kind) {
+    const id = specialTabId(kind);
+    if (get().activeId === id) void get().close(id);
+    else get().openSpecial(kind);
+  },
   async close(id) {
     if (!get().tabs.some((tab) => tab.noteId === id)) return false;
-    if (!await beforeClose(id)) return false;
-    if (!(await resolveUnsaved([id])).resolved.has(id) || get().isDirty(id)) return false;
+    if (!isSpecialTabId(id)) {
+      if (!await beforeClose(id)) return false;
+      if (!(await resolveUnsaved([id])).resolved.has(id) || get().isDirty(id)) return false;
+    }
     const current = get();
     const result = removeTab(current.tabs, current.activeId, id);
     if (result.tabs === current.tabs) return false;
     set(result);
     persist(result.tabs, result.activeId);
     clearClosedPreview(id);
-    if (result.activeId && result.activeId !== current.activeId) {
+    if (result.activeId && !isSpecialTabId(result.activeId) && result.activeId !== current.activeId) {
       useTreeStore.getState().revealNote(result.activeId);
     }
     return true;
@@ -131,12 +156,12 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     const candidates = get().tabs.filter((tab) => tab.noteId !== id).map((tab) => tab.noteId);
     const allowed: string[] = [];
     for (const candidate of candidates) {
-      if (await beforeClose(candidate)) allowed.push(candidate);
+      if (isSpecialTabId(candidate) || await beforeClose(candidate)) allowed.push(candidate);
     }
-    const resolved = await resolveUnsaved(allowed);
+    const resolved = await resolveUnsaved(allowed.filter((candidate) => !isSpecialTabId(candidate)));
     if (resolved.cancelled) return;
     for (const candidate of allowed) {
-      if (!resolved.resolved.has(candidate) || get().isDirty(candidate)) continue;
+      if (!isSpecialTabId(candidate) && (!resolved.resolved.has(candidate) || get().isDirty(candidate))) continue;
       const current = get();
       const result = removeTab(current.tabs, current.activeId, candidate);
       if (result.tabs === current.tabs) continue;
@@ -152,7 +177,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
       set({ activeId: id });
       persist(get().tabs, id);
     }
-    useTreeStore.getState().revealNote(id);
+    if (!isSpecialTabId(id)) useTreeStore.getState().revealNote(id);
   },
   next() {
     const { tabs, activeId } = get();
@@ -182,7 +207,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     let { tabs, activeId } = get();
     const previous = tabs;
     for (const tab of previous) {
-      if (!existing.has(tab.noteId) && !tab.doc.dirty && !tab.doc.saving && !tab.doc.removedOnDisk) {
+      if (!tab.special && !existing.has(tab.noteId) && !tab.doc.dirty && !tab.doc.saving && !tab.doc.removedOnDisk) {
         ({ tabs, activeId } = removeTab(tabs, activeId, tab.noteId));
         clearClosedPreview(tab.noteId);
       }
@@ -190,19 +215,24 @@ export const useTabsStore = create<TabsState>((set, get) => ({
     if (tabs === previous) return;
     set({ tabs, activeId });
     persist(tabs, activeId);
-    if (activeId && activeId !== previousActive) useTreeStore.getState().revealNote(activeId);
+    if (activeId && !isSpecialTabId(activeId) && activeId !== previousActive) useTreeStore.getState().revealNote(activeId);
   },
   restore(existingIds) {
     if (get().restored) return;
     const settings = useSettingsStore.getState().settings;
     if (!settings) return;
     const existing = new Set(existingIds);
-    const ids = [...new Set(settings.openTabs.filter((id) => existing.has(id)))];
-    const tabs = ids.map((noteId) => ({ noteId, doc: createDocState() }));
-    const activeId = ids.includes(settings.activeTab ?? "") ? settings.activeTab : ids[0] ?? null;
+    const ids = [...new Set(settings.openTabs.filter((id) => !isSpecialTabId(id) && existing.has(id)))];
+    // A user can open a tab while the initial tree scan is still pending.
+    const current = get();
+    const tabs: Tab[] = [
+      ...ids.filter((id) => !current.tabs.some((tab) => tab.noteId === id)).map((noteId) => ({ noteId, doc: createDocState() })),
+      ...current.tabs,
+    ];
+    const activeId = current.activeId ?? (ids.includes(settings.activeTab ?? "") ? settings.activeTab : ids[0] ?? null);
     set({ tabs, activeId, restored: true });
-    if (activeId) useTreeStore.getState().revealNote(activeId);
-    if (ids.length !== settings.openTabs.length || activeId !== settings.activeTab) persist(tabs, activeId);
+    if (activeId && !isSpecialTabId(activeId)) useTreeStore.getState().revealNote(activeId);
+    if (current.tabs.length || ids.length !== settings.openTabs.length || activeId !== settings.activeTab) persist(tabs, activeId);
   },
   enterEdit(id, base, preferred, visualAvailable) {
     set((state) => ({ tabs: updateTabDoc(state.tabs, id, (doc) => enterEdit(doc, base, preferred, visualAvailable)) }));
@@ -249,7 +279,7 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   handleRemoved(id, title, parent) {
     const current = get();
     const tab = current.tabs.find((item) => item.noteId === id);
-    if (!tab) return "missing";
+    if (!tab || tab.special) return "missing";
     if (tab.doc.saving) return "saving";
     if (tab.doc.dirty) {
       set({ tabs: updateTabDoc(current.tabs, id, (doc) => markRemoved(doc, title, parent)) });

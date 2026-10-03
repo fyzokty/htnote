@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/Button";
+import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { changeRootFlow } from "@/features/settings/changeRoot";
 import { notifyError } from "@/lib/errors";
 import { ipc } from "@/lib/ipc";
@@ -60,6 +61,12 @@ export function SettingsView({ onShowShortcuts }: { onShowShortcuts?: () => void
               <option value="dark">{t("settings.dark")}</option>
             </select>
           </label>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span id="settings-tab-sizing">{t("settings.tabSizing")}</span>
+            <SegmentedControl label={t("settings.tabSizing")} value={settings?.tabSizing ?? "fixed"}
+              options={(["fixed", "fit"] as const).map((value) => ({ value, label: t(`settings.tabSizingOptions.${value}`), disabled: !settings }))}
+              onChange={(tabSizing) => void update({ tabSizing }).catch(notifyError)} />
+          </div>
           <label className="flex items-center justify-between gap-3">{t("settings.language")}
             <select value={settings?.language ?? "system"} onChange={(event) => void update({ language: event.target.value === "system" ? null : event.target.value as "tr" | "en" }).catch(notifyError)} className="rounded border border-app-border bg-app-bg px-3 py-2">
               <option value="system">{t("settings.system")}</option>

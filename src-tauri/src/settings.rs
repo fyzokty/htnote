@@ -48,6 +48,14 @@ pub enum Language {
     En,
 }
 
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum TabSizing {
+    #[default]
+    Fixed,
+    Fit,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -58,6 +66,8 @@ pub struct Settings {
     pub language: Option<Language>,
     pub sidebar_width: u32,
     pub sidebar_visible: bool,
+    #[serde(default)]
+    pub tab_sizing: TabSizing,
     #[serde(default = "default_editor_split_ratio")]
     pub editor_split_ratio: u8,
     #[serde(default = "default_editor_live_preview")]
@@ -83,6 +93,7 @@ impl Default for Settings {
             language: None,
             sidebar_width: 260,
             sidebar_visible: true,
+            tab_sizing: TabSizing::default(),
             editor_split_ratio: default_editor_split_ratio(),
             editor_live_preview: default_editor_live_preview(),
             backlinks_expanded: default_backlinks_expanded(),
@@ -106,6 +117,7 @@ pub struct SettingsPatch {
     pub language: Option<Option<Language>>,
     pub sidebar_width: Option<u32>,
     pub sidebar_visible: Option<bool>,
+    pub tab_sizing: Option<TabSizing>,
     pub editor_split_ratio: Option<u8>,
     pub editor_live_preview: Option<bool>,
     pub backlinks_expanded: Option<bool>,
@@ -141,6 +153,7 @@ pub fn apply_patch(settings: &Settings, patch: SettingsPatch) -> Settings {
         language: patch.language.unwrap_or_else(|| settings.language.clone()),
         sidebar_width: patch.sidebar_width.unwrap_or(settings.sidebar_width),
         sidebar_visible: patch.sidebar_visible.unwrap_or(settings.sidebar_visible),
+        tab_sizing: patch.tab_sizing.unwrap_or_else(|| settings.tab_sizing.clone()),
         editor_split_ratio: patch.editor_split_ratio.unwrap_or(settings.editor_split_ratio).clamp(20, 80),
         editor_live_preview: patch.editor_live_preview.unwrap_or(settings.editor_live_preview),
         backlinks_expanded: patch.backlinks_expanded.unwrap_or(settings.backlinks_expanded),
@@ -378,6 +391,24 @@ mod tests {
         let settings: Settings = serde_json::from_value(value).unwrap();
         assert!(settings.open_tabs.is_empty());
         assert_eq!(settings.active_tab, None);
+    }
+
+    #[test]
+    fn tab_sizing_defaults_patches_and_persists() {
+        let mut value = serde_json::to_value(Settings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("tabSizing");
+        let settings: Settings = serde_json::from_value(value).unwrap();
+        assert_eq!(settings.tab_sizing, TabSizing::Fixed);
+        for (value, expected) in [("fit", TabSizing::Fit), ("fixed", TabSizing::Fixed)] {
+            let patch: SettingsPatch = serde_json::from_value(serde_json::json!({ "tabSizing": value })).unwrap();
+            let changed = apply_patch(&settings, patch);
+            assert_eq!(changed.tab_sizing, expected);
+            assert_eq!(changed.sidebar_width, settings.sidebar_width);
+            let dir = tempdir().unwrap();
+            save_settings_atomic(dir.path(), &changed).unwrap();
+            assert_eq!(load_settings(dir.path()).unwrap().tab_sizing, expected);
+        }
+        assert!(serde_json::from_str::<SettingsPatch>(r#"{"tabSizing":"invalid"}"#).is_err());
     }
 
     #[test]

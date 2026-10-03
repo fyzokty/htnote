@@ -18,11 +18,14 @@ describe("organize and search flows", () => {
     await $('[role="menu"] > div:last-child [role="menuitem"]').click();
     await browser.waitUntil(async () => !flatten(await tree()).some((item) => item.id === note.id));
     await $('[data-testid="trash"]').click();
+    assert.equal(await $('[role="tab"][data-note-id="special:trash"]').getAttribute("aria-selected"), "true");
     const row = await $("li*=Restore me");
     await row.waitForDisplayed();
     await row.$("button").click();
     await browser.waitUntil(async () => flatten(await tree()).some((item) => item.id === note.id));
     await (await waitForTreeItem(note.id)).waitForDisplayed();
+    await openNote(note.id);
+    assert.equal(await $('[role="tab"][data-note-id="special:trash"]').isExisting(), true);
   });
 
   it("finds İstanbul with both casings and highlights the result", async () => {

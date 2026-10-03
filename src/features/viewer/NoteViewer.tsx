@@ -17,7 +17,7 @@ import { registerFrame } from "@/features/viewer/bridgeHost";
 import { NOTE_IFRAME_SANDBOX, noteUrl } from "@/lib/noteUrl";
 import { useShortcut } from "@/lib/shortcuts/useShortcut";
 import type { NoteNode, TreeNode } from "@/lib/types";
-import { useTabsStore } from "@/stores/tabsStore";
+import { isSpecialTabId, useTabsStore } from "@/stores/tabsStore";
 import { useTreeStore } from "@/stores/treeStore";
 import { useUiStore } from "@/stores/uiStore";
 
@@ -43,24 +43,24 @@ function relativeSaved(value: string, language: string, now: number): string {
   return formatter.format(Math.round(elapsed / 86_400_000), "day");
 }
 
-function NoteFrame({ id, active, title }: { id: string; active: boolean; title: string }) {
+function NoteFrame({ id, active, title, revision }: { id: string; active: boolean; title: string; revision: string }) {
   const { t } = useTranslation();
-  const [loaded, setLoaded] = useState(false);
+  const [loadedRevision, setLoadedRevision] = useState<string | null>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
   useEffect(() => {
     const frame = frameRef.current?.contentWindow;
     return frame ? registerFrame(id, frame) : undefined;
-  }, [id]);
+  }, [id, revision]);
   return (
     <div className="relative h-full w-full" hidden={!active}>
-      {!loaded && <div role="progressbar" aria-label={t("viewer.loading")} className="absolute inset-x-0 top-0 z-10 h-0.5 animate-pulse bg-app-accent" />}
+      {loadedRevision !== revision && <div role="progressbar" aria-label={t("viewer.loading")} className="absolute inset-x-0 top-0 z-10 h-0.5 animate-pulse bg-app-accent" />}
       <iframe
         ref={frameRef}
         title={title}
-        src={noteUrl(id)}
+        src={`${noteUrl(id)}?revision=${encodeURIComponent(revision)}`}
         sandbox={NOTE_IFRAME_SANDBOX}
         referrerPolicy="no-referrer"
-        onLoad={() => setLoaded(true)}
+        onLoad={() => setLoadedRevision(revision)}
         className="h-full w-full border-0"
       />
     </div>
@@ -70,12 +70,12 @@ function NoteFrame({ id, active, title }: { id: string; active: boolean; title: 
 export function NoteViewer() {
   const { t, i18n } = useTranslation();
   const tabs = useTabsStore((state) => state.tabs);
-  const activeId = useTabsStore((state) => state.activeId);
+  const activeId = useTabsStore((state) => state.activeId && !isSpecialTabId(state.activeId) ? state.activeId : null);
   const session = useEditSession(activeId);
   useShortcut("toggleEdit", () => { void session.toggleEdit(); });
   useShortcut("save", () => { void session.save(true); });
   const tree = useTreeStore((state) => state.tree);
-  const openIds = tabs.map((tab) => tab.noteId);
+  const openIds = tabs.filter((tab) => !tab.special).map((tab) => tab.noteId);
   const [cache, setCache] = useState(() => ({ tabs, activeId, mounted: nextMounted([], activeId, openIds) }));
   const [now, setNow] = useState(() => Date.now());
   const [exportMenu, setExportMenu] = useState<{ x: number; y: number; trigger: HTMLElement } | null>(null);
@@ -125,7 +125,9 @@ export function NoteViewer() {
           const doc = tabs.find((tab) => tab.noteId === id)?.doc;
           return doc && doc.mode !== "view" && id === activeId
             ? <NoteEditor key={id} noteId={id} doc={doc} session={session} />
-            : note ? <NoteFrame key={`${id}:${doc?.lastSavedAt ?? ""}:${doc?.baseVersion ?? 0}`} id={id} active={id === activeId} title={note.title} /> : null;
+            // Keep the browsing context when reloading: replacing the iframe can
+            // detach in-flight bridge and frame reads. Navigate to a new revision instead.
+            : note ? <NoteFrame key={id} id={id} active={id === activeId} title={note.title} revision={`${doc?.lastSavedAt ?? 0}:${doc?.baseVersion ?? 0}`} /> : null;
         })}
       </div>
       {activeId && activeNote && activeTab?.doc.mode === "view" && <BacklinksPanel id={activeId} saveRevision={tabs.map((tab) => tab.doc.lastSavedAt ?? "").join(":")} />}

@@ -103,7 +103,12 @@ describe("editing flows", () => {
     await openNote(note.id);
     await editNote();
     await typeInVisualEditor("Unsaved change");
-    await browser.waitUntil(async () => await $(`[data-note-id="${note.id}"]`).getText().then((text) => text.includes("•")));
+    const tab = await $(`[role="tab"][data-note-id="${note.id}"]`);
+    const dot = await tab.$('[data-testid="tab-dirty"]');
+    await dot.waitForDisplayed();
+    await tab.moveTo();
+    await tab.$("button svg").waitForDisplayed();
+    assert.equal(await dot.isDisplayed(), false);
     await $(`[data-note-id="${note.id}"] button`).click();
     await $('[role="dialog"] [data-testid="discard-changes"]').waitForDisplayed();
     await $('[data-testid="discard-changes"]').click();

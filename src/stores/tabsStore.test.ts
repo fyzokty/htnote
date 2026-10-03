@@ -11,7 +11,7 @@ import { useUiStore } from "@/stores/uiStore";
 
 const settings: Settings = {
   rootDir: null, lastExportDir: null, theme: "system", language: null, sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true,
-  sidebarVisible: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false,
+  sidebarVisible: true, tabSizing: "fixed", openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false,
 };
 const ids = () => useTabsStore.getState().tabs.map((tab) => tab.noteId);
 const base: DocBase = { html: "original", css: null, js: null, contentHash: "one" };
@@ -34,6 +34,120 @@ afterEach(() => {
 });
 
 describe("tabsStore", () => {
+  it("opens singleton special tabs and toggles active ones closed", async () => {
+    const store = useTabsStore.getState();
+    store.openNote("a");
+    store.openSpecial("settings");
+    store.openSpecial("settings");
+    store.toggleSpecial("trash");
+    expect(ids()).toEqual(["a", "special:settings", "special:trash"]);
+    store.toggleSpecial("settings");
+    expect(useTabsStore.getState().activeId).toBe("special:settings");
+    store.toggleSpecial("settings");
+    expect(ids()).toEqual(["a", "special:trash"]);
+    expect(useTabsStore.getState().activeId).toBe("special:trash");
+    await store.close("special:trash");
+    expect(useTabsStore.getState().activeId).toBe("a");
+    await store.close("a");
+    store.toggleSpecial("settings");
+    store.toggleSpecial("settings");
+    expect(ids()).toEqual([]);
+    expect(useTabsStore.getState().activeId).toBeNull();
+  });
+
+  it("reorders and cycles special tabs without treating them as notes", async () => {
+    const store = useTabsStore.getState();
+    const reveal = vi.spyOn(useTreeStore.getState(), "revealNote");
+    const guard = vi.fn(() => false);
+    store.setBeforeCloseGuard(guard);
+    store.openNote("special:settings");
+    expect(ids()).toEqual([]);
+    store.openSpecial("settings");
+    store.openSpecial("trash");
+    store.enterEdit("special:settings", base);
+    store.updateDraft("special:settings", { html: "ignored" });
+    expect(store.anyDirty()).toBe(false);
+    store.move(1, 0);
+    expect(ids()).toEqual(["special:trash", "special:settings"]);
+    store.next();
+    expect(useTabsStore.getState().activeId).toBe("special:settings");
+    store.prev();
+    expect(useTabsStore.getState().activeId).toBe("special:trash");
+    store.replaceMissing([]);
+    expect(ids()).toHaveLength(2);
+    await store.closeOthers("special:settings");
+    await store.close("special:settings");
+    expect(guard).not.toHaveBeenCalled();
+    expect(reveal).not.toHaveBeenCalled();
+    expect(ipc.clearPreviewDraft).not.toHaveBeenCalled();
+  });
+
+  it("keeps dirty notes protected when closing other tabs from a special tab", async () => {
+    const store = useTabsStore.getState();
+    store.openNote("a");
+    store.enterEdit("a", base);
+    store.updateDraft("a", { html: "changed" });
+    store.openSpecial("trash");
+    store.openSpecial("settings");
+    const closing = store.closeOthers("special:settings");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(useUiStore.getState().unsavedDialog?.noteIds).toEqual(["a"]);
+    useUiStore.getState().unsavedDialog?.resolve("cancel");
+    await closing;
+    expect(ids()).toEqual(["a", "special:trash", "special:settings"]);
+    expect(store.isDirty("a")).toBe(true);
+  });
+
+  it("persists only notes even when a special tab is active", async () => {
+    const update = vi.spyOn(useSettingsStore.getState(), "update").mockResolvedValue(settings);
+    const store = useTabsStore.getState();
+    store.openNote("a");
+    store.openSpecial("settings");
+    store.openNote("b", { activate: false });
+    store.openSpecial("trash");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(update).toHaveBeenLastCalledWith({ openTabs: ["a", "b"], activeTab: "a" });
+    await store.close("a");
+    await store.close("b");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(update).toHaveBeenLastCalledWith({ openTabs: [], activeTab: null });
+  });
+
+  it("filters persisted special ids even if passed as existing ids", async () => {
+    resetTabsStoreForTests();
+    useSettingsStore.setState({ settings: { ...settings, openTabs: ["special:settings", "b", "special:trash"], activeTab: "special:trash" } });
+    const update = vi.spyOn(useSettingsStore.getState(), "update").mockResolvedValue(settings);
+    useTabsStore.getState().restore(["special:settings", "b", "special:trash"]);
+    expect(ids()).toEqual(["b"]);
+    expect(useTabsStore.getState().activeId).toBe("b");
+    await vi.advanceTimersByTimeAsync(500);
+    expect(update).toHaveBeenCalledWith({ openTabs: ["b"], activeTab: "b" });
+  });
+
+  it("preserves a special tab opened before the initial tree scan finishes", () => {
+    resetTabsStoreForTests();
+    useSettingsStore.setState({ settings: { ...settings, openTabs: ["a"], activeTab: "a" } });
+    const store = useTabsStore.getState();
+    store.openSpecial("settings");
+    store.restore(["a"]);
+    expect(ids()).toEqual(["a", "special:settings"]);
+    expect(useTabsStore.getState().activeId).toBe("special:settings");
+  });
+
+  it("preserves an edited note opened before restoration alongside saved notes", () => {
+    resetTabsStoreForTests();
+    useSettingsStore.setState({ settings: { ...settings, openTabs: ["a", "b"], activeTab: "a" } });
+    const store = useTabsStore.getState();
+    store.openNote("b");
+    store.enterEdit("b", base, "code");
+    store.updateDraft("b", { html: "early edit" });
+    store.restore(["a", "b"]);
+    expect(ids()).toEqual(["a", "b"]);
+    expect(useTabsStore.getState().activeId).toBe("b");
+    expect(doc("b")).toMatchObject({ mode: "code", dirty: true, draft: { html: "early edit" } });
+  });
+
   it("initializes document state for opened and restored tabs", () => {
     useTabsStore.getState().openNote("a");
     expect(doc("a")).toMatchObject({ mode: "view", base: null, draft: null, dirty: false });

@@ -9,8 +9,9 @@ import { save } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import { NoteViewer } from "@/features/viewer/NoteViewer";
+import { handleExternalChanges } from "@/features/editor/externalChange";
 import { installBridgeHost, requestHighlight, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
-import type { Settings } from "@/lib/types";
+import type { NoteData, Settings } from "@/lib/types";
 import { NOTE_IFRAME_SANDBOX, initNoteOrigin, noteUrl } from "@/lib/noteUrl";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
@@ -37,6 +38,72 @@ beforeEach(() => {
 });
 
 describe("NoteViewer", () => {
+  it("navigates the cached frame on external changes and waits for the new document's bridge", async () => {
+    const disk: NoteData = {
+      metadata: {
+        id: "a", title: "Alpha", createdAt: "", updatedAt: "", isFavorite: false,
+        tags: [], hasCustomCss: false, hasCustomJs: false,
+      },
+      html: "External update", css: null, js: null, contentHash: "external-hash",
+    };
+    mockIPC((command) => command === "read_note" ? disk : []);
+    const dispose = installBridgeHost();
+    const viewer = render(<NoteViewer />);
+    const frame = await screen.findByTitle("Alpha") as HTMLIFrameElement;
+    const initialUrl = frame.src;
+    const frameWindow = frame.contentWindow!;
+    let post = vi.spyOn(frameWindow, "postMessage");
+    const ready = () => window.dispatchEvent(new MessageEvent("message", {
+      source: frame.contentWindow, origin: NOTE_ORIGIN, data: { type: "HTNOTE_READY" },
+    }));
+    try {
+      ready();
+      fireEvent.load(frame);
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+      act(() => useTabsStore.getState().openSpecial("settings"));
+      await act(() => handleExternalChanges({
+        changedNoteIds: ["a"], removedNoteIds: [], treeChanged: false, trashChanged: false,
+      }));
+      expect(screen.getByTitle("Alpha")).toBe(frame);
+      expect(frame.src).not.toBe(initialUrl);
+      expect(new URL(frame.src).pathname).toBe("/a/");
+      expect(screen.getByRole("progressbar", { hidden: true })).toBeInTheDocument();
+      act(() => useTabsStore.getState().openNote("a"));
+      expect(screen.getByTitle("Alpha")).toBe(frame);
+      // jsdom creates a new Window object for src navigation.
+      post.mockRestore();
+      post = vi.spyOn(frame.contentWindow!, "postMessage");
+      requestHighlight("a", "External");
+      expect(post).not.toHaveBeenCalled();
+      ready();
+      expect(post).toHaveBeenCalledWith({ type: "HTNOTE_HIGHLIGHT", query: "External" }, NOTE_ORIGIN);
+      fireEvent.load(frame);
+      expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
+      const updatedUrl = frame.src;
+      await act(() => handleExternalChanges({
+        changedNoteIds: ["a"], removedNoteIds: [], treeChanged: false, trashChanged: false,
+      }));
+      expect(frame.src).toBe(updatedUrl);
+    } finally {
+      post.mockRestore();
+      viewer.unmount();
+      dispose();
+    }
+  });
+
+  it("keeps note frames cached and never creates a frame for a special tab", async () => {
+    render(<NoteViewer />);
+    const frame = await screen.findByTitle("Alpha");
+    act(() => useTabsStore.getState().openSpecial("settings"));
+    expect(document.querySelectorAll("iframe")).toHaveLength(1);
+    expect(frame.parentElement).toHaveAttribute("hidden");
+    act(() => useTabsStore.getState().openSpecial("trash"));
+    expect(document.querySelectorAll("iframe")).toHaveLength(1);
+    act(() => useTabsStore.getState().openNote("a"));
+    expect(screen.getByTitle("Alpha")).toBe(frame);
+    expect(frame.parentElement).not.toHaveAttribute("hidden");
+  });
+
   it("uses the exact isolated iframe attributes and loads from the note protocol", async () => {
     render(<NoteViewer />);
     const frame = await screen.findByTitle("Alpha") as HTMLIFrameElement;
@@ -44,7 +111,7 @@ describe("NoteViewer", () => {
     expect(frame).toHaveAttribute("sandbox", "allow-scripts allow-forms allow-same-origin allow-modals");
     expect(frame).toHaveAttribute("referrerpolicy", "no-referrer");
     expect(frame).not.toHaveAttribute("srcdoc");
-    expect(frame).toHaveAttribute("src", noteUrl("a"));
+    expect(frame).toHaveAttribute("src", `${noteUrl("a")}?revision=0%3A0`);
   });
 
   it("keeps the same iframe node across tab switches", async () => {
@@ -171,7 +238,7 @@ describe("NoteViewer", () => {
   });
 
   it("locks the button during export and offers reveal on success", async () => {
-    useSettingsStore.setState({ settings: { rootDir: null, lastExportDir: null, theme: "system", language: "tr", sidebarWidth: 260, sidebarVisible: true, editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false } });
+    useSettingsStore.setState({ settings: { rootDir: null, lastExportDir: null, theme: "system", language: "tr", sidebarWidth: 260, sidebarVisible: true, tabSizing: "fixed", editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false } });
     vi.mocked(save).mockResolvedValue("C:\\Exports\\Alpha.html");
     vi.mocked(revealItemInDir).mockResolvedValue();
     let finish: (result: { warnings: string[] }) => void = () => {};

@@ -12,7 +12,7 @@ export async function changeRootFlow(currentRoot: string): Promise<boolean> {
   await ipc.validateRootDir(selected);
   if (!await useUiStore.getState().confirm("settings.changeRootTitle", "settings.changeRootWarning", { path: selected }, { variant: "primary", labelKey: "ui.confirm" })) return false;
 
-  const ids = useTabsStore.getState().tabs.map((tab) => tab.noteId);
+  const ids = useTabsStore.getState().tabs.filter((tab) => !tab.special).map((tab) => tab.noteId);
   const resolution = await resolveUnsaved(ids);
   if (resolution.cancelled || ids.some((id) => !resolution.resolved.has(id) || useTabsStore.getState().isDirty(id))) return false;
   for (const id of ids) {

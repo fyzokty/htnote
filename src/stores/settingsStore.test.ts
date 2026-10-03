@@ -9,7 +9,7 @@ const defaults: Settings = {
   theme: "system",
   language: null,
   sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true,
-  sidebarVisible: true,
+  sidebarVisible: true, tabSizing: "fixed",
   backlinksExpanded: true,
   openTabs: [],
   activeTab: null,

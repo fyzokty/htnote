@@ -36,14 +36,8 @@ interface UiState {
   unsavedDialog: { noteIds: string[]; resolve: (decision: UnsavedDecision) => void; purpose?: "export" } | null;
   openUnsavedDialog: (noteIds: string[], resolve: (decision: UnsavedDecision) => void, purpose?: "export") => void;
   closeUnsavedDialog: () => void;
-  trashOpen: boolean;
-  settingsOpen: boolean;
-  openSettings: () => void;
-  closeSettings: () => void;
   trashCount: number;
   trashRevision: number;
-  openTrash: () => void;
-  closeTrash: () => void;
   setTrashCount: (count: number) => void;
   confirmDialog: { titleKey: string; messageKey: string; params?: Record<string, string | number>; options?: ConfirmOptions; resolve: (confirmed: boolean) => void } | null;
   confirm: (titleKey: string, messageKey: string, params?: Record<string, string | number>, options?: ConfirmOptions) => Promise<boolean>;
@@ -67,14 +61,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   unsavedDialog: null,
   openUnsavedDialog: (noteIds, resolve, purpose) => set({ unsavedDialog: { noteIds, resolve, purpose } }),
   closeUnsavedDialog: () => set({ unsavedDialog: null }),
-  trashOpen: false,
-  settingsOpen: false,
-  openSettings: () => set({ settingsOpen: true, trashOpen: false }),
-  closeSettings: () => set({ settingsOpen: false }),
   trashCount: 0,
   trashRevision: 0,
-  openTrash: () => set({ trashOpen: true, settingsOpen: false }),
-  closeTrash: () => set({ trashOpen: false }),
   setTrashCount: (trashCount) => set((state) => ({ trashCount, trashRevision: state.trashRevision + 1 })),
   confirmDialog: null,
   confirm: (titleKey, messageKey, params, options) => new Promise<boolean>((resolve) => {
