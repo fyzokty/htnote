@@ -68,15 +68,37 @@ export function SearchModal() {
         <div role="listbox" aria-label={t("search.results")} className="mt-2 min-h-0 overflow-y-auto">
           {!loading && query.trim().length >= 2 && results.length === 0 && !error && <p className="p-3 text-sm text-app-muted">{t("search.empty")}</p>}
           {results.map((result, index) => (
-            <Button variant="ghost" key={result.id} data-testid="search-result" type="button" role="option" aria-selected={selected === index} onMouseEnter={() => setSelected(index)} onClick={(event) => {
-              const selection = window.getSelection();
-              if (event.detail > 0 && selection && !selection.isCollapsed && event.currentTarget.contains(selection.anchorNode) && event.currentTarget.contains(selection.focusNode)) return;
-              void open(result, event.ctrlKey || event.metaKey);
-            }} className={`block w-full rounded-md p-3 text-left hover:bg-app-subtle ${selected === index ? "bg-app-subtle" : ""}`}>
+            <Button
+              variant="ghost"
+              key={result.id}
+              data-testid="search-result"
+              type="button"
+              role="option"
+              aria-selected={selected === index}
+              onMouseEnter={() => setSelected(index)}
+              onClick={(event) => {
+                const selection = window.getSelection();
+                if (event.detail > 0 && selection && !selection.isCollapsed && event.currentTarget.contains(selection.anchorNode) && event.currentTarget.contains(selection.focusNode)) return;
+                void open(result, event.ctrlKey || event.metaKey);
+              }}
+              className={`block w-full rounded-md p-3 text-left transition-colors duration-150 ease-out hover:bg-app-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-app-accent ${
+                selected === index ? "bg-app-subtle" : ""
+              }`}
+            >
               <span className="block font-medium">{result.title}</span>
               <span className="block truncate text-xs text-app-muted">{result.relPath.split("/").slice(0, -1).join("/") || t("search.root")}</span>
               <span className="block text-xs text-app-muted">{t("search.matchCount", { count: result.matchCount })}</span>
-              {result.snippets.map((snippet, snippetIndex) => <span key={snippetIndex} className="select-text block truncate text-sm"><span>{snippet.before}</span><mark className="bg-app-accent/20 text-app-text">{snippet.match}</mark><span>{snippet.after}</span></span>)}
+              {result.snippets.map((snippet, snippetIndex) => (
+                <span
+                  key={snippetIndex}
+                  data-testid="search-snippet"
+                  className="select-text block line-clamp-2 text-sm text-app-text break-words"
+                >
+                  <span>{snippet.before}</span>
+                  <mark className="rounded-xs bg-app-accent/20 px-0.5 font-medium text-app-text">{snippet.match}</mark>
+                  <span>{snippet.after}</span>
+                </span>
+              ))}
             </Button>
           ))}
         </div>
