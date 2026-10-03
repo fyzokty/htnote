@@ -24,6 +24,7 @@ it("names pasted files with local timestamp and MIME extension", () => {
   expect(pasteFileName(date, "image/jpeg")).toBe("yapistirilan-20261002-030405.jpg");
   expect(pasteFileName(date, "unknown/type")).toBe("yapistirilan-20261002-030405.png");
   expect(extFromMime("image/webp")).toBe("webp");
+  expect(extFromMime("image/svg+xml; charset=utf-8")).toBe("svg");
 });
 
 it("decodes base64 and URL encoded image bytes without Node Buffer", () => {

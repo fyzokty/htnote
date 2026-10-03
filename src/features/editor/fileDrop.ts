@@ -5,6 +5,16 @@ export type DropEditor = "visual" | "code";
 export type DropHandler = (paths: string[], point: DropPoint) => Promise<void>;
 
 const handlers = new Map<string, DropHandler>();
+const previews = new Map<string, (point: DropPoint | null) => void>();
+
+export function registerDropPreview(noteId: string, preview: (point: DropPoint | null) => void): () => void {
+  previews.set(noteId, preview);
+  return () => { preview(null); if (previews.get(noteId) === preview) previews.delete(noteId); };
+}
+
+export function updateDropPreview(noteId: string | null, point: DropPoint | null): void {
+  for (const [id, preview] of previews) preview(id === noteId ? point : null);
+}
 
 export function toCssPoint(point: DropPoint, scale: number): DropPoint {
   return { x: point.x / scale, y: point.y / scale };

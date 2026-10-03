@@ -166,6 +166,16 @@
   - Ağaç ve sekme sıralaması: **@dnd-kit** (pointer olayları).
   - İşletim sisteminden bırakılan dosyalar: Tauri `onDragDropEvent` (yol + pozisyon) kullanılır. Hedef bölge, pozisyon ile hit-test edilerek bulunur.
 - `react-arborist` kullanılmaz (react-dnd HTML5 backend'ine bağımlı).
+- Görsel editörde Tauri enter/over konumu fiziksel pikselden CSS pikseline çevrilir; `posAtCoords`
+  hem 2px accent bırakma imlecini hem ekleme konumunu belirler. Leave, drop ve editör kaldırıldığında imleç temizlenir.
+- Medya blokları kendi genişliği kadar yer kaplar; metin sarma kullanılmaz. Sol/orta/sağ hizalama
+  `data-align` ve taşınabilir inline CSS ile kaydedilir; görüntüleme ve dışa aktarmada bridge gerekmez.
+  Genişlik yüzdeleri dış medya sarmalayıcısına uygulanır; araçlar yalnız seçili medyada görünür.
+  SVG asset'leri loopback sunucusundan `image/svg+xml` olarak ve editörde yalnız `<img>` ile gösterilir.
+- Medyanın görsel sınırları dışındaki satır tıklaması `mousedown` aşamasında yakalanır ve varsayılan
+  tarayıcı seçimi engellenir; imleç komşu metne veya medya önündeki/arkasındaki gapcursor konumuna yerleşir.
+  `handleClick` aşaması (`mouseup`) bunun için geçtir; WebView2 en yakın atomik medyayı seçebilir.
+  E2E kontrolü gerçek WebDriver pointer eylemleriyle basma/bırakma konumlarını ve buraya yazmayı doğrular.
 
 ## D16 — Klavye kısayolları (güncellenmiş)
 | Kısayol | İşlem |

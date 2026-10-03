@@ -1,6 +1,6 @@
-import { useId, useState } from "react";
+import { useId, useLayoutEffect, useRef, useState } from "react";
 import type { MouseEvent } from "react";
-import { Check, Trash2, X } from "lucide-react";
+import { AlignCenter, AlignLeft, AlignRight, Check, Trash2, X } from "lucide-react";
 import { NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +10,21 @@ import { IconButton } from "@/components/ui/IconButton";
 import { resolveMediaSrc } from "@/features/editor/mediaSrc";
 
 type Source = Record<string, string>;
+
+function useToolbarSpace({ node, selected }: NodeViewProps) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const wrapper = ref.current;
+    const toolbar = wrapper?.querySelector<HTMLElement>(".htnote-media-toolbar");
+    if (!wrapper || !selected || !toolbar) return;
+    const measure = () => { wrapper.style.paddingTop = `${toolbar.getBoundingClientRect().height + 8}px`; };
+    measure();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(toolbar);
+    return () => { observer?.disconnect(); wrapper.style.paddingTop = ""; };
+  }, [node, selected]);
+  return ref;
+}
 
 function noteIdFrom(props: NodeViewProps): string {
   return (props.extension.options as { noteId: string }).noteId;
@@ -23,7 +38,33 @@ function DeleteMedia({ kind, deleteNode }: { kind: "image" | "audio" | "video"; 
   </IconButton>;
 }
 
-function ImageToolbar({ node, updateAttributes, deleteNode }: NodeViewProps) {
+function LayoutTools({ node, updateAttributes }: NodeViewProps) {
+  const { t } = useTranslation();
+  return <>
+    {node.type.name !== "audio" && <div className="htnote-media-width" role="group" aria-label={t("editor.media.width")}>
+      {(["25%", "50%", "100%", null] as const).map((value) => <Button size="sm" key={value ?? "original"} type="button"
+        aria-pressed={(node.attrs.width ?? null) === value} onClick={() => updateAttributes({ width: value, align: node.attrs.align ?? "left" })}>
+        {value ?? t("editor.image.original")}
+      </Button>)}
+    </div>}
+    <div className="htnote-media-width" role="group" aria-label={t("editor.media.align")}>
+      {([["left", AlignLeft], ["center", AlignCenter], ["right", AlignRight]] as const).map(([value, Icon]) =>
+        <IconButton size="sm" key={value} type="button" label={t(`editor.media.${value}`)}
+          aria-pressed={(node.attrs.align ?? "left") === value} onClick={() => updateAttributes({ align: value })}>
+          <Icon size={16} aria-hidden="true" />
+        </IconButton>)}
+    </div>
+  </>;
+}
+
+function selectMedia(props: NodeViewProps, event: MouseEvent<HTMLElement>) {
+  if (!(event.target as HTMLElement).closest(".htnote-media-preview")) return;
+  const pos = props.getPos();
+  if (typeof pos === "number") props.editor.commands.setNodeSelection(pos);
+}
+
+function ImageToolbar(props: NodeViewProps) {
+  const { node, updateAttributes, deleteNode } = props;
   const { t } = useTranslation();
   const id = useId();
   const originalAlt = (node.attrs.alt ?? "") as string;
@@ -55,14 +96,7 @@ function ImageToolbar({ node, updateAttributes, deleteNode }: NodeViewProps) {
           <X size={16} aria-hidden="true" />
         </IconButton>
       </div>
-      <div className="htnote-media-width" role="group" aria-label={t("editor.image.width")}>
-        {(["25%", "50%", "100%", null] as const).map((value) => (
-          <Button size="sm" key={value ?? "original"} type="button" aria-pressed={(node.attrs.width ?? null) === value}
-            onClick={() => updateAttributes({ width: value })}>
-            {value ?? t("editor.image.original")}
-          </Button>
-        ))}
-      </div>
+      <LayoutTools {...props} />
       <DeleteMedia kind="image" deleteNode={deleteNode} />
     </div>
   );
@@ -70,13 +104,13 @@ function ImageToolbar({ node, updateAttributes, deleteNode }: NodeViewProps) {
 
 export function ImageView(props: NodeViewProps) {
   const { node, selected } = props;
-  const width = node.attrs.width as string | null;
-  const displayWidth = width && /^\d+(?:\.\d+)?$/.test(width) ? `${width}px` : width ?? undefined;
+  const ref = useToolbarSpace(props);
   return (
-    <NodeViewWrapper className={`htnote-media htnote-media-image${selected ? " is-selected" : ""}`} contentEditable={false}>
+    <NodeViewWrapper ref={ref} className={`htnote-media htnote-media-image${selected ? " is-selected" : ""}`} contentEditable={false}
+      onClick={(event: MouseEvent<HTMLElement>) => selectMedia(props, event)}>
       {selected && <ImageToolbar {...props} />}
       <img className="htnote-media-preview" src={resolveMediaSrc(noteIdFrom(props), node.attrs.src ?? "")} alt={node.attrs.alt ?? ""}
-        title={node.attrs.title ?? undefined} style={{ width: displayWidth }} draggable={false} />
+        title={node.attrs.title ?? undefined} style={{ width: node.attrs.width ? "100%" : undefined }} draggable={false} />
     </NodeViewWrapper>
   );
 }
@@ -84,26 +118,25 @@ export function ImageView(props: NodeViewProps) {
 function PlaybackView(props: NodeViewProps & { kind: "audio" | "video" }) {
   const { t } = useTranslation();
   const { node, selected, kind, deleteNode } = props;
+  const ref = useToolbarSpace(props);
   const src = resolveMediaSrc(noteIdFrom(props), node.attrs.src ?? "") || undefined;
   const sources = (node.attrs.sources as Source[]).map((source) => ({
     ...source, src: resolveMediaSrc(noteIdFrom(props), source.src ?? ""),
   }));
   const Tag = kind;
   return (
-    <NodeViewWrapper className={`htnote-media htnote-media-${kind}${selected ? " is-selected" : ""}`} contentEditable={false}
-      onClick={(event: MouseEvent<HTMLElement>) => {
-        if ((event.target as HTMLElement).closest(".htnote-media-toolbar")) return;
-        const pos = props.getPos();
-        if (typeof pos === "number") props.editor.commands.setNodeSelection(pos);
-      }}>
+    <NodeViewWrapper ref={ref} className={`htnote-media htnote-media-${kind}${selected ? " is-selected" : ""}`} contentEditable={false}
+      onClick={(event: MouseEvent<HTMLElement>) => selectMedia(props, event)}>
       {/* Kaynak değişince source alt öğelerinin tarayıcı tarafından yeniden seçilmesi gerekir. */}
       <Tag key={JSON.stringify([src, sources])} className="htnote-media-preview" src={src}
         poster={kind === "video" ? resolveMediaSrc(noteIdFrom(props), node.attrs.poster ?? "") || undefined : undefined}
-        controls autoPlay={false} loop={node.attrs.loop} muted={node.attrs.muted} preload="metadata">
+        controls autoPlay={false} loop={node.attrs.loop} muted={node.attrs.muted} preload="metadata"
+        style={{ width: node.attrs.width ? "100%" : undefined }}>
         {sources.map((source, index) => <source key={index} {...source} />)}
       </Tag>
       {selected && <div className="htnote-media-toolbar" role="toolbar" aria-label={t(`editor.${kind}.toolbar`)} contentEditable={false}>
         <span>{t(`editor.${kind}.label`)}</span>
+        <LayoutTools {...props} />
         <DeleteMedia kind={kind} deleteNode={deleteNode} />
       </div>}
     </NodeViewWrapper>
