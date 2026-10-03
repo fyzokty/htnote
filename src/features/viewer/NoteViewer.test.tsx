@@ -3,10 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockIPC } from "@tauri-apps/api/mocks";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ save: vi.fn() }));
-vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: vi.fn() }));
 
 import { save } from "@tauri-apps/plugin-dialog";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
 
 import { NoteViewer } from "@/features/viewer/NoteViewer";
 import { handleExternalChanges } from "@/features/editor/externalChange";
@@ -36,7 +34,7 @@ beforeEach(() => {
   useSettingsStore.setState({ settings: null });
   vi.spyOn(ipc, "getNoteTree").mockResolvedValue(notes);
   vi.mocked(save).mockReset();
-  vi.mocked(revealItemInDir).mockReset();
+  vi.spyOn(ipc, "revealExportFile").mockResolvedValue(undefined);
 });
 
 describe("NoteViewer", () => {
@@ -279,7 +277,6 @@ describe("NoteViewer", () => {
   it("locks the button during export and offers reveal on success", async () => {
     useSettingsStore.setState({ settings: { rootDir: null, lastExportDir: null, theme: "system", language: "tr", sidebarWidth: 260, sidebarVisible: true, tabSizing: "fixed", contentWidth: "comfortable", editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false } });
     vi.mocked(save).mockResolvedValue("C:\\Exports\\Alpha.html");
-    vi.mocked(revealItemInDir).mockResolvedValue();
     let finish: (result: { warnings: string[] }) => void = () => {};
     mockIPC((command) => command === "get_backlinks" || command === "get_broken_links" ? [] : command === "update_settings" ? useSettingsStore.getState().settings
       : command === "export_single_html" ? new Promise<{ warnings: string[] }>((resolve) => { finish = resolve; }) : undefined);
@@ -291,7 +288,7 @@ describe("NoteViewer", () => {
     await act(async () => finish({ warnings: [] }));
     expect(useUiStore.getState().toasts).toEqual(expect.arrayContaining([expect.objectContaining({ messageKey: "export.exported" })]));
     act(() => useUiStore.getState().toasts.find((toast) => toast.messageKey === "export.exported")?.action?.onClick());
-    expect(revealItemInDir).toHaveBeenCalledWith("C:\\Exports\\Alpha.html");
+    expect(ipc.revealExportFile).toHaveBeenCalledWith("C:\\Exports\\Alpha.html");
   });
 
   it("shows input on double click and calls renameNote on Enter", async () => {

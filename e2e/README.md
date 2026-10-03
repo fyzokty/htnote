@@ -142,3 +142,9 @@ visual edit. Frame entry waits for a visible, non-inert view with an acknowledge
 revision, then verifies that revision and document readiness inside the frame.
 These are state waits; assertions are neither retried nor relaxed.
 CI E2E is pinned to `windows-2022` until [runner image issue 14738](https://github.com/actions/runner-images/issues/14738) is resolved.
+
+### Harici açılış kaydı
+
+E2E ve ekran görüntüsü yapılandırmalarının ortak `onPrepare` kancası geçici bir JSONL dosyası oluşturur ve `HTNOTE_EXTERNAL_OPEN_LOG` değişkenini WDIO worker ve tauri-driver ortamına verir. tauri-driver → EdgeDriver → uygulama ortam devralması izolasyon testindeki `https://example.com` kaydıyla doğrulanır. Debug uygulama URL/asset/klasörde göster işlemlerini kaydeder; gerçek tarayıcı veya gezgin açmaz. Release bu değişkeni yok sayar.
+
+Çalıştırma sonunda kayıt `e2e/logs/external-open.jsonl` dosyasına kopyalanır. İzolasyon testleri üst pencere URL'sinin değişmediğini, sandbox kaçışlarının ve yeni komutların not/taslak iframe'lerinden reddedildiğini ayrıca denetler. `npm run smoke:app` de geçici kayıt dosyası kullanır ve yolunu yazdırır.

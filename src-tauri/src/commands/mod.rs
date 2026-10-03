@@ -17,7 +17,6 @@ use crate::links::{BacklinkItem, BrokenLinkItem};
 use crate::state::AppState;
 use crate::trash::{self, TrashItem};
 use tauri::{Manager, State};
-use tauri_plugin_opener::OpenerExt;
 use std::sync::atomic::Ordering;
 use std::path::PathBuf;
 
@@ -248,9 +247,7 @@ pub async fn open_note_asset(app: tauri::AppHandle, note_id: uuid::Uuid, rel_pat
     tauri::async_runtime::spawn_blocking(move || {
         let dir = resolve_note_dir(&app.state::<AppState>(), note_id)?;
         asset::open_asset(&dir, &rel_path, |path| {
-            let display_path = crate::fs_util::display_path(path);
-            app.opener().open_path(display_path.to_string_lossy(), None::<&str>)
-                .map_err(|error| AppError::Io(std::io::Error::other(error)))
+            crate::external::open_path(&app, path)
         })
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
@@ -415,8 +412,7 @@ pub async fn reveal_in_explorer(app: tauri::AppHandle, rel_path: String) -> Resu
             crate::index::resolve_in_root(&root, &rel_path)?
         };
         if !path.exists() { return Err(AppError::NotFound(rel_path)); }
-        tauri_plugin_opener::reveal_item_in_dir(&path)
-            .map_err(|error| AppError::Io(std::io::Error::other(error)))
+        crate::external::reveal_in_dir(&path)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
 }
 
@@ -879,4 +875,16 @@ mod tests {
         assert_eq!(state.search_index.read().unwrap().search("Existing", 10)[0].id, original.metadata.id);
         assert_eq!(state.search_index.read().unwrap().search("Original", 10)[0].id, restored_id);
     }
+}
+
+#[tauri::command]
+pub async fn open_external_url(app: tauri::AppHandle, url: String) -> Result<(), AppError> {
+    tauri::async_runtime::spawn_blocking(move || crate::external::open_url(&app, &url))
+        .await.map_err(|error| AppError::Internal(error.to_string()))?
+}
+
+#[tauri::command]
+pub async fn reveal_path(path: String) -> Result<(), AppError> {
+    tauri::async_runtime::spawn_blocking(move || crate::external::reveal_in_dir(std::path::Path::new(&path)))
+        .await.map_err(|error| AppError::Internal(error.to_string()))?
 }

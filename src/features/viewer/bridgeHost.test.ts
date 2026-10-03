@@ -1,4 +1,3 @@
-import { openUrl } from "@tauri-apps/plugin-opener";
 import i18n from "@/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,7 +11,7 @@ import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
 import { useUiStore } from "@/stores/uiStore";
 
-vi.mock("@tauri-apps/plugin-opener", () => ({ openUrl: vi.fn().mockResolvedValue(undefined) }));
+
 
 const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const otherId = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
@@ -33,6 +32,7 @@ beforeEach(() => {
   useUiStore.setState({ toasts: [] });
   useSettingsStore.setState({ settings: { theme: "light" } as Settings });
   vi.clearAllMocks();
+  vi.spyOn(ipc, "openExternalUrl").mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -111,7 +111,7 @@ it("opens attachments for their registered frame and shares the external open ra
     window.dispatchEvent(message(data));
     window.dispatchEvent(message({ type: "HTNOTE_OPEN_EXTERNAL", url: "https://example.com" }));
     expect(open).toHaveBeenCalledExactlyOnceWith(id, data.relPath);
-    expect(openUrl).not.toHaveBeenCalled();
+    expect(ipc.openExternalUrl).not.toHaveBeenCalled();
     window.dispatchEvent(message(data, otherFrame));
     expect(open).toHaveBeenLastCalledWith(otherId, data.relPath);
     vi.advanceTimersByTime(1000);
@@ -193,8 +193,8 @@ it("handles registered messages and resends theme on settings change", () => {
 
     window.dispatchEvent(message({ type: "HTNOTE_OPEN_EXTERNAL", url: "https://example.com" }));
     window.dispatchEvent(message({ type: "HTNOTE_OPEN_EXTERNAL", url: "https://example.org" }));
-    expect(openUrl).toHaveBeenCalledTimes(1);
-    expect(openUrl).toHaveBeenCalledWith("https://example.com");
+    expect(ipc.openExternalUrl).toHaveBeenCalledTimes(1);
+    expect(ipc.openExternalUrl).toHaveBeenCalledWith("https://example.com");
 
     window.dispatchEvent(message({ type: "HTNOTE_SHORTCUT", key: "w", ctrl: true, shift: false, alt: false, meta: false }));
     expect(shortcut).toHaveBeenCalledOnce();

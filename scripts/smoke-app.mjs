@@ -7,7 +7,8 @@
 // Çıkış kodu: 0 = pencere açıldı ve kararlı, 1 = hata / zaman aşımı.
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 
@@ -46,7 +47,13 @@ if (!skipBuild) {
 if (!existsSync(exePath)) fail(`${exePath} bulunamadı; --skip-build olmadan çalıştırın`);
 
 log(`başlatılıyor: ${exePath}`);
-const child = spawn(exePath, [], { stdio: ["ignore", "pipe", "pipe"] });
+const externalLog = join(mkdtempSync(join(tmpdir(), "htnote-smoke-")), "external-open.jsonl");
+writeFileSync(externalLog, "");
+log(`OS açılışları kaydedilecek: ${externalLog}`);
+const child = spawn(exePath, [], {
+  stdio: ["ignore", "pipe", "pipe"],
+  env: { ...process.env, HTNOTE_EXTERNAL_OPEN_LOG: externalLog },
+});
 let exited = false;
 let exitCode = null;
 let stderrTail = "";
