@@ -85,7 +85,7 @@ const playbackAttributes = {
 };
 
 function stopMediaEvent({ event }: { event: Event }): boolean {
-  return event.target instanceof Element && !!event.target.closest("audio, video, .htnote-media-toolbar");
+  return event.target instanceof Element && !!event.target.closest("audio, video, .ht-audio-card, .htnote-media-toolbar");
 }
 
 export const Image = Node.create<MediaOptions>({

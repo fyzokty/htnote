@@ -1,4 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
+import i18n from "@/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { clearHighlight, createRateLimiter, installBridgeHost, parseBridgeMessage, registerFrame, requestHighlight, requestPrint, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
@@ -182,7 +183,7 @@ it("handles registered messages and resends theme on settings change", () => {
     window.dispatchEvent(message({ type: "HTNOTE_READY", noteId: id }, otherFrame));
     expect(frame.postMessage).not.toHaveBeenCalled();
     window.dispatchEvent(message({ type: "HTNOTE_READY", noteId: id }));
-    expect(frame.postMessage).toHaveBeenCalledWith({ type: "HTNOTE_THEME", mode: "light", vars: expect.objectContaining({ "--ht-bg": expect.any(String) }) }, NOTE_ORIGIN);
+    expect(frame.postMessage).toHaveBeenCalledWith({ type: "HTNOTE_THEME", mode: "light", vars: expect.objectContaining({ "--ht-bg": expect.any(String) }), audioLabels: expect.objectContaining({ play: "Oynat", seek: "Ses konumu" }) }, NOTE_ORIGIN);
 
     window.dispatchEvent(message({ type: "HTNOTE_OPEN_NOTE", id }));
     expect(useTabsStore.getState().activeId).toBe(id);
@@ -199,7 +200,7 @@ it("handles registered messages and resends theme on settings change", () => {
     expect(shortcut).toHaveBeenCalledOnce();
 
     useSettingsStore.setState({ settings: { theme: "dark" } as Settings });
-    expect(frame.postMessage).toHaveBeenLastCalledWith({ type: "HTNOTE_THEME", mode: "dark", vars: expect.objectContaining({ "--ht-bg": expect.any(String) }) }, NOTE_ORIGIN);
+    expect(frame.postMessage).toHaveBeenLastCalledWith({ type: "HTNOTE_THEME", mode: "dark", vars: expect.objectContaining({ "--ht-bg": expect.any(String) }), audioLabels: expect.objectContaining({ play: "Oynat" }) }, NOTE_ORIGIN);
     unregister();
     window.dispatchEvent(message({ type: "HTNOTE_READY" }));
     expect(frame.postMessage).toHaveBeenCalledTimes(2);
@@ -207,6 +208,22 @@ it("handles registered messages and resends theme on settings change", () => {
     unsubscribeShortcut();
     dispose();
     unregister();
+  }
+});
+
+it("resends localized audio labels and app palette when language changes", async () => {
+  const unregister = registerFrame(id, frame);
+  const dispose = installBridgeHost();
+  document.documentElement.style.setProperty("--app-surface", "test-surface");
+  try {
+    await i18n.changeLanguage("en");
+    expect(frame.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
+      type: "HTNOTE_THEME", audioLabels: expect.objectContaining({ play: "Play", seek: "Audio position" }),
+      vars: expect.objectContaining({ "--ht-audio-surface": "test-surface" }),
+    }), NOTE_ORIGIN);
+  } finally {
+    dispose(); unregister(); document.documentElement.style.removeProperty("--app-surface");
+    await i18n.changeLanguage("tr");
   }
 });
 

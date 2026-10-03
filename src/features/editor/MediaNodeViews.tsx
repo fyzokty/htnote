@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
+import { AudioPlayer } from "@/components/ui/AudioPlayer";
 import { resolveMediaSrc } from "@/features/editor/mediaSrc";
 
 type Source = Record<string, string>;
@@ -123,17 +124,20 @@ function PlaybackView(props: NodeViewProps & { kind: "audio" | "video" }) {
   const sources = (node.attrs.sources as Source[]).map((source) => ({
     ...source, src: resolveMediaSrc(noteIdFrom(props), source.src ?? ""),
   }));
-  const Tag = kind;
   return (
     <NodeViewWrapper ref={ref} className={`htnote-media htnote-media-${kind}${selected ? " is-selected" : ""}`} contentEditable={false}
       onClick={(event: MouseEvent<HTMLElement>) => selectMedia(props, event)}>
       {/* Kaynak değişince source alt öğelerinin tarayıcı tarafından yeniden seçilmesi gerekir. */}
-      <Tag key={JSON.stringify([src, sources])} className="htnote-media-preview" src={src}
-        poster={kind === "video" ? resolveMediaSrc(noteIdFrom(props), node.attrs.poster ?? "") || undefined : undefined}
-        controls autoPlay={false} loop={node.attrs.loop} muted={node.attrs.muted} preload="metadata"
+      {kind === "audio" ? <AudioPlayer key={JSON.stringify([src, sources])} src={src} nameSrc={sources[0]?.src}
+        title={node.attrs.title || undefined} loop={node.attrs.loop} muted={node.attrs.muted}>
+        {sources.map((source, index) => <source key={index} {...source} />)}
+      </AudioPlayer> : <video key={JSON.stringify([src, sources])} className="htnote-media-preview" src={src}
+        poster={resolveMediaSrc(noteIdFrom(props), node.attrs.poster ?? "") || undefined}
+        controls controlsList="nodownload" onContextMenu={(event) => event.preventDefault()}
+        autoPlay={false} loop={node.attrs.loop} muted={node.attrs.muted} preload="metadata"
         style={{ width: node.attrs.width ? "100%" : undefined }}>
         {sources.map((source, index) => <source key={index} {...source} />)}
-      </Tag>
+      </video>}
       {selected && <div className="htnote-media-toolbar" role="toolbar" aria-label={t(`editor.${kind}.toolbar`)} contentEditable={false}>
         <span>{t(`editor.${kind}.label`)}</span>
         <LayoutTools {...props} />

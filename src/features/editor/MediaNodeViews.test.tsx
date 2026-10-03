@@ -32,7 +32,7 @@ describe("media node views", () => {
     const wrapper = view.container.querySelector(".htnote-media")!;
     fireEvent.click(wrapper);
     expect(editor.state.selection.constructor.name).toBe("TextSelection");
-    await act(async () => { fireEvent.click(wrapper.querySelector(tag)!); });
+    await act(async () => { fireEvent.click(wrapper.querySelector(kind === "audio" ? ".ht-audio-card" : tag)!); });
     expect(editor.state.selection.constructor.name).toBe("NodeSelection");
     expect(wrapper).toHaveClass("is-selected");
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Sağa hizala" })); });
@@ -50,7 +50,8 @@ describe("media node views", () => {
     const media = Array.from(view.container.querySelectorAll<HTMLMediaElement>("audio, video"));
     expect(media).toHaveLength(4);
     for (const element of media) {
-      expect(element.controls).toBe(true);
+      expect(element.controls).toBe(element.tagName === "VIDEO");
+      expect(element).toHaveAttribute("controlslist", "nodownload");
       expect(element.autoplay).toBe(false);
       expect(element.paused).toBe(true);
       expect(element.preload).toBe("metadata");
@@ -65,6 +66,9 @@ describe("media node views", () => {
     // Editör önizleme tercihleri kaydedilen notun özniteliklerini değiştirmez.
     expect(editor.state.doc.child(1).attrs).toMatchObject({ src: "./assets/a.wav", autoplay: true, preload: "none", loop: true, muted: true });
     expect(editor.getHTML()).not.toContain("127.0.0.1");
+    expect(editor.getHTML()).not.toContain("nodownload");
+    expect(editor.getHTML()).not.toContain("ht-audio");
+    expect(view.container.querySelectorAll(".ht-audio-card")).toHaveLength(2);
     expect(editor.state.doc.child(1).attrs.controls).toBe(false);
   });
 
@@ -108,9 +112,9 @@ describe("media node views", () => {
     }
   });
 
-  it.each(["audio", "video"] as const)("selects and deletes %s without intercepting native player events", async (kind) => {
+  it.each(["audio", "video"] as const)("selects and deletes %s without intercepting player events", async (kind) => {
     const view = await mount(`<${kind} src="./assets/media"></${kind}><p>Kept</p>`);
-    const media = view.container.querySelector(kind)!;
+    const media = view.container.querySelector(kind === "audio" ? ".ht-audio-card" : kind)!;
     const mouseDown = new MouseEvent("mousedown", { bubbles: true, cancelable: true });
     fireEvent(media, mouseDown);
     expect(mouseDown.defaultPrevented).toBe(false);
@@ -137,5 +141,14 @@ describe("media node views", () => {
     expect(current).not.toBe(previous);
     expect(current.querySelector("source")).toHaveAttribute("src", "http://127.0.0.1:4123/note/assets/second");
     expect(current.autoplay).toBe(false);
+  });
+
+  it("blocks video context menus without persisting playback restrictions", async () => {
+    const view = await mount('<video controls src="./assets/a.webm"></video>');
+    const video = view.container.querySelector("video")!;
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    fireEvent(video, event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(editor.getHTML()).toBe('<video src="./assets/a.webm" controls=""></video>');
   });
 });

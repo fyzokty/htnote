@@ -28,5 +28,6 @@
   "ui": {
     "confirm": "Confirm",
     "shortcutHint": "Keyboard shortcut"
-  }
+  },
+  "audioPlayer": {"play":"Play","pause":"Pause","mute":"Mute","unmute":"Unmute","seek":"Audio position","title":"Audio recording","error":"Could not play audio."}
 }
