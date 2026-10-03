@@ -7,6 +7,8 @@ import { describe, expect, it, vi } from "vitest";
 import { CodeEditor } from "@/features/editor/CodeEditor";
 import { fileName, getDropHandler, kindFromPath } from "@/features/editor/fileDrop";
 import { ipc } from "@/lib/ipc";
+import type { Settings } from "@/lib/types";
+import { useSettingsStore } from "@/stores/settingsStore";
 const appStyles = readFileSync("src/index.css", "utf8");
 
 describe("CodeEditor formatting and layout", () => {
@@ -115,5 +117,16 @@ describe("CodeEditor tabs", () => {
     expect(editor.state.doc.toString()).toBe("<p>HTML</p><!--changed-->");
     fireEvent.keyDown(editor.contentDOM, { key: "z", code: "KeyZ", ctrlKey: true });
     expect(editor.state.doc.toString()).toBe("<p>HTML</p>");
+  });
+
+  it("reflects contentWidth setting as data-content-width attribute", () => {
+    useSettingsStore.setState({ settings: { contentWidth: "narrow" } as Settings });
+    const { container, rerender } = render(<CodeEditor html="<p>HTML</p>" css="" js="" onChange={vi.fn()} />);
+    const editorEl = container.querySelector(".htnote-code-editor");
+    expect(editorEl).toHaveAttribute("data-content-width", "narrow");
+
+    useSettingsStore.setState({ settings: { contentWidth: "wide" } as Settings });
+    rerender(<CodeEditor html="<p>HTML</p>" css="" js="" onChange={vi.fn()} />);
+    expect(editorEl).toHaveAttribute("data-content-width", "wide");
   });
 });

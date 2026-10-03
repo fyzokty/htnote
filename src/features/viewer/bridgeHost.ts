@@ -141,6 +141,16 @@ export function sendThemeToAll() {
   for (const frame of new Set(frames.values())) sendTheme(frame);
 }
 
+function sendContentWidth(frame: Window) {
+  const contentWidth = useSettingsStore.getState().settings?.contentWidth;
+  if (!contentWidth) return;
+  frame.postMessage({ type: "HTNOTE_CONTENT_WIDTH", contentWidth }, getNoteOrigin());
+}
+
+export function sendContentWidthToAll() {
+  for (const frame of new Set(frames.values())) sendContentWidth(frame);
+}
+
 const allowExternalOpen = createRateLimiter(1000);
 
 export function handleBridgeMessage(event: MessageEvent) {
@@ -153,6 +163,7 @@ export function handleBridgeMessage(event: MessageEvent) {
     case "HTNOTE_READY":
       readyFrames.add(frame);
       sendTheme(frame);
+      sendContentWidth(frame);
       for (const [noteId, candidate] of frames) {
         if (candidate !== frame || !pendingHighlights.has(noteId)) continue;
         if (useTabsStore.getState().tabs.find((tab) => tab.noteId === noteId)?.doc.mode === "view") {
@@ -185,6 +196,7 @@ export function installBridgeHost(target: Window = window): () => void {
   target.addEventListener("message", handleBridgeMessage);
   const unsubscribe = useSettingsStore.subscribe((state, previous) => {
     if (state.settings?.theme !== previous.settings?.theme) sendThemeToAll();
+    if (state.settings?.contentWidth !== previous.settings?.contentWidth) sendContentWidthToAll();
   });
   const media = target.matchMedia?.("(prefers-color-scheme: dark)");
   const onSystemThemeChange = () => {

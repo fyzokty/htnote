@@ -13,7 +13,7 @@ const defaults: Settings = {
   theme: "system",
   language: "tr",
   sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true,
-  sidebarVisible: true, tabSizing: "fixed",
+  sidebarVisible: true, tabSizing: "fixed", contentWidth: "comfortable",
   openTabs: [],
   activeTab: null,
   expandedFolders: [],

@@ -43,7 +43,7 @@ function relativeSaved(value: string, language: string, now: number): string {
   return formatter.format(Math.round(elapsed / 86_400_000), "day");
 }
 
-function NoteFrame({ id, active, title, revision }: { id: string; active: boolean; title: string; revision: string }) {
+function NoteFrame({ id, active, editing, title, revision }: { id: string; active: boolean; editing: boolean; title: string; revision: string }) {
   const { t } = useTranslation();
   const [loadedRevision, setLoadedRevision] = useState<string | null>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -52,7 +52,9 @@ function NoteFrame({ id, active, title, revision }: { id: string; active: boolea
     return frame ? registerFrame(id, frame) : undefined;
   }, [id, revision]);
   return (
-    <div className="relative h-full w-full" hidden={!active}>
+    // Keep layout while editing: navigating a display:none iframe can leave its
+    // new document without layout in WebView2 even after it becomes visible.
+    <div className={`h-full w-full ${editing ? "absolute inset-0 invisible pointer-events-none" : "relative"} ${active && !editing ? "htnote-mode-transition" : ""}`} hidden={!active} inert={!active || editing} aria-hidden={!active || editing} data-mode="view">
       {loadedRevision !== revision && <div role="progressbar" aria-label={t("viewer.loading")} className="absolute inset-x-0 top-0 z-10 h-0.5 animate-pulse bg-app-accent" />}
       <iframe
         ref={frameRef}
@@ -123,11 +125,25 @@ export function NoteViewer() {
           const note = findNote(tree, id);
           if (!note && !tabs.find((tab) => tab.noteId === id)?.doc.removedOnDisk) return null;
           const doc = tabs.find((tab) => tab.noteId === id)?.doc;
-          return doc && doc.mode !== "view" && id === activeId
-            ? <NoteEditor key={id} noteId={id} doc={doc} session={session} />
-            // Keep the browsing context when reloading: replacing the iframe can
-            // detach in-flight bridge and frame reads. Navigate to a new revision instead.
-            : note ? <NoteFrame key={id} id={id} active={id === activeId} title={note.title} revision={`${doc?.lastSavedAt ?? 0}:${doc?.baseVersion ?? 0}`} /> : null;
+          const isEditing = doc && doc.mode !== "view" && id === activeId;
+          return (
+            <div key={id} className="contents">
+              {note && (
+                <NoteFrame
+                  id={id}
+                  active={id === activeId}
+                  editing={Boolean(isEditing)}
+                  title={note.title}
+                  revision={`${doc?.lastSavedAt ?? 0}:${doc?.baseVersion ?? 0}`}
+                />
+              )}
+              {isEditing && (
+                <div key={doc.mode} className="h-full w-full htnote-mode-transition" data-mode={doc.mode}>
+                  <NoteEditor noteId={id} doc={doc} session={session} />
+                </div>
+              )}
+            </div>
+          );
         })}
       </div>
       {activeId && activeNote && activeTab?.doc.mode === "view" && <BacklinksPanel id={activeId} saveRevision={tabs.map((tab) => tab.doc.lastSavedAt ?? "").join(":")} />}

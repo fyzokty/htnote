@@ -1,72 +1,63 @@
 (() => {
   "use strict";
 
-  const noteId = location.pathname.split("/")[1];
-  const printing = new URLSearchParams(location.search).get("print") === "1";
+  const { pathname, search } = location;
+  const noteId = pathname.split("/")[1];
+  const root = document.documentElement;
+  const printing = new URLSearchParams(search).get("print") === "1";
   if (printing) {
-    const root = document.documentElement;
     root.style.cssText += ";--ht-bg:#f9fafb;--ht-text:#111827;--ht-accent:#4f46e5;--ht-muted:#6b7280;--ht-border:#e5e7eb;--ht-code-bg:#f3f4f6";
     root.dataset.htTheme = "light";
   }
   if (!document.getElementById("htnote-scrollbars")) {
-    const style = document.createElement("style");
-    style.id = "htnote-scrollbars";
-    style.textContent = `:where(*){scrollbar-width:thin;scrollbar-color:var(--ht-scrollbar,var(--ht-border)) transparent}
-:where(*:hover){scrollbar-color:var(--ht-scrollbar-hover,var(--ht-muted)) transparent}
-:where(*)::-webkit-scrollbar{width:8px;height:8px}
-:where(*)::-webkit-scrollbar-track,:where(*)::-webkit-scrollbar-corner{background:transparent}
-:where(*)::-webkit-scrollbar-thumb{background:var(--ht-scrollbar,var(--ht-border));border:2px solid transparent;border-radius:999px;background-clip:padding-box}
-:where(*)::-webkit-scrollbar-thumb:hover{background-color:var(--ht-scrollbar-hover,var(--ht-muted))}`;
-    document.head.prepend(style);
+    const s = document.createElement("style");
+    s.id = "htnote-scrollbars";
+    s.textContent = ":where(*){scrollbar-width:thin;scrollbar-color:var(--ht-scrollbar,var(--ht-border)) transparent}:where(*:hover){scrollbar-color:var(--ht-scrollbar-hover,var(--ht-muted)) transparent}:where(*)::-webkit-scrollbar{width:8px;height:8px}:where(*)::-webkit-scrollbar-track,:where(*)::-webkit-scrollbar-corner{background:transparent}:where(*)::-webkit-scrollbar-thumb{background:var(--ht-scrollbar,var(--ht-border));border:2px solid transparent;border-radius:999px;background-clip:padding-box}:where(*)::-webkit-scrollbar-thumb:hover{background-color:var(--ht-scrollbar-hover,var(--ht-muted))}";
+    document.head.prepend(s);
   }
   window.htnote = Object.freeze({ noteId, version: 1 });
   const send = (type, payload = {}) => window.parent.postMessage({ type, ...payload }, "*");
   const external = /^(https?:|mailto:)/i;
-  const note = /^htnote:\/\/note\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i;
-  function followLink(event) {
-    const anchor = event.target?.closest?.("a[href]");
-    if (!anchor) return;
-    const href = anchor.getAttribute("href").trim();
-    if (href.startsWith("#")) return;
-    event.preventDefault();
-    const match = note.exec(href);
-    if (match) send("HTNOTE_OPEN_NOTE", { id: match[1] });
-    else if (external.test(href)) send("HTNOTE_OPEN_EXTERNAL", { url: href });
-    else if (/^(\.\/)?assets\//.test(href)) send("HTNOTE_OPEN_ASSET", { relPath: href });
+  const note = /^htnote:\/\/note\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/?$/i;
+
+  function followLink(e) {
+    const a = e.target?.closest?.("a[href]");
+    if (!a) return;
+    const h = a.getAttribute("href").trim();
+    if (h.startsWith("#")) return;
+    e.preventDefault();
+    const m = note.exec(h);
+    if (m) send("HTNOTE_OPEN_NOTE", { id: m[1] });
+    else if (external.test(h)) send("HTNOTE_OPEN_EXTERNAL", { url: h });
+    else if (/^(\.\/)?assets\//.test(h)) send("HTNOTE_OPEN_ASSET", { relPath: h });
   }
-  document.addEventListener("click", followLink, true);
-  document.addEventListener("auxclick", followLink, true);
-  window.open = (url) => {
-    if (url != null && external.test(String(url))) send("HTNOTE_OPEN_EXTERNAL", { url: String(url) });
+  for (const t of ["click", "auxclick"]) document.addEventListener(t, followLink, true);
+  window.open = (u) => {
+    if (u != null && external.test(String(u))) send("HTNOTE_OPEN_EXTERNAL", { url: String(u) });
     return null;
   };
 
-  document.addEventListener("keydown", (event) => {
-    if (!(event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.key === "Escape")) return;
-    const key = event.key.toLowerCase();
-    const mod = /Mac/i.test(navigator.platform)
-      ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
-    const known = !event.altKey && (
-      (event.key === "Escape" && !event.ctrlKey && !event.metaKey && !event.shiftKey) ||
-      (event.code === "Tab" && event.ctrlKey && !event.metaKey) ||
+  document.addEventListener("keydown", (e) => {
+    const { ctrlKey: c, metaKey: m, altKey: a, shiftKey: s, key: k, code } = e;
+    if (!(c || m || a || s || k === "Escape")) return;
+    const mod = /Mac/i.test(navigator.platform) ? m && !c : c && !m;
+    const known = !a && (
+      (k === "Escape" && !c && !m && !s) ||
+      (code === "Tab" && c && !m) ||
       (mod && (
-        (event.shiftKey ? ["n", "f", "b"] : ["s", "e", "w", "n"]).includes(key) ||
-        key === "/" ||
-        (!event.shiftKey && ["Backslash", "IntlBackslash"].includes(event.code))
+        (s ? "nfb" : "sewn").includes(k.toLowerCase()) ||
+        k === "/" ||
+        (!s && /Backslash$/.test(code))
       ))
     );
-    if (known) event.preventDefault();
-    send("HTNOTE_SHORTCUT", {
-      key: event.key, ctrl: event.ctrlKey, shift: event.shiftKey,
-      alt: event.altKey, meta: event.metaKey,
-    });
+    if (known) e.preventDefault();
+    send("HTNOTE_SHORTCUT", { key: k, ctrl: c, shift: s, alt: a, meta: m });
   }, true);
 
   function clearHighlights() {
-    document.querySelectorAll("mark[data-htnote-hl]").forEach((mark) => {
-      const parent = mark.parentNode;
-      mark.replaceWith(document.createTextNode(mark.textContent));
-      parent.normalize();
+    document.querySelectorAll("mark[data-htnote-hl]").forEach((m) => {
+      m.replaceWith(new Text(m.textContent));
+      m.parentNode?.normalize();
     });
   }
 
@@ -74,11 +65,8 @@
     clearHighlights();
     if (typeof query !== "string" || !query) return;
     const needle = query.toLocaleLowerCase("tr");
-    const walker = document.createTreeWalker(document.body || document.documentElement, NodeFilter.SHOW_TEXT, {
-      acceptNode(node) {
-        return node.parentElement && !node.parentElement.closest("script, style, mark[data-htnote-hl]")
-          ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
-      },
+    const walker = document.createTreeWalker(document.body || root, 4, {
+      acceptNode: (n) => n.parentElement?.closest("script,style,mark[data-htnote-hl]") ? 2 : 1,
     });
     const nodes = [];
     while (walker.nextNode()) nodes.push(walker.currentNode);
@@ -90,70 +78,90 @@
       for (let offset = 0; offset < text.length;) {
         let end = offset + (text.codePointAt(offset) > 0xffff ? 2 : 1);
         let part = text.slice(offset, end).toLocaleLowerCase("tr");
-        if (text[offset] === "I" && text[end] === "\u0307") {
-          part = "i";
-          end++;
-        }
+        if (text[offset] === "I" && text[end] === "\u0307") { part = "i"; end++; }
         folded += part;
-        for (let i = 0; i < part.length; i++) { starts.push(offset); ends.push(end); }
+        while (starts.length < folded.length) { starts.push(offset); ends.push(end); }
         offset = end;
       }
-      let from = 0;
-      let found = folded.indexOf(needle);
+      let from = 0, found = folded.indexOf(needle);
       if (found < 0) continue;
-      const fragment = document.createDocumentFragment();
+      const frag = document.createDocumentFragment();
       while (found >= 0) {
-        const start = starts[found];
-        const end = ends[found + needle.length - 1];
+        const start = starts[found], end = ends[found + needle.length - 1];
         if (start < from) {
           found = folded.indexOf(needle, found + 1);
           continue;
         }
-        fragment.append(document.createTextNode(text.slice(from, start)));
+        frag.append(new Text(text.slice(from, start)));
         const mark = document.createElement("mark");
-        mark.setAttribute("data-htnote-hl", "");
         mark.className = "htnote-highlight";
+        mark.dataset.htnoteHl = "";
         mark.textContent = text.slice(start, end);
-        fragment.append(mark);
+        frag.append(mark);
         first ||= mark;
         from = end;
         found = folded.indexOf(needle, found + needle.length);
       }
-      fragment.append(document.createTextNode(text.slice(from)));
-      node.replaceWith(fragment);
+      frag.append(new Text(text.slice(from)));
+      node.replaceWith(frag);
     }
     first?.scrollIntoView?.();
   }
 
-  let scrollToken;
-  window.addEventListener("message", (event) => {
-    if (event.source !== window.parent || !event.data || typeof event.data !== "object") return;
-    const { type, vars, mode, query, scrollY, token } = event.data;
+  const pad = ";margin:0 auto;padding:2rem ", widths = {
+    narrow: "680px" + pad + "1rem",
+    comfortable: "860px" + pad + "1.5rem",
+    wide: "1200px" + pad + "1.5rem",
+    full: "100%;margin:0;padding:1rem 1.5rem",
+  };
+
+  function applyContentWidth(w) {
+    if (!w || typeof w !== "string") return;
+    root.dataset.htContentWidth = w;
+    let s = document.getElementById("htnote-content-width");
+    if (!s) {
+      s = document.createElement("style");
+      s.id = "htnote-content-width";
+      document.head.append(s);
+    }
+    const b = document.querySelector('style[data-htnote="base"]');
+    if (b) b.textContent = b.textContent.replace(/\bbody\s*\{/g, ":where(body) {");
+    s.textContent = `:where(body){max-width:${widths[w] || widths.comfortable}}`;
+  }
+
+  let scrolling = false, scrollToken;
+  window.addEventListener("message", (e) => {
+    if (e.source !== window.parent || !e.data || typeof e.data !== "object") return;
+    const { type, vars, mode, query, scrollY, token, contentWidth } = e.data;
     if (type === "HTNOTE_THEME" && !printing) {
       if (vars && typeof vars === "object") {
-        for (const [name, value] of Object.entries(vars)) {
-          if (/^--ht-[\w-]+$/.test(name) && typeof value === "string") {
-            document.documentElement.style.setProperty(name, value);
-          }
-        }
+        for (const [k, v] of Object.entries(vars)) if (/^--ht-[\w-]+$/.test(k) && typeof v === "string") root.style.setProperty(k, v);
       }
-      if (typeof mode === "string") document.documentElement.setAttribute("data-ht-theme", mode);
-    } else if (type === "HTNOTE_PRINT") window.print();
-    else if (type === "HTNOTE_HIGHLIGHT") highlight(query);
-    else if (type === "HTNOTE_CLEAR_HIGHLIGHT") clearHighlights();
-    else if (type === "HTNOTE_SCROLL_RESTORE" && Number.isFinite(scrollY) && scrollY >= 0) {
+      if (typeof mode === "string") root.dataset.htTheme = mode;
+    } else if (type === "HTNOTE_CONTENT_WIDTH" && !printing) {
+      applyContentWidth(contentWidth);
+    } else if (type === "HTNOTE_PRINT") {
+      window.print();
+    } else if (type === "HTNOTE_HIGHLIGHT") {
+      highlight(query);
+    } else if (type === "HTNOTE_CLEAR_HIGHLIGHT") {
+      clearHighlights();
+    } else if (type === "HTNOTE_SCROLL_RESTORE" && Number.isFinite(scrollY) && scrollY >= 0) {
       if (typeof token === "string") scrollToken = token;
       window.scrollTo(0, scrollY);
     }
   });
 
-  let scrolling = false;
   window.addEventListener("scroll", () => {
     if (scrolling) return;
     scrolling = true;
-    requestAnimationFrame(() => { scrolling = false; send("HTNOTE_SCROLL", { scrollY: window.scrollY, path: location.pathname, token: scrollToken }); });
+    requestAnimationFrame(() => {
+      scrolling = false;
+      send("HTNOTE_SCROLL", { scrollY: window.scrollY, path: pathname, token: scrollToken });
+    });
   }, { passive: true });
 
-  if (document.readyState === "loading") window.addEventListener("load", () => send("HTNOTE_READY", { noteId, path: location.pathname }), { once: true });
-  else send("HTNOTE_READY", { noteId, path: location.pathname });
+  const notifyReady = () => send("HTNOTE_READY", { noteId, path: pathname });
+  if (document.readyState === "loading") window.addEventListener("load", notifyReady, { once: true });
+  else notifyReady();
 })();

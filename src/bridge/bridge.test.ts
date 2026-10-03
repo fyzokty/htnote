@@ -228,4 +228,34 @@ describe("note bridge", () => {
       history.replaceState(null, "", location.pathname);
     }
   });
+
+  it("applies content width via low-specificity style sheet allowing author styles to win", () => {
+    const baseStyle = document.createElement("style");
+    baseStyle.setAttribute("data-htnote", "base");
+    baseStyle.textContent = "body { max-width: 860px; margin: 0 auto; }";
+    document.head.append(baseStyle);
+
+    hostMessage({ type: "HTNOTE_CONTENT_WIDTH", contentWidth: "narrow" });
+    expect(document.documentElement.dataset.htContentWidth).toBe("narrow");
+    const styleEl = document.getElementById("htnote-content-width");
+    expect(styleEl).not.toBeNull();
+    expect(styleEl?.textContent).toContain(":where(body){max-width:680px");
+    // Verify base style's body selector was rewritten to :where(body) to maintain low specificity
+    expect(baseStyle.textContent).toContain(":where(body)");
+
+    hostMessage({ type: "HTNOTE_CONTENT_WIDTH", contentWidth: "full" });
+    expect(document.documentElement.dataset.htContentWidth).toBe("full");
+    expect(styleEl?.textContent).toContain(":where(body){max-width:100%");
+
+    // Author style test: author's body style has specificity (0,0,1) which wins over :where(body) (0,0,0)
+    const authorStyle = document.createElement("style");
+    authorStyle.textContent = "body { max-width: 550px; }";
+    document.head.append(authorStyle);
+
+    expect(getComputedStyle(document.body).maxWidth).toBe("550px");
+
+    authorStyle.remove();
+    baseStyle.remove();
+    styleEl?.remove();
+  });
 });

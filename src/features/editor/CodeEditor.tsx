@@ -18,6 +18,7 @@ import { codeNoteLink } from "@/features/editor/noteLinks";
 import { useThemeMode } from "@/hooks/useThemeMode";
 import { ipc } from "@/lib/ipc";
 import type { FlatNote } from "@/lib/types";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { useUiStore } from "@/stores/uiStore";
 
 interface CodeEditorProps {
@@ -34,6 +35,7 @@ const tabs: CodeTab[] = ["html", "css", "js"];
 
 export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = "html", toolbarActions }: CodeEditorProps) {
   const { t } = useTranslation();
+  const contentWidth = useSettingsStore((state) => state.settings?.contentWidth ?? "comfortable");
   const mode = useThemeMode();
   const [activeTab, setActiveTab] = useState<CodeTab>(initialTab);
   const tabId = useId();
@@ -143,7 +145,7 @@ export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = 
   };
 
   return (
-    <section className="htnote-code-editor" aria-label={t("editor.code.label")}>
+    <section className="htnote-code-editor" data-content-width={contentWidth} aria-label={t("editor.code.label")}>
       <div className="htnote-editor-bar htnote-code-bar">
         <div className="htnote-code-tabs" role="tablist" aria-label={t("editor.code.tabs")}
           onKeyDown={(event) => {
