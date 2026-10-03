@@ -16,7 +16,7 @@ vi.mock("@/features/editor/unsavedGuard", () => ({ resolveUnsaved: vi.fn() }));
 
 const settings: Settings = {
   rootDir: "C:/Old", lastExportDir: null, theme: "system", language: null,
-  sidebarWidth: 260, sidebarVisible: true, editorSplitRatio: 50, editorLivePreview: true,
+  sidebarWidth: 260, sidebarVisible: true, tabSizing: "fixed", editorSplitRatio: 50, editorLivePreview: true,
   backlinksExpanded: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: true,
 };
 
@@ -31,6 +31,18 @@ beforeEach(() => {
 });
 
 describe("SettingsView", () => {
+  it("changes tab sizing through the shared segmented control, including keyboard selection", async () => {
+    const update = vi.spyOn(ipc, "updateSettings").mockImplementation(async (patch) => ({ ...settings, ...patch }));
+    render(<SettingsView />);
+    expect(screen.getByRole("group", { name: "Sekme boyutu" })).toHaveClass("htnote-segmented-control");
+    expect(screen.getByRole("button", { name: "Sabit genişlik" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Başlığa göre" }));
+    await waitFor(() => expect(update).toHaveBeenCalledWith({ tabSizing: "fit" }));
+    expect(screen.getByRole("button", { name: "Başlığa göre" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.keyDown(screen.getByRole("button", { name: "Başlığa göre" }), { key: "ArrowLeft" });
+    await waitFor(() => expect(update).toHaveBeenCalledWith({ tabSizing: "fixed" }));
+  });
+
   it("changes theme and language through settings", async () => {
     const update = vi.spyOn(ipc, "updateSettings").mockImplementation(async (patch) => ({ ...settings, ...patch }));
     render(<SettingsView />);

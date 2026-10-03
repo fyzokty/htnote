@@ -21,6 +21,29 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
+it.each(["settings", "trash"] as const)("opens search results from the %s tab without closing it or losing dirty notes", async (kind) => {
+  mockIPC((command) => command === "search_notes" ? results : undefined);
+  const store = useTabsStore.getState();
+  store.openNote("a");
+  store.enterEdit("a", { html: "old", css: null, js: null, contentHash: "hash" }, "code");
+  store.updateDraft("a", { html: "unsaved" });
+  store.openSpecial(kind);
+  render(<SearchModal />);
+  const input = screen.getByRole("searchbox");
+  fireEvent.change(input, { target: { value: "alpha" } });
+  await screen.findByRole("option", { name: /Beta/ });
+  fireEvent.keyDown(input, { key: "ArrowDown" });
+  fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
+  await waitFor(() => expect(useTabsStore.getState().tabs.map((tab) => tab.noteId)).toEqual(["a", `special:${kind}`, "b"]));
+  expect(useTabsStore.getState().activeId).toBe(`special:${kind}`);
+  expect(useUiStore.getState().searchOpen).toBe(true);
+  fireEvent.keyDown(input, { key: "Enter" });
+  await waitFor(() => expect(useTabsStore.getState().activeId).toBe("b"));
+  expect(useUiStore.getState().searchOpen).toBe(false);
+  expect(useTabsStore.getState().tabs.find((tab) => tab.special === kind)).toBeDefined();
+  expect(useTabsStore.getState().tabs.find((tab) => tab.noteId === "a")?.doc).toMatchObject({ dirty: true, draft: { html: "unsaved" } });
+});
+
 it("ignores a late response to an older query", async () => {
   let resolveOld!: (value: SearchNotesResult) => void;
   mockIPC((command, args) => {

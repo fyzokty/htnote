@@ -13,6 +13,7 @@ export interface Settings {
   language: Language | null;
   sidebarWidth: number;
   sidebarVisible: boolean;
+  tabSizing: "fixed" | "fit";
   editorSplitRatio: number;
   editorLivePreview: boolean;
   backlinksExpanded: boolean;

@@ -24,7 +24,7 @@ describe("documentation screenshots", () => {
     await $(".htnote-code-host .cm-content").waitForDisplayed();
     await capture("editor-code");
 
-    await $('div[role="toolbar"] button:nth-child(2)').click();
+    await $(".htnote-session-actions button").click();
     await $('iframe[title="Haftalık odak planı"]').waitForExist();
     await $('[data-testid="global-search"]').click();
     await $('[data-testid="search-input"]').setValue("odak");
@@ -32,7 +32,7 @@ describe("documentation screenshots", () => {
     await capture("search");
     await browser.keys(["Escape"]);
 
-    await $('//*[@data-testid="trash"]/following-sibling::button').click();
+    await $('[data-testid="settings"]').click();
     await $("#settings-appearance").waitForDisplayed();
     await capture("settings");
   });

@@ -11,7 +11,7 @@ const settings: Settings = {
   theme: "system",
   language: null,
   sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true,
-  sidebarVisible: true,
+  sidebarVisible: true, tabSizing: "fixed",
   openTabs: [],
   activeTab: null,
   expandedFolders: [],

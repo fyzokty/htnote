@@ -53,8 +53,6 @@ export function AppShell() {
   const setFilterTag = useTreeStore((state) => state.setFilterTag);
   const setFilterQuery = useTreeStore((state) => state.setFilterQuery);
   const openNote = useCallback((id: string) => {
-    useUiStore.getState().closeTrash();
-    useUiStore.getState().closeSettings();
     useTabsStore.getState().openNote(id);
   }, []);
   const { createNote, createFolder } = useTreeActions(openNote);
@@ -68,13 +66,10 @@ export function AppShell() {
   const [recoveryCandidates, setRecoveryCandidates] = useState<RecoveryCandidate[]>([]);
   const unsavedDialog = useUiStore((state) => state.unsavedDialog);
   const searchOpen = useUiStore((state) => state.searchOpen);
-  const trashOpen = useUiStore((state) => state.trashOpen);
-  const settingsOpen = useUiStore((state) => state.settingsOpen);
-  const openSettings = useUiStore((state) => state.openSettings);
-  const closeSettings = useUiStore((state) => state.closeSettings);
+  const activeId = useTabsStore((state) => state.activeId);
+  const trashOpen = activeId === "special:trash";
+  const settingsOpen = activeId === "special:settings";
   const trashCount = useUiStore((state) => state.trashCount);
-  const openTrash = useUiStore((state) => state.openTrash);
-  const closeTrash = useUiStore((state) => state.closeTrash);
   const openSearch = useUiStore((state) => state.openSearch);
   useDraftAutosave();
   const sidebarWidth = dragWidth ?? clampWidth(settings?.sidebarWidth ?? 260);
@@ -119,12 +114,6 @@ export function AppShell() {
   }, []);
   useEffect(() => startFsChangeSync(), []);
   useEffect(() => { void refreshTrashCount().catch(() => {}); }, []);
-  useEffect(() => useTabsStore.subscribe((state, previous) => {
-    if (state.activeId && state.activeId !== previous.activeId) {
-      useUiStore.getState().closeTrash();
-      useUiStore.getState().closeSettings();
-    }
-  }), []);
   useEffect(() => installExternalChangeListener(), []);
   useEffect(() => {
     const internals = (window as Window & { __TAURI_INTERNALS__?: { metadata?: { currentWindow?: unknown } } }).__TAURI_INTERNALS__;
@@ -275,7 +264,7 @@ export function AppShell() {
           style={{ width: sidebarWidth }}
           aria-label={t("sidebar.label")}
         >
-          <div className="flex h-14 shrink-0 items-center gap-2 border-b border-app-border px-4">
+          <div className="flex h-10 shrink-0 items-center gap-2 border-b border-app-border px-4">
             <NotebookPen className="size-5 text-app-accent" aria-hidden />
             <h1 className="select-none text-lg font-semibold">{t("common.appName")}</h1>
           </div>
@@ -300,10 +289,10 @@ export function AppShell() {
           <SidebarTree onOpenNote={openNote} />
           <TagsSection />
           <div className="shrink-0 border-t border-app-border p-2">
-            <Button type="button" data-testid="trash" onClick={openTrash} aria-pressed={trashOpen} variant="ghost" className="w-full justify-start gap-3">
+            <Button type="button" data-testid="trash" onClick={() => useTabsStore.getState().toggleSpecial("trash")} aria-pressed={trashOpen} variant="ghost" className="w-full justify-start gap-3">
               <Trash2 className="size-4" aria-hidden /> {t("sidebar.trash")} <span className="ml-auto">{trashCount}</span>
             </Button>
-            <Button type="button" onClick={openSettings} aria-pressed={settingsOpen} variant="ghost" className="w-full justify-start gap-3">
+            <Button type="button" data-testid="settings" onClick={() => useTabsStore.getState().toggleSpecial("settings")} aria-pressed={settingsOpen} variant="ghost" className="w-full justify-start gap-3">
               <Settings2 className="size-4" aria-hidden /> {t("sidebar.settings")}
             </Button>
           </div>
@@ -323,14 +312,16 @@ export function AppShell() {
         </aside>
       )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header onClickCapture={() => { closeTrash(); closeSettings(); }} className="flex h-14 shrink-0 items-center gap-3 border-b border-app-border bg-app-surface px-3">
+        <header className="flex h-10 shrink-0 items-center gap-3 border-b border-app-border bg-app-surface px-3">
           <IconButton type="button" onClick={toggleSidebar} shortcut={formatShortcut("toggleSidebar")} label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")} className="text-app-muted">
             <Menu className="size-5" aria-hidden />
           </IconButton>
           <TabBar />
         </header>
         <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden" aria-label={t("viewer.workspace")}>
-          {settingsOpen ? <SettingsView onShowShortcuts={openShortcuts} /> : trashOpen ? <TrashView /> : <NoteViewer />}
+          {settingsOpen && <SettingsView onShowShortcuts={openShortcuts} />}
+          {trashOpen && <TrashView />}
+          <div hidden={settingsOpen || trashOpen} className="h-full min-h-0 w-full"><NoteViewer /></div>
         </section>
       </div>
     </main>

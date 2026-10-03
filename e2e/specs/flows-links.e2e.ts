@@ -30,7 +30,7 @@ describe("internal link flows", () => {
     await withNoteFrame(a.id, async () => {
       await $(`a[href="htnote://note/${b.id}"]`).click();
     });
-    await browser.waitUntil(async () => await $(`[data-note-id="${b.id}"] [role="tab"]`).getAttribute("aria-selected") === "true");
+    await browser.waitUntil(async () => await $(`[role="tab"][data-note-id="${b.id}"]`).getAttribute("aria-selected") === "true");
     const backlinks = await $("section:has(> button[aria-expanded])");
     await backlinks.waitForDisplayed();
     await browser.waitUntil(async () => (await backlinks.getText()).includes(a.title));

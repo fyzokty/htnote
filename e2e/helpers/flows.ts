@@ -65,7 +65,7 @@ export async function createNote(title: string, parentRelPath = ""): Promise<Not
 
 export async function openNote(id: string): Promise<void> {
   await (await waitForTreeItem(id)).click();
-  await browser.waitUntil(async () => await $(`[data-note-id="${id}"] [role=tab]`).getAttribute("aria-selected") === "true");
+  await browser.waitUntil(async () => await $(`[role="tab"][data-note-id="${id}"]`).getAttribute("aria-selected") === "true");
   const note = flatten(await tree()).find((item) => item.id === id);
   assert.ok(note);
   await $(`iframe[title="${note.title}"]`).waitForExist();
