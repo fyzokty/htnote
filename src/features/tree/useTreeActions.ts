@@ -28,6 +28,7 @@ export function useTreeActions(onOpenNote?: (id: string) => void) {
       await state.refresh();
       if (node.type === "note") {
         useTreeStore.getState().revealNote(node.id);
+        useTreeStore.getState().flashNode(`note:${node.id}`);
         onOpenNote?.(node.id);
       }
     } catch (error) { notifyError(error); }
@@ -41,6 +42,7 @@ export function useTreeActions(onOpenNote?: (id: string) => void) {
       if (node.type === "folder") {
         useTreeStore.getState().revealFolder(node.relPath);
         useTreeStore.getState().setRenaming(node.relPath);
+        useTreeStore.getState().flashNode(`folder:${node.relPath}`);
       }
     } catch (error) { notifyError(error); }
   }, [t]);
@@ -49,9 +51,13 @@ export function useTreeActions(onOpenNote?: (id: string) => void) {
     try {
       if (node.type === "note") {
         await renameNoteItem(node.id, name);
+        useTreeStore.getState().flashNode(`note:${node.id}`);
       } else {
         const renamed = await ipc.renameFolder(node.relPath, name);
-        if (renamed.type === "folder") useTreeStore.getState().movePathPrefix(node.relPath, renamed.relPath);
+        if (renamed.type === "folder") {
+          useTreeStore.getState().movePathPrefix(node.relPath, renamed.relPath);
+          useTreeStore.getState().flashNode(`folder:${renamed.relPath}`);
+        }
         await useTreeStore.getState().refresh();
       }
     } catch (error) { notifyError(error); }
@@ -70,11 +76,14 @@ export function useTreeActions(onOpenNote?: (id: string) => void) {
       const newPath = await ipc.moveItem(node.relPath, targetRelPath);
       if (node.type === "folder") useTreeStore.getState().movePathPrefix(node.relPath, newPath);
       await useTreeStore.getState().refresh();
-      if (node.type === "folder") useTreeStore.getState().revealFolder(newPath);
-      else {
+      if (node.type === "folder") {
+        useTreeStore.getState().revealFolder(newPath);
+        useTreeStore.getState().flashNode(`folder:${newPath}`);
+      } else {
         if (targetRelPath) useTreeStore.getState().revealFolder(targetRelPath);
         useTreeStore.getState().revealNote(node.id);
         useTreeStore.getState().select({ kind: "note", id: node.id });
+        useTreeStore.getState().flashNode(`note:${node.id}`);
       }
     } catch (error) { notifyError(error); }
   }, []);

@@ -171,4 +171,31 @@ describe("treeStore", () => {
     await useTreeStore.getState().refresh();
     expect([...useTreeStore.getState().expanded]).toEqual([]);
   });
+
+  it("flashes a node key and clears it after duration timer", () => {
+    vi.useFakeTimers();
+    expect(useTreeStore.getState().flashedKey).toBeNull();
+
+    useTreeStore.getState().flashNode("note:n", 1000);
+    expect(useTreeStore.getState().flashedKey).toBe("note:n");
+
+    vi.advanceTimersByTime(999);
+    expect(useTreeStore.getState().flashedKey).toBe("note:n");
+
+    vi.advanceTimersByTime(1);
+    expect(useTreeStore.getState().flashedKey).toBeNull();
+
+    // Custom duration and override
+    useTreeStore.getState().flashNode("folder:A", 500);
+    expect(useTreeStore.getState().flashedKey).toBe("folder:A");
+    useTreeStore.getState().flashNode("folder:B", 300);
+    expect(useTreeStore.getState().flashedKey).toBe("folder:B");
+
+    vi.advanceTimersByTime(299);
+    expect(useTreeStore.getState().flashedKey).toBe("folder:B");
+    vi.advanceTimersByTime(1);
+    expect(useTreeStore.getState().flashedKey).toBeNull();
+
+    vi.useRealTimers();
+  });
 });
