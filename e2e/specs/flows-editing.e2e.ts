@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { pointerMoveTo } from "../helpers/pointer";
 
-import { createNote, editNote, flatten, invoke, openNote, saveShortcut, tree, typeInVisualEditor, useTempRoot, waitForFile, withNoteFrame } from "../helpers/flows";
+import { createNote, editNote, flatten, invoke, openNote, saveAndView, saveShortcut, tree, typeInVisualEditor, useTempRoot, waitForFile, withNoteFrame } from "../helpers/flows";
 
 describe("editing flows", () => {
   let restore: (() => Promise<void>) | undefined;
@@ -35,20 +35,30 @@ describe("editing flows", () => {
     const base = await invoke<{ html: string }>("read_note", { id: note.id });
     const html = base.html.replace("</body>", '<button id="counter">0</button><script>document.getElementById("counter").addEventListener("click", function () { this.textContent = String(Number(this.textContent) + 1); });</script></body>');
     const code = await $(".htnote-code-host .cm-content");
+    await code.waitForDisplayed();
     await code.click();
     await browser.keys(["Control", "a"]);
     await code.addValue(html);
-    await $('[data-testid="save-note"]').click();
+    await browser.waitUntil(async () => (await code.getText()).includes('<button id="counter">0</button>'),
+      { timeoutMsg: "Counter source did not appear in the code editor" });
+    const savedCode = await saveAndView(note.id, (saved) => saved.includes('<button id="counter">0</button>')
+      && saved.includes('addEventListener("click"'));
+    assert.ok(savedCode.includes('<button id="counter">0</button>'));
     await withNoteFrame(note.id, async () => {
       const button = await $("#counter");
+      await button.waitForDisplayed();
       await button.click();
       assert.equal(await button.getText(), "1");
     });
     await editNote();
     await typeInVisualEditor("Visual addition");
-    await $('[data-testid="save-note"]').click();
+    await browser.waitUntil(async () => (await $('.htnote-visual-editor .tiptap').getText()).includes("Visual addition"));
+    const savedVisual = await saveAndView(note.id, (saved) => saved.includes("Visual addition"));
+    assert.ok(savedVisual.includes('<button id="counter">0</button>'));
+    assert.ok(savedVisual.includes('addEventListener("click"'));
     await withNoteFrame(note.id, async () => {
       const button = await $("#counter");
+      await button.waitForDisplayed();
       await button.click();
       assert.equal(await button.getText(), "1");
       assert.match(await $("#htnote-content").getText(), /Visual addition/);

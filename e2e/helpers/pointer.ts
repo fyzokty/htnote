@@ -27,6 +27,17 @@ declare global {
 
 const tolerance = 2;
 const pointerId = "calibrated-mouse";
+const viewportInset = 5;
+
+export async function clampPointerPoint(point: PointerPoint): Promise<PointerPoint> {
+  return browser.execute((point, inset) => {
+    const clamp = (value: number, size: number) => {
+      const margin = Math.min(inset, Math.floor((size - 1) / 2));
+      return Math.max(margin, Math.min(size - 1 - margin, Math.round(value)));
+    };
+    return { x: clamp(point.x, window.innerWidth), y: clamp(point.y, window.innerHeight) };
+  }, point, viewportInset);
+}
 class PointerCoordinateError extends Error {}
 const matches = (actual: PointerPoint | undefined, expected: PointerPoint) => actual
   && Math.abs(actual.x - expected.x) <= tolerance && Math.abs(actual.y - expected.y) <= tolerance;
@@ -180,10 +191,11 @@ class PointerSession {
     const measurement = await measurePointer(element);
     const center = measurement.point;
     this.measured = measurement.snapshot;
+    const command = await clampPointerPoint({ x: point.x - offset.x, y: point.y - offset.y });
     return {
       type: "pointerMove", duration,
       origin: { "element-6066-11e4-a52e-4f735466cecf": element.elementId },
-      x: Math.round(point.x - center.x - offset.x), y: Math.round(point.y - center.y - offset.y),
+      x: command.x - center.x, y: command.y - center.y,
     };
   }
 
@@ -194,6 +206,7 @@ class PointerSession {
   }
 
   async move(element: WebdriverIO.Element, point: PointerPoint, duration = 0, approach = true) {
+    point = await clampPointerPoint(point);
     // Wait for layout/animation stability before measuring each element origin.
     // Keep per-target corrections for any remaining driver coordinate mismatch.
     const offset = { x: 0, y: 0 };
@@ -201,10 +214,11 @@ class PointerSession {
     for (let attempt = 0; attempt < 3; attempt++) {
       await this.clear();
       // A short approach ensures a fresh event when repeating a hover/click.
-      const actions = approach || (attempt > 0 && !actual)
-        ? [await this.moveAction(element, { x: point.x + 2, y: point.y }, offset)] : [];
-      actions.push(await this.moveAction(element, point, offset, duration));
-      await perform(actions);
+      if (approach || (attempt > 0 && !actual)) {
+        await perform([await this.moveAction(element, { x: point.x + 2, y: point.y }, offset)]);
+      }
+      // An approach can move a dragged origin; measure again after it executes.
+      await perform([await this.moveAction(element, point, offset, duration)]);
       actual = await this.actual("pointermove") ?? await this.actual("mousemove");
       if (matches(actual, point)) return actual!;
       if (attempt === 2) {
@@ -260,7 +274,7 @@ export async function pointerClickAt(target: PointerElement, x: number, y: numbe
 } = {}) {
   const element = await target.getElement();
   return withPointer(async (session) => {
-    const point = { x: Math.round(x), y: Math.round(y) };
+    const point = await clampPointerPoint({ x, y });
     for (let attempt = 0; attempt < 2; attempt++) {
       await session.move(element, point);
       let down: PointerPoint;
@@ -292,8 +306,8 @@ export async function pointerDrag(source: PointerElement, target: PointerElement
   const to = await target.getElement();
   await from.scrollIntoView();
   return withPointer(async (session) => {
-    const start = options.fromPoint ?? await pointerCenter(from);
-    const end = options.toPoint ?? await pointerCenter(to);
+    const start = await clampPointerPoint(options.fromPoint ?? await pointerCenter(from));
+    const end = await clampPointerPoint(options.toPoint ?? await pointerCenter(to));
     try {
       await session.move(from, start);
       await session.button("mousedown", start, 0);

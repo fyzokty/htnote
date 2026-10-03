@@ -15,6 +15,7 @@ import { initNoteOrigin } from "@/lib/noteUrl";
 import type { Settings } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useTreeStore } from "@/stores/treeStore";
 
 function normalized(html: string): string {
   const container = document.createElement("div");
@@ -36,6 +37,33 @@ afterEach(() => {
 });
 
 describe("VisualEditor", () => {
+  it.each([false, true])("restores the captured note-link selection after dialog focus (range=%s)", (range) => {
+    vi.useFakeTimers();
+    const id = "11111111-1111-4111-8111-111111111111";
+    useTreeStore.setState({ tree: [{ type: "note", id, title: "Target B", relPath: "Target B", isFavorite: false, tags: [], updatedAt: "" }] });
+    const ref = createRef<VisualEditorHandle>();
+    const onChange = vi.fn();
+    const { container } = render(<VisualEditor ref={ref} initialInner="<p>BeforeAfter</p>" onChange={onChange} />);
+    const surface = screen.getByRole("textbox", { name: "Not içeriği" });
+    const editor = (surface as HTMLElement & { editor: Editor }).editor;
+    act(() => { editor.commands.setTextSelection({ from: 7, to: range ? 12 : 7 }); });
+    fireEvent.click(screen.getByTestId("link-note"));
+    expect(screen.getByRole("textbox", { name: "Not ara" })).toHaveFocus();
+    // Diyalog odaktayken editör seçimi değişse bile yakalanan konum kullanılmalı.
+    act(() => { editor.commands.setTextSelection(1); });
+    fireEvent.click(screen.getByRole("option", { name: "Target B" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(container.querySelector(`.tiptap a[href="htnote://note/${id}"]`)).toHaveTextContent(range ? "After" : "Target B");
+    expect(onChange).not.toHaveBeenCalled();
+    act(() => { ref.current?.flush(); });
+    expect(onChange).toHaveBeenCalledOnce();
+    expect(normalized(onChange.mock.calls[0][0] as string)).toBe(range
+      ? `<p>Before<a href="htnote://note/${id}">After</a></p>`
+      : `<p>Before<a href="htnote://note/${id}">Target B</a>After</p>`);
+    act(() => { vi.advanceTimersByTime(200); });
+    expect(onChange).toHaveBeenCalledOnce();
+  });
+
   it("shows the native cursor while hovering and clears it on leave and drop", async () => {
     vi.spyOn(EditorView.prototype, "posAtCoords").mockReturnValue({ pos: 2, inside: 0 });
     vi.spyOn(EditorView.prototype, "coordsAtPos").mockReturnValue({ left: 50, right: 50, top: 20, bottom: 44 });

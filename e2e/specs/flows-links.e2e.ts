@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createNote, editNote, flatten, invoke, openNote, tree, useTempRoot, withNoteFrame } from "../helpers/flows";
+import { createNote, editNote, flatten, invoke, openNote, saveAndView, tree, useTempRoot, withNoteFrame } from "../helpers/flows";
 import type { NoteNode } from "../helpers/flows";
 
 describe("internal link flows", () => {
@@ -17,8 +17,16 @@ describe("internal link flows", () => {
     await $('[data-testid="link-note"]').click();
     const picker = await $('[role="dialog"] [role="listbox"]');
     await picker.waitForDisplayed();
-    await picker.$('[role="option"]').click();
-    await $('[data-testid="save-note"]').click();
+    const option = await picker.$(`[role="option"][aria-label="${b.title}"]`);
+    await option.waitForDisplayed();
+    await option.click();
+    await $('.htnote-note-picker[role="dialog"]').waitForExist({ reverse: true });
+    const href = `htnote://note/${b.id}`;
+    const link = await $(`.htnote-visual-editor .tiptap a[href="${href}"]`);
+    await link.waitForDisplayed();
+    assert.equal(await link.getText(), b.title);
+    const html = await saveAndView(a.id, (saved) => saved.includes(`href="${href}"`));
+    assert.ok(html.includes(`href="${href}"`));
     await withNoteFrame(a.id, async () => {
       await $(`a[href="htnote://note/${b.id}"]`).waitForDisplayed();
     }, { expectedHref: `htnote://note/${b.id}` });

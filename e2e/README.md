@@ -127,4 +127,18 @@ Assertions and their timeouts are unchanged; failed actions are not retried.
 For race diagnosis, set `HTNOTE_E2E_CPU_THROTTLE=4` before running the usual WDIO
 command to request fourfold CPU slowdown through EdgeDriver's DevTools endpoint.
 This is opt-in and leaves normal suite launches unchanged.
+To repeat both save-race specs fifteen times with fourfold CPU slowdown:
+
+```powershell
+$env:HTNOTE_E2E_CPU_THROTTLE = "4"
+npx wdio run e2e/wdio.conf.ts --spec e2e/specs/flows-links.e2e.ts --spec e2e/specs/flows-editing.e2e.ts --repeat 15
+```
+
+The link flow selects the result by its expected title, then checks the inserted
+editor anchor and dirty status before saving. Both save flows wait for the enabled
+Save button, the return to view mode, and the expected `read_note` HTML. The
+counter flow checks the script and button remain in the saved HTML after the
+visual edit. Frame entry waits for a visible, non-inert view with an acknowledged
+revision, then verifies that revision and document readiness inside the frame.
+These are state waits; assertions are neither retried nor relaxed.
 CI E2E is pinned to `windows-2022` until [runner image issue 14738](https://github.com/actions/runner-images/issues/14738) is resolved.

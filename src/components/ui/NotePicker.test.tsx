@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NotePicker } from "@/components/ui/NotePicker";
@@ -17,6 +18,43 @@ beforeEach(() => {
 });
 
 describe("NotePicker", () => {
+  it("waits for real results and selects the clicked note after a delayed tree load", () => {
+    const tree = useTreeStore.getState().tree;
+    useTreeStore.setState({ tree: [] });
+    const onSelect = vi.fn();
+    render(<NotePicker currentNoteId={first} onSelect={onSelect} onClose={vi.fn()} />);
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(screen.queryByRole("option")).toBeNull();
+    act(() => { useTreeStore.setState({ tree }); });
+    fireEvent.click(screen.getByRole("option", { name: "İzmir" }));
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: third }));
+  });
+
+  it("retains the active note through a tree reorder and handles a removed result", () => {
+    const tree = useTreeStore.getState().tree;
+    const onSelect = vi.fn();
+    render(<NotePicker currentNoteId={first} onSelect={onSelect} onClose={vi.fn()} />);
+    const input = screen.getByRole("textbox");
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    act(() => { useTreeStore.setState({ tree: [tree[0], tree[2], tree[1]] }); });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onSelect).toHaveBeenLastCalledWith(expect.objectContaining({ id: third }));
+    act(() => { useTreeStore.setState({ tree: [tree[0], tree[1]] }); });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onSelect).toHaveBeenLastCalledWith(expect.objectContaining({ id: second }));
+  });
+
+  it("activates the focused option with Enter instead of the hovered option", async () => {
+    const user = userEvent.setup();
+    const onSelect = vi.fn();
+    render(<NotePicker currentNoteId={first} onSelect={onSelect} onClose={vi.fn()} />);
+    await user.hover(screen.getByRole("option", { name: "İzmir" }));
+    screen.getByRole("option", { name: "İstanbul" }).focus();
+    await user.keyboard("{Enter}");
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ id: second }));
+  });
+
   it("filters Turkish titles and excludes the current note", () => {
     render(<NotePicker currentNoteId={first} onSelect={vi.fn()} onClose={vi.fn()} />);
     expect(screen.queryByText("Aktif")).not.toBeInTheDocument();

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { pointerCenter, pointerClickAt, pointerDrag, pointerMoveTo, waitForPointerStable } from "./pointer";
+import { clampPointerPoint, pointerCenter, pointerClickAt, pointerDrag, pointerMoveTo, waitForPointerStable } from "./pointer";
 
 // A driver double injects coordinate offsets into trusted event coordinates. This
 // exercises per-target correction without requiring an older WebView2 locally.
@@ -76,6 +76,8 @@ function driver(initialOffset: { x: number; y: number }) {
             x: Math.floor((rect.left + rect.right) / 2) + action.x,
             y: Math.floor((rect.top + rect.bottom) / 2) + action.y,
           };
+          assert.ok(requested.x >= 5 && requested.x <= 994 && requested.y >= 5 && requested.y <= 794,
+            `Command must stay inside the viewport: ${JSON.stringify(requested)}`);
           const drift = offsetAt?.(requested) ?? offset;
           const next = { x: requested.x + drift.x, y: requested.y + drift.y };
           if (pressed) {
@@ -127,6 +129,23 @@ function driver(initialOffset: { x: number; y: number }) {
     },
   };
 }
+
+test("targets and approach points stay inset from every viewport edge", async () => {
+  const fake = driver({ x: 0, y: 0 });
+  try {
+    assert.deepEqual(await clampPointerPoint({ x: -100, y: -100 }), { x: 5, y: 5 });
+    const events = await pointerClickAt(fake.source, 2000, 2000);
+    assert.deepEqual(events, { down: { x: 994, y: 794 }, up: { x: 994, y: 794 } });
+  } finally { fake.cleanup(); }
+});
+
+test("an unreachable correction stays in bounds and fails before pressing", async () => {
+  const fake = driver({ x: 0, y: 30 });
+  try {
+    await assert.rejects(pointerClickAt(fake.source, 800, 25), /failed after 3 attempts/);
+    assert.equal(fake.clicks.length, 0);
+  } finally { fake.cleanup(); }
+});
 
 test("center waits for two unchanged frames after target motion stops", async () => {
   const fake = driver({ x: 0, y: 0 });
@@ -189,17 +208,18 @@ for (const offset of [{ x: 0, y: 0 }, { x: 0, y: 12 }, { x: 0, y: 30 }, { x: -7,
   test(`click lands at the intended point with driver offset ${JSON.stringify(offset)}`, async () => {
     const fake = driver(offset);
     try {
-      const events = await pointerClickAt(fake.source, 800, 25);
-      assert.deepEqual(events, { down: { x: 800, y: 25 }, up: { x: 800, y: 25 } });
-      assert.deepEqual(fake.clicks, [{ x: 800, y: 25 }]);
+      const events = await pointerClickAt(fake.source, 800, 125);
+      assert.deepEqual(events, { down: { x: 800, y: 125 }, up: { x: 800, y: 125 } });
+      assert.deepEqual(fake.clicks, [{ x: 800, y: 125 }]);
     } finally { fake.cleanup(); }
   });
 }
 
 test("hover converges on the third attempt when drift changes during correction", async () => {
   const fake = driver({ x: 0, y: 30 });
+  fake.shiftSource(100);
   fake.onEvent((kind, moves) => { if (kind === "move" && moves === 3) fake.setOffset({ x: 0, y: 12 }); });
-  try { assert.deepEqual(await pointerMoveTo(fake.source), { x: 180, y: 25 }); }
+  try { assert.deepEqual(await pointerMoveTo(fake.source), { x: 180, y: 125 }); }
   finally { fake.cleanup(); }
 });
 
@@ -209,7 +229,7 @@ test("persistent coordinate drift fails after three attempts and cleans up", asy
     if (kind === "move") fake.setOffset({ x: 0, y: moves * 12 });
   });
   try {
-    await assert.rejects(pointerClickAt(fake.source, 800, 25), /failed after 3 attempts.*coordinate drift.*expected.*800.*received.*49.*correction/);
+    await assert.rejects(pointerClickAt(fake.source, 800, 125), /failed after 3 attempts.*coordinate drift.*expected.*800.*received.*149.*correction/);
     assert.equal(fake.moves(), 6);
     assert.equal(fake.clicks.length, 0, "A missed movement must be detected before pressing");
   } finally { fake.cleanup(); }
@@ -226,8 +246,8 @@ test("a mismatched mousedown corrects the target again and retries the click onc
     }
   });
   try {
-    const result = await pointerClickAt(fake.source, 800, 25);
-    assert.deepEqual(result.down, { x: 800, y: 25 });
+    const result = await pointerClickAt(fake.source, 800, 125);
+    assert.deepEqual(result.down, { x: 800, y: 125 });
     assert.equal(fake.clicks.length, 2);
   } finally { fake.cleanup(); }
 });
@@ -255,8 +275,8 @@ test("click corrects drift at its target even when nearby points have different 
   const fake = driver({ x: 0, y: 0 });
   fake.setOffsetAt((point) => ({ x: 0, y: point.x > 800 ? 8 : 3 }));
   try {
-    const result = await pointerClickAt(fake.source, 800, 25);
-    assert.deepEqual(result, { down: { x: 800, y: 25 }, up: { x: 800, y: 25 } });
+    const result = await pointerClickAt(fake.source, 800, 125);
+    assert.deepEqual(result, { down: { x: 800, y: 125 }, up: { x: 800, y: 125 } });
     assert.equal(fake.moves(), 4);
   } finally { fake.cleanup(); }
 });

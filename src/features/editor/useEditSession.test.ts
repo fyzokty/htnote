@@ -1,7 +1,8 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { createElement } from "react";
 import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { Editor } from "@tiptap/core";
 
 import { useEditSession } from "@/features/editor/useEditSession";
 import { VisualEditor } from "@/features/editor/VisualEditor";
@@ -24,6 +25,52 @@ beforeEach(() => {
 });
 
 describe("useEditSession", () => {
+  it("saves a clean document and returns to view mode", async () => {
+    const commands: string[] = [];
+    mockIPC((command) => {
+      commands.push(command);
+      if (command === "read_note") return note;
+      if (command === "save_note") return { contentHash: "new", metadata: note.metadata };
+    });
+    const { result } = renderHook(() => useEditSession("a"));
+    await act(async () => { await result.current.enter(); });
+    expect(doc().dirty).toBe(false);
+    await act(async () => { expect(await result.current.save(false)).toBe(true); });
+    expect(commands).toContain("save_note");
+    expect(doc()).toMatchObject({ mode: "view", dirty: false, saving: false });
+  });
+
+  it("keeps a visual edit made during save before its debounce fires", async () => {
+    vi.useFakeTimers();
+    try {
+      let completeSave!: (value: { contentHash: string }) => void;
+      const saved = new Promise<{ contentHash: string }>((resolve) => { completeSave = resolve; });
+      const payloads: unknown[] = [];
+      mockIPC((command, args) => {
+        if (command === "read_note") return note;
+        if (command === "save_note") {
+          payloads.push((args as { payload: unknown }).payload);
+          return payloads.length === 1 ? saved : { contentHash: "latest" };
+        }
+      });
+      const { result } = renderHook(() => useEditSession("a"));
+      await act(async () => { await result.current.enter(); });
+      render(createElement(VisualEditor, { ref: result.current.visualRef, initialInner: "<p>First</p>", onChange: result.current.onVisualChange }));
+      const editor = (screen.getByRole("textbox", { name: "Not içeriği" }) as HTMLElement & { editor: Editor }).editor;
+      act(() => { editor.commands.insertContentAt(6, " saved"); });
+      let saving!: Promise<boolean>;
+      act(() => { saving = result.current.save(false); });
+      act(() => { editor.commands.insertContentAt(12, " newer"); });
+      await act(async () => { completeSave({ contentHash: "new" }); expect(await saving).toBe(true); });
+      expect(doc()).toMatchObject({ mode: "visual", dirty: true, saving: false });
+      expect(doc().base?.html).not.toContain("newer");
+      expect(doc().draft?.html).toContain("newer");
+      await act(async () => { expect(await result.current.save(false)).toBe(true); });
+      expect(payloads[1]).toMatchObject({ expectedHash: "new", html: expect.stringContaining("newer") });
+      expect(doc().mode).toBe("view");
+    } finally { vi.useRealTimers(); }
+  });
+
   it("flushes readable visual HTML into save_note while preserving the shell, assets and hash", async () => {
     const original = '<!DOCTYPE html>\n<html><head><style>body { color: red; }</style></head><body>\n  <main id="htnote-content"><p>First</p><p>Second</p><div> raw\r\n  <span> untouched </span></div></main><script>outside()</script></body></html>';
     const parts = loadForVisual(original);
