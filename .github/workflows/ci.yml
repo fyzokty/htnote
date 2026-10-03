@@ -57,23 +57,67 @@ jobs:
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $installer = Join-Path $env:RUNNER_TEMP 'MicrosoftEdgeWebview2Setup.exe'
-          Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $installer
-          $setup = Start-Process -FilePath $installer -ArgumentList '/silent', '/install' -Wait -PassThru -WindowStyle Hidden
-          if ($setup.ExitCode -ne 0) { throw "WebView2 Evergreen installation failed with exit code $($setup.ExitCode)" }
           $client = '{F1E7E90C-7A49-42C8-A039-17D95E7E803D}'
-          $found = $false
-          foreach ($hive in @('HKCU:\Software\Microsoft\EdgeUpdate\Clients', 'HKLM:\Software\Microsoft\EdgeUpdate\Clients', 'HKLM:\Software\WOW6432Node\Microsoft\EdgeUpdate\Clients')) {
-            $key = Join-Path $hive $client
-            if (Test-Path $key) {
-              $version = (Get-ItemProperty $key).pv
-              if ($version -and $version -ne '0.0.0.0') {
-                Write-Host "Updated WebView2 Runtime ($key): $version"
-                $found = $true
+          $runtimeRoot = 'C:\Program Files (x86)\Microsoft\EdgeWebView\Application'
+          function Get-RuntimeVersions {
+            foreach ($hive in @('HKCU:\Software\Microsoft\EdgeUpdate\Clients', 'HKLM:\Software\Microsoft\EdgeUpdate\Clients', 'HKLM:\Software\WOW6432Node\Microsoft\EdgeUpdate\Clients')) {
+              $key = Join-Path $hive $client
+              $pv = (Get-ItemProperty -LiteralPath $key -Name pv -ErrorAction SilentlyContinue).pv
+              $parsed = $null
+              if ([version]::TryParse($pv, [ref]$parsed) -and $parsed -gt [version]'0.0.0.0') {
+                Write-Host "WebView2 Runtime ($key): $pv"
+                $parsed
               }
             }
           }
-          if (-not $found) { throw 'WebView2 Evergreen installation completed without a registered pv version' }
+          function Get-RuntimeFolderVersion {
+            Get-ChildItem -LiteralPath $runtimeRoot -Directory -ErrorAction SilentlyContinue |
+              ForEach-Object {
+                $parsed = $null
+                if ([version]::TryParse($_.Name, [ref]$parsed)) { $parsed }
+              } | Sort-Object -Descending | Select-Object -First 1
+          }
+          Write-Host 'WebView2 Runtime before update:'
+          $before = @(Get-RuntimeVersions)
+          $baseline = $before | Sort-Object -Descending | Select-Object -First 1
+          Write-Host "Highest runtime folder before update: $(Get-RuntimeFolderVersion)"
+          $installer = Join-Path $env:RUNNER_TEMP 'MicrosoftEdgeWebView2RuntimeInstallerX64.exe'
+          $installSucceeded = $false
+          try {
+            Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/?linkid=2124701' -OutFile $installer
+            $setup = Start-Process -FilePath $installer -ArgumentList '/silent', '/install' -Wait -PassThru -WindowStyle Hidden
+            $installSucceeded = $setup.ExitCode -eq 0
+            if (-not $installSucceeded) { Write-Host "::warning::WebView2 installer exited with code $($setup.ExitCode); continuing with the available runtime." }
+          } catch {
+            Write-Host "::warning::WebView2 update failed: $($_.Exception.Message). Continuing with the available runtime."
+          }
+          # EdgeUpdate can outlive the installer; bound subprocess waiting separately.
+          $processDeadline = (Get-Date).AddMinutes(5)
+          do {
+            $pending = @(Get-Process -ErrorAction SilentlyContinue | Where-Object {
+              $_.ProcessName -in @('MicrosoftEdgeUpdate', 'MicrosoftEdgeUpdateSetup', 'MicrosoftEdgeWebView2RuntimeInstallerX64') -or
+              ($_.ProcessName -eq 'setup' -and $_.Path -match 'Microsoft\\(EdgeUpdate|EdgeWebView)\\')
+            })
+            if ($pending.Count -eq 0 -or (Get-Date) -ge $processDeadline) { break }
+            Start-Sleep -Seconds 10
+          } while ($true)
+          if ($pending.Count -gt 0) { Write-Host '::warning::WebView2 update processes are still running after five minutes; continuing with the available runtime.' }
+          $deadline = (Get-Date).AddMinutes(5)
+          do {
+            $versions = @(Get-RuntimeVersions)
+            $registered = $versions | Sort-Object -Descending | Select-Object -First 1
+            $folderVersion = Get-RuntimeFolderVersion
+            Write-Host "Highest runtime folder ($runtimeRoot): $folderVersion"
+            $verified = $installSucceeded -and $pending.Count -eq 0 -and $registered -and
+              $registered -eq $folderVersion -and (-not $baseline -or $registered -ge $baseline)
+            if ($verified -or (Get-Date) -ge $deadline) { break }
+            Start-Sleep -Seconds 10
+          } while ($true)
+          if (-not $verified) { Write-Host '::warning::Could not verify the updated WebView2 Runtime within five minutes; continuing with the available runtime and matching EdgeDriver.' }
+          $available = if ($registered) { $registered } elseif ($folderVersion) { $folderVersion } else { $baseline }
+          Write-Host "WebView2 Runtime before EdgeDriver matching: $available (update verified: $verified)"
+          "WEBVIEW2_RUNTIME_VERSION=$available" >> $env:GITHUB_ENV
+          "WEBVIEW2_UPDATE_VERIFIED=$verified" >> $env:GITHUB_ENV
       - name: Install WebView2-matched msedgedriver
         shell: pwsh
         run: |
