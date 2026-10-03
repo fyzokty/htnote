@@ -7,6 +7,42 @@ import { createVisualExtensions } from "@/features/editor/extensions";
 import { selectMediaGap } from "@/features/editor/mediaSelection";
 
 describe("media outside clicks", () => {
+  it("records handler decisions only while the diagnostic hook is enabled", () => {
+    const editor = new Editor({ extensions: createVisualExtensions(""), content: '<img src="a.svg">' });
+    const dom = editor.view.nodeDOM(0) as HTMLElement;
+    vi.spyOn(dom, "getBoundingClientRect").mockReturnValue(new DOMRect(100, 50, 200, 150));
+    vi.spyOn(editor.view, "focus").mockImplementation(() => {});
+    // jsdom has no coordinate hit testing for the unhandled inside click.
+    vi.spyOn(editor.view, "posAtCoords").mockReturnValue(null);
+    const click = (x: number) => editor.view.dom.dispatchEvent(new MouseEvent("mousedown", {
+      clientX: x, clientY: 100, bubbles: true, cancelable: true,
+    }));
+    try {
+      click(400);
+      expect(window.__htnoteDebugMediaClick).toBeUndefined();
+      editor.commands.setNodeSelection(0);
+      const debug = window.__htnoteDebugMediaClick = { calls: 0 } as NonNullable<Window["__htnoteDebugMediaClick"]>;
+      click(400);
+      expect(debug.calls).toBe(1);
+      expect(debug.last).toMatchObject({
+        x: 400, y: 100, isTrusted: false, decision: "selected-media-boundary",
+        boundary: 1, bias: 1, handled: true, defaultPrevented: true,
+        before: { type: "node", anchor: 0 }, after: { type: "gapcursor", pos: 1 },
+        rows: [{ pos: 0, kind: "image", row: { x: 100, y: 50, width: 200, height: 150 } }],
+      });
+      click(200);
+      expect(debug.calls).toBe(2);
+      expect(debug.last).toMatchObject({ decision: "no-outside-media-boundary", handled: false, defaultPrevented: false });
+      delete window.__htnoteDebugMediaClick;
+      click(400);
+      expect(window.__htnoteDebugMediaClick).toBeUndefined();
+      expect(debug.calls).toBe(2);
+    } finally {
+      delete window.__htnoteDebugMediaClick;
+      editor.destroy();
+    }
+  });
+
   it.each(["image", "audio", "video"] as const)("uses the clicked %s row despite incorrect hit testing and event targets", (kind) => {
     const editor = new Editor({ extensions: createVisualExtensions(""), content: {
       type: "doc", content: ["image", "image", kind, "video"].map((type) => ({ type, attrs: { src: "media" } })),
