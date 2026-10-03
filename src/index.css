@@ -20,6 +20,9 @@
   --app-danger-text: #ffffff;
   --app-focus: #4f46e5;
   --app-warning: #b45309;
+  --app-code-html: #c2410c;
+  --app-code-css: #2563eb;
+  --app-code-js: #a16207;
   --app-scrollbar-light: #c1c6d0;
   --app-scrollbar-hover-light: #8b93a2;
   --app-scrollbar-dark: #48566b;
@@ -47,6 +50,9 @@
   --app-danger-text: #ffffff;
   --app-focus: #818cf8;
   --app-warning: #fbbf24;
+  --app-code-html: #fb923c;
+  --app-code-css: #60a5fa;
+  --app-code-js: #facc15;
   --app-scrollbar: var(--app-scrollbar-dark);
   --app-scrollbar-hover: var(--app-scrollbar-hover-dark);
   --app-backdrop: #00000099;
@@ -78,11 +84,8 @@
 
 .htnote-visual-editor { color: var(--app-text); background: var(--app-surface); }
 .htnote-drop-target { outline: 2px dashed var(--app-accent) !important; outline-offset: -3px; }
-.htnote-editor-toolbar { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.5rem; border-bottom: 1px solid var(--app-border); }
-.htnote-editor-toolbar button, .htnote-editor-toolbar select, .htnote-editor-link input { padding: 0.35rem; border: 1px solid var(--app-border); border-radius: 0.25rem; background: var(--app-surface); color: var(--app-text); }
-.htnote-editor-toolbar button[aria-pressed="true"] { background: var(--app-accent); color: var(--app-accent-text); }
-.htnote-editor-toolbar button:disabled { opacity: 0.4; }
-.htnote-editor-link { display: flex; align-items: center; gap: 0.25rem; }
+.htnote-editor-link { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; flex-basis: 100%; }
+.htnote-editor-link input { min-width: 0; padding: 0.375rem 0.5rem; border: 1px solid var(--app-border); border-radius: 0.375rem; background: var(--app-surface); color: var(--app-text); }
 .htnote-editor-link [role="alert"] { color: var(--app-danger); }
 .htnote-visual-editor .tiptap { min-height: 12rem; padding: 1rem 1.5rem; line-height: 1.65; outline: none; }
 .htnote-visual-editor .tiptap p { margin: 0.65em 0; }
@@ -174,14 +177,47 @@
   .htnote-tooltip-anchor { display: inline-flex; min-width: 0; align-items: center; flex-shrink: 0; }
   .htnote-tooltip { position: fixed; z-index: 200; display: flex; align-items: center; gap: 0.75rem; max-width: calc(100vw - 16px); padding: 0.375rem 0.625rem; border: 1px solid var(--app-border); border-radius: 0.375rem; background: var(--app-surface); color: var(--app-text); box-shadow: 0 4px 16px var(--app-shadow); font-size: 0.75rem; overflow-wrap: anywhere; pointer-events: none; }
   .htnote-tooltip kbd { flex-shrink: 0; color: var(--app-muted); }
+
+  .htnote-editor-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; min-height: 3rem; flex-shrink: 0; padding: 0.375rem 0.75rem; border-bottom: 1px solid var(--app-border); background: var(--app-surface); color: var(--app-text); }
+  .htnote-editor-bar .htnote-button-sm { min-height: 2rem; }
+  .htnote-session-actions, .htnote-code-actions { display: flex; align-items: center; gap: 0.375rem; margin-left: auto; }
+  .htnote-segmented-control { display: inline-flex; align-items: center; gap: 0.125rem; padding: 0.125rem; border: 1px solid var(--app-border); border-radius: 0.5rem; background: var(--app-subtle); }
+  .htnote-segmented-control .htnote-button-sm { min-height: 1.75rem; }
+  .htnote-segmented-control .htnote-button[aria-pressed="true"] { background: var(--app-surface); color: var(--app-accent); box-shadow: 0 1px 3px var(--app-shadow); }
+  .htnote-segmented-control .htnote-button[aria-pressed="true"]:not(:disabled):hover { background: var(--app-hover); }
+  .htnote-editor-unsaved { display: inline-flex; align-items: center; gap: 0.375rem; padding-inline: 0.375rem; color: var(--app-muted); font-size: 0.75rem; white-space: nowrap; }
+  .htnote-editor-unsaved > span { width: 0.375rem; height: 0.375rem; border-radius: 50%; background: var(--app-warning); }
+  .htnote-editor-spinner { animation: htnote-editor-spin 800ms linear infinite; }
+  .htnote-editor-toolbar, .htnote-code-bar { position: sticky; top: 0; z-index: 20; }
+  .htnote-editor-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.125rem; max-width: 100%; }
+  .htnote-editor-group + .htnote-editor-group { border-inline-start: 1px solid var(--app-border); padding-inline-start: 0.375rem; }
+  .htnote-format-button.htnote-button-sm { width: 2rem; height: 2rem; }
+  .htnote-format-button > span { display: inline-flex; }
+  .htnote-block-select { height: 2rem; max-width: 100%; padding: 0.25rem 0.375rem; border: 1px solid var(--app-border); border-radius: 0.375rem; background: var(--app-subtle); color: var(--app-text); font-size: 0.8125rem; }
+  .htnote-format-button[aria-pressed="true"], .htnote-preview-toggle[aria-pressed="true"] { background: color-mix(in srgb, var(--app-accent) 14%, var(--app-surface)); color: var(--app-accent); }
+  .htnote-format-button[aria-pressed="true"]:not(:disabled):hover, .htnote-preview-toggle[aria-pressed="true"]:not(:disabled):hover { background: color-mix(in srgb, var(--app-accent) 22%, var(--app-surface)); }
+  .htnote-code-tabs { display: flex; align-items: center; gap: 0.125rem; }
+  .htnote-code-tab { position: relative; color: var(--app-muted); border-radius: 0.25rem 0.25rem 0 0; }
+  .htnote-code-tab[aria-selected="true"] { background: var(--app-subtle); color: var(--app-text); }
+  .htnote-code-tab::after { content: ""; position: absolute; inset: auto 0 -0.375rem; height: 2px; background: transparent; transition: background-color 150ms ease-out; }
+  .htnote-code-tab[aria-selected="true"]::after { background: var(--app-accent); }
+  .htnote-code-dot { width: 0.375rem; height: 0.375rem; border-radius: 50%; flex-shrink: 0; }
+  .htnote-code-dot-html { background: var(--app-code-html); }
+  .htnote-code-dot-css { background: var(--app-code-css); }
+  .htnote-code-dot-js { background: var(--app-code-js); }
+  .htnote-split-bar { justify-content: flex-end; }
+  .htnote-split-divider { position: relative; width: 6px; flex-shrink: 0; cursor: col-resize; touch-action: none; }
+  .htnote-split-divider::before { content: ""; position: absolute; inset: 0 auto 0 2px; width: 2px; background: var(--app-border); transition: background-color 150ms ease-out; }
+  .htnote-split-divider:hover::before, .htnote-split-divider[data-dragging="true"]::before { background: var(--app-accent); }
+  .htnote-split-divider[data-dragging="true"] { background: color-mix(in srgb, var(--app-accent) 14%, var(--app-surface)); }
+  .htnote-editor-bar .htnote-tooltip-anchor > :disabled { pointer-events: none; }
 }
+
+@keyframes htnote-editor-spin { to { transform: rotate(360deg); } }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
-
-.htnote-editor-toolbar button:not(:disabled):hover { background: var(--app-hover); }
-.htnote-editor-toolbar button[aria-pressed="true"]:not(:disabled):hover { background: var(--app-accent-hover); }
 
 /* Utility resets such as outline-none must not hide keyboard focus. */
 :where(button, input, textarea, select, [tabindex], [contenteditable="true"]):focus-visible {
@@ -191,4 +227,3 @@
 
 :where(input, textarea, select):not(:disabled):hover { border-color: var(--app-muted); }
 :where(select):not(:disabled):hover { background-color: var(--app-hover); }
-.htnote-split-view [role="separator"]:hover { box-shadow: inset 0 0 0 3px var(--app-accent); }

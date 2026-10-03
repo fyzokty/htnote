@@ -1,5 +1,5 @@
 import { Editor } from "@tiptap/core";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -7,12 +7,14 @@ import { EditorToolbar } from "@/features/editor/EditorToolbar";
 import { createVisualExtensions } from "@/features/editor/extensions";
 import { ipc } from "@/lib/ipc";
 import { useUiStore } from "@/stores/uiStore";
+import { formatShortcut } from "@/lib/shortcuts/registry";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
 
 let editor: Editor;
 afterEach(() => {
   editor?.destroy();
+  vi.useRealTimers();
   vi.mocked(open).mockReset();
   for (const toast of useUiStore.getState().toasts) useUiStore.getState().dismissToast(toast.id);
 });
@@ -28,13 +30,56 @@ describe("EditorToolbar", () => {
     const copy = vi.spyOn(ipc, "copyAsset");
     render(<EditorToolbar editor={editor} noteId="note" />);
     const button = screen.getByRole("button", { name: label as string });
-    expect(button).toHaveAttribute("title", label as string);
+    expect(button).not.toHaveAttribute("title");
     expect(button.querySelector("svg")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Medya ekle" })).toBeNull();
     await act(async () => fireEvent.click(button));
     expect(open).toHaveBeenCalledExactlyOnceWith({ multiple: true, filters: [{ name, extensions }] });
     expect(copy).not.toHaveBeenCalled();
     expect(editor.getHTML()).toBe("<p>Text</p>");
+  });
+
+  it("shows every action tooltip when hovering its SVG icon, including disabled actions", () => {
+    editor = new Editor({ extensions: createVisualExtensions(""), content: "<p>Text</p>" });
+    render(<EditorToolbar editor={editor} onLinkNote={vi.fn()} />);
+    const toolbar = screen.getByRole("toolbar");
+    expect(within(toolbar).getByRole("group", { name: "Geçmiş" })).toContainElement(screen.getByRole("button", { name: "Geri al" }));
+    expect(within(toolbar).getByRole("group", { name: "Metin biçimi" })).toContainElement(screen.getByRole("button", { name: "Kalın" }));
+    vi.useFakeTimers();
+    for (const button of within(toolbar).getAllByRole("button")) {
+      const icon = button.querySelector("svg")!;
+      expect(icon).not.toBeNull();
+      fireEvent.mouseEnter(icon);
+      act(() => vi.advanceTimersByTime(400));
+      const tooltip = screen.getByRole("tooltip");
+      expect(tooltip).toHaveTextContent(button.getAttribute("aria-label")!);
+      expect(button).toHaveAttribute("aria-describedby", tooltip.id);
+      if (button.getAttribute("aria-label") === "Kalın") expect(tooltip).toHaveTextContent(formatShortcut("editorBold"));
+      if (button.getAttribute("aria-label") === "İtalik") expect(tooltip).toHaveTextContent(formatShortcut("editorItalic"));
+      if (button.getAttribute("aria-label") === "Altı çizili") expect(tooltip).toHaveTextContent(formatShortcut("editorUnderline"));
+      if (button.getAttribute("aria-label") === "Geri al") expect(tooltip).toHaveTextContent("Ctrl+Z");
+      if (button.getAttribute("aria-label") === "Yinele") expect(tooltip).toHaveTextContent("Ctrl+Shift+Z");
+      fireEvent.mouseLeave(icon);
+      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    }
+  });
+
+  it("keeps undo and redo availability in sync with formatting transactions", () => {
+    editor = new Editor({ extensions: createVisualExtensions(""), content: "<p>Text</p>" });
+    render(<EditorToolbar editor={editor} />);
+    const undo = screen.getByRole("button", { name: "Geri al" });
+    const redo = screen.getByRole("button", { name: "Yinele" });
+    expect(undo).toBeDisabled();
+    expect(redo).toBeDisabled();
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "h2" } });
+    expect(undo).toBeEnabled();
+    fireEvent.click(undo);
+    expect(editor.getHTML()).toBe("<p>Text</p>");
+    expect(redo).toBeEnabled();
+    fireEvent.click(redo);
+    expect(editor.getHTML()).toBe("<h2>Text</h2>");
+    fireEvent.click(screen.getByRole("button", { name: "Kalın" }));
+    expect(screen.getByRole("button", { name: "Kalın" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("inserts every selected image in order at the captured cursor", async () => {

@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { PanelRight } from "lucide-react";
 
+import { Button } from "@/components/ui/Button";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 interface SplitViewProps {
-  editor: ReactNode;
+  editor: ReactNode | ((previewToggle: ReactNode) => ReactNode);
   children?: ReactNode;
 }
 
@@ -19,6 +22,7 @@ export function SplitView({ editor, children }: SplitViewProps) {
   const load = useSettingsStore((state) => state.load);
   const update = useSettingsStore((state) => state.update);
   const [dragRatio, setDragRatio] = useState<number | null>(null);
+  const [dragging, setDragging] = useState(false);
   const ratio = dragRatio ?? clampSplitRatio(settings?.editorSplitRatio ?? 50);
   const preview = settings?.editorLivePreview ?? true;
   const containerRef = useRef<HTMLDivElement>(null);
@@ -31,6 +35,7 @@ export function SplitView({ editor, children }: SplitViewProps) {
 
   const saveRatio = () => {
     draggingRef.current = false;
+    setDragging(false);
     if (settings && ratioRef.current !== settings.editorSplitRatio) {
       void update({ editorSplitRatio: ratioRef.current }).catch(() => {});
     }
@@ -45,23 +50,30 @@ export function SplitView({ editor, children }: SplitViewProps) {
     setDragRatio(next);
   };
 
+  const previewToggle = <Tooltip label={t("editor.split.livePreview")}>
+    <Button size="sm" variant="ghost" className="htnote-preview-toggle"
+      data-testid="live-preview-toggle" disabled={!settings} aria-pressed={preview} onClick={() => {
+        if (settings) void update({ editorLivePreview: !preview }).catch(() => {});
+      }}><PanelRight size={16} aria-hidden="true" />{t("editor.split.livePreview")}</Button>
+  </Tooltip>;
+
   return (
     <section className="htnote-split-view" aria-label={t("editor.split.label")}
       style={{ display: "flex", flexDirection: "column", minWidth: 0, height: "100%" }}>
-      <div style={{ display: "flex", justifyContent: "flex-end", padding: "0.5rem", borderBottom: "1px solid var(--app-border)" }}>
-        <button type="button" disabled={!settings} aria-pressed={preview} onClick={() => {
-          const next = !preview;
-          if (settings) void update({ editorLivePreview: next }).catch(() => {});
-        }}>{t("editor.split.livePreview")}</button>
-      </div>
+      {typeof editor !== "function" && <div className="htnote-editor-bar htnote-split-bar" role="toolbar" aria-label={t("editor.split.label")}>
+        {previewToggle}
+      </div>}
       <div ref={containerRef} style={{ display: "flex", flex: 1, minHeight: 0, minWidth: 0 }}>
-        <div style={{ width: preview ? `${ratio}%` : "100%", minWidth: 0, overflow: "auto" }}>{editor}</div>
+        <div style={{ width: preview ? `${ratio}%` : "100%", minWidth: 0, overflow: "auto" }}>
+          {typeof editor === "function" ? editor(previewToggle) : editor}
+        </div>
         {preview && <>
           <div role="separator" aria-label={t("editor.split.resize")} aria-orientation="vertical"
             aria-valuemin={20} aria-valuemax={80} aria-valuenow={ratio} tabIndex={0}
-            style={{ width: 6, flexShrink: 0, cursor: "col-resize", background: "var(--app-border)", touchAction: "none" }}
+            className="htnote-split-divider" data-dragging={dragging}
             onPointerDown={(event) => {
               draggingRef.current = true;
+              setDragging(true);
               ratioRef.current = ratio;
               event.currentTarget.setPointerCapture(event.pointerId);
             }}
