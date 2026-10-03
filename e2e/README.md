@@ -57,19 +57,12 @@ the EdgeDriver major version matches WebView2. If a security assertion fails,
 inspect the failing `data-*` result in the note iframe and investigate the
 isolation boundary; do not loosen the assertion or sandbox policy.
 
-CI upgrades WebView2 using Microsoft's official standalone Evergreen x64 installer before
-installing the matching EdgeDriver. Older runner runtimes exhibit
-position-dependent WebDriver coordinate drift; Evergreen matches users' runtime
-environments. CI prints the initial version, waits for the installer and up to
-five minutes for EdgeUpdate/install subprocesses, then polls registry `pv` and
-the highest runtime folder every ten seconds for up to five minutes. A successful
-installer exit, completed subprocesses and matching registry/folder versions
-without a registry version downgrade confirm the update. Update failures or
-unconfirmed versions produce warnings and continue with the available runtime.
-The detected version and verification status are printed and exported as
-`WEBVIEW2_RUNTIME_VERSION` and `WEBVIEW2_UPDATE_VERIFIED` before
-`msedgedriver-tool` matches the installed runtime. The pointer helper corrects
-coordinate drift for each action.
+CI uses the runner's default WebView2 Runtime and installs the matching
+EdgeDriver with `msedgedriver-tool`. Updating the runtime was attempted, but the
+new runtime triggers [runner image issue 14738](https://github.com/actions/runner-images/issues/14738),
+causing sessions to fail with `DevToolsActivePort file doesn't exist`.
+Position-dependent WebDriver coordinate drift is corrected for each action by
+`e2e/helpers/pointer.ts`.
 
 Driver output is also saved to `e2e/logs/tauri-driver.log`. CI prints the driver
 and WebView2 versions, launches the debug app directly with temporary root and
