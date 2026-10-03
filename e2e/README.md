@@ -57,6 +57,12 @@ the EdgeDriver major version matches WebView2. If a security assertion fails,
 inspect the failing `data-*` result in the note iframe and investigate the
 isolation boundary; do not loosen the assertion or sandbox policy.
 
+CI upgrades WebView2 using Microsoft's official Evergreen bootstrapper before
+installing the matching EdgeDriver. Older runner runtimes exhibit
+position-dependent WebDriver coordinate drift; Evergreen matches users' runtime
+environments. Installation fails explicitly on a nonzero exit code or a missing
+registry `pv` version, and prints the installed runtime version.
+
 Driver output is also saved to `e2e/logs/tauri-driver.log`. CI prints the driver
 and WebView2 versions, launches the debug app directly with temporary root and
 config overrides, and uploads `e2e/logs/` on failure. The app startup diagnostic
@@ -65,15 +71,21 @@ Outside media clicks append geometry, hit testing, DOM and ProseMirror selection
 before/after mousedown and mouseup, handler decisions, and the user agent to
 `e2e/logs/media-click-diagnostics.json`. The same JSON appears in assertion
 failures. Coordinate-sensitive clicks, tab drags and hovers use `helpers/pointer.ts`
-with real WebDriver mouse actions. Two element-origin probes measure the actual
-trusted DOM move coordinates before each operation (normally offset `(0, 0)`
-locally). The helper subtracts this offset and verifies move/down/up events with
-±2 px tolerance, recalibrating and retrying once on drift. Drag retries cancel
-the active sensor before restarting. Temporary document listeners also observe
+with real WebDriver mouse actions. For each target point, the helper moves the
+pointer, reads the actual trusted DOM `clientX/clientY`, and adjusts the commanded
+coordinates by the measured error. Each point has at most three attempts to
+reach ±2 px tolerance; failures report the target, actual point and correction.
+There is no global calibration or assumption that offsets at different positions
+match. Down/up actions use the corrected pointer position and their actual events
+are also verified. Drags correct the activation point, every waypoint and the
+drop destination, accounting for moving element origins. Failed drags cancel the
+active sensor before releasing buttons; a mismatched click button event retries
+the click once with a fresh target correction. Temporary document listeners also observe
 visible note frames during a drag's vertical excursion and are removed in
-`finally`, along with releasing mouse buttons. The offset/retry helper tests run
+`finally`, along with releasing mouse buttons. The correction helper tests run
 with `node --import tsx --test e2e/helpers/pointer.test.ts` and inject offsets of
-0, 12 and 30 px, changing drift and persistent failures without an older runtime.
+0, 12 and 30 px, position-dependent and changing drift, missing events and
+persistent failures without an older runtime.
 Assertions compare the handler's actual event coordinates with the
 intended point (allowing only 1 px rounding) and verify that it is outside the
 preview in the intended row using bounds recorded at mousedown, before selection

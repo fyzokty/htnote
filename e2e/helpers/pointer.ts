@@ -47,7 +47,6 @@ async function perform(actions: PointerAction[]) {
 // sandbox or dispatching synthetic events.
 class PointerSession {
   private frames: WebdriverIO.Element[] = [];
-  private offset: PointerPoint = { x: 0, y: 0 };
 
   private async inFrame<T>(frame: WebdriverIO.Element, run: () => Promise<T>): Promise<T> {
     await browser.switchFrame(frame);
@@ -119,42 +118,32 @@ class PointerSession {
     };
   }
 
-  async calibrate(element: WebdriverIO.Element) {
-    const center = await pointerCenter(element);
-    const samples: PointerPoint[] = [];
-    // Different positions force fresh movement events even if the mouse was
-    // already at the center. A second sample checks that the offset is stable.
-    for (const point of [{ x: center.x - 4, y: center.y }, center]) {
-      await this.clear();
-      await perform([await this.moveAction(element, { x: point.x + 2, y: point.y }, { x: 0, y: 0 }),
-        await this.moveAction(element, point, { x: 0, y: 0 })]);
-      const actual = await this.actual("pointermove") ?? await this.actual("mousemove");
-      if (!actual) throw new Error(`WebDriver pointer calibration: no trusted move event at ${JSON.stringify(point)}`);
-      samples.push({ x: actual.x - point.x, y: actual.y - point.y });
-    }
-    if (!matches(samples[0], samples[1])) {
-      throw new Error(`WebDriver pointer calibration is unstable: offsets ${JSON.stringify(samples)} (tolerance ±${tolerance}px)`);
-    }
-    this.offset = samples[1];
-    console.info("WebDriver pointer calibration offset:", this.offset);
-  }
-
-  private error(kind: EventKind, point: PointerPoint, actual: PointerPoint | undefined) {
+  private error(kind: EventKind, point: PointerPoint, actual: PointerPoint | undefined, offset?: PointerPoint) {
     return new PointerCoordinateError(`WebDriver ${kind} coordinate drift: expected ${JSON.stringify(point)}, `
-      + `received ${JSON.stringify(actual) ?? "no trusted event"}, calibrated offset ${JSON.stringify(this.offset)} (tolerance ±${tolerance}px)`);
+      + `received ${JSON.stringify(actual) ?? "no trusted event"}, correction ${JSON.stringify(offset ?? { x: 0, y: 0 })} (tolerance ±${tolerance}px)`);
   }
 
-  async move(element: WebdriverIO.Element, point: PointerPoint, duration = 0, retry = true, approach = true) {
-    for (let attempt = 0; attempt < (retry ? 2 : 1); attempt++) {
+  async move(element: WebdriverIO.Element, point: PointerPoint, duration = 0, approach = true) {
+    // Drift depends on position: measure each target instead of reusing a
+    // global calibration. Accumulate corrections relative to the last command.
+    const offset = { x: 0, y: 0 };
+    let actual: PointerPoint | undefined;
+    for (let attempt = 0; attempt < 3; attempt++) {
       await this.clear();
       // A short approach ensures a fresh event when repeating a hover/click.
-      const actions = approach ? [await this.moveAction(element, { x: point.x + 2, y: point.y }, this.offset)] : [];
-      actions.push(await this.moveAction(element, point, this.offset, duration));
+      const actions = approach || (attempt > 0 && !actual)
+        ? [await this.moveAction(element, { x: point.x + 2, y: point.y }, offset)] : [];
+      actions.push(await this.moveAction(element, point, offset, duration));
       await perform(actions);
-      const actual = await this.actual("pointermove") ?? await this.actual("mousemove");
+      actual = await this.actual("pointermove") ?? await this.actual("mousemove");
       if (matches(actual, point)) return actual!;
-      if (!retry || attempt === 1) throw this.error("pointermove", point, actual);
-      await this.calibrate(element);
+      if (attempt === 2) {
+        throw new PointerCoordinateError(`Pointer correction failed after 3 attempts: ${this.error("pointermove", point, actual, offset).message}`);
+      }
+      if (actual) {
+        offset.x += actual.x - point.x;
+        offset.y += actual.y - point.y;
+      }
     }
     throw new Error("Unreachable pointer move attempt");
   }
@@ -190,7 +179,6 @@ export async function pointerMoveTo(target: PointerElement) {
   const element = await target.getElement();
   await element.scrollIntoView();
   return withPointer(async (session) => {
-    await session.calibrate(element);
     return session.move(element, await pointerCenter(element));
   });
 }
@@ -203,7 +191,6 @@ export async function pointerClickAt(target: PointerElement, x: number, y: numbe
   const element = await target.getElement();
   return withPointer(async (session) => {
     const point = { x: Math.round(x), y: Math.round(y) };
-    await session.calibrate(element);
     for (let attempt = 0; attempt < 2; attempt++) {
       await session.move(element, point);
       let down: PointerPoint;
@@ -215,7 +202,6 @@ export async function pointerClickAt(target: PointerElement, x: number, y: numbe
       } catch (error) {
         if (!(error instanceof PointerCoordinateError) || attempt === 1) throw error;
         await browser.releaseActions();
-        await session.calibrate(element);
         continue;
       }
       await options.afterUp?.();
@@ -238,28 +224,23 @@ export async function pointerDrag(source: PointerElement, target: PointerElement
   return withPointer(async (session) => {
     const start = options.fromPoint ?? await pointerCenter(from);
     const end = options.toPoint ?? await pointerCenter(to);
-    await session.calibrate(from);
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        await session.move(from, start, 0, false);
-        await session.button("mousedown", start, 0);
-        // A distinct event activates dnd-kit's distance sensor before moving
-        // across siblings or into a note iframe.
-        await session.move(from, { x: start.x - 10, y: start.y }, 100, false, false);
-        await options.afterActivation?.();
-        for (const point of options.waypoints ?? []) await session.move(from, point, 200, false, false);
-        await options.beforeDrop?.();
-        await session.move(from, end, 400, false, false);
-        await session.button("mouseup", end, 0);
-        return;
-      } catch (error) {
-        if (!(error instanceof PointerCoordinateError) || attempt === 1) throw error;
-        // Escape cancels the active sensor before recalibrating/restarting;
-        // releasing at a wrong destination could accidentally reorder tabs.
-        await browser.keys("Escape");
-        await browser.releaseActions();
-        await session.calibrate(from);
-      }
+    try {
+      await session.move(from, start);
+      await session.button("mousedown", start, 0);
+      // A distinct event activates dnd-kit's distance sensor before moving
+      // across siblings or into a note iframe.
+      await session.move(from, { x: start.x - 10, y: start.y }, 100, false);
+      await options.afterActivation?.();
+      for (const point of options.waypoints ?? []) await session.move(from, point, 200, false);
+      await options.beforeDrop?.();
+      await session.move(from, end, 400, false);
+      await session.button("mouseup", end, 0);
+    } catch (error) {
+      // Escape cancels the active sensor before releasing;
+      // releasing at a wrong destination could accidentally reorder tabs.
+      await browser.keys("Escape");
+      await browser.releaseActions();
+      throw error;
     }
   });
 }

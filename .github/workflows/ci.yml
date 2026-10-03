@@ -51,6 +51,29 @@ jobs:
       - run: npm ci
       - name: Install tauri-driver
         run: cargo install tauri-driver --locked
+      # Older WebView2 runtimes have position-dependent WebDriver coordinate drift.
+      # Update to Evergreen to match the runtime used in users' environments.
+      - name: Update WebView2 Evergreen Runtime
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $installer = Join-Path $env:RUNNER_TEMP 'MicrosoftEdgeWebview2Setup.exe'
+          Invoke-WebRequest -Uri 'https://go.microsoft.com/fwlink/p/?LinkId=2124703' -OutFile $installer
+          $setup = Start-Process -FilePath $installer -ArgumentList '/silent', '/install' -Wait -PassThru -WindowStyle Hidden
+          if ($setup.ExitCode -ne 0) { throw "WebView2 Evergreen installation failed with exit code $($setup.ExitCode)" }
+          $client = '{F1E7E90C-7A49-42C8-A039-17D95E7E803D}'
+          $found = $false
+          foreach ($hive in @('HKCU:\Software\Microsoft\EdgeUpdate\Clients', 'HKLM:\Software\Microsoft\EdgeUpdate\Clients', 'HKLM:\Software\WOW6432Node\Microsoft\EdgeUpdate\Clients')) {
+            $key = Join-Path $hive $client
+            if (Test-Path $key) {
+              $version = (Get-ItemProperty $key).pv
+              if ($version -and $version -ne '0.0.0.0') {
+                Write-Host "Updated WebView2 Runtime ($key): $version"
+                $found = $true
+              }
+            }
+          }
+          if (-not $found) { throw 'WebView2 Evergreen installation completed without a registered pv version' }
       - name: Install WebView2-matched msedgedriver
         shell: pwsh
         run: |
