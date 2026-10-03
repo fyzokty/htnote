@@ -42,3 +42,23 @@ it("rechecks whether the folder is still closed when the timer expires", () => {
   expect(stillClosed).toHaveBeenCalledOnce();
   expect(toggle).not.toHaveBeenCalled();
 });
+
+it("tracks and clears hoveringPath during hover wait period", () => {
+  vi.useFakeTimers();
+  const toggle = vi.fn();
+  const { result } = renderHook(() => useHoverExpand(toggle));
+  expect(result.current.hoveringPath).toBeNull();
+
+  act(() => result.current.hover("folder-a", true));
+  expect(result.current.hoveringPath).toBe("folder-a");
+
+  act(() => vi.advanceTimersByTime(700));
+  expect(result.current.hoveringPath).toBeNull();
+  expect(toggle).toHaveBeenCalledWith("folder-a");
+
+  act(() => result.current.hover("folder-b", true));
+  expect(result.current.hoveringPath).toBe("folder-b");
+
+  act(() => result.current.clear());
+  expect(result.current.hoveringPath).toBeNull();
+});

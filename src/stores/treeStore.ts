@@ -18,6 +18,8 @@ interface TreeState {
   setRenaming: (relPath: string | null) => void;
   revealFolder: (relPath: string) => void;
   movePathPrefix: (oldPath: string, newPath: string) => void;
+  flashedKey: string | null;
+  flashNode: (key: string | null, duration?: number) => void;
   load: () => Promise<void>;
   refresh: () => Promise<void>;
   toggle: (relPath: string) => void;
@@ -29,6 +31,7 @@ interface TreeState {
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
+let flashTimer: ReturnType<typeof setTimeout> | null = null;
 let seeded = false;
 let loaded = false;
 let inFlight: Promise<void> | null = null;
@@ -81,6 +84,18 @@ export const useTreeStore = create<TreeState>((set, get) => ({
   setFilterTag(filterTag) { set({ filterTag, filterExpandedOverride: filterTag || get().filterQuery.trim() ? get().filterExpandedOverride : new Set<string>() }); },
   renamingRelPath: null,
   setRenaming(renamingRelPath) { set({ renamingRelPath }); },
+  flashedKey: null,
+  flashNode(key, duration = 1000) {
+    if (flashTimer) clearTimeout(flashTimer);
+    flashTimer = null;
+    set({ flashedKey: key });
+    if (key) {
+      flashTimer = setTimeout(() => {
+        flashTimer = null;
+        set({ flashedKey: null });
+      }, duration);
+    }
+  },
   revealFolder(relPath) {
     const parts = relPath.split("/");
     const expanded = new Set(get().expanded);
@@ -207,9 +222,11 @@ useSettingsStore.subscribe((state) => {
 export function resetTreeStoreForTests() {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = null;
+  if (flashTimer) clearTimeout(flashTimer);
+  flashTimer = null;
   seeded = false;
   loaded = false;
   inFlight = null;
   pendingRefresh = null;
-  useTreeStore.setState({ tree: [], loading: false, selected: null, expanded: new Set<string>(), filterQuery: "", filterTag: null, filterExpandedOverride: new Set<string>(), renamingRelPath: null });
+  useTreeStore.setState({ tree: [], loading: false, selected: null, expanded: new Set<string>(), filterQuery: "", filterTag: null, filterExpandedOverride: new Set<string>(), renamingRelPath: null, flashedKey: null });
 }
