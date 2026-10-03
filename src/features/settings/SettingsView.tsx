@@ -1,3 +1,6 @@
+import { TagColorPicker } from "@/features/tags/TagColorPicker";
+import { deriveTags } from "@/features/tags/tags";
+import { useTreeStore } from "@/stores/treeStore";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -11,6 +14,7 @@ import { useSettingsStore } from "@/stores/settingsStore";
 const repository = "https://github.com/fyzokty/htnote";
 
 export function SettingsView({ onShowShortcuts }: { onShowShortcuts?: () => void }) {
+  const tree = useTreeStore((state) => state.tree);
   const { t } = useTranslation();
   const settings = useSettingsStore((state) => state.settings);
   const update = useSettingsStore((state) => state.update);
@@ -80,6 +84,11 @@ export function SettingsView({ onShowShortcuts }: { onShowShortcuts?: () => void
               <option value="en">{t("settings.english")}</option>
             </select>
           </label>
+        </section>
+        <section aria-labelledby="settings-tag-colors" className="space-y-3">
+          <h3 id="settings-tag-colors" className="font-semibold">{t("tags.colors")}</h3>
+          <p className="text-sm text-app-muted">{t("tags.colorsHint")}</p>
+          {deriveTags(tree).map(({ tag }) => <div key={tag} className="flex items-center justify-between gap-3"><span className="truncate">{tag}</span><TagColorPicker tag={tag} /></div>)}
         </section>
         <section aria-labelledby="settings-about" className="space-y-3">
           <h3 id="settings-about" className="font-semibold">{t("settings.about")}</h3>

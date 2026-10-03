@@ -1,3 +1,4 @@
+import { COLOR_NAMES } from "@/lib/colors";
 import type { Theme } from "@/lib/types";
 
 export type ThemeMode = "light" | "dark";
@@ -7,7 +8,7 @@ const noteFont = "system-ui, -apple-system, sans-serif";
 
 const noteColors: Record<ThemeMode, Record<string, string>> = {
   light: {
-    "--ht-bg": "#f9fafb",
+    "--ht-bg": "#ffffff",
     "--ht-text": "#111827",
     "--ht-accent": "#4f46e5",
     "--ht-font": noteFont,
@@ -16,8 +17,8 @@ const noteColors: Record<ThemeMode, Record<string, string>> = {
     "--ht-code-bg": "#f3f4f6",
   },
   dark: {
-    "--ht-bg": "#1e1e1e",
-    "--ht-text": "#f0f0f0",
+    "--ht-bg": "#1e293b",
+    "--ht-text": "#f1f5f9",
     "--ht-accent": "#3b82f6",
     "--ht-font": noteFont,
     "--ht-muted": "#94a3b8",
@@ -33,6 +34,16 @@ export function resolveThemeMode(theme: Theme, prefersDark: boolean): ThemeMode 
 export function getNoteThemeVars(mode: ThemeMode): Record<string, string> {
   const vars = { ...noteColors[mode] };
   const style = getComputedStyle(document.documentElement);
+  const currentMode = document.documentElement.classList.contains("dark") ? "dark" : "light";
+  for (const [note, app] of [["bg", "surface"], ["text", "text"]]) {
+    const current = mode === currentMode ? style.getPropertyValue(`--app-${app}`).trim() : "";
+    const value = current || style.getPropertyValue(`--app-${app}-${mode}`).trim();
+    if (value) vars[`--ht-${note}`] = value;
+  }
+  for (const name of COLOR_NAMES) {
+    const value = style.getPropertyValue(`--app-color-${name}`).trim();
+    if (value) vars[`--ht-color-${name}`] = value;
+  }
   for (const token of ["scrollbar", "scrollbar-hover"]) {
     const value = style.getPropertyValue(`--app-${token}-${mode}`).trim();
     if (value) vars[`--ht-${token}`] = value;

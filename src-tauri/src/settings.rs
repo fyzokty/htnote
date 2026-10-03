@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::fs;
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
@@ -69,6 +70,8 @@ pub enum ContentWidth {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
+    #[serde(default)]
+    pub tag_colors: BTreeMap<String, String>,
     pub root_dir: Option<String>,
     #[serde(default)]
     pub last_export_dir: Option<String>,
@@ -99,6 +102,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            tag_colors: BTreeMap::new(),
             root_dir: None,
             last_export_dir: None,
             theme: Theme::System,
@@ -121,6 +125,7 @@ impl Default for Settings {
 #[derive(Default, Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SettingsPatch {
+    pub tag_colors: Option<BTreeMap<String, String>>,
     #[serde(default, deserialize_with = "nullable_field")]
     pub root_dir: Option<Option<String>>,
     #[serde(default, deserialize_with = "nullable_field")]
@@ -161,6 +166,11 @@ fn default_backlinks_expanded() -> bool { true }
 
 pub fn apply_patch(settings: &Settings, patch: SettingsPatch) -> Settings {
     Settings {
+        tag_colors: patch.tag_colors.map(|colors| {
+            colors.into_iter().filter(|(_, color)| {
+                ["gray", "red", "orange", "yellow", "green", "teal", "blue", "purple", "pink"].contains(&color.as_str())
+            }).collect()
+        }).unwrap_or_else(|| settings.tag_colors.clone()),
         root_dir: patch.root_dir.unwrap_or_else(|| settings.root_dir.clone()),
         last_export_dir: patch.last_export_dir.unwrap_or_else(|| settings.last_export_dir.clone()),
         theme: patch.theme.unwrap_or_else(|| settings.theme.clone()),
@@ -306,6 +316,20 @@ fn probe_writable_dir(directory: &Path) -> Result<(), AppError> {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn tag_colors_round_trip_and_legacy_defaults() {
+        let dir = tempdir().unwrap();
+        let settings = Settings::default();
+        let patch = serde_json::from_str(r#"{"tagColors":{"iş":"blue","invalid":"url(bad)"}}"#).unwrap();
+        let colored = apply_patch(&settings, patch);
+        assert_eq!(colored.tag_colors.len(), 1);
+        save_settings_atomic(dir.path(), &colored).unwrap();
+        assert_eq!(load_settings(dir.path()).unwrap().tag_colors.get("iş").unwrap(), "blue");
+        let mut legacy = serde_json::to_value(settings).unwrap();
+        legacy.as_object_mut().unwrap().remove("tagColors");
+        assert!(serde_json::from_value::<Settings>(legacy).unwrap().tag_colors.is_empty());
+    }
 
     #[test]
     fn new_root_rejects_relative_and_note_paths_before_creation() {

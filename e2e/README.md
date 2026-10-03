@@ -35,6 +35,12 @@ for the editor's save acknowledgement before another shortcut is sent; a file
 appearing on disk alone does not mean the editor has finished saving. Conditions
 have bounded timeouts for slower CI runners, without fixed sleeps or test retries.
 
+CodeMirror virtualizes off-screen lines, so `.cm-content.getText()` reads only
+the rendered viewport, not the entire HTML document. Scroll the relevant content
+into view before asserting its source (the color flow uses Ctrl+End to reveal
+the note content after the appearance CSS). Also verify saved HTML through
+`read_note` and computed colors in the reopened note iframe.
+
 If session creation fails, first check that both drivers are on `PATH` and that
 the EdgeDriver major version matches WebView2. If a security assertion fails,
 inspect the failing `data-*` result in the note iframe and investigate the

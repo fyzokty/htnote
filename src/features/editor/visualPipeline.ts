@@ -12,13 +12,19 @@ type Element = DefaultTreeAdapterTypes.Element;
 const VISUAL_TAGS = new Set([
   "p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote",
   "pre", "code", "table", "thead", "tbody", "tr", "th", "td", "hr", "br",
-  "strong", "em", "u", "s", "a", "img", "audio", "video", "source",
+  "strong", "em", "u", "s", "a", "span", "img", "audio", "video", "source",
 ]);
 
 function supportedByVisualEditor(html: string): boolean {
   const fragment = parseFragment(html);
+  function hasSpan(node: DefaultTreeAdapterTypes.Node): boolean {
+    return "tagName" in node && node.tagName === "span" || "childNodes" in node && node.childNodes.some(hasSpan);
+  }
+  if (fragment.childNodes.some((node) => "tagName" in node && node.tagName === "span")) return false;
   function visit(node: DefaultTreeAdapterTypes.Node): boolean {
     if ("tagName" in node && !VISUAL_TAGS.has(node.tagName)) return false;
+    // Attribute-only spans and overlapping spans remain lossless raw HTML blocks.
+    if ("tagName" in node && node.tagName === "span" && (!node.attrs.some((attr) => attr.name === "style") || node.childNodes.some(hasSpan))) return false;
     return !("childNodes" in node) || node.childNodes.every(visit);
   }
   return fragment.childNodes.every(visit);

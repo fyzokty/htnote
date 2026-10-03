@@ -1,3 +1,4 @@
+import { Color, TextStyle } from "@tiptap/extension-text-style";
 import { TableKit } from "@tiptap/extension-table";
 import { Placeholder } from "@tiptap/extensions";
 import StarterKit from "@tiptap/starter-kit";
@@ -18,6 +19,8 @@ export function createVisualExtensions(placeholder: string, onEditInCode?: () =>
     }),
     TableKit.configure({ table: { resizable: false } }),
     Placeholder.configure({ placeholder }),
+    TextStyle.configure({ mergeNestedSpanStyles: false }),
+    Color,
     GlobalAttributes,
     Image.configure({ noteId }),
     Audio.configure({ noteId }),

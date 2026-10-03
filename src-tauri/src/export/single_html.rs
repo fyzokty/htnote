@@ -290,6 +290,19 @@ mod tests {
     use super::*;
 
     #[test]
+    fn portable_note_colors_survive_export_without_bridge() {
+        let root = tempfile::tempdir().unwrap();
+        let html = r#"<!DOCTYPE html><html><head><style id="htnote-appearance">:where(body[data-ht-bg="sepia"]){background:var(--ht-note-sepia,#faf3e5);color:#111827}@media(prefers-color-scheme:dark){:where(body){--ht-note-sepia:#302b23;color:#f1f5f9}}</style></head><body data-ht-bg="sepia"><main id="htnote-content"><p><span style="color: #3266bb">Color</span></p></main></body></html>"#;
+        fs::write(root.path().join("index.html"), html).unwrap();
+        let built = build_single_html(root.path()).unwrap();
+        assert!(built.html.contains(r#"data-ht-bg="sepia""#));
+        assert!(built.html.contains("prefers-color-scheme:dark"));
+        assert!(built.html.contains("#302b23"));
+        assert!(built.html.contains("color: #3266bb"));
+        assert!(!built.html.contains("bridge.js"));
+    }
+
+    #[test]
     fn exports_all_local_references_and_warnings() {
         let root = tempfile::tempdir().unwrap();
         let note = root.path().join("note");

@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import source from "./bridge.js?raw";
+import { writeNoteBackground } from "@/features/viewer/noteAppearance";
 
 const messages = vi.fn();
 
@@ -41,6 +42,22 @@ describe("note bridge", () => {
     expect(Object.isFrozen((window as unknown as { htnote: object }).htnote)).toBe(true);
     // The dependency-free audio UI is served with the bridge rather than a separate bundle.
     expect(new TextEncoder().encode(source).length).toBeLessThan(24576);
+  });
+
+  it("uses low-specificity theme defaults and the portable preset stylesheet", () => {
+    expect(document.getElementById("htnote-scrollbars")?.textContent).toContain(":where(html){background:var(--ht-note-bg,var(--ht-bg));color:var(--ht-text)");
+    const saved = writeNoteBackground('<html><head></head><body><p>Note</p></body></html>', "sepia");
+    const note = new DOMParser().parseFromString(saved, "text/html");
+    expect(note.body.dataset.htBg).toBe("sepia");
+    expect(note.getElementById("htnote-appearance")?.textContent).toContain(':where(html:has(body[data-ht-bg="sepia"]))');
+    expect(note.getElementById("htnote-appearance")?.textContent).toContain(':where(html[data-ht-theme="dark"])');
+    hostMessage({ type: "HTNOTE_THEME", mode: "dark", vars: { "--ht-bg": "#1e293b", "--ht-text": "#f1f5f9", "--ht-color-red": "#fb929e" } });
+    expect(document.documentElement.dataset.htTheme).toBe("dark");
+    expect(document.documentElement.style.getPropertyValue("--ht-bg")).toBe("#1e293b");
+    expect(document.documentElement.style.getPropertyValue("--ht-color-red")).toBe("#fb929e");
+    document.documentElement.style.removeProperty("--ht-bg");
+    document.documentElement.style.removeProperty("--ht-text");
+    document.documentElement.style.removeProperty("--ht-color-red");
   });
 
   it("injects one low-specificity scrollbar stylesheet and follows trusted theme tokens", () => {

@@ -5,6 +5,16 @@ import { SUPPORTED } from "@/features/editor/blockClassifier";
 import { createVisualExtensions } from "@/features/editor/extensions";
 
 describe("visual schema", () => {
+  it("rejects CSS injection through the color command", () => {
+    const editor = new Editor({ extensions: createVisualExtensions(""), content: "<p>Text</p>" });
+    try {
+      editor.commands.setTextSelection({ from: 1, to: 5 });
+      editor.commands.setColor("red; background: url(javascript:alert(1))");
+      expect(editor.getHTML()).not.toContain("javascript:");
+      expect(editor.getHTML()).not.toContain("background:");
+    } finally { editor.destroy(); }
+  });
+
   it("serializes supported element tags", () => {
     const editor = new Editor({ extensions: createVisualExtensions("") });
     for (const html of ["<h1>x</h1>", "<p><strong>x</strong><em>y</em><u>z</u><s>w</s></p>", "<ul><li><p>x</p></li></ul>", "<blockquote><p>x</p></blockquote>", "<pre><code>x</code></pre>", "<hr>", "<table><tbody><tr><th><p>x</p></th><td><p>y</p></td></tr></tbody></table>"]) {

@@ -4,9 +4,41 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
+  --app-color-gray: #4c586b;
+  --app-color-red: #b02d3c;
+  --app-color-orange: #984512;
+  --app-color-yellow: #78560c;
+  --app-color-green: #206b3e;
+  --app-color-teal: #126767;
+  --app-color-blue: #2859aa;
+  --app-color-purple: #7142a3;
+  --app-color-pink: #a02d70;
+  --app-note-sepia-light: #faf3e5;
+  --app-note-sepia-dark: #302b23;
+  --app-note-sepia: var(--app-note-sepia-light);
+  --app-note-mint-light: #eaf5ee;
+  --app-note-mint-dark: #23352b;
+  --app-note-mint: var(--app-note-mint-light);
+  --app-note-rose-light: #faedf1;
+  --app-note-rose-dark: #35252d;
+  --app-note-rose: var(--app-note-rose-light);
+  --app-note-sky-light: #edf4fc;
+  --app-note-sky-dark: #243043;
+  --app-note-sky: var(--app-note-sky-light);
+  --app-note-lavender-light: #f2eefb;
+  --app-note-lavender-dark: #2e2940;
+  --app-note-lavender: var(--app-note-lavender-light);
+  --app-note-charcoal-light: #e9edf2;
+  --app-note-charcoal-dark: #171d25;
+  --app-note-charcoal: var(--app-note-charcoal-light);
+
   --app-bg: #f9fafb;
-  --app-surface: #ffffff;
-  --app-text: #111827;
+  --app-surface-light: #ffffff;
+  --app-surface-dark: #1e293b;
+  --app-text-light: #111827;
+  --app-text-dark: #f1f5f9;
+  --app-surface: var(--app-surface-light);
+  --app-text: var(--app-text-light);
   --app-muted: #6b7280;
   --app-border: #e5e7eb;
   --app-subtle: #f3f4f6;
@@ -34,9 +66,25 @@
 }
 
 :root.dark {
+  --app-color-gray: #b3bece;
+  --app-color-red: #fb929e;
+  --app-color-orange: #f6b078;
+  --app-color-yellow: #e8cc72;
+  --app-color-green: #86d3a0;
+  --app-color-teal: #74ceca;
+  --app-color-blue: #91bafa;
+  --app-color-purple: #c2a0f0;
+  --app-color-pink: #f09ec9;
+  --app-note-sepia: var(--app-note-sepia-dark);
+  --app-note-mint: var(--app-note-mint-dark);
+  --app-note-rose: var(--app-note-rose-dark);
+  --app-note-sky: var(--app-note-sky-dark);
+  --app-note-lavender: var(--app-note-lavender-dark);
+  --app-note-charcoal: var(--app-note-charcoal-dark);
+
   --app-bg: #0f172a;
-  --app-surface: #1e293b;
-  --app-text: #f1f5f9;
+  --app-surface: var(--app-surface-dark);
+  --app-text: var(--app-text-dark);
   --app-muted: #94a3b8;
   --app-border: #334155;
   --app-subtle: #334155;
@@ -350,3 +398,17 @@
 .ht-audio-error { position: absolute; top: 100%; left: 0; font-size: 11px; color: var(--app-danger); }
 @keyframes ht-audio-pulse { from { transform: scaleY(0.75); } to { transform: scaleY(1); } }
 @media (prefers-reduced-motion: reduce) { .ht-audio-card *, .ht-audio-card { animation: none !important; transition: none !important; } }
+
+.htnote-color-popover { position: fixed; z-index: 150; width: 14rem; padding: 0.75rem; border: 1px solid var(--app-border); border-radius: 0.65rem; background: var(--app-surface); color: var(--app-text); box-shadow: 0 8px 24px var(--app-shadow); }
+.htnote-color-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.25rem; margin-top: 0.5rem; }
+.htnote-color-grid button { min-height: 2rem; }
+.htnote-color-swatch { width: 1.25rem; height: 1.25rem; border-radius: 50%; border: 1px solid var(--app-border); }
+.htnote-tag-dot { display: inline-block; width: 0.5rem; height: 0.5rem; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+.htnote-colored-tag { background: color-mix(in srgb, var(--tag-color) 14%, var(--app-surface)); }
+button.htnote-colored-tag:not(:disabled):hover { background: color-mix(in srgb, var(--tag-color) 18%, var(--app-surface)); }
+button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, var(--tag-color) 18%, var(--app-surface)); border-color: var(--app-accent); }
+.htnote-color-popover input[type=color] { width: 2rem; height: 1.75rem; border: 1px solid var(--app-border); border-radius: 0.25rem; cursor: pointer; }
+.htnote-text-color-icon { display: flex; flex-direction: column; gap: 1px; }
+.htnote-text-color-icon::after { content: ""; height: 3px; border-radius: 1px; background: var(--selected-color, var(--app-text)); }
+
+.htnote-visual-editor { --ht-color-gray: var(--app-color-gray);--ht-color-red: var(--app-color-red);--ht-color-orange: var(--app-color-orange);--ht-color-yellow: var(--app-color-yellow);--ht-color-green: var(--app-color-green);--ht-color-teal: var(--app-color-teal);--ht-color-blue: var(--app-color-blue);--ht-color-purple: var(--app-color-purple);--ht-color-pink: var(--app-color-pink); }

@@ -4,6 +4,8 @@ import { normalizeText } from "@/lib/textMatch";
 import type { TreeNode } from "@/lib/types";
 import { useTabsStore } from "@/stores/tabsStore";
 import { useTreeStore } from "@/stores/treeStore";
+import { useSettingsStore } from "@/stores/settingsStore";
+import { reconcileTagColors } from "./tagColors";
 
 export interface TagCount { tag: string; count: number }
 
@@ -64,9 +66,20 @@ export function setNoteTags(id: string, tags: string[]): Promise<void> {
     if (sequence !== current.sequence) return;
     try {
       const result = await ipc.updateMetadata(id, { tags: current.desired });
+      const previousTags = current.persisted;
       current.persisted = result.metadata.tags;
       useTabsStore.getState().applyMetadataUpdate(id, result.metadata, result.contentHash);
-      if (sequence === current.sequence) useTreeStore.getState().patchNote(id, { tags: result.metadata.tags });
+      if (sequence === current.sequence) {
+        useTreeStore.getState().patchNote(id, { tags: result.metadata.tags });
+        const settings = useSettingsStore.getState();
+        if (settings.settings?.tagColors) {
+          const tagColors = reconcileTagColors(settings.settings.tagColors, previousTags, result.metadata.tags,
+            deriveTags(useTreeStore.getState().tree).map(({ tag }) => tag));
+          if (JSON.stringify(tagColors) !== JSON.stringify(settings.settings.tagColors)) {
+            await settings.update({ tagColors }).catch(notifyError);
+          }
+        }
+      }
     } catch (error) {
       if (sequence === current.sequence) {
         useTreeStore.getState().patchNote(id, { tags: current.persisted });

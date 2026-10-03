@@ -5,6 +5,18 @@ import { getNoteThemeVars, resolveThemeMode } from "@/lib/theme";
 const keys = ["--ht-bg", "--ht-text", "--ht-accent", "--ht-font", "--ht-muted", "--ht-border", "--ht-code-bg"];
 
 describe("getNoteThemeVars", () => {
+  it("takes the exact note surface and text from the requested app theme", () => {
+    const root = document.documentElement;
+    root.style.setProperty("--app-surface-dark", "#234567");
+    root.style.setProperty("--app-text-dark", "#abcdef");
+    try {
+      expect(getNoteThemeVars("dark")).toMatchObject({ "--ht-bg": "#234567", "--ht-text": "#abcdef" });
+    } finally {
+      root.style.removeProperty("--app-surface-dark");
+      root.style.removeProperty("--app-text-dark");
+    }
+  });
+
   it("reads the requested scrollbar palette from app tokens independently of the current theme", () => {
     const root = document.documentElement;
     for (const mode of ["light", "dark"] as const) {
@@ -29,9 +41,9 @@ describe("getNoteThemeVars", () => {
 
     expect(Object.keys(light)).toEqual(keys);
     expect(Object.keys(dark)).toEqual(keys);
-    expect(light["--ht-bg"]).toBe("#f9fafb");
-    expect(dark["--ht-bg"]).toBe("#1e1e1e");
-    expect(dark["--ht-text"]).toBe("#f0f0f0");
+    expect(light["--ht-bg"]).toBe("#ffffff");
+    expect(dark["--ht-bg"]).toBe("#1e293b");
+    expect(dark["--ht-text"]).toBe("#f1f5f9");
     expect(dark["--ht-accent"]).toBe("#3b82f6");
     expect(light["--ht-text"]).not.toBe(dark["--ht-text"]);
     expect(light["--ht-font"]).toBe(dark["--ht-font"]);
