@@ -8,6 +8,9 @@ import { addTag, removeTag } from "@/features/tags/tags";
 import type { TagCount } from "@/features/tags/tags";
 import { normalizeText } from "@/lib/textMatch";
 
+import { tagColor, tagColorStyle } from "./tagColors";
+import { useSettingsStore } from "@/stores/settingsStore";
+
 interface Props {
   tags: string[];
   suggestions: TagCount[];
@@ -16,6 +19,7 @@ interface Props {
 
 export function TagInput({ tags, suggestions, onChange }: Props) {
   const { t } = useTranslation();
+  const colors = useSettingsStore((state) => state.settings?.tagColors);
   const [value, setValue] = useState("");
   const [focused, setFocused] = useState(false);
   const [selected, setSelected] = useState(0);
@@ -43,8 +47,8 @@ export function TagInput({ tags, suggestions, onChange }: Props) {
   }
 
   return <div className="mt-1 flex flex-wrap items-center gap-1">
-    {tags.map((tag) => <span key={tag} className="inline-flex items-center gap-1 rounded bg-app-subtle px-2 py-0.5 text-xs">
-      {tag}<IconButton size="sm" className="size-4 min-h-0" type="button" label={t("tags.remove", { tag })} onClick={() => onChange(removeTag(tags, tag))}>×</IconButton>
+    {tags.map((tag) => <span key={tag} style={tagColorStyle(tagColor(colors, tag))} className={`inline-flex items-center gap-1 rounded bg-app-subtle px-2 py-0.5 text-xs ${tagColor(colors, tag) ? "htnote-colored-tag" : ""}`}>
+      {tagColor(colors, tag) && <span className="htnote-tag-dot" aria-hidden />}{tag}<IconButton size="sm" className="size-4 min-h-0" type="button" label={t("tags.remove", { tag })} onClick={() => onChange(removeTag(tags, tag))}>×</IconButton>
     </span>)}
     <div className="relative">
       <input type="text" aria-label={t("tags.add")} placeholder={t("tags.add")} value={value}

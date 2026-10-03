@@ -1,9 +1,12 @@
+import type { CSSProperties } from "react";
+import { COLOR_NAMES } from "@/lib/colors";
+import { ColorPicker } from "@/components/ui/ColorPicker";
 import { useEffect, useState } from "react";
 import type { Editor } from "@tiptap/react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
-  Bold, Italic, Underline, Strikethrough, List, ListOrdered, Quote, Code2,
+  Baseline, Bold, Italic, Underline, Strikethrough, List, ListOrdered, Quote, Code2,
   Table2, Minus, Link2, Link2Off, Rows3, Columns3, Trash2, ImagePlus, Music, Video, Code, Undo2, Redo2,
 } from "lucide-react";
 
@@ -23,6 +26,12 @@ export function EditorToolbar({ editor, noteId = "", onLinkNote }: EditorToolbar
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkError, setLinkError] = useState(false);
+  const selectedColor = editor.getAttributes("textStyle").color as string | undefined;
+  const colorOptions = COLOR_NAMES.map((name) => ({
+    value: `var(--ht-color-${name}, ${getComputedStyle(document.documentElement).getPropertyValue(`--app-color-${name}`).trim() || "currentColor"})`,
+    label: t(`colors.${name}`), color: `var(--app-color-${name})`,
+  }));
+  const paletteValue = colorOptions.find((option) => selectedColor?.startsWith(option.value.split(",")[0] + ","))?.value ?? selectedColor ?? "";
   const tiptapShortcut = (key: string, shift = false) => getPlatform() === "mac"
     ? `⌘${shift ? "⇧" : ""}${key}` : `Ctrl+${shift ? "Shift+" : ""}${key}`;
 
@@ -97,6 +106,10 @@ export function EditorToolbar({ editor, noteId = "", onLinkNote }: EditorToolbar
         {action(t("editor.italic"), <Italic size={16} />, () => editor.chain().focus().toggleItalic().run(), editor.isActive("italic"), !editor.can().toggleItalic(), formatShortcut("editorItalic"))}
         {action(t("editor.underline"), <Underline size={16} />, () => editor.chain().focus().toggleUnderline().run(), editor.isActive("underline"), !editor.can().toggleUnderline(), formatShortcut("editorUnderline"))}
         {action(t("editor.strike"), <Strikethrough size={16} />, () => editor.chain().focus().toggleStrike().run(), editor.isActive("strike"), !editor.can().toggleStrike(), tiptapShortcut("S", true))}
+        <ColorPicker label={t("colors.text")} custom value={paletteValue}
+          icon={<span className="htnote-text-color-icon" style={{ "--selected-color": selectedColor ?? "var(--app-text)" } as CSSProperties}><Baseline size={16} aria-hidden /></span>}
+          options={colorOptions}
+          onChange={(color) => { if (color) editor.chain().focus().setColor(color).run(); else editor.chain().focus().unsetColor().run(); }} />
         {action(t("editor.inlineCode"), <Code size={16} />, () => editor.chain().focus().toggleCode().run(), editor.isActive("code"), !editor.can().toggleCode())}
       </div>
       <div className="htnote-editor-group" role="group" aria-label={t("editor.groups.blocks")}>

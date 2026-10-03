@@ -1,3 +1,4 @@
+import { tagColor, tagColorStyle } from "@/features/tags/tagColors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { FilePlus2, FolderPlus, Menu, NotebookPen, Search, Settings2, Trash2 } from "lucide-react";
@@ -49,6 +50,7 @@ export function AppShell() {
   const updateSettings = useSettingsStore((state) => state.update);
   const loadTree = useTreeStore((state) => state.load);
   const filterQuery = useTreeStore((state) => state.filterQuery);
+  const tagColors = useSettingsStore((state) => state.settings?.tagColors);
   const filterTag = useTreeStore((state) => state.filterTag);
   const setFilterTag = useTreeStore((state) => state.setFilterTag);
   const setFilterQuery = useTreeStore((state) => state.setFilterQuery);
@@ -290,7 +292,7 @@ export function AppShell() {
             </div>
             <div className="flex items-center gap-1">
               <input type="search" aria-label={t("sidebar.quickFilter")} placeholder={t("sidebar.quickFilterPlaceholder")} value={filterQuery} onChange={(event) => setFilterQuery(event.target.value)} onKeyDown={(event) => handleQuickFilterKeyDown(event, () => setFilterQuery(""))} className="min-w-0 flex-1 rounded-md border border-app-border bg-app-bg px-3 py-2 text-sm outline-none focus:border-app-accent" />
-              {filterTag && <Button type="button" onClick={() => setFilterTag(null)} aria-label={t("tags.clearFilter", { tag: filterTag })} className="max-w-24 shrink-0 truncate rounded bg-app-subtle px-2 py-1 text-xs">{filterTag} ×</Button>}
+              {filterTag && <Button style={tagColorStyle(tagColor(tagColors, filterTag))} type="button" onClick={() => setFilterTag(null)} aria-label={t("tags.clearFilter", { tag: filterTag })} className={`max-w-24 shrink-0 truncate rounded bg-app-subtle px-2 py-1 text-xs ${tagColor(tagColors, filterTag) ? "htnote-colored-tag" : ""}`}>{filterTag} ×</Button>}
             </div>
           </div>
           <FavoritesSection onOpenNote={openNote} />

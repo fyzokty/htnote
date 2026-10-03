@@ -110,6 +110,21 @@ mod tests {
     use std::io::Read;
 
     #[test]
+    fn portable_appearance_is_archived_byte_for_byte() {
+        let temp = tempfile::tempdir().unwrap();
+        let note = temp.path().join("Note");
+        fs::create_dir(&note).unwrap();
+        let html = r#"<html><head><style id="htnote-appearance">:where(body){background:var(--ht-note-sepia,#faf3e5)}</style></head><body data-ht-bg="sepia"><span style="color:#3266bb">Color</span></body></html>"#;
+        fs::write(note.join("index.html"), html).unwrap();
+        let target = temp.path().join("note.zip");
+        export_zip_to(&note, &target).unwrap();
+        let mut archive = zip::ZipArchive::new(File::open(target).unwrap()).unwrap();
+        let mut exported = String::new();
+        archive.by_name("Note/index.html").unwrap().read_to_string(&mut exported).unwrap();
+        assert_eq!(exported, html);
+    }
+
+    #[test]
     fn archives_turkish_names_nested_assets_and_empty_directories() {
         let temp = tempfile::tempdir().unwrap();
         let note = temp.path().join("Örnek Not");

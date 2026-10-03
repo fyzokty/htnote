@@ -1,3 +1,4 @@
+import { noteBackgroundStyle } from "@/features/viewer/noteAppearance";
 import { useTranslation } from "react-i18next";
 import { Code2, LoaderCircle, PenLine, Save } from "lucide-react";
 
@@ -55,7 +56,7 @@ export function NoteEditor({ noteId, doc, session }: Props) {
           <div key="visual" className="h-full w-full htnote-mode-transition" data-mode="visual">
             {/* Ref yalnızca editörün bekleyen değişikliğini olay sırasında boşaltmak için aktarılır. */}
             {/* eslint-disable-next-line react-hooks/refs */}
-            <VisualEditor key={doc.baseVersion} ref={session.visualRef} noteId={noteId} initialInner={parts.inner} contentIndent={visualContentIndent(parts)} onChange={session.onVisualChange} onEditInCode={() => session.switchMode("code")} />
+            <VisualEditor surfaceStyle={noteBackgroundStyle(draft.html)} key={doc.baseVersion} ref={session.visualRef} noteId={noteId} initialInner={parts.inner} contentIndent={visualContentIndent(parts)} onChange={session.onVisualChange} onEditInCode={() => session.switchMode("code")} />
           </div>
         )}
         {doc.mode === "code" && (

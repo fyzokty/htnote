@@ -260,3 +260,10 @@
 ## D26 — Bilinçli olarak kapsam dışı (v1.0)
 - Bulut senkronizasyonu, çoklu pencere, not versiyon geçmişi, kullanılmayan asset temizliği, şablonlar, eklenti sistemi,
   mobil sürüm.
+
+## D27 — Etiket renkleri ve taşınabilir not görünümü
+- **Karar:** Etiket renkleri `settings.json` içindeki geriye uyumlu `tagColors` haritasında, mevcut `normalizeText` etiket eşleştirmesine göre saklanır; değerler dokuz semantik palet adından biridir. D03 gereği kökte ortak yapılandırma klasörü yoktur; `.trash` ve geçici onboarding işareti bu amaç için uygun değildir. Renk bütün notlardaki aynı etikete uygulanır; tek HTML/ZIP not dışa aktarımına uygulama ayarları eklenmez.
+- **Kural:** Son etiket kullanımı silindiğinde eşleme temizlenir. Son kullanımın bire bir ad değişiminde, hedefte renk yoksa renk yeni ada taşınır; diğer notların kullandığı adın rengi korunur.
+- **Karar:** Not arka planı `<body data-ht-bg="sepia|mint|rose|sky|lavender|charcoal">` ve `style#htnote-appearance` içinde saklanır. Açık/koyu paletler uygulama token'larından alınır ve HTML'e gömülür. Uygulamada `html[data-ht-theme]`, dışa aktarımda `prefers-color-scheme` varyantı seçer. Varsayılan seçim bu özniteliği ve yönetilen stili kaldırır.
+- **Kural:** Varsayılan not zemini/metni `--app-surface` / `--app-text` ile aynıdır; bridge düşük özgüllükte `:where(html)` kullanır. Yazar CSS'i kazanır. Görsel editör yüzeyi aynı preset token'larını kullanır. Görünüm düzenleme modunda taslak değişikliğidir; okuma modunda mevcut hash denetimli `save_note` hattında anında kaydedilir. Hata durumunda taslak korunur.
+- **Karar:** Yazı rengi TipTap TextStyle + Color ile `span[style]` içinde korunur. Hazır renkler `--ht-color-*` değişkenlerini taşınabilir renk yedeğiyle kullanır; özel renk sabit hex'tir. Görsel/kod geçişlerinde renk ve diğer span öznitelikleri korunur; kayıpsız temsil edilemeyen iç içe span'ler ham HTML olarak kalır.

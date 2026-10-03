@@ -13,6 +13,8 @@ function roundTrip(inner: string): string {
 }
 
 const rawFixtures = [
+  '<span style="color: red">Top-level span</span>',
+  '<p><span style="color: red"><strong><span style="color: blue">Nested colors</span></strong></span></p>',
   "<canvas id='plot'></canvas>",
   "<script>window.value = '<x>&';</script>",
   "<div class='custom'><b>Bold</b></div>",
@@ -36,6 +38,36 @@ const rawFixtures = [
 ];
 
 describe("visualPipeline", () => {
+  it("round-trips editable text colors and clears color without losing span attributes", () => {
+    const html = '<html><head><style>.author {font-size: 2em}</style></head><body><main id="htnote-content"><p><span class="author" data-label="x" style="color: #3266bb; letter-spacing: 1px">Text</span></p></main></body></html>';
+    const parts = loadForVisual(html);
+    if (!parts.ok) throw new Error(parts.reason);
+    expect(parts.editorHtml).not.toContain("htnote-raw");
+    const editor = new Editor({ extensions: createVisualExtensions(""), content: parts.editorHtml });
+    try {
+      editor.commands.setTextSelection({ from: 1, to: 5 });
+      expect(editor.getAttributes("textStyle").color).toBe("#3266bb");
+      editor.commands.setColor("#b33d80");
+      const saved = saveFromVisual(parts, editor.getHTML());
+      const reloaded = loadForVisual(saved);
+      if (!reloaded.ok) throw new Error(reloaded.reason);
+      editor.commands.setContent(reloaded.editorHtml);
+      editor.commands.setTextSelection({ from: 1, to: 5 });
+      expect(editor.getAttributes("textStyle").color).toBe("rgb(179, 61, 128)");
+      expect(saved).toContain('class="author"');
+      expect(saved).toContain('data-label="x"');
+      expect(saved).toContain("letter-spacing: 1px");
+      editor.commands.unsetColor();
+      expect(editor.getHTML()).not.toContain("color:");
+      expect(editor.getHTML()).toContain('data-label="x"');
+    } finally { editor.destroy(); }
+  });
+
+  it("keeps theme color variables through visual and code round-trips", () => {
+    const inner = '<p><span style="color: var(--ht-color-red, #c43b4a)">Text</span></p>';
+    expect(roundTrip(roundTrip(inner))).toContain('color: var(--ht-color-red, #c43b4a)');
+  });
+
   it("keeps a new Rust note unchanged on the first visual save", () => {
     const full = readFileSync("src-tauri/templates/note.html", "utf8")
       .replace(/\{\{HTNOTE_TITLE\}\}/g, "New note")

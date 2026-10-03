@@ -1,3 +1,4 @@
+import { NoteAppearancePicker } from "./NoteAppearancePicker";
 import { useEffect, useRef, useState } from "react";
 import { Download, Pencil, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -147,6 +148,7 @@ export function NoteViewer() {
             {activeNote && <TagInput key={activeNote.id} tags={activeNote.tags} suggestions={tagSuggestions} onChange={(tags) => void setNoteTags(activeNote.id, tags)} />}
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            {activeNote && <NoteAppearancePicker key={activeNote.id} noteId={activeNote.id} html={activeTab?.doc.draft?.html ?? activeTab?.doc.base?.html ?? ""} disabled={activeTab?.doc.saving || !!activeTab?.doc.externalConflict || activeTab?.doc.removedOnDisk} />}
             <IconButton type="button" disabled={!activeNote} onClick={() => { if (activeNote) void toggleFavorite(activeNote.id, !activeNote.isFavorite); }} label={t("viewer.favorite")} aria-pressed={activeNote?.isFavorite ?? false} className={`rounded p-2 ${activeNote?.isFavorite ? "text-app-accent" : "text-app-muted"}`}><Star className="size-4" fill={activeNote?.isFavorite ? "currentColor" : "none"} aria-hidden /></IconButton>
             <IconButton type="button" disabled={!activeNote || exportBusy} label={exportBusy ? t("export.exporting") : t("viewer.export")} onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setExportMenu({ x: rect.left, y: rect.bottom, trigger: event.currentTarget }); }} className="text-app-muted"><Download className="size-4" aria-hidden /></IconButton>
             {exportMenu && activeNote && <ContextMenu x={exportMenu.x} y={exportMenu.y} trigger={exportMenu.trigger} onClose={() => setExportMenu(null)} items={[

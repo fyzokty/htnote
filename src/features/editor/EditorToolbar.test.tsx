@@ -20,6 +20,18 @@ afterEach(() => {
 });
 
 describe("EditorToolbar", () => {
+  it("applies custom text color to the preserved selection and resets it", async () => {
+    editor = new Editor({ extensions: createVisualExtensions(""), content: "<p>Text</p>" });
+    editor.commands.setTextSelection({ from: 1, to: 5 });
+    render(<EditorToolbar editor={editor} />);
+    fireEvent.click(screen.getByRole("button", { name: "Yazı rengi" }));
+    await act(async () => fireEvent.change(screen.getByLabelText("Özel renk"), { target: { value: "#123456" } }));
+    expect(editor.getHTML()).toContain('style="color: rgb(18, 52, 86);"');
+    fireEvent.click(screen.getByRole("button", { name: "Yazı rengi" }));
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Varsayılan (renk yok)" })));
+    expect(editor.getHTML()).not.toContain("color:");
+  });
+
   it.each([
     ["Görsel ekle", "Görseller", ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif"]],
     ["Ses ekle", "Ses dosyaları", ["mp3", "wav", "ogg", "m4a"]],

@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import type { Transaction } from "@tiptap/pm/state";
@@ -18,6 +19,7 @@ import { useSettingsStore } from "@/stores/settingsStore";
 import { useUiStore } from "@/stores/uiStore";
 
 interface VisualEditorProps {
+  surfaceStyle?: CSSProperties;
   noteId?: string;
   initialInner: string;
   contentIndent?: number;
@@ -28,7 +30,7 @@ interface VisualEditorProps {
 
 export interface VisualEditorHandle { flush: () => void }
 
-export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(function VisualEditor({ noteId = "", initialInner, contentIndent = 0, onChange, visualAvailable = true, onEditInCode }, ref) {
+export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(function VisualEditor({ surfaceStyle, noteId = "", initialInner, contentIndent = 0, onChange, visualAvailable = true, onEditInCode }, ref) {
   const { t } = useTranslation();
   const contentWidth = useSettingsStore((state) => state.settings?.contentWidth ?? "comfortable");
   const onChangeRef = useRef(onChange);
@@ -176,7 +178,7 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
   return (
     <section className="htnote-visual-editor" data-content-width={contentWidth}>
       <EditorToolbar editor={editor} noteId={noteId} onLinkNote={openPicker} />
-      <div className="htnote-visual-scroll">
+      <div className="htnote-visual-scroll" style={surfaceStyle}>
         <EditorContent editor={editor} className="htnote-visual-content" aria-label={t("editor.content")}
           onMouseDownCapture={(event) => {
             if (event.button !== 0 || event.target !== editor.view.dom && event.target !== event.currentTarget) return;

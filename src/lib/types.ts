@@ -8,6 +8,7 @@ export type Language = "tr" | "en";
 export type ContentWidth = "narrow" | "comfortable" | "wide" | "full";
 
 export interface Settings {
+  tagColors?: Record<string, string>;
   rootDir: string | null;
   lastExportDir: string | null;
   theme: Theme;

@@ -23,3 +23,13 @@ Uygulama içinde köprü `:where(video,img)` ile `max-width: 100%; height: auto`
 Native ses kontrollerini korumak için `<audio controls data-ht-native src="./assets/kayit.wav"></audio>` kullanın. Özel oynatıcı Shadow DOM içinde `ht-audio-*` sınıflarını ve ana uygulamanın tema token'larını kullanır. Kontrol etiketleri uygulama dili değiştiğinde güncellenir.
 
 Tüm ses/video kontrollerinde indirme seçeneği uygulama içinde kapatılır; video bağlam menüsü de engellenir. Bu bir dosya erişim güvenliği önlemi değildir. Değişiklikler yalnızca sunum sırasında yapılır; diskteki HTML'e yazılmaz. Tek HTML ve ZIP dışa aktarımları bridge içermez ve native kontrolleri korur.
+
+## Yazı rengi ve not arka planı
+
+Görsel araç çubuğundaki **Yazı rengi** seçimi `<span style="color: …">` olarak kaydedilir. Hazır renkler `var(--ht-color-red, #b02d3c)` gibi tema değişkenleri ve dışa aktarım için renk yedeği kullanır. `gray`, `red`, `orange`, `yellow`, `green`, `teal`, `blue`, `purple`, `pink` paletleri vardır. Özel renk hex olarak saklanır; **Varsayılan (renk yok)** renk işaretini kaldırır ve metin belge rengini devralır.
+
+Not başlığındaki **Görünüm** seçicisi `body` üzerinde `data-ht-bg` kullanır: `sepia` (Kâğıt), `mint` (Nane), `rose` (Gül), `sky` (Gök), `lavender` (Lavanta), `charcoal` (Kömür). `style#htnote-appearance`, tema token'larından alınan açık/koyu paletleri not HTML'inde taşır. `--ht-note-<preset>` etkin preset rengi, `--ht-note-bg` sayfa zemini, `--ht-bg` body zemini ve `--ht-text` metin rengidir. Uygulamada `html[data-ht-theme="light|dark"]`, bağımsız HTML'de `prefers-color-scheme` kullanılır. Tek HTML ve ZIP dışa aktarımlarında öznitelik ve stil korunur; PDF açık varyantı kullanır.
+
+Varsayılan seçimi yönetilen öznitelik/stili kaldırır. Uygulama bu durumda `--ht-bg` ve `--ht-text` değerlerini kendi yüzey/metin token'larından verir. Bridge'in temel `:where(html)` kuralı düşük özgüllüktedir; `body { background: … }` gibi kendi CSS'iniz önceliklidir. Görünüm düzenleme modunda kaydet/iptal işlemlerine dahil edilir, okuma modunda anında kaydedilir.
+
+Etiket renkleri normalize etiket adına göre globaldir ve uygulama ayarlarında saklanır. Not başına farklılaşmaz ve not klasörüyle taşınmaz; kenar çubuğundaki renk noktasından veya Ayarlar → Etiket renkleri bölümünden değiştirilir.
