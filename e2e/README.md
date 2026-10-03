@@ -40,7 +40,11 @@ tab sizing flow runs in both Turkish and English. Outside media clicks must leav
 a gap cursor immediately before or after that media, keep the same position on
 mouseup, and leave its toolbar hidden. The application uses the media NodeView's
 bounds in the capture phase to place left/right clicks before/after that media.
-Unit tests also cover incorrect coordinate hit tests and media event targets.
+Small vertical gaps within a row's computed CSS margin snap to the nearest media
+row by vertical distance (ties use document order), placing the cursor before
+the row when clicking above it and after it when clicking below it. Preview,
+toolbar and text-row clicks retain their normal behavior. Unit tests cover these
+gaps, nearest-row selection, incorrect coordinate hit tests and media event targets.
 
 CodeMirror virtualizes off-screen lines, so `.cm-content.getText()` reads only
 the rendered viewport, not the entire HTML document. Scroll the relevant content
@@ -57,6 +61,17 @@ Driver output is also saved to `e2e/logs/tauri-driver.log`. CI prints the driver
 and WebView2 versions, launches the debug app directly with temporary root and
 config overrides, and uploads `e2e/logs/` on failure. The app startup diagnostic
 captures its stdout and stderr there as separate files.
+Outside media clicks append geometry, hit testing, DOM and ProseMirror selections
+before/after mousedown and mouseup, handler decisions, and the user agent to
+`e2e/logs/media-click-diagnostics.json`. The same JSON appears in assertion
+failures. These clicks use real WebDriver mouse actions with the preview element
+as the pointer-move origin, avoiding viewport-coordinate drift in older WebView2
+versions. Assertions compare the handler's actual event coordinates with the
+intended point (allowing only 1 px rounding) and verify that it is outside the
+preview in the intended row using bounds recorded at mousedown, before selection
+can change the layout; drift reports the expected/actual point and offset.
+The handler trace is enabled only for each diagnostic click through an explicit
+test hook. Gap-cursor and mouseup expectations remain unchanged.
 Failed tests save screenshots in `e2e/logs/` and print the current frame URL,
 document readiness and security probe results to the test log.
 CI E2E is pinned to `windows-2022` until [runner image issue 14738](https://github.com/actions/runner-images/issues/14738) is resolved.

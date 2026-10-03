@@ -54,7 +54,8 @@ function audioBytes(): number[] {
 const mediaClickDiagnostics: object[] = [];
 
 async function clickMediaGap(selector: string, side: "left" | "right" = "right") {
-  await $(selector).scrollIntoView();
+  const origin = await $(selector);
+  await origin.scrollIntoView();
   const point = await browser.execute((selector, side) => {
     const surface = document.querySelector<HTMLElement>(".tiptap")! as HTMLElement & { editor: Editor };
     const editor = surface.getBoundingClientRect();
@@ -66,9 +67,14 @@ async function clickMediaGap(selector: string, side: "left" | "right" = "right")
         boundaries = [pos, pos + node.nodeSize];
       }
     });
+    // WebDriver offsets are relative to the element's in-view center, rounded
+    // down by the protocol. Use the same center when computing the offsets.
+    const centerX = Math.floor((Math.max(0, media.left) + Math.min(window.innerWidth, media.right)) / 2);
+    const centerY = Math.floor((Math.max(0, media.top) + Math.min(window.innerHeight, media.bottom)) / 2);
+    const x = Math.round(side === "right" ? editor.right - 8 : editor.left + 8);
     return {
-      x: Math.round(side === "right" ? editor.right - 8 : editor.left + 8),
-      y: Math.round(media.top + media.height / 2),
+      x, y: centerY,
+      offsetX: x - centerX, offsetY: 0,
       edge: side === "right" ? media.right : media.left,
       boundaries,
     };
@@ -115,7 +121,7 @@ async function clickMediaGap(selector: string, side: "left" | "right" = "right")
     };
   }, selector, point);
   const diagnostics = {
-    selector, side, point, clickMethod: "WebDriver performActions (real mouse pointerDown/pointerUp; no synthetic dispatchEvent)",
+    selector, side, point, clickMethod: "WebDriver performActions (element origin, real mouse pointerDown/pointerUp; no synthetic dispatchEvent)",
     before: await snapshot(),
     afterMousedown: null as Awaited<ReturnType<typeof snapshot>> | null,
     afterMouseup: null as Awaited<ReturnType<typeof snapshot>> | null,
@@ -125,7 +131,8 @@ async function clickMediaGap(selector: string, side: "left" | "right" = "right")
     assert.ok(side === "right" ? point.x > point.edge : point.x < point.edge, message("Click must be outside the media preview"));
     assert.equal(point.boundaries.length, 2, message("Clicked media must have two boundaries"));
     await browser.performActions([{ type: "pointer", id: "media-gap", parameters: { pointerType: "mouse" }, actions: [
-      { type: "pointerMove", origin: "viewport", x: point.x, y: point.y }, { type: "pointerDown", button: 0 },
+      { type: "pointerMove", origin: { "element-6066-11e4-a52e-4f735466cecf": origin.elementId },
+        x: point.offsetX, y: point.offsetY }, { type: "pointerDown", button: 0 },
     ] }]);
     // WebView2 versions can resolve the same outside point to either adjacent
     // gap. Both are valid, but selecting the atom or a distant gap is a failure.
@@ -137,6 +144,20 @@ async function clickMediaGap(selector: string, side: "left" | "right" = "right")
     // Capture mouseup even when the saved mousedown selection fails, so the
     // failure includes both phases without changing either expectation.
     diagnostics.afterMouseup = await snapshot();
+    const actual = diagnostics.afterMousedown.handler?.last;
+    assert.ok(actual, message("Outside mousedown must reach the media diagnostic hook"));
+    const dx = actual.x - point.x;
+    const dy = actual.y - point.y;
+    assert.ok(Math.abs(dx) <= 1 && Math.abs(dy) <= 1,
+      message(`WebDriver pointer coordinate drift: expected (${point.x}, ${point.y}), received (${actual.x}, ${actual.y}), offset (${dx}, ${dy})`));
+    // Selection can hide a toolbar or scroll the editor. Validate against the
+    // handler's bounds at event time, before those layout changes occur.
+    const clickedRow = actual.rows.find(({ pos }) => pos === point.boundaries[0]);
+    const row = clickedRow?.row;
+    const preview = clickedRow?.preview;
+    assert.ok(row && preview && actual.y >= row.top && actual.y <= row.bottom
+      && (side === "right" ? actual.x > preview.right : actual.x < preview.left),
+      message(`WebDriver click missed the intended media row: received (${actual.x}, ${actual.y})`));
     assert.equal(down.type, "gapcursor", message("Outside mousedown must place a gap cursor, not select media"));
     assert.ok(down.pos !== undefined && point.boundaries.includes(down.pos),
       message(`Outside mousedown must use a boundary of the clicked media (${point.boundaries}), got ${down.pos}`));

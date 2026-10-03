@@ -3,13 +3,15 @@ import { GapCursor } from "@tiptap/pm/gapcursor";
 import { NodeSelection, Plugin, Selection } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
 
+type MediaClickBounds = Pick<DOMRect, "left" | "right" | "top" | "bottom">;
+
 export interface MediaClickDebug {
   calls: number;
   last?: {
     x: number; y: number; button: number; isTrusted: boolean;
     target: { tag: string; className: string } | null;
     decision: string;
-    rows: { pos: number; kind: string; row: object; preview: object }[];
+    rows: { pos: number; kind: string; row: MediaClickBounds; preview: MediaClickBounds }[];
     boundary: number | null;
     bias: number;
     before: object;
@@ -40,20 +42,39 @@ export function selectMediaGap(view: EditorView, event: MouseEvent, debug?: Medi
   }
   let boundary: number | null = null;
   let bias = 1;
+  let nearestDistance = Infinity;
+  let insideContent = false;
   view.state.doc.descendants((node, pos) => {
-    if (boundary !== null || !["image", "audio", "video"].includes(node.type.name)) return;
+    const isMedia = ["image", "audio", "video"].includes(node.type.name);
+    if (!isMedia && !node.isTextblock) return;
     const dom = view.nodeDOM(pos);
     if (!(dom instanceof HTMLElement)) return;
     const row = dom.getBoundingClientRect();
+    if (!isMedia) {
+      if (event.clientY >= row.top && event.clientY <= row.bottom) insideContent = true;
+      return false;
+    }
     const outsideRow = event.clientY < row.top || event.clientY > row.bottom;
-    if (outsideRow && !debug) return;
     const rect = (dom.querySelector(".htnote-media-preview") ?? dom).getBoundingClientRect();
     if (debug) debug.rows.push({ pos, kind: node.type.name, row: row.toJSON(), preview: rect.toJSON() });
-    if (outsideRow) return;
-    if (containsPoint(rect)) return;
-    bias = event.clientX < rect.left ? -1 : event.clientX > rect.right ? 1 : event.clientY < rect.top ? -1 : 1;
+    if (containsPoint(rect)) { insideContent = true; return; }
+    const distance = Math.max(row.top - event.clientY, event.clientY - row.bottom, 0);
+    if (outsideRow) {
+      // Use the actual CSS spacing (including collapsed margins), so only the
+      // small blank band around a row participates in nearest-row selection.
+      const style = getComputedStyle(dom);
+      const margin = Number.parseFloat(event.clientY < row.top ? style.marginTop : style.marginBottom) || 0;
+      if (distance > Math.max(0, margin)) return;
+    }
+    // Ties keep the first row in document order. In a vertical gap use its
+    // top/bottom edge; within a row use the preview's left/right edge.
+    if (distance >= nearestDistance) return;
+    nearestDistance = distance;
+    bias = outsideRow ? (event.clientY < row.top ? -1 : 1)
+      : event.clientX < rect.left ? -1 : event.clientX > rect.right ? 1 : event.clientY < rect.top ? -1 : 1;
     boundary = pos + (bias === 1 ? node.nodeSize : 0);
   });
+  if (insideContent) boundary = null;
   if (debug) { debug.boundary = boundary; debug.bias = bias; }
   if (boundary === null) {
     if (debug) debug.decision = "no-outside-media-boundary";

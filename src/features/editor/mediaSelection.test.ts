@@ -117,6 +117,75 @@ describe("media outside clicks", () => {
     editor.destroy();
   });
 
+  it("uses the nearest media row in a small vertical gap, with stable ties and mouseup", () => {
+    const editor = new Editor({ extensions: createVisualExtensions(""), content: '<audio src="a.wav"></audio><audio src="b.wav"></audio><video src="c.webm"></video>' });
+    const nodeView = () => {
+      const dom = document.createElement("div");
+      dom.innerHTML = '<div class="htnote-media-preview"></div>';
+      return { dom, stopEvent: () => true };
+    };
+    editor.view.setProps({ nodeViews: { audio: nodeView, video: nodeView } });
+    for (let pos = 0; pos < 3; pos += 1) {
+      const dom = editor.view.nodeDOM(pos) as HTMLElement;
+      dom.style.margin = "12px 0";
+      const rect = new DOMRect(100, 50 + pos * 68, 200, 56);
+      vi.spyOn(dom, "getBoundingClientRect").mockReturnValue(rect);
+      vi.spyOn(dom.querySelector(".htnote-media-preview")!, "getBoundingClientRect").mockReturnValue(rect);
+    }
+    vi.spyOn(editor.view, "focus").mockImplementation(() => {});
+    const hitTest = vi.spyOn(editor.view, "posAtCoords").mockReturnValue(null);
+    const debug = window.__htnoteDebugMediaClick = { calls: 0 } as NonNullable<Window["__htnoteDebugMediaClick"]>;
+    try {
+      // Distances choose both the preceding and following rows; the midpoint
+      // keeps the preceding row. The bias distinguishes shared boundaries.
+      for (const [y, pos, bias] of [[108, 1, 1], [116, 1, -1], [180, 2, 1], [184, 2, -1]]) {
+        for (const x of [50, 200, 400]) {
+          editor.commands.setNodeSelection(0);
+          const event = new MouseEvent("mousedown", { clientX: x, clientY: y, bubbles: true, cancelable: true });
+          editor.view.dom.dispatchEvent(event);
+          expect(event.defaultPrevented).toBe(true);
+          expect(debug.last).toMatchObject({ boundary: pos, bias, handled: true });
+          expect(editor.state.selection.toJSON()).toEqual({ type: "gapcursor", pos });
+          editor.view.dom.dispatchEvent(new MouseEvent("mouseup", { clientX: x, clientY: y, bubbles: true }));
+          expect(editor.state.selection.toJSON()).toEqual({ type: "gapcursor", pos });
+        }
+      }
+      expect(hitTest).not.toHaveBeenCalled();
+    } finally {
+      delete window.__htnoteDebugMediaClick;
+      editor.destroy();
+    }
+  });
+
+  it("limits vertical snapping to the row margin and preserves preview and text clicks", () => {
+    const editor = new Editor({ extensions: createVisualExtensions(""), content: '<img src="a.svg"><img src="b.svg"><p>Text</p>' });
+    for (const [pos, top] of [[0, 50], [1, 150], [2, 212]]) {
+      const dom = editor.view.nodeDOM(pos) as HTMLElement;
+      dom.style.margin = "12px 0";
+      const rect = new DOMRect(100, top, 200, 56);
+      vi.spyOn(dom, "getBoundingClientRect").mockReturnValue(rect);
+      const preview = dom.querySelector(".htnote-media-preview");
+      if (preview) vi.spyOn(preview, "getBoundingClientRect").mockReturnValue(rect);
+    }
+    vi.spyOn(editor.view, "focus").mockImplementation(() => {});
+    try {
+      for (const [y, pos] of [[38, 0], [118, 1], [138, 1], [210, 2]]) {
+        editor.commands.setNodeSelection(0);
+        expect(selectMediaGap(editor.view, new MouseEvent("mousedown", { clientX: 400, clientY: y }))).toBe(true);
+        expect(editor.state.selection).not.toBeInstanceOf(NodeSelection);
+        // After the second image, Selection.near uses the neighboring paragraph.
+        expect(editor.state.selection.from).toBe(pos === 2 ? 3 : pos);
+      }
+      for (const [x, y] of [[400, 37], [400, 119], [400, 137], [200, 175], [200, 215], [400, 500]]) {
+        editor.commands.setNodeSelection(0);
+        expect(selectMediaGap(editor.view, new MouseEvent("mousedown", { clientX: x, clientY: y }))).toBe(false);
+        expect(editor.state.selection.toJSON()).toEqual({ type: "node", anchor: 0 });
+      }
+    } finally {
+      editor.destroy();
+    }
+  });
+
   it("uses a neighboring text position when available and leaves inside clicks alone", () => {
     const editor = new Editor({ extensions: createVisualExtensions(""), content: '<img src="a.svg"><p>After</p>' });
     const dom = editor.view.nodeDOM(0) as HTMLElement;
