@@ -5,7 +5,7 @@
   "favorites": { "title": "Favorites", "add": "Add to favorites", "remove": "Remove from favorites" },
   "tags": { "title": "Tags", "add": "+ tag", "remove": "Remove {{tag}} tag", "suggestions": "Tag suggestions", "clearFilter": "Remove {{tag}} tag filter" },
   "tabs": { "label": "Tabs", "new": "New tab", "newNote": "New note", "untitled": "Untitled Note", "closeTab": "Close {{title}} tab", "close": "Close", "closeOthers": "Close Others", "revealInTree": "Reveal in Tree" },
-  "viewer": { "workspace": "Workspace", "empty": "Select a note or create a new one", "notFound": "Note not found", "loading": "Loading note", "lastSaved": "Last saved: {{time}}", "favorite": "Favorite", "export": "Export", "edit": "Edit" },
+  "viewer": { "workspace": "Workspace", "empty": "Select a note or create a new one", "notFound": "Note not found", "loading": "Loading note", "lastSaved": "Last saved: {{time}}", "favorite": "Favorite", "export": "Export", "edit": "Edit", "renameHint": "Double-click to rename", "renameLabel": "Rename note title" },
   "export": { "pdf": "PDF", "printPdf": "Print / Save as PDF", "html": "Single-file HTML", "zip": "ZIP package", "exporting": "Exporting…", "exported": "Exported", "showInFolder": "Show in folder", "largeOutput": "The exported file is large.", "unsaved": "Unsaved changes will not be exported.", "saveAndExport": "Save and export", "anyway": "Export anyway" },
   "backlinks": { "title": "Backlinks", "empty": "No backlinks", "broken": "Broken links" },
   "notePicker": { "title": "Link note", "close": "Close", "search": "Search notes", "results": "Notes", "root": "Root", "empty": "No notes found" },

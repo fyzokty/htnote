@@ -4,11 +4,14 @@ import { useTranslation } from "react-i18next";
 
 import { IconButton } from "@/components/ui/IconButton";
 import { Button } from "@/components/ui/Button";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { NoteEditor } from "@/features/editor/NoteEditor";
 import { ContextMenu } from "@/components/ui/ContextMenu";
 import { useEditSession } from "@/features/editor/useEditSession";
 import { toggleFavorite } from "@/features/favorites/favorites";
 import { TagInput } from "@/features/tags/TagInput";
+import { InlineRename } from "@/features/tree/InlineRename";
+import { renameNoteItem } from "@/features/tree/useTreeActions";
 import { BacklinksPanel } from "@/features/viewer/BacklinksPanel";
 import { deriveTags, setNoteTags } from "@/features/tags/tags";
 import { nextMounted } from "@/features/viewer/lru";
@@ -82,9 +85,17 @@ export function NoteViewer() {
   const [now, setNow] = useState(() => Date.now());
   const [exportMenu, setExportMenu] = useState<{ x: number; y: number; trigger: HTMLElement } | null>(null);
   const exportBusy = useUiStore((state) => state.exportBusy);
+  const [renamingId, setRenamingId] = useState<string | null>(null);
   const activeNote = activeId ? findNote(tree, activeId) : null;
+  const isRenaming = Boolean(activeNote && renamingId === activeNote.id);
   const activeTab = tabs.find((tab) => tab.noteId === activeId);
   const tagSuggestions = deriveTags(tree);
+
+  useShortcut("rename", () => {
+    if (!activeNote || isRenaming) return;
+    if (document.activeElement?.closest('[role="tree"]')) return;
+    setRenamingId(activeNote.id);
+  });
 
   const mounted = cache.tabs === tabs && cache.activeId === activeId
     ? cache.mounted
@@ -101,7 +112,37 @@ export function NoteViewer() {
       {(activeNote || activeTab?.doc.removedOnDisk) && (
         <div className="flex min-h-16 shrink-0 items-center justify-between gap-3 border-b border-app-border bg-app-surface px-5 py-2">
           <div className="min-w-0">
-            <h2 className="truncate font-semibold">{activeNote?.title ?? activeTab?.doc.removedTitle ?? t("tabs.untitled")}</h2>
+            {isRenaming && activeNote ? (
+              <InlineRename
+                variant="underline"
+                name={activeNote.title}
+                label={t("viewer.renameLabel")}
+                onConfirm={(name) => {
+                  setRenamingId(null);
+                  void renameNoteItem(activeNote.id, name);
+                }}
+                onCancel={() => setRenamingId(null)}
+              />
+            ) : activeNote ? (
+              <Tooltip label={t("viewer.renameHint")} className="block max-w-full truncate">
+                <h2
+                  tabIndex={0}
+                  data-testid="note-title"
+                  onDoubleClick={() => setRenamingId(activeNote.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "F2") {
+                      event.preventDefault();
+                      setRenamingId(activeNote.id);
+                    }
+                  }}
+                  className="inline-block max-w-full cursor-text truncate font-semibold border-b-2 border-transparent py-0.5 outline-none hover:border-app-border focus-visible:ring-2 focus-visible:ring-app-accent rounded-sm"
+                >
+                  {activeNote.title}
+                </h2>
+              </Tooltip>
+            ) : (
+              <h2 className="truncate font-semibold border-b-2 border-transparent py-0.5">{activeTab?.doc.removedTitle ?? t("tabs.untitled")}</h2>
+            )}
             {saved && <p className="text-xs text-app-muted">{t("viewer.lastSaved", { time: saved })}</p>}
             {activeNote && <TagInput key={activeNote.id} tags={activeNote.tags} suggestions={tagSuggestions} onChange={(tags) => void setNoteTags(activeNote.id, tags)} />}
           </div>

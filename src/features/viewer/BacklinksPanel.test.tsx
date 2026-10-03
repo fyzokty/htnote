@@ -21,20 +21,35 @@ beforeEach(() => {
 });
 
 describe("BacklinksPanel", () => {
-  it("shows the count, opens sources and lists broken links", async () => {
+  it("shows the count, opens sources and lists broken links with chevron pointing up when expanded", async () => {
     render(<BacklinksPanel id="target" saveRevision="" />);
     expect(await screen.findByText("Source")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Geri bağlantılar \(1\)/ })).toBeInTheDocument();
+    const button = screen.getByRole("button", { name: /Geri bağlantılar \(1\)/ });
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(button).toHaveAttribute("aria-controls", "backlinks-content-target");
+    expect(screen.getByTestId("backlinks-chevron")).toHaveClass("rotate-180");
     expect(screen.getByText("Kırık linkler")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Source"));
     expect(useTabsStore.getState().activeId).toBe("source");
   });
 
-  it("hides details when collapsed", async () => {
-    render(<BacklinksPanel id="target" saveRevision="" />);
+  it("toggles collapse state, aria-expanded, and chevron rotation", async () => {
+    const { container } = render(<BacklinksPanel id="target" saveRevision="" />);
     await screen.findByText("Source");
-    fireEvent.click(screen.getByRole("button", { name: /Geri bağlantılar \(1\)/ }));
-    expect(screen.getByRole("button", { name: /Geri bağlantılar \(1\)/ })).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText("Source")).not.toBeInTheDocument();
+    const button = screen.getByRole("button", { name: /Geri bağlantılar \(1\)/ });
+    const chevron = screen.getByTestId("backlinks-chevron");
+    const region = container.querySelector("#backlinks-content-target");
+
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(chevron).toHaveClass("rotate-180");
+    expect(region).toHaveClass("grid-rows-[1fr]");
+    expect(region).not.toHaveAttribute("inert");
+
+    fireEvent.click(button);
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(chevron).not.toHaveClass("rotate-180");
+    expect(region).toHaveClass("grid-rows-[0fr]");
+    expect(region).toHaveAttribute("inert");
   });
 });

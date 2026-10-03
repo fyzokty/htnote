@@ -8,7 +8,18 @@ import { ipc } from "@/lib/ipc";
 import type { TreeNode } from "@/lib/types";
 import { useTreeStore } from "@/stores/treeStore";
 
-export function useTreeActions(onOpenNote: (id: string) => void) {
+export async function renameNoteItem(id: string, name: string): Promise<boolean> {
+  try {
+    await ipc.renameNote(id, name);
+    await useTreeStore.getState().refresh();
+    return true;
+  } catch (error) {
+    notifyError(error);
+    return false;
+  }
+}
+
+export function useTreeActions(onOpenNote?: (id: string) => void) {
   const { t } = useTranslation();
   const createNote = useCallback(async (parent?: string) => {
     const state = useTreeStore.getState();
@@ -17,7 +28,7 @@ export function useTreeActions(onOpenNote: (id: string) => void) {
       await state.refresh();
       if (node.type === "note") {
         useTreeStore.getState().revealNote(node.id);
-        onOpenNote(node.id);
+        onOpenNote?.(node.id);
       }
     } catch (error) { notifyError(error); }
   }, [onOpenNote, t]);
@@ -37,12 +48,12 @@ export function useTreeActions(onOpenNote: (id: string) => void) {
   const renameNode = useCallback(async (node: TreeNode, name: string) => {
     try {
       if (node.type === "note") {
-        await ipc.renameNote(node.id, name);
+        await renameNoteItem(node.id, name);
       } else {
         const renamed = await ipc.renameFolder(node.relPath, name);
         if (renamed.type === "folder") useTreeStore.getState().movePathPrefix(node.relPath, renamed.relPath);
+        await useTreeStore.getState().refresh();
       }
-      await useTreeStore.getState().refresh();
     } catch (error) { notifyError(error); }
     finally { useTreeStore.getState().setRenaming(null); }
   }, []);
