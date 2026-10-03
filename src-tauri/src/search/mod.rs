@@ -79,10 +79,19 @@ fn snippet(text: &str, map: &[(usize, usize)], position: usize, length: usize) -
     let mut right = end.saturating_add(60).min(chars.len());
     while left > 0 && !chars[left - 1].is_whitespace() { left -= 1; }
     while right < chars.len() && !chars[right].is_whitespace() { right += 1; }
+    let mut before: String = chars[left..start].iter().collect();
+    let r#match: String = chars[start..end].iter().collect();
+    let mut after: String = chars[end..right].iter().collect();
+    if left > 0 {
+        before = format!("…{}", before.trim_start());
+    }
+    if right < chars.len() {
+        after = format!("{}…", after.trim_end());
+    }
     Some(SearchSnippet {
-        before: chars[left..start].iter().collect(),
-        r#match: chars[start..end].iter().collect(),
-        after: chars[end..right].iter().collect(),
+        before,
+        r#match,
+        after,
     })
 }
 
@@ -300,14 +309,17 @@ mod tests {
         let result = index.search("istanbul", 5);
         assert_eq!(result[0].snippets[0].r#match, "İSTANBUL");
         assert_eq!(result[0].snippets[0].before, "😀 ");
+        assert_eq!(result[0].snippets[0].after, " éé");
+        assert!(!result[0].snippets[0].before.starts_with('…'));
+        assert!(!result[0].snippets[0].after.ends_with('…'));
         let expansion_map = [(0, 1), (0, 1), (1, 2)];
         assert_eq!(snippet("İx", &expansion_map, 1, 2).unwrap().r#match, "İx");
         let long = format!("{} hedef {}", "ön ".repeat(30), "son ".repeat(30));
         add(&mut index, "Y", &[], &format!("<p>{long}hedef hedef hedef</p>"));
         let snippets = index.search("hedef", 10).into_iter().find(|item| item.title == "Y").unwrap().snippets;
         assert_eq!(snippets.len(), 3);
-        assert!(snippets[0].before.starts_with("ön "));
-        assert!(snippets[0].after.ends_with("son"));
+        assert!(snippets[0].before.starts_with('…'));
+        assert!(snippets[0].after.ends_with('…'));
         for seed in 0..200 {
             let text: String = (0..80).map(|n| ['İ', '😀', 'ı', '\u{307}', 'a', ' '][(seed + n) % 6]).collect();
             let mut index = SearchIndex::default();

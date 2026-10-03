@@ -169,3 +169,32 @@ it("allows snippet selection without opening the result on the trailing mouse cl
   fireEvent.click(screen.getByRole("option", { name: /Alpha/ }), { detail: 1 });
   await waitFor(() => expect(useTabsStore.getState().activeId).toBe("a"));
 });
+
+it("renders snippets with accent highlighting and 2-line clamp", async () => {
+  const customResults: SearchNotesResult = {
+    indexing: false,
+    results: [
+      {
+        id: "c",
+        title: "Test Note",
+        relPath: "test/Note",
+        titleMatch: false,
+        matchCount: 1,
+        snippets: [
+          { before: "…başlangıç metni ", match: "vurgu", after: " bitiş metni…" },
+        ],
+      },
+    ],
+  };
+  mockIPC((command) => command === "search_notes" ? customResults : undefined);
+  render(<SearchModal />);
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "vurgu" } });
+  const snippetContainer = await screen.findByTestId("search-snippet");
+  expect(snippetContainer).toHaveClass("line-clamp-2");
+  expect(snippetContainer).toHaveTextContent("…başlangıç metni vurgu bitiş metni…");
+  const mark = snippetContainer.querySelector("mark");
+  expect(mark).toBeInTheDocument();
+  expect(mark).toHaveTextContent("vurgu");
+  expect(mark).toHaveClass("bg-app-accent/20");
+});
+
