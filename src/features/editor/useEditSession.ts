@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
-import { extractContent, replaceContent } from "@/features/editor/contentRegion";
+import { extractContent } from "@/features/editor/contentRegion";
+import { replaceVisualContent } from "@/features/editor/visualPipeline";
 import type { VisualEditorHandle } from "@/features/editor/VisualEditor";
 import { flushEditor, registerEditorFlush, saveTab } from "@/features/editor/saveTab";
 import { discardTab, requestUnsavedDecision } from "@/features/editor/unsavedGuard";
@@ -35,7 +36,7 @@ export function useEditSession(noteId: string | null) {
     if (!noteId || doc?.mode !== "visual" || !doc.draft) return;
     const parts = extractContent(doc.draft.html);
     if (parts.ok && inner !== parts.inner) {
-      useTabsStore.getState().updateDraft(noteId, { html: replaceContent(parts, inner) });
+      useTabsStore.getState().updateDraft(noteId, { html: replaceVisualContent(parts, inner) });
     }
   }
 

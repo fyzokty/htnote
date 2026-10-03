@@ -1,4 +1,6 @@
+/// <reference types="node" />
 import { createRef } from "react";
+import { readFileSync } from "node:fs";
 import { Editor } from "@tiptap/core";
 import { EditorView } from "@tiptap/pm/view";
 import { act, fireEvent, render, screen } from "@testing-library/react";
@@ -32,6 +34,33 @@ afterEach(() => {
 });
 
 describe("VisualEditor", () => {
+  it("extends the editing surface and moves the cursor to the end only on a blank left click", () => {
+    vi.spyOn(EditorView.prototype, "posAtCoords").mockReturnValue(null);
+    const style = document.createElement("style");
+    const styles = readFileSync("src/index.css", "utf8");
+    style.textContent = styles.match(/\.htnote-code-editor,\s*\.htnote-visual-editor\s*\{[^}]+\}/)?.[0] ?? "";
+    style.textContent += styles.match(/\.htnote-visual-(?:scroll|content)\s*\{[^}]+\}/g)?.join("\n") ?? "";
+    style.textContent += styles.match(/\.htnote-visual-editor \.tiptap\s*\{[^}]+\}/)?.[0] ?? "";
+    document.head.append(style);
+    try {
+      const { container } = render(<VisualEditor initialInner="<p>First</p><p>Last</p>" onChange={vi.fn()} />);
+      const surface = screen.getByRole("textbox", { name: "Not içeriği" });
+      const editor = (surface as HTMLElement & { editor: Editor }).editor;
+      const last = surface.lastElementChild!;
+      vi.spyOn(last, "getBoundingClientRect").mockReturnValue({ bottom: 120 } as DOMRect);
+      expect(getComputedStyle(container.querySelector(".htnote-visual-editor")!)).toMatchObject({ height: "100%", overflow: "hidden" });
+      expect(getComputedStyle(container.querySelector(".htnote-visual-scroll")!)).toMatchObject({ overflow: "auto", minHeight: "0px" });
+      expect(getComputedStyle(surface).minHeight).toBe("100%");
+      act(() => editor.commands.setTextSelection(1));
+      fireEvent.mouseDown(surface, { button: 2, clientY: 300 });
+      expect(editor.state.selection.from).toBe(1);
+      fireEvent.mouseDown(surface, { button: 0, clientY: 300 });
+      expect(editor.state.selection.from).toBe(editor.state.doc.content.size - 1);
+      act(() => editor.commands.setTextSelection(1));
+      fireEvent.mouseDown(surface.firstElementChild!, { button: 0, clientY: 20 });
+      expect(editor.state.selection.from).toBe(1);
+    } finally { style.remove(); }
+  });
   it("drops three images and audio together at the drop point in order", async () => {
     const hitTest = vi.spyOn(EditorView.prototype, "posAtCoords").mockReturnValue({ pos: 7, inside: 0 });
     const copy = vi.spyOn(ipc, "copyAsset").mockImplementation(async (_noteId, path) => ({
@@ -49,7 +78,7 @@ describe("VisualEditor", () => {
     });
     expect(hitTest).toHaveBeenCalledWith({ left: 25, top: 50 });
     expect(copy.mock.calls).toEqual(paths.map((path) => ["note", path]));
-    expect(onChange).toHaveBeenLastCalledWith('<p>Before</p><img src="./assets/first.png"><img src="./assets/second.jpg"><img src="./assets/third.webp"><audio src="./assets/song.mp3" controls=""></audio><p>After</p>');
+    expect(onChange).toHaveBeenLastCalledWith('<p>Before</p>\n<img src="./assets/first.png">\n<img src="./assets/second.jpg">\n<img src="./assets/third.webp">\n<audio src="./assets/song.mp3" controls=""></audio>\n<p>After</p>');
     view.unmount();
     expect(getDropHandler("note", "visual")).toBeUndefined();
   });
@@ -71,7 +100,7 @@ describe("VisualEditor", () => {
     });
     act(() => ref.current?.flush());
     expect(save).toHaveBeenCalledTimes(3);
-    expect(onChange).toHaveBeenLastCalledWith('<img src="./assets/pasted-1.png"><img src="./assets/pasted-2.png"><img src="./assets/pasted-3.png">');
+    expect(onChange).toHaveBeenLastCalledWith('<img src="./assets/pasted-1.png">\n<img src="./assets/pasted-2.png">\n<img src="./assets/pasted-3.png">');
   });
 
   it("round trips supported blocks and marks", () => {
@@ -130,7 +159,7 @@ describe("VisualEditor", () => {
     act(() => { fireEvent.change(screen.getByRole("combobox"), { target: { value: "h2" } }); });
     act(() => vi.advanceTimersByTime(150));
     const result = onChange.mock.lastCall?.[0] as string;
-    expect(result).toContain('<canvas id="c"></canvas><script>run()</script>');
+    expect(result).toContain('<canvas id="c"></canvas>\n<script>run()</script>');
     expect(result).toContain('data-y="1"');
     expect(result).not.toContain("htnote-raw");
     view.unmount();

@@ -1,21 +1,22 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Welcome to HTNote</title>
-  <style data-htnote="base">
-    body { font-family: var(--ht-font, system-ui, sans-serif); color: var(--ht-text, #222); background: var(--ht-bg, #fff); max-width: 800px; margin: 0 auto; padding: 2rem; line-height: 1.6; }
-    .tip { border-left: 4px solid var(--ht-accent, #5b6ee1); background: var(--ht-surface, #f2f3f8); padding: 1rem; border-radius: 4px; }
-    a { color: var(--ht-accent, #4054c8); }
-  </style>
-</head>
-<body>
-  <main id="htnote-content">
-    <h1>Welcome to HTNote</h1>
-    <p>Your notes live on your computer as HTML files. Create a note and start writing; you can customize its appearance with CSS and behavior with JavaScript.</p>
-    <p class="tip">This box uses the <code>--ht-accent</code>, <code>--ht-surface</code> and other <code>--ht-*</code> theme variables.</p>
-    <p>Open the <a href="htnote://note/{{NOTE_ID}}">Interactive Note Example</a> to see one in action. This link works inside HTNote.</p>
-  </main>
-</body>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{HTNOTE_TITLE}}</title>
+    {{HTNOTE_METADATA}}
+    <style data-htnote="base">
+      body { font-family: var(--ht-font, system-ui, sans-serif); color: var(--ht-text, #222); background: var(--ht-bg, #fff); max-width: 800px; margin: 0 auto; padding: 2rem; line-height: 1.6; }
+      .tip { border-left: 4px solid var(--ht-accent, #5b6ee1); background: var(--ht-surface, #f2f3f8); padding: 1rem; border-radius: 4px; }
+      a { color: var(--ht-accent, #4054c8); }
+    </style>
+  </head>
+  <body>
+    <main id="htnote-content">
+      <h1>Welcome to HTNote</h1>
+      <p>Your notes live on your computer as HTML files. Create a note and start writing; you can customize its appearance with CSS and behavior with JavaScript.</p>
+      <p class="tip">This box uses the <code>--ht-accent</code>, <code>--ht-surface</code> and other <code>--ht-*</code> theme variables.</p>
+      <p>Open the <a href="htnote://note/{{NOTE_ID}}">Interactive Note Example</a> to see one in action. This link works inside HTNote.</p>
+    </main>
+  </body>
 </html>

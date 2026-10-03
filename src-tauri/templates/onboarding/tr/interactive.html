@@ -1,15 +1,18 @@
 <!DOCTYPE html>
 <html lang="tr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>İnteraktif Not Örneği</title>
-</head>
-<body>
-  <main id="htnote-content">
-    <h1>İnteraktif Not Örneği</h1>
-    <p>Bu sayaç, JavaScript ve CSS dosyalarının notunuza nasıl etkileşim kattığını gösterir. Değer tarayıcınızda saklanır.</p>
-    <div class="counter"><button id="decrease" type="button" aria-label="Azalt">−</button><output id="count" aria-live="polite">0</output><button id="increase" type="button" aria-label="Artır">+</button></div>
-  </main>
-</body>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{HTNOTE_TITLE}}</title>
+    {{HTNOTE_METADATA}}
+    <link rel="stylesheet" href="./style.css">
+  </head>
+  <body>
+    <main id="htnote-content">
+      <h1>İnteraktif Not Örneği</h1>
+      <p>Bu sayaç, JavaScript ve CSS dosyalarının notunuza nasıl etkileşim kattığını gösterir. Değer tarayıcınızda saklanır.</p>
+      <div class="counter"><button id="decrease" type="button" aria-label="Azalt">−</button><output id="count" aria-live="polite">0</output><button id="increase" type="button" aria-label="Artır">+</button></div>
+    </main>
+    <script src="./script.js"></script>
+  </body>
 </html>

@@ -56,6 +56,8 @@ describe("editing flows", () => {
   it("shows icon tooltips and accessible code tabs with a persistent preview toggle in both themes", async () => {
     const settings = await invoke<{ theme: string; editorLivePreview: boolean }>("get_settings");
     const note = await createNote("Editor controls");
+    const original = await invoke<{ html: string }>("read_note", { id: note.id });
+    assert.match(original.html, /<main id="htnote-content">\n {6}<h1>/);
     try {
       for (const theme of ["light", "dark"]) {
         await invoke("update_settings", { patch: { theme, editorLivePreview: true } });
@@ -64,6 +66,15 @@ describe("editing flows", () => {
         await editNote();
         const visual = await $('[data-testid="visual-mode"]');
         assert.equal(await visual.getAttribute("aria-pressed"), "true");
+        const visualLayout = await browser.execute(() => {
+          const scroll = document.querySelector(".htnote-visual-scroll")!;
+          const surface = document.querySelector(".htnote-visual-editor .tiptap")!;
+          return { scrollHeight: scroll.clientHeight, surfaceHeight: surface.getBoundingClientRect().height,
+            overflow: getComputedStyle(scroll).overflowY };
+        });
+        assert.ok(visualLayout.scrollHeight > 100);
+        assert.ok(visualLayout.surfaceHeight >= visualLayout.scrollHeight - 1);
+        assert.equal(visualLayout.overflow, "auto");
         await $('.htnote-editor-toolbar button[aria-label] svg').moveTo();
         await $('[role="tooltip"]').waitForDisplayed();
         assert.ok((await $('[role="tooltip"]').getText()).includes("Ctrl+Z"));
@@ -76,9 +87,31 @@ describe("editing flows", () => {
         const html = await $('[data-testid="code-tab-html"]');
         const css = await $('[data-testid="code-tab-css"]');
         assert.equal(await html.getAttribute("aria-selected"), "true");
+        const codeLayout = await browser.execute(() => {
+          const host = document.querySelector(".htnote-code-host")!;
+          const editor = host.querySelector(".cm-editor")!;
+          return { hostHeight: host.clientHeight, editorHeight: editor.getBoundingClientRect().height,
+            hostOverflow: getComputedStyle(host).overflowY,
+            outerOverflow: getComputedStyle(document.querySelector(".htnote-split-editor")!).overflowY,
+            scrollerOverflow: getComputedStyle(editor.querySelector(".cm-scroller")!).overflowY,
+            wrapping: !!editor.querySelector(".cm-lineWrapping") };
+        });
+        assert.ok(codeLayout.hostHeight > 100);
+        assert.ok(Math.abs(codeLayout.hostHeight - codeLayout.editorHeight) <= 1);
+        assert.equal(codeLayout.hostOverflow, "hidden");
+        assert.equal(codeLayout.outerOverflow, "hidden");
+        assert.equal(codeLayout.scrollerOverflow, "auto");
+        assert.equal(codeLayout.wrapping, true);
+        const formatter = await $('[data-testid="format-document"]');
+        assert.equal(await formatter.isEnabled(), true);
+        await formatter.click();
+        const formattedHtml = await $('.htnote-code-host .cm-content').getText();
+        assert.match(formattedHtml, /<main id="htnote-content">\s*\n\s*<h1>/);
+        await browser.keys(["Control", "z"]);
         await html.click();
         await browser.keys("ArrowRight");
         assert.equal(await css.getAttribute("aria-selected"), "true");
+        assert.equal(await formatter.isEnabled(), false);
         assert.equal(await html.getAttribute("aria-selected"), "false");
         assert.equal(await browser.execute(() => document.activeElement?.getAttribute("data-testid")), "code-tab-css");
         assert.notEqual(await browser.execute(() => getComputedStyle(document.querySelector('[data-testid="code-tab-css"]')!, "::after").backgroundColor), "rgba(0, 0, 0, 0)");

@@ -1,8 +1,11 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
-import { act, renderHook } from "@testing-library/react";
+import { createElement } from "react";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { useEditSession } from "@/features/editor/useEditSession";
+import { VisualEditor } from "@/features/editor/VisualEditor";
+import { loadForVisual, visualContentIndent } from "@/features/editor/visualPipeline";
 import type { UnsavedDecision } from "@/features/editor/unsavedGuard";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -21,6 +24,28 @@ beforeEach(() => {
 });
 
 describe("useEditSession", () => {
+  it("flushes readable visual HTML into save_note while preserving the shell, assets and hash", async () => {
+    const original = '<!DOCTYPE html>\n<html><head><style>body { color: red; }</style></head><body>\n  <main id="htnote-content"><p>First</p><p>Second</p><div> raw\r\n  <span> untouched </span></div></main><script>outside()</script></body></html>';
+    const parts = loadForVisual(original);
+    if (!parts.ok) throw new Error(parts.reason);
+    const payloads: unknown[] = [];
+    mockIPC((command, args) => {
+      if (command === "read_note") return { ...note, html: original, css: "p {}", js: "run()" };
+      if (command === "save_note") {
+        payloads.push((args as { payload: unknown }).payload);
+        return { contentHash: "new", metadata: note.metadata };
+      }
+    });
+    const { result } = renderHook(() => useEditSession("a"));
+    await act(async () => { await result.current.enter(); });
+    render(createElement(VisualEditor, { ref: result.current.visualRef, initialInner: parts.inner,
+      contentIndent: visualContentIndent(parts), onChange: result.current.onVisualChange }));
+    act(() => fireEvent.change(screen.getByRole("combobox"), { target: { value: "h2" } }));
+    await act(async () => { expect(await result.current.save(true)).toBe(true); });
+    const expected = parts.before + '\n    <h2>First</h2>\n    <p>Second</p>\n    <div> raw\r\n  <span> untouched </span></div>\n  ' + parts.after;
+    expect(payloads).toEqual([{ html: expected, css: "p {}", js: "run()", expectedHash: "old" }]);
+    expect(doc()).toMatchObject({ dirty: false, base: { html: expected, contentHash: "new" } });
+  });
   it("enters visual mode, preserves changes across modes, and saves to view with the original hash", async () => {
     const commands: string[] = [];
     mockIPC((command, args) => {
@@ -50,6 +75,7 @@ describe("useEditSession", () => {
     await act(async () => { await result.current.enter(); });
     act(() => { result.current.switchMode("code"); result.current.switchMode("visual"); });
     expect(doc().dirty).toBe(false);
+    expect(doc().draft?.html).toBe(html);
     await act(async () => { await result.current.save(true); });
     expect(doc().mode).toBe("visual");
   });

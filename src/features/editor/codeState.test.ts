@@ -1,11 +1,34 @@
 import { Compartment } from "@codemirror/state";
-import { undoDepth } from "@codemirror/commands";
+import { redo, undo, undoDepth } from "@codemirror/commands";
 import { EditorView } from "@codemirror/view";
 import { describe, expect, it } from "vitest";
 
-import { codeChange, codeTheme, createCodeState } from "@/features/editor/codeState";
+import { codeChange, codeTheme, createCodeState, formatHtmlDocument } from "@/features/editor/codeState";
 
 describe("codeState", () => {
+  it("formats as one undo step isolated from edits on both sides", () => {
+    const view = new EditorView({ state: createCodeState("html", "<div><p>A</p></div>", new Compartment(), "light") });
+    try {
+      view.dispatch({ changes: { from: 8, insert: "B" }, userEvent: "input.type" });
+      const before = view.state.doc.toString();
+      formatHtmlDocument(view);
+      const formatted = view.state.doc.toString();
+      expect(formatted).toBe("<div>\n  <p>BA</p>\n</div>");
+      expect(undoDepth(view.state)).toBe(2);
+      formatHtmlDocument(view);
+      expect(undoDepth(view.state)).toBe(2);
+      view.dispatch({ changes: { from: 11, insert: "C" }, userEvent: "input.type" });
+      undo(view);
+      expect(view.state.doc.toString()).toBe(formatted);
+      undo(view);
+      expect(view.state.doc.toString()).toBe(before);
+      redo(view);
+      expect(view.state.doc.toString()).toBe(formatted);
+      undo(view);
+      undo(view);
+      expect(view.state.doc.toString()).toBe("<div><p>A</p></div>");
+    } finally { view.destroy(); }
+  });
   it("sekme durumları arasında içerik, seçim ve geri alma geçmişi korunur", () => {
     const theme = new Compartment();
     const html = createCodeState("html", "<p>ilk</p>", theme, "light");

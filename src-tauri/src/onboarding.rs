@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use crate::error::AppError;
 use crate::fs_util::write_file_atomic;
 use crate::notes::create::create_note_in;
-use crate::notes::html::sync_head;
+use crate::notes::html::render_note_template;
 use crate::notes::model::write_metadata_atomic;
 use crate::settings::{save_settings_atomic, Language};
 use crate::state::AppState;
@@ -137,14 +137,14 @@ fn create_examples(root: &Path, language: &Language, created: &mut Vec<PathBuf>)
     interactive.metadata.has_custom_js = true;
     write_file_atomic(&interactive_dir.join("style.css"), templates.css.as_bytes())?;
     write_file_atomic(&interactive_dir.join("script.js"), templates.js.as_bytes())?;
-    let html = sync_head(templates.interactive, &interactive.metadata, true, true);
+    let html = render_note_template(templates.interactive, &interactive.metadata);
     write_file_atomic(&interactive_dir.join("index.html"), html.as_bytes())?;
     write_metadata_atomic(&interactive_dir.join("metadata.json"), &interactive.metadata)?;
 
     let (_, welcome) = create_note_in(root, "", Some(templates.welcome_title))?;
     created.push(root.join(&welcome.rel_path));
     let html = templates.welcome.replace("{{NOTE_ID}}", &interactive.metadata.id.to_string());
-    let html = sync_head(&html, &welcome.metadata, false, false);
+    let html = render_note_template(&html, &welcome.metadata);
     write_file_atomic(&root.join(&welcome.rel_path).join("index.html"), html.as_bytes())?;
     Ok(())
 }
@@ -187,6 +187,32 @@ mod tests {
         let reopened = AppState::new(state.config_dir.clone(), crate::settings::load_settings(&state.config_dir).unwrap(), root.clone());
         run(&reopened).unwrap();
         assert_eq!(fs::read_dir(&root).unwrap().count(), 1);
+    }
+
+    #[test]
+    fn examples_have_indented_content_and_synchronized_metadata_in_both_languages() {
+        for language in [Language::Tr, Language::En] {
+            let dir = tempdir().unwrap();
+            let templates = templates(&language);
+            let mut created = Vec::new();
+            create_examples(dir.path(), &language, &mut created).unwrap();
+            for title in [templates.welcome_title, templates.interactive_title] {
+                let note_dir = dir.path().join(title);
+                let metadata = read_metadata(&note_dir.join("metadata.json")).unwrap();
+                let html = fs::read_to_string(note_dir.join("index.html")).unwrap();
+                assert!(html.contains("\n    <main id=\"htnote-content\">\n      <h1>"));
+                assert!(html.contains("\n    <meta name=\"htnote-created-at\""));
+                assert!(!html.contains("{{"));
+                // T202 still recognizes and updates the generated head.
+                let synced = crate::notes::html::sync_head(&html, &metadata, metadata.has_custom_css, metadata.has_custom_js);
+                if !metadata.has_custom_js {
+                    assert_eq!(synced, html);
+                }
+                assert_eq!(synced.matches("htnote-created-at").count(), 1);
+                assert_eq!(synced.matches("./style.css").count(), usize::from(metadata.has_custom_css));
+                assert_eq!(synced.matches("./script.js").count(), usize::from(metadata.has_custom_js));
+            }
+        }
     }
 
     #[test]
