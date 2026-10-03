@@ -1,5 +1,6 @@
 pub mod commands;
 mod drafts;
+mod external;
 mod export;
 mod onboarding;
 mod protocol;
@@ -17,7 +18,7 @@ mod trash;
 
 use tauri::Manager;
 
-/// Uygulama sürümü; tek kaynak `Cargo.toml`'dur.
+/// Uygulama sÃ¼rÃ¼mÃ¼; tek kaynak `Cargo.toml`'dur.
 pub fn app_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
@@ -25,7 +26,7 @@ pub fn app_version() -> &'static str {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_opener::Builder::new().open_js_links_on_click(false).build())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let config_dir = settings::config_dir_override().unwrap_or(app.path().app_config_dir()?);
@@ -78,6 +79,8 @@ pub fn run() {
             commands::update_metadata,
             commands::copy_asset,
             commands::open_note_asset,
+            commands::open_external_url,
+            commands::reveal_path,
             commands::save_asset_bytes,
             commands::write_draft,
             commands::read_draft,
@@ -113,42 +116,42 @@ mod tests {
     use super::*;
     use crate::notes::model::{write_metadata_atomic, NoteMetadata};
 
-    /// `tauri.conf.json` ile `Cargo.toml` sürümleri ayrışırsa paketler yanlış sürümle çıkar.
+    /// `tauri.conf.json` ile `Cargo.toml` sÃ¼rÃ¼mleri ayrÄ±ÅŸÄ±rsa paketler yanlÄ±ÅŸ sÃ¼rÃ¼mle Ã§Ä±kar.
     #[test]
     fn tauri_conf_version_matches_cargo_version() {
         let conf: serde_json::Value =
-            serde_json::from_str(include_str!("../tauri.conf.json")).expect("geçerli JSON");
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("geÃ§erli JSON");
         if conf["version"] == "../package.json" {
             let package: serde_json::Value =
-                serde_json::from_str(include_str!("../../package.json")).expect("geçerli package JSON");
+                serde_json::from_str(include_str!("../../package.json")).expect("geÃ§erli package JSON");
             assert_eq!(package["version"].as_str(), Some(app_version()));
         } else {
             assert_eq!(conf["version"].as_str(), Some(app_version()));
         }
     }
 
-    /// Not origin'i capability kapsamına girmemeli; iframe ve IPC kaynakları açıkça sınırlanmalı.
+    /// Not origin'i capability kapsamÄ±na girmemeli; iframe ve IPC kaynaklarÄ± aÃ§Ä±kÃ§a sÄ±nÄ±rlanmalÄ±.
     #[test]
     fn main_capability_and_csp_are_isolated() {
         let capability: serde_json::Value =
-            serde_json::from_str(include_str!("../capabilities/main.json")).expect("geçerli capability JSON");
+            serde_json::from_str(include_str!("../capabilities/main.json")).expect("geÃ§erli capability JSON");
         let conf: serde_json::Value =
-            serde_json::from_str(include_str!("../tauri.conf.json")).expect("geçerli Tauri JSON");
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("geÃ§erli Tauri JSON");
 
         assert!(capability.get("remote").is_none());
         assert_eq!(capability["windows"], serde_json::json!(["main"]));
         let permissions = capability["permissions"].as_array().expect("izin listesi");
         for permission in permissions {
-            let identifier = permission.as_str().or_else(|| permission["identifier"].as_str()).expect("izin kimliği");
+            let identifier = permission.as_str().or_else(|| permission["identifier"].as_str()).expect("izin kimliÄŸi");
             assert!(!identifier.contains('*'), "joker izin: {identifier}");
-            assert_ne!(identifier, "opener:allow-open-path");
+            assert!(!identifier.starts_with("opener:"), "direct opener permission: {identifier}");
         }
         let dialog_permissions: Vec<_> = permissions.iter()
             .filter_map(|permission| permission.as_str().or_else(|| permission["identifier"].as_str()))
             .filter(|identifier| identifier.starts_with("dialog:")).collect();
         assert_eq!(dialog_permissions, ["dialog:allow-open", "dialog:allow-save"]);
 
-        let csp = conf["app"]["security"]["csp"].as_str().expect("üretim CSP");
+        let csp = conf["app"]["security"]["csp"].as_str().expect("Ã¼retim CSP");
         let directives: std::collections::HashMap<_, _> = csp
             .split(';')
             .map(|directive| {

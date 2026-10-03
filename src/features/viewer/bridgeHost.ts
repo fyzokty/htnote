@@ -1,4 +1,3 @@
-import { openUrl } from "@tauri-apps/plugin-opener";
 import i18n from "@/i18n";
 
 import { notifyError } from "@/lib/errors";
@@ -185,7 +184,7 @@ export function handleBridgeMessage(event: MessageEvent) {
       else useUiStore.getState().pushToast({ kind: "error", messageKey: "errors.NOTE_NOT_FOUND" });
       break;
     case "HTNOTE_OPEN_EXTERNAL":
-      if (allowExternalOpen(frame)) void openUrl(message.url).catch(() => {});
+      if (allowExternalOpen(frame)) void ipc.openExternalUrl(message.url).catch(() => {});
       break;
     case "HTNOTE_OPEN_ASSET":
       if (allowExternalOpen(frame)) void ipc.openNoteAsset(noteId, message.relPath).catch(notifyError);

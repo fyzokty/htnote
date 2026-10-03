@@ -213,3 +213,14 @@ describe("ipc trash commands", () => {
     expect(handler).toHaveBeenCalledWith("empty_trash", {});
   });
 });
+
+describe("external OS operations", () => {
+  it("routes URL opens and export reveals through Rust commands", async () => {
+    const handler = vi.fn();
+    mockIPC(handler);
+    await ipc.openExternalUrl("https://example.com");
+    await ipc.revealExportFile("C:/Exports/note.html");
+    expect(handler).toHaveBeenCalledWith("open_external_url", { url: "https://example.com" });
+    expect(handler).toHaveBeenCalledWith("reveal_path", { path: "C:/Exports/note.html" });
+  });
+});

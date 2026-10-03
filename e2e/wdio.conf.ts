@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from "node:child_process";
 import assert from "node:assert/strict";
 import { connect } from "node:net";
 import { createWriteStream } from "node:fs";
-import { cp, mkdir, mkdtemp, rm } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
@@ -63,6 +63,10 @@ export const config = {
   },
   async onPrepare() {
     testDirectory = await mkdtemp(join(tmpdir(), "htnote-e2e-"));
+    const externalLog = join(testDirectory, "external-open.jsonl");
+    await writeFile(externalLog, "");
+    // WDIO workers and tauri-driver -> EdgeDriver -> HTNote share this path.
+    process.env.HTNOTE_EXTERNAL_OPEN_LOG = externalLog;
     const root = join(testDirectory, "notes");
     const configDir = join(testDirectory, "config");
     await cp(process.env.HTNOTE_E2E_FIXTURE_DIR ?? resolve("e2e", "fixtures"), root, { recursive: true });
@@ -82,6 +86,7 @@ export const config = {
         WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `${process.env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS ?? ""} --force-prefers-reduced-motion`.trim(),
         HTNOTE_ROOT_OVERRIDE: root,
         HTNOTE_CONFIG_DIR_OVERRIDE: configDir,
+        HTNOTE_EXTERNAL_OPEN_LOG: externalLog,
       },
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -94,7 +99,11 @@ export const config = {
   async onComplete() {
     driver?.kill();
     driverLog?.end();
-    if (testDirectory) await rm(testDirectory, { recursive: true, force: true });
+    if (testDirectory) {
+      await cp(join(testDirectory, "external-open.jsonl"), resolve("e2e", "logs", "external-open.jsonl"));
+      console.info("External opens recorded in e2e/logs/external-open.jsonl (OS opens suppressed)");
+      await rm(testDirectory, { recursive: true, force: true });
+    }
   },
   async afterTest(test: { title: string; file?: string }, _context: unknown, result: { error?: Error }) {
     try {

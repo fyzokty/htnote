@@ -22,6 +22,10 @@
 
   const commands = [
     ["get_settings", undefined],
+    ["open_external_url", { url: "https://example.com/iframe-denied" }],
+    ["reveal_path", { path: "C:/iframe-denied" }],
+    ["reveal_in_explorer", { relPath: "iframe-denied" }],
+    ["open_note_asset", { noteId: "3f6c2a9e-8b1d-4c57-9e0a-2d4b7f1c5e88", relPath: "assets/iframe-denied.pdf" }],
     ["plugin:opener|open_url", { url: "https://example.com" }],
     ["plugin:event|listen", { event: "fs-change" }],
   ];
