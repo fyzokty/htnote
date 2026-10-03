@@ -1,4 +1,5 @@
 import { openUrl } from "@tauri-apps/plugin-opener";
+import i18n from "@/i18n";
 
 import { notifyError } from "@/lib/errors";
 import { ipc } from "@/lib/ipc";
@@ -130,7 +131,14 @@ function currentTheme() {
   const theme = useSettingsStore.getState().settings?.theme ?? "system";
   const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
   const mode = resolveThemeMode(theme, prefersDark);
-  return { type: "HTNOTE_THEME", vars: getNoteThemeVars(mode), mode };
+  const vars = getNoteThemeVars(mode);
+  const style = getComputedStyle(document.documentElement);
+  for (const token of ["surface", "text", "muted", "border", "accent", "accent-text", "accent-hover", "hover", "danger"]) {
+    const value = style.getPropertyValue(`--app-${token}`).trim();
+    if (value) vars[`--ht-audio-${token}`] = value;
+  }
+  const audioLabels = Object.fromEntries((["play", "pause", "mute", "unmute", "seek", "title", "error"] as const).map((key) => [key, i18n.t(`audioPlayer.${key}`)]));
+  return { type: "HTNOTE_THEME", vars, mode, audioLabels };
 }
 
 function sendTheme(frame: Window) {
@@ -194,6 +202,10 @@ export function handleBridgeMessage(event: MessageEvent) {
 
 export function installBridgeHost(target: Window = window): () => void {
   target.addEventListener("message", handleBridgeMessage);
+  i18n.on("languageChanged", sendThemeToAll);
+  // React applies the root theme class after the settings store notification.
+  const themeObserver = new MutationObserver(sendThemeToAll);
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
   const unsubscribe = useSettingsStore.subscribe((state, previous) => {
     if (state.settings?.theme !== previous.settings?.theme) sendThemeToAll();
     if (state.settings?.contentWidth !== previous.settings?.contentWidth) sendContentWidthToAll();
@@ -205,6 +217,8 @@ export function installBridgeHost(target: Window = window): () => void {
   media?.addEventListener("change", onSystemThemeChange);
   return () => {
     target.removeEventListener("message", handleBridgeMessage);
+    i18n.off("languageChanged", sendThemeToAll);
+    themeObserver.disconnect();
     unsubscribe();
     media?.removeEventListener("change", onSystemThemeChange);
   };

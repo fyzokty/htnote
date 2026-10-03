@@ -13,3 +13,13 @@ Köprü scripti `window.htnote.noteId` alanında notun UUID'sini sağlar. Notlar
 Başka bir nota `<a href="htnote://note/<uuid>">Not</a>` biçiminde bağlanın; `<uuid>` hedef notun kimliğidir. `https:`, `http:` ve `mailto:` bağlantıları sistem tarayıcısına yönlendirilir. Not JavaScript'i ayrı origin'li sandbox iframe'inde çalışır: popup açamaz, ana pencereye geçiş yapamaz ve Tauri IPC'ye erişemez. `window.open` harici adresler için sistem tarayıcısı isteği gönderir, yeni iframe penceresi oluşturmaz.
 
 PDF oluşturulurken not `?print=1` ile yüklenir. Bu mod açık temayı uygular; yazdırmada gizlenecek etkileşimli kontroller için kendi `@media print` kurallarınızı ekleyin.
+
+## Video ve ses
+
+Uygulama içinde köprü `:where(video,img)` ile `max-width: 100%; height: auto` ve `:where(video)` ile `max-height: 75vh` uygular. Daha özgül yazar CSS'i veya inline stiller bu temel sınırları geçersiz kılabilir.
+
+`<audio controls src="./assets/kayit.wav" title="Görüşme kaydı"></audio>` kompakt, erişilebilir ses oynatıcısıyla gösterilir. Başlık verilmezse dosya adı kullanılır. Space oynatır/duraklatır; sağ/sol oklar beş saniye ileri/geri gider. İlerleme çubuğuna tıklayarak veya sürükleyerek konum seçebilirsiniz; Home/End başlangıca/sona gider. Dikey çubuklar dekoratiftir, gerçek dalga formu değildir; azaltılmış hareket tercihinde animasyon kapanır. Kaynak audio öğesi yerinde ve gizli kalır; script'ler aynı öğeyi kullanabilir. `controls` içermeyen ses öğelerine özel oynatıcı eklenmez.
+
+Native ses kontrollerini korumak için `<audio controls data-ht-native src="./assets/kayit.wav"></audio>` kullanın. Özel oynatıcı Shadow DOM içinde `ht-audio-*` sınıflarını ve ana uygulamanın tema token'larını kullanır. Kontrol etiketleri uygulama dili değiştiğinde güncellenir.
+
+Tüm ses/video kontrollerinde indirme seçeneği uygulama içinde kapatılır; video bağlam menüsü de engellenir. Bu bir dosya erişim güvenliği önlemi değildir. Değişiklikler yalnızca sunum sırasında yapılır; diskteki HTML'e yazılmaz. Tek HTML ve ZIP dışa aktarımları bridge içermez ve native kontrolleri korur.

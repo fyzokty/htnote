@@ -20,8 +20,12 @@ function click(href: string, type = "click") {
 describe("note bridge", () => {
   beforeAll(() => {
     history.replaceState(null, "", "/123e4567-e89b-12d3-a456-426614174000/index.html");
+    document.body.innerHTML = '<video controls></video><audio controls></audio>';
     vi.spyOn(window.parent, "postMessage").mockImplementation(messages);
     window.eval(source);
+    expect(document.querySelector("video")).toHaveAttribute("controlslist", "nodownload");
+    expect(document.querySelector("audio")?.hidden).toBe(true);
+    expect(document.querySelector(".ht-audio-player")?.shadowRoot).not.toBeNull();
     window.dispatchEvent(new Event("load"));
     expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_READY", noteId: "123e4567-e89b-12d3-a456-426614174000", path: location.pathname }, "*");
   });
@@ -35,7 +39,8 @@ describe("note bridge", () => {
 
   it("exposes frozen note metadata within the size limit", () => {
     expect(Object.isFrozen((window as unknown as { htnote: object }).htnote)).toBe(true);
-    expect(new TextEncoder().encode(source).length).toBeLessThan(7168);
+    // The dependency-free audio UI is served with the bridge rather than a separate bundle.
+    expect(new TextEncoder().encode(source).length).toBeLessThan(24576);
   });
 
   it("injects one low-specificity scrollbar stylesheet and follows trusted theme tokens", () => {
@@ -214,6 +219,106 @@ describe("note bridge", () => {
     expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_SCROLL", scrollY: window.scrollY, path: location.pathname, token: "document-token" }, "*");
     frame.mockRestore();
     scrollTo.mockRestore();
+  });
+
+  it("constrains media with low specificity so author sizes win", () => {
+    expect(document.querySelector("#htnote-media-base")?.textContent).toContain(":where(video,img){max-width:100%;height:auto}");
+    expect(document.querySelector("#htnote-media-base")?.textContent).toContain(":where(video){max-height:75vh}");
+    const author = document.createElement("style");
+    author.textContent = "video.author-video { max-height: 900px; max-width: 70%; }";
+    document.head.append(author);
+    document.body.innerHTML = '<video class="author-video"></video>';
+    expect(getComputedStyle(document.querySelector("video")!).maxHeight).toBe("900px");
+    expect(getComputedStyle(document.querySelector("video")!).maxWidth).toBe("70%");
+    author.remove();
+  });
+
+  it("enhances dynamically added media, preserves control tokens and blocks video saving", async () => {
+    document.body.innerHTML = '<video controls controlslist="noremoteplayback"></video><audio data-ht-native controls></audio>';
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const video = document.querySelector("video")!;
+    expect(video).toHaveAttribute("controlslist", "noremoteplayback nodownload");
+    expect(document.querySelector("audio")).toHaveAttribute("controlslist", "nodownload");
+    const menu = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    video.dispatchEvent(menu);
+    expect(menu.defaultPrevented).toBe(true);
+    const dynamic = document.createElement("video");
+    document.body.append(dynamic);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(dynamic).toHaveAttribute("controlslist", "nodownload");
+  });
+
+  it("wraps only audio with controls, supports native opt-out and restores removed players", async () => {
+    document.body.innerHTML = '<audio controls src="./assets/a.wav"></audio><audio controls data-ht-native></audio><audio></audio>';
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const [audio, native, scriptOnly] = document.querySelectorAll("audio");
+    expect(document.querySelectorAll(".ht-audio-player")).toHaveLength(1);
+    expect(audio.hidden).toBe(true);
+    expect(native.hidden).toBe(false);
+    expect(scriptOnly.hidden).toBe(false);
+    audio.setAttribute("data-ht-native", "");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.querySelector(".ht-audio-player")).toBeNull();
+    expect(audio.hidden).toBe(false);
+    audio.removeAttribute("data-ht-native");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const host = document.querySelector(".ht-audio-player")!;
+    expect(host.shadowRoot?.querySelector(".ht-audio-title")).toHaveTextContent("a.wav");
+    audio.remove();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(host.isConnected).toBe(false);
+    expect(audio.hidden).toBe(false);
+  });
+
+  it("localizes shadow controls and follows trusted theme changes without rebuilding audio", async () => {
+    document.body.innerHTML = '<audio controls src="./assets/a.wav"></audio>';
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const audio = document.querySelector("audio")!;
+    const shadow = document.querySelector(".ht-audio-player")!.shadowRoot!;
+    const labels = { play: "Oynat", pause: "Duraklat", mute: "Sesi kapat", unmute: "Sesi aç", seek: "Ses konumu" };
+    hostMessage({ type: "HTNOTE_THEME", mode: "dark", vars: { "--ht-audio-surface": "dark-card" }, audioLabels: labels }, null);
+    expect(shadow.querySelector("button")).not.toHaveAttribute("aria-label", "Oynat");
+    hostMessage({ type: "HTNOTE_THEME", mode: "dark", vars: { "--ht-audio-surface": "dark-card" }, audioLabels: labels });
+    expect(shadow.querySelector("button")).toHaveAttribute("aria-label", "Oynat");
+    expect(document.documentElement.style.getPropertyValue("--ht-audio-surface")).toBe("dark-card");
+    hostMessage({ type: "HTNOTE_THEME", mode: "light", vars: { "--ht-audio-surface": "light-card" }, audioLabels: { play: "Play" } });
+    expect(shadow.querySelector("button")).toHaveAttribute("title", "Play");
+    expect(document.documentElement.style.getPropertyValue("--ht-audio-surface")).toBe("light-card");
+    expect(document.querySelector("audio")).toBe(audio);
+    expect(shadow.querySelector("style")?.textContent).toContain("prefers-reduced-motion:reduce");
+  });
+
+  it("plays, mutes and seeks shadow audio with keyboard and pointer controls", async () => {
+    document.body.innerHTML = '<audio controls title="Recording"><source src="./assets/test.wav"></audio>';
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const audio = document.querySelector("audio")!;
+    let paused = true;
+    Object.defineProperties(audio, { duration: { configurable: true, value: 125 }, paused: { configurable: true, get: () => paused } });
+    const play = vi.spyOn(audio, "play").mockImplementation(async () => { paused = false; audio.dispatchEvent(new Event("play")); });
+    const pause = vi.spyOn(audio, "pause").mockImplementation(() => { paused = true; audio.dispatchEvent(new Event("pause")); });
+    audio.dispatchEvent(new Event("loadedmetadata"));
+    const shadow = document.querySelector(".ht-audio-player")!.shadowRoot!;
+    const slider = shadow.querySelector<HTMLElement>("[role=slider]")!;
+    slider.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true }));
+    expect(play).toHaveBeenCalledOnce();
+    expect(shadow.querySelector(".ht-audio-card")).toHaveAttribute("data-playing", "true");
+    shadow.querySelector<HTMLButtonElement>(".ht-audio-play")!.click();
+    expect(pause).toHaveBeenCalledOnce();
+    slider.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    expect(audio.currentTime).toBe(5);
+    expect(slider).toHaveAttribute("aria-valuenow", "5");
+    slider.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+    expect(audio.currentTime).toBe(0);
+    expect(shadow.querySelector(".ht-audio-time")).toHaveTextContent("0:00 / 2:05");
+    slider.setPointerCapture = vi.fn(); slider.hasPointerCapture = () => true; slider.releasePointerCapture = vi.fn();
+    vi.spyOn(slider, "getBoundingClientRect").mockReturnValue({ left: 10, width: 100 } as DOMRect);
+    slider.dispatchEvent(new MouseEvent("pointerdown", { button: 0, clientX: 60, bubbles: true }));
+    expect(audio.currentTime).toBe(62.5);
+    slider.dispatchEvent(new MouseEvent("pointermove", { clientX: 110, bubbles: true }));
+    expect(audio.currentTime).toBe(125);
+    shadow.querySelector<HTMLButtonElement>(".ht-audio-mute")!.click();
+    expect(audio.muted).toBe(true);
+    expect(shadow.querySelector(".ht-audio-title small")).toHaveTextContent("test.wav");
   });
 
   it("uses light theme for print mode", () => {

@@ -28,5 +28,6 @@
   "ui": {
     "confirm": "Onayla",
     "shortcutHint": "Klavye kısayolu"
-  }
+  },
+  "audioPlayer": {"play":"Oynat","pause":"Duraklat","mute":"Sesi kapat","unmute":"Sesi aç","seek":"Ses konumu","title":"Ses kaydı","error":"Ses oynatılamadı."}
 }

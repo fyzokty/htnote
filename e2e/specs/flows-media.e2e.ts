@@ -141,7 +141,8 @@ describe("visual media previews", () => {
     const loaded = await browser.execute(() => ({
       image: document.querySelector<HTMLImageElement>(".tiptap img")!.src,
       media: Array.from(document.querySelectorAll<HTMLMediaElement>(".tiptap audio, .tiptap video"))
-        .map((element) => ({ src: element.currentSrc, paused: element.paused, controls: element.controls,
+        .map((element) => ({ src: element.currentSrc, paused: element.paused, controls: element.controls, kind: element.tagName,
+          controlsList: element.getAttribute("controlslist"),
           error: element.error?.code ?? null, autoplay: element.autoplay, time: element.currentTime })),
     }));
     assert.ok(loaded.image.startsWith(`${origin}/${note.id}/assets/`));
@@ -150,7 +151,8 @@ describe("visual media previews", () => {
       assert.equal(media.error, null);
       assert.equal(media.paused, true);
       assert.equal(media.autoplay, false);
-      assert.equal(media.controls, true);
+      assert.equal(media.controls, media.kind === "VIDEO");
+      assert.equal(media.controlsList, "nodownload");
       assert.equal(media.time, 0);
     }
 
@@ -165,7 +167,7 @@ describe("visual media previews", () => {
     await $(".htnote-media-image .htnote-media-toolbar").waitForDisplayed();
     await clickMediaGap(".tiptap img[alt='Preview']");
     await clickMediaGap(".tiptap img[alt='SVG preview']");
-    await clickMediaGap(".tiptap audio");
+    await clickMediaGap(".tiptap .ht-audio-card");
     await clickMediaGap(".tiptap video");
     await $(".tiptap img[alt='Preview']").click();
     await $(".htnote-media-image .htnote-media-toolbar").waitForDisplayed();

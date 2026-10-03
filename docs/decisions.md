@@ -103,7 +103,7 @@
 - **host → iframe** mesajları:
   | type | payload | Anlam |
   |---|---|---|
-  | `HTNOTE_THEME` | `{ vars: Record<string,string>, mode }` | `--ht-*` CSS değişkenlerini `:root`'a uygular |
+  | `HTNOTE_THEME` | `{ vars: Record<string,string>, mode, audioLabels }` | `--ht-*` CSS değişkenlerini ve host i18n kaynaklı ses oynatıcı etiketlerini uygular |
   | `HTNOTE_HIGHLIGHT` | `{ query }` | Metni işaretler ve ilk eşleşmeye kaydırır |
 - Host yalnızca `event.source === iframe.contentWindow` **ve** `event.origin` protokol origin'i olan mesajları işler.
   Payload'lar doğrulanır; tanınmayan `type` yok sayılır.
@@ -207,6 +207,7 @@
 - **Tek HTML:** `style.css` `<style>`, `script.js` `<script>` olarak gömülür. `src`/`href`/CSS `url()` içindeki göreli asset
   yolları Base64 data URI'ye çevrilir. Bridge dahil edilmez. 20 MB üzeri çıktıda kullanıcı uyarılır.
 - **ZIP:** Not klasörünün tamamı.
+- Video boyut sınırları, `nodownload`, video bağlam menüsü engeli ve özel ses oynatıcı yalnızca uygulama içi çalışma anında uygulanır; kayıtlı HTML değişmez. Tek HTML ve ZIP dışa aktarımları bridge içermez, native medya kontrollerini korur.
 - **PDF (Windows):** Gizli bir WebView penceresi notu protokol URL'sinden yükler. `load` + 500 ms beklendikten sonra WebView2
   `PrintToPdf` ile A4 ve arka plan dahil PDF üretilir. Diğer platformlarda ileride `window.print()` yedeği kullanılacak.
 - Hedef dosya `tauri-plugin-dialog` kaydetme diyaloğuyla seçilir.
