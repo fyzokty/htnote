@@ -4,6 +4,8 @@ import { resolve } from "node:path";
 import type { Editor } from "@tiptap/core";
 import type { MediaClickDebug } from "../../src/features/editor/mediaSelection";
 
+import { pointerClickAt } from "../helpers/pointer";
+
 import { createNote, editNote, invoke, openNote, saveShortcut, useTempRoot, withNoteFrame } from "../helpers/flows";
 
 // WebView2'nin desteklediği codec ile küçük, gerçek bir video üretir; harici araç gerekmez.
@@ -69,12 +71,10 @@ async function clickMediaGap(selector: string, side: "left" | "right" = "right")
     });
     // WebDriver offsets are relative to the element's in-view center, rounded
     // down by the protocol. Use the same center when computing the offsets.
-    const centerX = Math.floor((Math.max(0, media.left) + Math.min(window.innerWidth, media.right)) / 2);
     const centerY = Math.floor((Math.max(0, media.top) + Math.min(window.innerHeight, media.bottom)) / 2);
     const x = Math.round(side === "right" ? editor.right - 8 : editor.left + 8);
     return {
       x, y: centerY,
-      offsetX: x - centerX, offsetY: 0,
       edge: side === "right" ? media.right : media.left,
       boundaries,
     };
@@ -130,20 +130,16 @@ async function clickMediaGap(selector: string, side: "left" | "right" = "right")
   try {
     assert.ok(side === "right" ? point.x > point.edge : point.x < point.edge, message("Click must be outside the media preview"));
     assert.equal(point.boundaries.length, 2, message("Clicked media must have two boundaries"));
-    await browser.performActions([{ type: "pointer", id: "media-gap", parameters: { pointerType: "mouse" }, actions: [
-      { type: "pointerMove", origin: { "element-6066-11e4-a52e-4f735466cecf": origin.elementId },
-        x: point.offsetX, y: point.offsetY }, { type: "pointerDown", button: 0 },
-    ] }]);
-    // WebView2 versions can resolve the same outside point to either adjacent
-    // gap. Both are valid, but selecting the atom or a distant gap is a failure.
-    diagnostics.afterMousedown = await snapshot();
+    await pointerClickAt(origin, point.x, point.y, {
+      afterDown: async () => {
+        // WebView2 can resolve an outside point to either adjacent gap. The
+        // existing boundary expectations still exclude atoms and distant gaps.
+        diagnostics.afterMousedown = await snapshot();
+      },
+      afterUp: async () => { diagnostics.afterMouseup = await snapshot(); },
+    });
+    assert.ok(diagnostics.afterMousedown && diagnostics.afterMouseup, message("Both mouse phases must be captured"));
     const down = diagnostics.afterMousedown.proseMirrorSelection;
-    await browser.performActions([{ type: "pointer", id: "media-gap", parameters: { pointerType: "mouse" }, actions: [
-      { type: "pointerUp", button: 0 },
-    ] }]);
-    // Capture mouseup even when the saved mousedown selection fails, so the
-    // failure includes both phases without changing either expectation.
-    diagnostics.afterMouseup = await snapshot();
     const actual = diagnostics.afterMousedown.handler?.last;
     assert.ok(actual, message("Outside mousedown must reach the media diagnostic hook"));
     const dx = actual.x - point.x;

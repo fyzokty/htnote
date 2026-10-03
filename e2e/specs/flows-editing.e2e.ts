@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 
+import { pointerMoveTo } from "../helpers/pointer";
+
 import { createNote, editNote, flatten, invoke, openNote, saveShortcut, tree, typeInVisualEditor, useTempRoot, waitForFile, withNoteFrame } from "../helpers/flows";
 
 describe("editing flows", () => {
@@ -75,11 +77,11 @@ describe("editing flows", () => {
         assert.ok(visualLayout.scrollHeight > 100);
         assert.ok(visualLayout.surfaceHeight >= visualLayout.scrollHeight - 1);
         assert.equal(visualLayout.overflow, "auto");
-        await $('.htnote-editor-toolbar button[aria-label] svg').moveTo();
+        await pointerMoveTo(await $('.htnote-editor-toolbar button[aria-label] svg'));
         await $('[role="tooltip"]').waitForDisplayed();
         assert.ok((await $('[role="tooltip"]').getText()).includes("Ctrl+Z"));
         assert.equal(await browser.execute(() => getComputedStyle(document.querySelector(".htnote-editor-toolbar")!).position), "sticky");
-        await $('[data-testid="save-note"] svg').moveTo();
+        await pointerMoveTo(await $('[data-testid="save-note"] svg'));
         await browser.waitUntil(async () => (await $('[role="tooltip"]').getText()).includes("Ctrl+S"));
         assert.notEqual(await browser.execute(() => getComputedStyle(document.querySelector('[data-testid="save-note"]')!).backgroundColor), "rgba(0, 0, 0, 0)");
         await $('[data-testid="code-mode"]').click();
@@ -145,7 +147,7 @@ describe("editing flows", () => {
     const tab = await $(`[role="tab"][data-note-id="${note.id}"]`);
     const dot = await tab.$('[data-testid="tab-dirty"]');
     await dot.waitForDisplayed();
-    await tab.moveTo();
+    await pointerMoveTo(tab);
     await tab.$("button svg").waitForDisplayed();
     assert.equal(await dot.isDisplayed(), false);
     await $(`[data-note-id="${note.id}"] button`).click();
