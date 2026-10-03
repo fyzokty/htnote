@@ -1,10 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Compartment } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
 import type { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/Button";
+import { Tooltip } from "@/components/ui/Tooltip";
 import { NotePicker } from "@/components/ui/NotePicker";
 import { codeChange, codeTheme, createCodeState } from "@/features/editor/codeState";
 import type { CodeChange, CodeTab } from "@/features/editor/codeState";
@@ -22,14 +25,16 @@ interface CodeEditorProps {
   js: string;
   onChange: (partial: CodeChange) => void;
   initialTab?: CodeTab;
+  toolbarActions?: ReactNode;
 }
 
 const tabs: CodeTab[] = ["html", "css", "js"];
 
-export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = "html" }: CodeEditorProps) {
+export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = "html", toolbarActions }: CodeEditorProps) {
   const { t } = useTranslation();
   const mode = useThemeMode();
   const [activeTab, setActiveTab] = useState<CodeTab>(initialTab);
+  const tabId = useId();
   const [pickerOpen, setPickerOpen] = useState(false);
   const cursorRef = useRef<number | null>(null);
   const openPicker = (view: EditorView) => {
@@ -121,7 +126,6 @@ export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = 
     activeRef.current = tab;
     viewRef.current.setState(statesRef.current[tab]);
     setActiveTab(tab);
-    viewRef.current.focus();
   };
 
   const selectNote = (note: FlatNote) => {
@@ -135,10 +139,28 @@ export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = 
 
   return (
     <section className="htnote-code-editor" aria-label={t("editor.code.label")}>
-      <div className="htnote-code-tabs" role="tablist" aria-label={t("editor.code.tabs")}>
-        {tabs.map((tab) => <button key={tab} type="button" role="tab" aria-selected={activeTab === tab} onClick={() => switchTab(tab)}>{t(`editor.code.${tab}`)}</button>)}
+      <div className="htnote-editor-bar htnote-code-bar">
+        <div className="htnote-code-tabs" role="tablist" aria-label={t("editor.code.tabs")}
+          onKeyDown={(event) => {
+            if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+            event.preventDefault();
+            const index = tabs.indexOf(activeTab);
+            const next = event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1
+              : (index + (event.key === "ArrowRight" ? 1 : -1) + tabs.length) % tabs.length;
+            switchTab(tabs[next]);
+            event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')[next]?.focus();
+          }}>
+          {tabs.map((tab) => <Tooltip key={tab} label={t(`editor.code.${tab}`)}>
+            <Button variant="ghost" size="sm" className="htnote-code-tab" data-testid={`code-tab-${tab}`}
+              id={`${tabId}-${tab}`} role="tab" aria-controls={`${tabId}-panel`} aria-selected={activeTab === tab}
+              tabIndex={activeTab === tab ? 0 : -1} onClick={() => switchTab(tab)}>
+              <span aria-hidden="true" className={`htnote-code-dot htnote-code-dot-${tab}`} />{t(`editor.code.${tab}`)}
+            </Button>
+          </Tooltip>)}
+        </div>
+        {toolbarActions && <div className="htnote-code-actions">{toolbarActions}</div>}
       </div>
-      <div className="htnote-code-host" ref={hostRef} aria-label={t(`editor.code.${activeTab}`)} />
+      <div className="htnote-code-host" ref={hostRef} id={`${tabId}-panel`} role="tabpanel" aria-labelledby={`${tabId}-${activeTab}`} />
       {pickerOpen && <NotePicker currentNoteId={noteId} onSelect={selectNote} onClose={() => setPickerOpen(false)} />}
     </section>
   );

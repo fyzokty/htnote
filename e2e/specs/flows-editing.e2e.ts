@@ -53,6 +53,51 @@ describe("editing flows", () => {
     });
   });
 
+  it("shows icon tooltips and accessible code tabs with a persistent preview toggle in both themes", async () => {
+    const settings = await invoke<{ theme: string; editorLivePreview: boolean }>("get_settings");
+    const note = await createNote("Editor controls");
+    try {
+      for (const theme of ["light", "dark"]) {
+        await invoke("update_settings", { patch: { theme, editorLivePreview: true } });
+        await browser.refresh();
+        await openNote(note.id);
+        await editNote();
+        const visual = await $('[data-testid="visual-mode"]');
+        assert.equal(await visual.getAttribute("aria-pressed"), "true");
+        await $('.htnote-editor-toolbar button[aria-label] svg').moveTo();
+        await $('[role="tooltip"]').waitForDisplayed();
+        assert.ok((await $('[role="tooltip"]').getText()).includes("Ctrl+Z"));
+        assert.equal(await browser.execute(() => getComputedStyle(document.querySelector(".htnote-editor-toolbar")!).position), "sticky");
+        await $('[data-testid="save-note"] svg').moveTo();
+        await browser.waitUntil(async () => (await $('[role="tooltip"]').getText()).includes("Ctrl+S"));
+        assert.notEqual(await browser.execute(() => getComputedStyle(document.querySelector('[data-testid="save-note"]')!).backgroundColor), "rgba(0, 0, 0, 0)");
+        await $('[data-testid="code-mode"]').click();
+        assert.equal(await $('[data-testid="code-mode"]').getAttribute("aria-pressed"), "true");
+        const html = await $('[data-testid="code-tab-html"]');
+        const css = await $('[data-testid="code-tab-css"]');
+        assert.equal(await html.getAttribute("aria-selected"), "true");
+        await html.click();
+        await browser.keys("ArrowRight");
+        assert.equal(await css.getAttribute("aria-selected"), "true");
+        assert.equal(await html.getAttribute("aria-selected"), "false");
+        assert.equal(await browser.execute(() => document.activeElement?.getAttribute("data-testid")), "code-tab-css");
+        assert.notEqual(await browser.execute(() => getComputedStyle(document.querySelector('[data-testid="code-tab-css"]')!, "::after").backgroundColor), "rgba(0, 0, 0, 0)");
+        const toggle = await $('[data-testid="live-preview-toggle"]');
+        assert.equal(await toggle.getAttribute("aria-pressed"), "true");
+        assert.equal(await browser.execute(() => !!document.querySelector('.htnote-code-bar [data-testid="live-preview-toggle"]')), true);
+        await toggle.click();
+        await browser.waitUntil(async () => !(await invoke<{ editorLivePreview: boolean }>("get_settings")).editorLivePreview);
+        assert.equal(await toggle.getAttribute("aria-pressed"), "false");
+        assert.equal(await $('.htnote-split-view [role="separator"]').isExisting(), false);
+        await toggle.click();
+        await browser.waitUntil(async () => (await invoke<{ editorLivePreview: boolean }>("get_settings")).editorLivePreview);
+        assert.equal(await toggle.getAttribute("aria-pressed"), "true");
+      }
+    } finally {
+      await invoke("update_settings", { patch: { theme: settings.theme, editorLivePreview: settings.editorLivePreview } });
+    }
+  });
+
   it("discards a dirty tab on close", async () => {
     const note = await createNote("Dirty");
     await openNote(note.id);
