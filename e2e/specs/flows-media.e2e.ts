@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { mkdir } from "node:fs/promises";
 import { resolve } from "node:path";
+import type { Editor } from "@tiptap/core";
 
-import { createNote, editNote, invoke, openNote, useTempRoot } from "../helpers/flows";
+import { createNote, editNote, invoke, openNote, saveShortcut, useTempRoot, withNoteFrame } from "../helpers/flows";
 
 // WebView2'nin desteklediği codec ile küçük, gerçek bir video üretir; harici araç gerekmez.
 async function videoBytes(): Promise<number[]> {
@@ -49,6 +50,48 @@ function audioBytes(): number[] {
   return Array.from(wav);
 }
 
+async function clickMediaGap(selector: string, side: "left" | "right" = "right") {
+  await $(selector).scrollIntoView();
+  const point = await browser.execute((selector, side) => {
+    const surface = document.querySelector<HTMLElement>(".tiptap")! as HTMLElement & { editor: Editor };
+    const editor = surface.getBoundingClientRect();
+    const preview = document.querySelector<HTMLElement>(selector)!;
+    const media = preview.getBoundingClientRect();
+    let boundary: number | null = null;
+    surface.editor.state.doc.descendants((node, pos) => {
+      if (surface.editor.view.nodeDOM(pos) === preview.closest(".htnote-media-node")) {
+        boundary = pos + (side === "right" ? node.nodeSize : 0);
+      }
+    });
+    return {
+      x: Math.round(side === "right" ? editor.right - 8 : editor.left + 8),
+      y: Math.round(media.top + media.height / 2),
+      edge: side === "right" ? media.right : media.left,
+      boundary,
+    };
+  }, selector, side);
+  assert.ok(side === "right" ? point.x > point.edge : point.x < point.edge, "Click must be outside the media preview");
+  assert.notEqual(point.boundary, null);
+  const selection = () => browser.execute(() => {
+    const editor = (document.querySelector(".tiptap") as HTMLElement & { editor: Editor }).editor;
+    return editor.state.selection.toJSON() as { type: string; pos?: number };
+  });
+  try {
+    await browser.performActions([{ type: "pointer", id: "media-gap", parameters: { pointerType: "mouse" }, actions: [
+      { type: "pointerMove", origin: "viewport", x: point.x, y: point.y }, { type: "pointerDown", button: 0 },
+    ] }]);
+    assert.deepEqual(await selection(), { type: "gapcursor", pos: point.boundary }, "Outside mousedown must place the cursor at the media boundary");
+    await browser.performActions([{ type: "pointer", id: "media-gap", parameters: { pointerType: "mouse" }, actions: [
+      { type: "pointerUp", button: 0 },
+    ] }]);
+    assert.deepEqual(await selection(), { type: "gapcursor", pos: point.boundary }, "Outside mouseup must keep the cursor at the media boundary");
+    await browser.waitUntil(async () => browser.execute(() => !document.querySelector(".htnote-media.is-selected")),
+      { timeout: 5000, timeoutMsg: "Outside click left a media preview selected" });
+  } finally {
+    await browser.releaseActions();
+  }
+}
+
 describe("visual media previews", () => {
   let restore: (() => Promise<void>) | undefined;
   beforeEach(async () => { ({ restore } = await useTempRoot()); });
@@ -72,10 +115,12 @@ describe("visual media previews", () => {
       return canvas.toDataURL("image/png").split(",")[1];
     });
     const image = await saveAsset("preview image.png", Array.from(Buffer.from(imageData, "base64")));
+    const svg = await saveAsset("preview.svg", Array.from(Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="120" height="80"><rect width="120" height="80" fill="currentColor"/></svg>')));
     const audio = await saveAsset("preview.wav", audioBytes());
     const video = await saveAsset("preview.webm", await videoBytes());
     const base = await invoke<{ html: string; css: string | null; js: string | null; contentHash: string }>("read_note", { id: note.id });
     const content = `<img src="${image.relPath.replace(/ /g, "%20")}" alt="Preview" width="320">` +
+      `<img src="${svg.relPath}" alt="SVG preview" width="120">` +
       `<audio src="${audio.relPath}" autoplay preload="none"></audio>` +
       `<audio autoplay><source src="${audio.relPath}" type="audio/wav"></audio>` +
       `<video src="${video.relPath}" poster="${image.relPath}" autoplay preload="none"></video>` +
@@ -89,9 +134,9 @@ describe("visual media previews", () => {
     await $(".htnote-visual-editor .tiptap img").waitForDisplayed();
     const origin = await invoke<string>("get_note_origin");
     await browser.waitUntil(async () => browser.execute(() => {
-      const image = document.querySelector<HTMLImageElement>(".tiptap img");
+      const images = Array.from(document.querySelectorAll<HTMLImageElement>(".tiptap img"));
       const media = Array.from(document.querySelectorAll<HTMLMediaElement>(".tiptap audio, .tiptap video"));
-      return Boolean(image?.naturalWidth) && media.length === 4 && media.every((element) => element.readyState >= 1);
+      return images.length === 2 && images.every((image) => image.naturalWidth > 0) && media.length === 4 && media.every((element) => element.readyState >= 1);
     }), { timeout: 15000, timeoutMsg: "Visual media did not load from the note origin" });
     const loaded = await browser.execute(() => ({
       image: document.querySelector<HTMLImageElement>(".tiptap img")!.src,
@@ -109,7 +154,20 @@ describe("visual media previews", () => {
       assert.equal(media.time, 0);
     }
 
-    await $(".tiptap img").click();
+    const compact = await browser.execute(() => {
+      const editor = document.querySelector<HTMLElement>(".tiptap")!;
+      const media = document.querySelector<HTMLElement>(".htnote-media-node")!;
+      return media.getBoundingClientRect().width < editor.getBoundingClientRect().width;
+    });
+    assert.equal(compact, true);
+    await clickMediaGap(".tiptap img[alt='Preview']");
+    await $(".tiptap img[alt='Preview']").click();
+    await $(".htnote-media-image .htnote-media-toolbar").waitForDisplayed();
+    await clickMediaGap(".tiptap img[alt='Preview']");
+    await clickMediaGap(".tiptap img[alt='SVG preview']");
+    await clickMediaGap(".tiptap audio");
+    await clickMediaGap(".tiptap video");
+    await $(".tiptap img[alt='Preview']").click();
     await $(".htnote-media-image .htnote-media-toolbar").waitForDisplayed();
     const themeWasDark = await browser.execute(() => document.documentElement.classList.contains("dark"));
     const directory = resolve("e2e", ".artifacts");
@@ -128,12 +186,12 @@ describe("visual media previews", () => {
           return {
             background: style.backgroundColor,
             color: style.color,
-            insideImage: toolbarRect.top >= imageRect.top && toolbarRect.left >= imageRect.left && toolbarRect.top < imageRect.bottom,
+            aboveImage: toolbarRect.bottom <= imageRect.top,
             withinEditor: toolbarRect.top >= editor.getBoundingClientRect().top,
             outline: getComputedStyle(image).outlineWidth,
           };
         });
-        assert.equal(layout.insideImage, true);
+        assert.equal(layout.aboveImage, true);
         assert.equal(layout.withinEditor, true);
         assert.ok(layout.outline === "2px" || layout.outline === "1.6px", `Expected outline width 2px (or 1.6px at 125% DPI), got ${layout.outline}`);
         assert.equal(layout.color, theme === "dark" ? "rgb(241, 245, 249)" : "rgb(17, 24, 39)");
@@ -146,5 +204,36 @@ describe("visual media previews", () => {
     } finally {
       await browser.execute((dark) => document.documentElement.classList.toggle("dark", dark), themeWasDark);
     }
+    await $('.htnote-media-image .htnote-media-toolbar button[aria-label="Ortala"], .htnote-media-image .htnote-media-toolbar button[aria-label="Align center"]').click();
+    assert.equal(await $(".htnote-media-node").getAttribute("data-align"), "center");
+    await clickMediaGap(".tiptap img[alt='Preview']", "left");
+    await clickMediaGap(".tiptap img[alt='Preview']", "right");
+    await $(".tiptap img[alt='Preview']").click();
+    await $(".htnote-media-image .htnote-media-toolbar").waitForDisplayed();
+    await $('.htnote-media-image .htnote-media-toolbar button[aria-label="Sağa hizala"], .htnote-media-image .htnote-media-toolbar button[aria-label="Align right"]').click();
+    assert.equal(await $(".htnote-media-node").getAttribute("data-align"), "right");
+    await clickMediaGap(".tiptap img[alt='Preview']", "left");
+    await saveShortcut();
+    const saved = await invoke<{ html: string }>("read_note", { id: note.id });
+    assert.match(saved.html, /data-align="right"/);
+    await browser.keys(["Control", "e"]);
+    await $('[data-testid="edit-note"]').waitForDisplayed();
+    await withNoteFrame(note.id, async () => {
+      const layout = await browser.execute(() => {
+        const image = document.querySelector<HTMLImageElement>('img[alt="Preview"]')!;
+        const style = getComputedStyle(image);
+        return { align: image.dataset.align, display: style.display, right: style.marginRight };
+      });
+      assert.equal(layout.align, "right");
+      assert.equal(layout.display, "block");
+      assert.equal(layout.right, "0px");
+    });
+    await editNote();
+    assert.equal(await $(".htnote-media-node").getAttribute("data-align"), "right");
+    await clickMediaGap(".tiptap img[alt='Preview']", "left");
+    await browser.keys("Gap text");
+    await browser.waitUntil(async () => browser.execute(() => document.querySelector(".tiptap > p")?.textContent === "Gap text"));
+    assert.equal(await browser.execute(() => document.querySelector(".tiptap")!.firstElementChild!.tagName), "P");
+    assert.equal(await $$(".tiptap img").length, 2);
   });
 });

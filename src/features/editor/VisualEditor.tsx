@@ -1,12 +1,14 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
+import type { Transaction } from "@tiptap/pm/state";
 import { useTranslation } from "react-i18next";
 
 import { EditorToolbar } from "@/features/editor/EditorToolbar";
 import { NotePicker } from "@/components/ui/NotePicker";
 import { classifyClipboard, decodeDataUrl, pasteFileName, rewriteDataUrlImages, shouldWarnExternalImages } from "@/features/editor/clipboardPaste";
 import { createVisualExtensions } from "@/features/editor/extensions";
-import { copyFilesSequentially, fileName, mediaFor, registerDropHandler } from "@/features/editor/fileDrop";
+import { copyFilesSequentially, fileName, mediaFor, registerDropHandler, registerDropPreview } from "@/features/editor/fileDrop";
+import { createNativeDropCursor, dropPosition } from "@/features/editor/dropCursor";
 import type { InsertMediaOptions } from "@/features/editor/mediaNodes";
 import { escapeHtml, noteLinkHref } from "@/features/editor/noteLinks";
 import { serializeVisualHtml, wrapRawBlocks } from "@/features/editor/visualPipeline";
@@ -86,7 +88,8 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
             const media: InsertMediaOptions[] = [];
             for (const file of files) {
               try {
-                const asset = await ipc.saveAssetBytes(noteId, pasteFileName(new Date(), file.type), new Uint8Array(await file.arrayBuffer()));
+                const asset = await ipc.saveAssetBytes(noteId, file.type ? pasteFileName(new Date(), file.type) : file.name,
+                  new Uint8Array(await file.arrayBuffer()));
                 media.push(mediaFor(asset, file.name || pasteFileName(new Date(), file.type)));
               } catch {
                 useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.pasteFailed" });
@@ -145,15 +148,26 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
 
   useEffect(() => {
     if (!editor) return;
-    return registerDropHandler(noteId, "visual", async (paths, point) => {
-      const target = editor.view.posAtCoords({ left: point.x, top: point.y });
-      if (!target) return;
-      const copied = await copyFilesSequentially(paths, (path) => ipc.copyAsset(noteId, path),
-        (path) => useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.dropCopyFailed", params: { name: fileName(path) } }));
-      if (editor.isDestroyed || !copied.length) return;
-      editor.chain().setTextSelection(target.pos)
-        .insertMedia(copied.map(({ result, path }) => mediaFor(result, fileName(path)))).run();
+    const cursor = createNativeDropCursor(editor.view);
+    const unregisterPreview = registerDropPreview(noteId, (point) => cursor.update(point));
+    const unregisterDrop = registerDropHandler(noteId, "visual", async (paths, point) => {
+      cursor.update(null);
+      const target = dropPosition(editor.view, point);
+      if (target === null) return;
+      // Kopyalama sırasında yapılan düzenlemelerde hedef konumu belgeyle birlikte taşı.
+      let position = target;
+      const mapPosition = ({ transaction }: { transaction: Transaction }) => {
+        position = transaction.mapping.map(position);
+      };
+      editor.on("transaction", mapPosition);
+      try {
+        const copied = await copyFilesSequentially(paths, (path) => ipc.copyAsset(noteId, path),
+          (path) => useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.dropCopyFailed", params: { name: fileName(path) } }));
+        if (editor.isDestroyed || !copied.length) return;
+        editor.commands.insertMedia(copied.map(({ result, path }) => mediaFor(result, fileName(path))), position);
+      } finally { editor.off("transaction", mapPosition); }
     });
+    return () => { unregisterDrop(); unregisterPreview(); cursor.destroy(); };
   }, [editor, noteId]);
 
   useEffect(() => () => { flush(); }, [flush]);

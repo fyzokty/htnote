@@ -5,6 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { GlobalAttributes } from "@/features/editor/globalAttributesExtension";
 import { HtmlBlock } from "@/features/editor/htmlBlockNode";
 import { Audio, Image, InsertMedia, Video } from "@/features/editor/mediaNodes";
+import { MediaSelection } from "@/features/editor/mediaSelection";
 import { NoteLinkDecorations, noteLinkShortcut } from "@/features/editor/noteLinks";
 
 export function createVisualExtensions(placeholder: string, onEditInCode?: () => void, onLinkNote?: () => void, noteId = "") {
@@ -13,6 +14,7 @@ export function createVisualExtensions(placeholder: string, onEditInCode?: () =>
       heading: { levels: [1, 2, 3, 4, 5, 6] },
       link: { openOnClick: false, autolink: true, protocols: ["htnote"] },
       trailingNode: false,
+      dropcursor: { color: false, width: 2, class: "htnote-drop-cursor" },
     }),
     TableKit.configure({ table: { resizable: false } }),
     Placeholder.configure({ placeholder }),
@@ -21,6 +23,7 @@ export function createVisualExtensions(placeholder: string, onEditInCode?: () =>
     Audio.configure({ noteId }),
     Video.configure({ noteId }),
     InsertMedia,
+    MediaSelection,
     HtmlBlock.configure({ onEditInCode }),
     NoteLinkDecorations,
     ...(onLinkNote ? [noteLinkShortcut(onLinkNote)] : []),

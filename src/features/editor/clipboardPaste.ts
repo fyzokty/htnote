@@ -18,7 +18,7 @@ export function extFromMime(mime: string): string {
     "audio/wav": "wav", "audio/ogg": "ogg", "audio/mp4": "m4a",
     "video/mp4": "mp4", "video/webm": "webm",
   };
-  return extensions[mime.toLowerCase()] ?? "png";
+  return extensions[mime.split(";")[0].trim().toLowerCase()] ?? "png";
 }
 
 export function pasteFileName(date: Date, mime: string): string {

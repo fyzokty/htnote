@@ -20,7 +20,8 @@ export const GlobalAttributes = Extension.create({
           dataAttributes: {
             default: {},
             parseHTML: (element) => Object.fromEntries(
-              Array.from(element.attributes).filter((attr) => attr.name.startsWith("data-") && attr.name.length > 5)
+              Array.from(element.attributes).filter((attr) => attr.name.startsWith("data-") && attr.name.length > 5 &&
+                !(attr.name === "data-align" && ["IMG", "AUDIO", "VIDEO"].includes(element.tagName)))
                 .map((attr) => [attr.name, attr.value]),
             ),
             renderHTML: (attributes) => attributes.dataAttributes ?? {},

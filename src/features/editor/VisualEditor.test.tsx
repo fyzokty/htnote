@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createVisualExtensions } from "@/features/editor/extensions";
 import { VisualEditor } from "@/features/editor/VisualEditor";
 import type { VisualEditorHandle } from "@/features/editor/VisualEditor";
-import { fileName, getDropHandler, kindFromPath } from "@/features/editor/fileDrop";
+import { fileName, getDropHandler, kindFromPath, updateDropPreview } from "@/features/editor/fileDrop";
 import { ipc } from "@/lib/ipc";
 import { initNoteOrigin } from "@/lib/noteUrl";
 import type { Settings } from "@/lib/types";
@@ -36,6 +36,52 @@ afterEach(() => {
 });
 
 describe("VisualEditor", () => {
+  it("shows the native cursor while hovering and clears it on leave and drop", async () => {
+    vi.spyOn(EditorView.prototype, "posAtCoords").mockReturnValue({ pos: 2, inside: 0 });
+    vi.spyOn(EditorView.prototype, "coordsAtPos").mockReturnValue({ left: 50, right: 50, top: 20, bottom: 44 });
+    vi.spyOn(ipc, "copyAsset").mockResolvedValue({ relPath: "./assets/drop.svg", kind: "image", mime: "image/svg+xml" });
+    const view = render(<VisualEditor noteId="note" initialInner="<p>Text</p>" onChange={vi.fn()} />);
+    updateDropPreview("note", { x: 50, y: 30 });
+    expect(document.querySelector(".htnote-native-drop-cursor")).toHaveStyle({ width: "2px", height: "24px" });
+    updateDropPreview(null, null);
+    expect(document.querySelector(".htnote-native-drop-cursor")).toBeNull();
+    updateDropPreview("note", { x: 50, y: 30 });
+    await act(async () => { await getDropHandler("note", "visual")!(["drop.svg"], { x: 50, y: 30 }); });
+    expect(document.querySelector(".htnote-native-drop-cursor")).toBeNull();
+    expect(view.container.querySelector("img")).toHaveAttribute("src", "http://127.0.0.1:4123/note/assets/drop.svg");
+    view.unmount();
+  });
+
+  it("maps the captured drop point through edits made while copying assets", async () => {
+    vi.spyOn(EditorView.prototype, "posAtCoords").mockReturnValue({ pos: 7, inside: 0 });
+    let resolveCopy!: (asset: { relPath: string; kind: "image"; mime: string }) => void;
+    vi.spyOn(ipc, "copyAsset").mockReturnValue(new Promise((resolve) => { resolveCopy = resolve; }));
+    const ref = createRef<VisualEditorHandle>();
+    const onChange = vi.fn();
+    render(<VisualEditor ref={ref} noteId="note" initialInner="<p>BeforeAfter</p>" onChange={onChange} />);
+    const surface = screen.getByRole("textbox", { name: "Not içeriği" });
+    const current = (surface as HTMLElement & { editor: Editor }).editor;
+    const copying = getDropHandler("note", "visual")!(["drop.svg"], { x: 20, y: 50 });
+    act(() => { current.commands.insertContentAt(1, "Prefix"); });
+    await act(async () => {
+      resolveCopy({ relPath: "./assets/drop.svg", kind: "image", mime: "image/svg+xml" });
+      await copying;
+      ref.current?.flush();
+    });
+    expect(onChange).toHaveBeenLastCalledWith('<p>PrefixBefore</p>\n<img src="./assets/drop.svg">\n<p>After</p>');
+  });
+
+  it("keeps the SVG extension when pasting a file without MIME metadata", async () => {
+    const save = vi.spyOn(ipc, "saveAssetBytes").mockResolvedValue({ relPath: "./assets/diagram.svg", kind: "image", mime: "image/svg+xml" });
+    const view = render(<VisualEditor noteId="note" initialInner="<p></p>" onChange={vi.fn()} />);
+    const file = new File(["<svg></svg>"], "diagram.svg");
+    Object.defineProperty(file, "arrayBuffer", { value: async () => new TextEncoder().encode("<svg></svg>").buffer });
+    await act(async () => {
+      fireEvent.paste(screen.getByRole("textbox", { name: "Not içeriği" }), { clipboardData: { files: [file], getData: () => "" } });
+    });
+    expect(save).toHaveBeenCalledWith("note", "diagram.svg", expect.any(Uint8Array));
+    expect(view.container.querySelector("img")).toHaveAttribute("src", "http://127.0.0.1:4123/note/assets/diagram.svg");
+  });
   it("extends the editing surface and moves the cursor to the end only on a blank left click", () => {
     vi.spyOn(EditorView.prototype, "posAtCoords").mockReturnValue(null);
     const style = document.createElement("style");

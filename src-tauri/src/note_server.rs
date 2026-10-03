@@ -81,6 +81,8 @@ mod tests {
         write_metadata_atomic(&dir.join("metadata.json"), &metadata).unwrap();
         std::fs::write(dir.join("index.html"), "<head></head><body>ok</body>").unwrap();
         std::fs::write(dir.join("audio.bin"), "abcdef").unwrap();
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 32 32\"><path d=\"M0 0h32v32H0z\"/></svg>";
+        std::fs::write(dir.join("diagram.svg"), svg).unwrap();
         std::fs::write(dir.join("asset.txt"), "disk asset").unwrap();
         let mut index = NoteIndex::new(root.path().to_path_buf());
         index.refresh_readonly().unwrap();
@@ -99,6 +101,10 @@ mod tests {
         assert_eq!(head_status, 200);
         assert_eq!(head_response.split_once("\r\n\r\n").unwrap().1, "");
         assert_eq!(request(&origin, host, "GET", &format!("/{id}/audio.bin"), Some("bytes=1-2")).0, 206);
+        let (svg_status, svg_response) = request(&origin, host, "GET", &format!("/{id}/diagram.svg"), None);
+        assert_eq!(svg_status, 200);
+        assert!(svg_response.to_ascii_lowercase().contains("content-type: image/svg+xml"));
+        assert_eq!(svg_response.split_once("\r\n\r\n").unwrap().1, svg);
         assert_eq!(request(&origin, host, "GET", &format!("/{id}/%2e%2e/x"), None).0, 403);
         assert_eq!(request(&origin, "evil.localhost", "GET", &format!("/{id}/"), None).0, 403);
         assert_eq!(request(&origin, "evil.localhost", "GET", &format!("/{id}/__draft/1/index.html"), None).0, 403);

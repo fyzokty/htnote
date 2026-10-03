@@ -18,6 +18,28 @@ async function mount(content: string) {
 }
 
 describe("media node views", () => {
+  it("previews SVG assets as images without inserting inline SVG content", async () => {
+    const view = await mount('<img src="./assets/diagram.svg" alt="Diagram">');
+    expect(screen.getByRole("img", { name: "Diagram" })).toHaveAttribute("src", "http://127.0.0.1:4123/note/assets/diagram.svg");
+    expect(view.container.querySelector(".htnote-media-preview svg")).toBeNull();
+    expect(editor.getHTML()).toBe('<img src="./assets/diagram.svg" alt="Diagram">');
+  });
+
+  it.each(["image", "audio", "video"] as const)("only selects %s when its preview is clicked and applies alignment", async (kind) => {
+    const tag = kind === "image" ? "img" : kind;
+    const view = await mount(`<${tag} src="./assets/media">${kind === "image" ? "" : `</${tag}>`}<p>After</p>`);
+    await act(async () => { editor.commands.setTextSelection(2); });
+    const wrapper = view.container.querySelector(".htnote-media")!;
+    fireEvent.click(wrapper);
+    expect(editor.state.selection.constructor.name).toBe("TextSelection");
+    await act(async () => { fireEvent.click(wrapper.querySelector(tag)!); });
+    expect(editor.state.selection.constructor.name).toBe("NodeSelection");
+    expect(wrapper).toHaveClass("is-selected");
+    await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Sağa hizala" })); });
+    expect(editor.state.doc.firstChild?.attrs.align).toBe("right");
+    expect(wrapper.closest(".htnote-media-node")).toHaveAttribute("data-align", "right");
+    expect(screen.getByRole("button", { name: "Sağa hizala" })).toHaveAttribute("aria-pressed", "true");
+  });
   it("renders resolved image, poster and direct/nested media sources with controls and no autoplay", async () => {
     const view = await mount('<img src="./assets/a%20b.png" alt="Photo">' +
       '<audio src="./assets/a.wav" autoplay preload="none" loop muted></audio>' +
@@ -76,13 +98,13 @@ describe("media node views", () => {
   it("shows selected width segments, applies percentages and restores original size", async () => {
     await mount('<img src="./assets/photo.png" alt="Photo" width="240">');
     await act(async () => { editor.commands.setNodeSelection(0); });
-    expect(screen.getByRole("img")).toHaveStyle({ width: "240px" });
+    expect(screen.getByRole("img").closest(".htnote-media-node")).toHaveStyle({ width: "240px" });
     for (const width of ["25%", "50%", "100%", "Özgün boyut"]) {
       await act(async () => { fireEvent.click(screen.getByRole("button", { name: width })); });
       expect(screen.getByRole("button", { name: width })).toHaveAttribute("aria-pressed", "true");
-      expect(screen.getAllByRole("button").filter((button) => button.getAttribute("aria-pressed") === "true")).toHaveLength(1);
+      expect(screen.getAllByRole("button").filter((button) => button.getAttribute("aria-pressed") === "true")).toHaveLength(2);
       expect(editor.state.doc.firstChild?.attrs.width).toBe(width === "Özgün boyut" ? null : width);
-      expect(screen.getByRole("img").style.width).toBe(width === "Özgün boyut" ? "" : width);
+      expect((screen.getByRole("img").closest(".htnote-media-node") as HTMLElement).style.width).toBe(width === "Özgün boyut" ? "fit-content" : width);
     }
   });
 

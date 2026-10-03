@@ -15,7 +15,7 @@ import { installExternalChangeListener } from "@/features/editor/externalChange"
 import type { RecoveryCandidate } from "@/features/editor/RecoveryDialog";
 import { deleteRecoveryDraft, selectRecoveryCandidates, useDraftAutosave } from "@/features/editor/recoveryDrafts";
 import { extractContent } from "@/features/editor/contentRegion";
-import { getDropHandler, toCssPoint } from "@/features/editor/fileDrop";
+import { getDropHandler, toCssPoint, updateDropPreview } from "@/features/editor/fileDrop";
 import { setDiscardRecoveryDraftHook } from "@/features/editor/unsavedGuard";
 import { SearchModal } from "@/features/search/SearchModal";
 import { SettingsView } from "@/features/settings/SettingsView";
@@ -122,6 +122,7 @@ export function AppShell() {
     let active = true;
     let eventVersion = 0;
     const clearHover = () => {
+      updateDropPreview(null, null);
       hovered?.classList.remove("htnote-drop-target");
       hovered = null;
     };
@@ -143,9 +144,10 @@ export function AppShell() {
       const target = handler ? (visual ?? code ?? null) : null;
       if (hovered !== target) {
         clearHover();
-        target?.classList.add("htnote-drop-target");
+        if (editor === "code") target?.classList.add("htnote-drop-target");
         hovered = target;
       }
+      updateDropPreview(editor === "visual" && handler ? tabs.activeId : null, event.type === "drop" ? null : point);
       if (event.type === "drop") {
         clearHover();
         if (handler) void handler(event.paths, point);

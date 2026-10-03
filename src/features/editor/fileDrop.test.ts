@@ -11,6 +11,7 @@ describe("file drop conversion", () => {
   it("maps file kinds to visual attrs and HTML tags", () => {
     const cases = [
       ["photo.png", "image", '<img src="./assets/photo.png" alt="photo.png">'],
+      ["diagram.SVG", "image", '<img src="./assets/diagram.SVG" alt="diagram.SVG">'],
       ["song.mp3", "audio", '<audio src="./assets/song.mp3" controls></audio>'],
       ["movie.mp4", "video", '<video src="./assets/movie.mp4" controls></video>'],
       ["doc.pdf", "file", '<a href="./assets/doc.pdf">doc.pdf</a>'],
