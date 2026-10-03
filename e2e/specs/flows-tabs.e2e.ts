@@ -1,45 +1,31 @@
 import assert from "node:assert/strict";
 
+import { pointerCenter, pointerClickAt, pointerDrag, type PointerElement } from "../helpers/pointer";
+
 import { createNote, invoke, openNote, useTempRoot, withNoteFrame } from "../helpers/flows";
 
-async function dragTab(from: WebdriverIO.Element, to: WebdriverIO.Element): Promise<void> {
-  const start = await from.getLocation();
-  const end = await to.getLocation();
-  // A separate move activates the distance sensor before moving to the target.
-  // WebView2 need not emit intermediate events for a duration-based move.
-  try {
-    await browser.performActions([{
-      type: "pointer", id: "tab-drag", parameters: { pointerType: "mouse" }, actions: [
-        { type: "pointerMove", duration: 0, x: Math.round(start.x + 60), y: Math.round(start.y + 15) },
-        { type: "pointerDown", button: 0 },
-        { type: "pointerMove", duration: 100, x: Math.round(start.x + 50), y: Math.round(start.y + 15) },
-        { type: "pause", duration: 100 },
-      ],
-    }]);
-    await browser.waitUntil(async () => await from.getAttribute("data-dragging") === "true");
-    assert.ok(Number((await from.getCSSProperty("z-index")).value) > Number((await to.getCSSProperty("z-index")).value));
-    await browser.performActions([{
-      type: "pointer", id: "tab-drag", parameters: { pointerType: "mouse" }, actions: [
-        { type: "pointerMove", duration: 400, x: Math.round(end.x + 60), y: Math.round(end.y + 15) },
-        { type: "pause", duration: 100 },
-        { type: "pointerUp", button: 0 },
-      ],
-    }]);
-  } finally {
-    await browser.releaseActions();
-  }
+async function dragTab(source: PointerElement, target: PointerElement): Promise<void> {
+  const from = await source.getElement();
+  const to = await target.getElement();
+  await pointerDrag(from, to, {
+    afterActivation: async () => {
+      await browser.waitUntil(async () => await from.getAttribute("data-dragging") === "true");
+      assert.ok(Number((await from.getCSSProperty("z-index")).value) > Number((await to.getCSSProperty("z-index")).value));
+    },
+  });
 }
 
 describe("tab reordering", () => {
   let restore: (() => Promise<void>) | undefined;
   let theme: string;
   let tabSizing: string;
+  let language: string | null;
   beforeEach(async () => {
-    ({ theme, tabSizing } = await invoke<{ theme: string; tabSizing: string }>("get_settings"));
+    ({ theme, tabSizing, language } = await invoke<{ theme: string; tabSizing: string; language: string | null }>("get_settings"));
     ({ restore } = await useTempRoot());
   });
   afterEach(async () => {
-    await invoke("update_settings", { patch: { theme, tabSizing } });
+    await invoke("update_settings", { patch: { theme, tabSizing, language } });
     await restore?.();
   });
 
@@ -61,28 +47,16 @@ describe("tab reordering", () => {
     const to = await $(`[role="tab"][data-note-id="${a.id}"]`);
     const start = await from.getLocation();
     const end = await to.getLocation();
-    await browser.performActions([{
-      type: "pointer", id: "tab-drag", parameters: { pointerType: "mouse" }, actions: [
-        { type: "pointerMove", duration: 0, x: Math.round(start.x + 60), y: Math.round(start.y + 15) },
-        { type: "pointerDown", button: 0 },
-        // Activate inside the parent document before crossing into the note iframe.
-        { type: "pointerMove", duration: 100, x: Math.round(start.x + 50), y: Math.round(start.y + 15) },
-        { type: "pause", duration: 100 },
-        { type: "pointerMove", duration: 200, x: Math.round(start.x + 60), y: Math.round(start.y + 150) },
-        { type: "pause", duration: 100 },
-      ],
-    }]);
-    assert.equal(await from.getAttribute("data-dragging"), "true");
-    assert.ok(Math.abs((await from.getLocation()).y - start.y) < 2);
-    assert.ok(Number((await from.getCSSProperty("z-index")).value) > Number((await to.getCSSProperty("z-index")).value));
-    await browser.performActions([{
-      type: "pointer", id: "tab-drag", parameters: { pointerType: "mouse" }, actions: [
-        { type: "pointerMove", duration: 400, x: Math.round(end.x + 60), y: Math.round(end.y + 15) },
-        { type: "pause", duration: 100 },
-        { type: "pointerUp", button: 0 },
-      ],
-    }]);
-    await browser.releaseActions();
+    await pointerDrag(from, to, {
+      fromPoint: { x: Math.round(start.x + 60), y: Math.round(start.y + 15) },
+      toPoint: { x: Math.round(end.x + 60), y: Math.round(end.y + 15) },
+      waypoints: [{ x: Math.round(start.x + 60), y: Math.round(start.y + 150) }],
+      beforeDrop: async () => {
+        assert.equal(await from.getAttribute("data-dragging"), "true");
+        assert.ok(Math.abs((await from.getLocation()).y - start.y) < 2);
+        assert.ok(Number((await from.getCSSProperty("z-index")).value) > Number((await to.getCSSProperty("z-index")).value));
+      },
+    });
     await browser.waitUntil(async () => await $('[role="tablist"] > div').getAttribute("data-note-id") === b.id);
 
     // Reverse direction must keep the dragged tab above its siblings too.
@@ -119,16 +93,21 @@ describe("tab reordering", () => {
     assert.equal(await $(`[role="tab"][data-note-id="${note.id}"]`).getAttribute("aria-selected"), "true");
   });
 
-  it("changes tab sizing in settings and restores only note tabs", async () => {
+  for (const language of ["tr", "en"]) it(`changes tab sizing in ${language} settings and restores only note tabs`, async () => {
+    await invoke("update_settings", { patch: { language } });
     const note = await createNote("A long title for checking the size of a note tab");
     await openNote(note.id);
     await $('[data-testid="settings"]').click();
-    const fit = await $('button*=Başlığa göre');
+    const fit = await $('[data-testid="tab-sizing-fit"]');
+    await fit.waitForDisplayed();
     await fit.click();
     await browser.waitUntil(async () => (await invoke<{ tabSizing: string }>("get_settings")).tabSizing === "fit");
     assert.equal(await $(`[role="tab"][data-note-id="${note.id}"]`).getAttribute("data-sizing"), "fit");
-    await $('button*=Sabit genişlik').click();
+    assert.equal(await fit.getAttribute("aria-pressed"), "true");
+    await $('[data-testid="tab-sizing-fixed"]').click();
     await browser.waitUntil(async () => (await invoke<{ tabSizing: string }>("get_settings")).tabSizing === "fixed");
+    assert.equal(await $(`[role="tab"][data-note-id="${note.id}"]`).getAttribute("data-sizing"), "fixed");
+    assert.equal(await $('[data-testid="tab-sizing-fixed"]').getAttribute("aria-pressed"), "true");
     await $('[data-testid="trash"]').click();
     await browser.waitUntil(async () => {
       const saved = await invoke<{ openTabs: string[]; activeTab: string | null }>("get_settings");
@@ -149,7 +128,8 @@ describe("tab reordering", () => {
     await browser.waitUntil(async () => await $('[role="tablist"] > div').getAttribute("data-note-id") === "special:trash");
     await $('[role="tab"][data-note-id="special:settings"] button').click();
     await browser.waitUntil(async () => !await $('[role="tab"][data-note-id="special:settings"]').isExisting());
-    await trash.click({ button: "middle" });
+    const trashCenter = await pointerCenter(trash);
+    await pointerClickAt(trash, trashCenter.x, trashCenter.y, { button: 1 });
     await browser.waitUntil(async () => !await $('[role="tab"][data-note-id="special:trash"]').isExisting());
     assert.equal(await $(`[role="tab"][data-note-id="${note.id}"]`).getAttribute("aria-selected"), "true");
   });

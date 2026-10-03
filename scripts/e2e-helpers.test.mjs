@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+vi.mock("../e2e/helpers/noteFrameDiagnostics", () => ({ noteFrameFailure: vi.fn() }));
+
 import { waitForApp, waitForSavedEditor } from "../e2e/helpers/app";
 import { invoke, withNoteFrame } from "../e2e/helpers/flows";
+import { noteFrameFailure } from "../e2e/helpers/noteFrameDiagnostics";
 
 function appShell() {
   document.body.innerHTML = '<button data-testid="new-note"></button><div role="tree"></div>';
@@ -101,6 +104,24 @@ describe("e2e readiness", () => {
     const run = vi.fn().mockRejectedValue(new Error("security assertion failed"));
     await expect(withNoteFrame("test", run)).rejects.toThrow("security assertion failed");
     expect(run).toHaveBeenCalledTimes(1);
+    expect(instance.switchFrame).toHaveBeenLastCalledWith(null);
+  });
+
+  it("adds requested link diagnostics to a failed assertion without retrying the action", async () => {
+    appShell();
+    const note = { type: "note", id: "test", title: "Test", relPath: "Test" };
+    window.__TAURI_INTERNALS__ = { invoke: vi.fn().mockResolvedValue([note]) };
+    vi.stubGlobal("$", vi.fn().mockResolvedValue({ isExisting: vi.fn().mockResolvedValue(true) }));
+    const { instance } = driver();
+    instance.execute.mockResolvedValue(true);
+    const original = new Error("link not visible");
+    const annotated = new Error("link not visible: diagnostics", { cause: original });
+    vi.mocked(noteFrameFailure).mockResolvedValue(annotated);
+    const run = vi.fn().mockRejectedValue(original);
+    const options = { expectedHref: "htnote://note/target" };
+    await expect(withNoteFrame("test", run, options)).rejects.toBe(annotated);
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(noteFrameFailure).toHaveBeenCalledExactlyOnceWith(original, { ...note, ...options });
     expect(instance.switchFrame).toHaveBeenLastCalledWith(null);
   });
 });

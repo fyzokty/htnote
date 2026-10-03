@@ -35,6 +35,17 @@ for the editor's save acknowledgement before another shortcut is sent; a file
 appearing on disk alone does not mean the editor has finished saving. Conditions
 have bounded timeouts for slower CI runners, without fixed sleeps or test retries.
 
+Settings controls use stable test IDs rather than translated button text; the
+tab sizing flow runs in both Turkish and English. Outside media clicks must leave
+a gap cursor immediately before or after that media, keep the same position on
+mouseup, and leave its toolbar hidden. The application uses the media NodeView's
+bounds in the capture phase to place left/right clicks before/after that media.
+Small vertical gaps within a row's computed CSS margin snap to the nearest media
+row by vertical distance (ties use document order), placing the cursor before
+the row when clicking above it and after it when clicking below it. Preview,
+toolbar and text-row clicks retain their normal behavior. Unit tests cover these
+gaps, nearest-row selection, incorrect coordinate hit tests and media event targets.
+
 CodeMirror virtualizes off-screen lines, so `.cm-content.getText()` reads only
 the rendered viewport, not the entire HTML document. Scroll the relevant content
 into view before asserting its source (the color flow uses Ctrl+End to reveal
@@ -46,10 +57,74 @@ the EdgeDriver major version matches WebView2. If a security assertion fails,
 inspect the failing `data-*` result in the note iframe and investigate the
 isolation boundary; do not loosen the assertion or sandbox policy.
 
+CI uses the runner's default WebView2 Runtime and installs the matching
+EdgeDriver with `msedgedriver-tool`. Updating the runtime was attempted, but the
+new runtime triggers [runner image issue 14738](https://github.com/actions/runner-images/issues/14738),
+causing sessions to fail with `DevToolsActivePort file doesn't exist`.
+The varying vertical coordinate differences in CI may come from measuring a
+target while an entry animation or transition is still moving it; a coordinate
+mismatch alone does not establish a WebDriver bug. The E2E driver environment
+appends `--force-prefers-reduced-motion` to
+`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, preserving any existing arguments.
+`tauri-driver`, EdgeDriver and the application inherit this setting. The session
+hook asserts `matchMedia('(prefers-reduced-motion: reduce)').matches === true`.
+The screenshot configuration inherits both the argument and the assertion.
+Only these test launches force reduced motion; production animation behavior
+and the Tauri application configuration are unchanged.
+
 Driver output is also saved to `e2e/logs/tauri-driver.log`. CI prints the driver
 and WebView2 versions, launches the debug app directly with temporary root and
 config overrides, and uploads `e2e/logs/` on failure. The app startup diagnostic
 captures its stdout and stderr there as separate files.
+Outside media clicks append geometry, hit testing, DOM and ProseMirror selections
+before/after mousedown and mouseup, handler decisions, and the user agent to
+`e2e/logs/media-click-diagnostics.json`. The same JSON appears in assertion
+failures. Coordinate-sensitive clicks, tab drags and hovers use `helpers/pointer.ts`
+with real WebDriver mouse actions. Before measuring an element origin, the
+helper waits for its rectangle to remain unchanged across two consecutive
+animation frames with no `running` animations from `document.getAnimations()`.
+The wait has a five-second timeout that reports geometry and animation names;
+finished/paused animations do not block it. Media gap clicks also wait before
+calculating their intended point. For each target point, the helper moves the
+pointer, reads the actual trusted DOM `clientX/clientY`, and adjusts the commanded
+coordinates by the measured error. Each point has at most three attempts to
+reach ±2 px tolerance; failures report the target, actual point and correction,
+plus the target rectangle and running animation count/names at measurement and
+trusted event time (before application handlers run). Events inside a sandboxed
+child frame report that document's animations and a null target rectangle when
+the origin belongs to the parent document.
+There is no global calibration or assumption that offsets at different positions
+match. Down/up actions use the corrected pointer position and their actual events
+are also verified. Drags correct the activation point, every waypoint and the
+drop destination, accounting for moving element origins. Failed drags cancel the
+active sensor before releasing buttons; a mismatched click button event retries
+the click once with a fresh target correction. Temporary document listeners also observe
+visible note frames during a drag's vertical excursion and are removed in
+`finally`, along with releasing mouse buttons. The correction helper tests run
+with `node --import tsx --test e2e/helpers/pointer.test.ts` and inject offsets of
+0, 12 and 30 px, position-dependent and changing drift, missing events and
+persistent failures without an older runtime. They also cover moving target
+rectangles, waiting for running animations, bounded stability timeouts, and
+measurement/event snapshots that distinguish target motion from driver offsets.
+Assertions compare the handler's actual event coordinates with the
+intended point (allowing only 1 px rounding) and verify that it is outside the
+preview in the intended row using bounds recorded at mousedown, before selection
+can change the layout; drift reports the expected/actual point and offset.
+The handler trace is enabled only for each diagnostic click through an explicit
+test hook. Gap-cursor and mouseup expectations remain unchanged.
 Failed tests save screenshots in `e2e/logs/` and print the current frame URL,
 document readiness and security probe results to the test log.
+Internal-link iframe failures also include a diagnostic JSON in the error and
+`e2e/logs/note-frame-<id>-<timestamp>.json`, before the temporary root is removed.
+It records the failing frame context and the currently attached frame separately,
+their URLs/revisions and document readiness, expected link presence, iframe
+visibility/geometry, host revision and loaded revision, active tab/editor mode,
+editing/saving state, and the actual `index.html` from disk with its link presence.
+The host cannot access the isolated frame's `contentDocument`; its null result is
+recorded, and document readiness is also read through WebDriver inside the frame.
+Probe failures are recorded independently and do not replace the original assertion.
+Assertions and their timeouts are unchanged; failed actions are not retried.
+For race diagnosis, set `HTNOTE_E2E_CPU_THROTTLE=4` before running the usual WDIO
+command to request fourfold CPU slowdown through EdgeDriver's DevTools endpoint.
+This is opt-in and leaves normal suite launches unchanged.
 CI E2E is pinned to `windows-2022` until [runner image issue 14738](https://github.com/actions/runner-images/issues/14738) is resolved.

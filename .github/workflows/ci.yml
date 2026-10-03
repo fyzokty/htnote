@@ -36,6 +36,9 @@ jobs:
   e2e:
     needs: verify
     # https://github.com/actions/runner-images/issues/14738 çözülene kadar windows-2022 kullan; sonra yeniden değerlendir.
+    # Runtime güncellemesi #14738'i tetiklediği için runner'ın varsayılan WebView2'si kullanılır.
+    # Animasyon sırasında ölçülen hedefler dikey fark üretebilir; E2E azaltılmış hareketle başlar,
+    # pointer.ts ölçümden önce kararlılığı bekler ve kalan koordinat farklarını eylem başına düzeltir.
     runs-on: windows-2022
     timeout-minutes: 45
     steps:

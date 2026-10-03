@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
+import { pointerCenter, pointerClickAt } from "../helpers/pointer";
+
 import { createNote, flatten, invoke, openNote, tree, useTempRoot, waitForTreeItem, withNoteFrame } from "../helpers/flows";
 
 describe("organize and search flows", () => {
@@ -14,7 +16,9 @@ describe("organize and search flows", () => {
     const note = await createNote("Restore me");
     await browser.refresh();
     await (await waitForTreeItem(note.id)).click();
-    await (await waitForTreeItem(note.id)).click({ button: "right" });
+    const item = await waitForTreeItem(note.id);
+    const center = await pointerCenter(item);
+    await pointerClickAt(item, center.x, center.y, { button: 2 });
     await $('[role="menu"] > div:last-child [role="menuitem"]').click();
     await browser.waitUntil(async () => !flatten(await tree()).some((item) => item.id === note.id));
     await $('[data-testid="trash"]').click();

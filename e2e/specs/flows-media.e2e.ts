@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
-import { mkdir } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Editor } from "@tiptap/core";
+import type { MediaClickDebug } from "../../src/features/editor/mediaSelection";
+
+import { pointerClickAt, waitForPointerStable } from "../helpers/pointer";
 
 import { createNote, editNote, invoke, openNote, saveShortcut, useTempRoot, withNoteFrame } from "../helpers/flows";
 
@@ -50,45 +53,124 @@ function audioBytes(): number[] {
   return Array.from(wav);
 }
 
+const mediaClickDiagnostics: object[] = [];
+
 async function clickMediaGap(selector: string, side: "left" | "right" = "right") {
-  await $(selector).scrollIntoView();
+  const origin = await $(selector);
+  await origin.scrollIntoView();
+  await waitForPointerStable(origin);
   const point = await browser.execute((selector, side) => {
     const surface = document.querySelector<HTMLElement>(".tiptap")! as HTMLElement & { editor: Editor };
     const editor = surface.getBoundingClientRect();
     const preview = document.querySelector<HTMLElement>(selector)!;
     const media = preview.getBoundingClientRect();
-    let boundary: number | null = null;
+    let boundaries: number[] = [];
     surface.editor.state.doc.descendants((node, pos) => {
       if (surface.editor.view.nodeDOM(pos) === preview.closest(".htnote-media-node")) {
-        boundary = pos + (side === "right" ? node.nodeSize : 0);
+        boundaries = [pos, pos + node.nodeSize];
       }
     });
+    // WebDriver offsets are relative to the element's in-view center, rounded
+    // down by the protocol. Use the same center when computing the offsets.
+    const centerY = Math.floor((Math.max(0, media.top) + Math.min(window.innerHeight, media.bottom)) / 2);
+    const x = Math.round(side === "right" ? editor.right - 8 : editor.left + 8);
     return {
-      x: Math.round(side === "right" ? editor.right - 8 : editor.left + 8),
-      y: Math.round(media.top + media.height / 2),
+      x, y: centerY,
       edge: side === "right" ? media.right : media.left,
-      boundary,
+      boundaries,
     };
   }, selector, side);
-  assert.ok(side === "right" ? point.x > point.edge : point.x < point.edge, "Click must be outside the media preview");
-  assert.notEqual(point.boundary, null);
-  const selection = () => browser.execute(() => {
-    const editor = (document.querySelector(".tiptap") as HTMLElement & { editor: Editor }).editor;
-    return editor.state.selection.toJSON() as { type: string; pos?: number };
-  });
+  await browser.execute(() => { window.__htnoteDebugMediaClick = { calls: 0 }; });
+  const snapshot = () => browser.execute((selector, point) => {
+    const surface = document.querySelector(".tiptap") as HTMLElement & { editor: Editor };
+    const preview = document.querySelector(selector);
+    const describe = (element: Element | null) => element ? {
+      tag: element.tagName, className: element.getAttribute("class") ?? "",
+    } : null;
+    const layout = (element: Element | null) => {
+      if (!element) return null;
+      const style = getComputedStyle(element);
+      return { ...describe(element), rect: element.getBoundingClientRect().toJSON(), display: style.display, width: style.width };
+    };
+    const node = (value: Node | null) => value ? {
+      // Avoid nodeType: EdgeDriver mistakes that property on a plain summary
+      // object for a live DOM node and returns a stale element reference.
+      nodeName: value.nodeName, domNodeType: value.nodeType,
+      element: describe(value instanceof Element ? value : value.parentElement),
+      text: value.nodeType === Node.TEXT_NODE ? value.textContent?.slice(0, 80) : null,
+    } : null;
+    const selection = window.getSelection();
+    let posAtCoords: object | null = null;
+    let posAtCoordsError: string | null = null;
+    try { posAtCoords = surface.editor.view.posAtCoords({ left: point.x, top: point.y }); }
+    catch (error) { posAtCoordsError = String(error); }
+    return {
+      userAgent: navigator.userAgent,
+      viewport: { width: window.innerWidth, height: window.innerHeight, devicePixelRatio: window.devicePixelRatio },
+      scroll: { x: window.scrollX, y: window.scrollY }, activeElement: describe(document.activeElement),
+      editor: layout(surface), mediaNode: layout(preview?.closest(".htnote-media-node") ?? null),
+      preview: layout(preview), wrapper: layout(preview?.closest(".htnote-media-preview") ?? null),
+      elementFromPoint: describe(document.elementFromPoint(point.x, point.y)),
+      posAtCoords, posAtCoordsError,
+      domSelection: selection ? {
+        anchorNode: node(selection.anchorNode), anchorOffset: selection.anchorOffset,
+        focusNode: node(selection.focusNode), focusOffset: selection.focusOffset,
+        isCollapsed: selection.isCollapsed,
+      } : null,
+      proseMirrorSelection: surface.editor.state.selection.toJSON() as { type: string; pos?: number },
+      handler: window.__htnoteDebugMediaClick as MediaClickDebug | undefined,
+    };
+  }, selector, point);
+  const diagnostics = {
+    selector, side, point, clickMethod: "WebDriver performActions (element origin, real mouse pointerDown/pointerUp; no synthetic dispatchEvent)",
+    before: await snapshot(),
+    afterMousedown: null as Awaited<ReturnType<typeof snapshot>> | null,
+    afterMouseup: null as Awaited<ReturnType<typeof snapshot>> | null,
+  };
+  const message = (text: string) => `${text}\nMedia click diagnostics: ${JSON.stringify(diagnostics)}`;
   try {
-    await browser.performActions([{ type: "pointer", id: "media-gap", parameters: { pointerType: "mouse" }, actions: [
-      { type: "pointerMove", origin: "viewport", x: point.x, y: point.y }, { type: "pointerDown", button: 0 },
-    ] }]);
-    assert.deepEqual(await selection(), { type: "gapcursor", pos: point.boundary }, "Outside mousedown must place the cursor at the media boundary");
-    await browser.performActions([{ type: "pointer", id: "media-gap", parameters: { pointerType: "mouse" }, actions: [
-      { type: "pointerUp", button: 0 },
-    ] }]);
-    assert.deepEqual(await selection(), { type: "gapcursor", pos: point.boundary }, "Outside mouseup must keep the cursor at the media boundary");
+    assert.ok(side === "right" ? point.x > point.edge : point.x < point.edge, message("Click must be outside the media preview"));
+    assert.equal(point.boundaries.length, 2, message("Clicked media must have two boundaries"));
+    await pointerClickAt(origin, point.x, point.y, {
+      afterDown: async () => {
+        // WebView2 can resolve an outside point to either adjacent gap. The
+        // existing boundary expectations still exclude atoms and distant gaps.
+        diagnostics.afterMousedown = await snapshot();
+      },
+      afterUp: async () => { diagnostics.afterMouseup = await snapshot(); },
+    });
+    assert.ok(diagnostics.afterMousedown && diagnostics.afterMouseup, message("Both mouse phases must be captured"));
+    const down = diagnostics.afterMousedown.proseMirrorSelection;
+    const actual = diagnostics.afterMousedown.handler?.last;
+    assert.ok(actual, message("Outside mousedown must reach the media diagnostic hook"));
+    const dx = actual.x - point.x;
+    const dy = actual.y - point.y;
+    assert.ok(Math.abs(dx) <= 1 && Math.abs(dy) <= 1,
+      message(`WebDriver pointer coordinate drift: expected (${point.x}, ${point.y}), received (${actual.x}, ${actual.y}), offset (${dx}, ${dy})`));
+    // Selection can hide a toolbar or scroll the editor. Validate against the
+    // handler's bounds at event time, before those layout changes occur.
+    const clickedRow = actual.rows.find(({ pos }) => pos === point.boundaries[0]);
+    const row = clickedRow?.row;
+    const preview = clickedRow?.preview;
+    assert.ok(row && preview && actual.y >= row.top && actual.y <= row.bottom
+      && (side === "right" ? actual.x > preview.right : actual.x < preview.left),
+      message(`WebDriver click missed the intended media row: received (${actual.x}, ${actual.y})`));
+    assert.equal(down.type, "gapcursor", message("Outside mousedown must place a gap cursor, not select media"));
+    assert.ok(down.pos !== undefined && point.boundaries.includes(down.pos),
+      message(`Outside mousedown must use a boundary of the clicked media (${point.boundaries}), got ${down.pos}`));
+    assert.deepEqual(diagnostics.afterMouseup.proseMirrorSelection, down, message("Outside mouseup must keep the cursor at the same media boundary"));
     await browser.waitUntil(async () => browser.execute(() => !document.querySelector(".htnote-media.is-selected")),
-      { timeout: 5000, timeoutMsg: "Outside click left a media preview selected" });
+      { timeout: 5000, timeoutMsg: message("Outside click left a media preview selected") });
   } finally {
-    await browser.releaseActions();
+    try {
+      mediaClickDiagnostics.push(diagnostics);
+      const directory = resolve("e2e", "logs");
+      await mkdir(directory, { recursive: true });
+      await writeFile(resolve(directory, "media-click-diagnostics.json"), JSON.stringify(mediaClickDiagnostics, null, 2));
+    } finally {
+      try { await browser.releaseActions(); }
+      finally { await browser.execute(() => { delete window.__htnoteDebugMediaClick; }); }
+    }
   }
 }
 
@@ -98,6 +180,7 @@ describe("visual media previews", () => {
   afterEach(async () => { await restore?.(); });
 
   it("loads relative images and direct/nested audio/video sources without autoplay", async () => {
+    mediaClickDiagnostics.length = 0;
     const note = await createNote("Media previews");
     const saveAsset = (name: string, bytes: number[]) => invoke<{ relPath: string }>("save_asset_bytes", {
       noteId: note.id, suggestedName: name, bytes,
@@ -169,6 +252,9 @@ describe("visual media previews", () => {
     await clickMediaGap(".tiptap img[alt='SVG preview']");
     await clickMediaGap(".tiptap .ht-audio-card");
     await clickMediaGap(".tiptap video");
+    for (const selector of [".tiptap img[alt='Preview']", ".tiptap img[alt='SVG preview']", ".tiptap .ht-audio-card", ".tiptap video"]) {
+      await clickMediaGap(selector, "left");
+    }
     await $(".tiptap img[alt='Preview']").click();
     await $(".htnote-media-image .htnote-media-toolbar").waitForDisplayed();
     const themeWasDark = await browser.execute(() => document.documentElement.classList.contains("dark"));
