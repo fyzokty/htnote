@@ -13,6 +13,7 @@ import { handleExternalChanges } from "@/features/editor/externalChange";
 import { installBridgeHost, requestHighlight, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
 import type { NoteData, Settings } from "@/lib/types";
 import { NOTE_IFRAME_SANDBOX, initNoteOrigin, noteUrl } from "@/lib/noteUrl";
+import { ipc } from "@/lib/ipc";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -33,6 +34,7 @@ beforeEach(() => {
   useTabsStore.getState().openNote("a");
   useUiStore.setState({ exportBusy: false, toasts: [] });
   useSettingsStore.setState({ settings: null });
+  vi.spyOn(ipc, "getNoteTree").mockResolvedValue(notes);
   vi.mocked(save).mockReset();
   vi.mocked(revealItemInDir).mockReset();
 });
@@ -279,5 +281,89 @@ describe("NoteViewer", () => {
     expect(useUiStore.getState().toasts).toEqual(expect.arrayContaining([expect.objectContaining({ messageKey: "export.exported" })]));
     act(() => useUiStore.getState().toasts.find((toast) => toast.messageKey === "export.exported")?.action?.onClick());
     expect(revealItemInDir).toHaveBeenCalledWith("C:\\Exports\\Alpha.html");
+  });
+
+  it("shows input on double click and calls renameNote on Enter", async () => {
+    const renameSpy = vi.spyOn(ipc, "renameNote").mockResolvedValue({
+      type: "note", id: "a", title: "Alpha Renamed", relPath: "Alpha Renamed", isFavorite: false, tags: [], updatedAt: "2026-01-01T00:00:00Z"
+    });
+    const refreshSpy = vi.spyOn(useTreeStore.getState(), "refresh").mockImplementation(async () => {
+      useTreeStore.setState({
+        tree: [
+          { type: "note", id: "a", title: "Alpha Renamed", relPath: "Alpha Renamed", isFavorite: false, tags: [], updatedAt: "2026-01-01T00:00:00Z" },
+          notes[1],
+        ],
+      });
+    });
+
+    render(<NoteViewer />);
+    const heading = screen.getByTestId("note-title");
+    expect(heading).toHaveTextContent("Alpha");
+
+    fireEvent.doubleClick(heading);
+    const input = screen.getByRole("textbox", { name: "Not başlığını yeniden adlandır" });
+    expect(input).toBeInTheDocument();
+    expect(input).toHaveValue("Alpha");
+
+    fireEvent.change(input, { target: { value: "Alpha Renamed" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    expect(renameSpy).toHaveBeenCalledWith("a", "Alpha Renamed");
+    await waitFor(() => {
+      expect(screen.getByTestId("note-title")).toHaveTextContent("Alpha Renamed");
+    });
+    renameSpy.mockRestore();
+    refreshSpy.mockRestore();
+  });
+
+  it("cancels rename on Escape", () => {
+    const renameSpy = vi.spyOn(ipc, "renameNote");
+    render(<NoteViewer />);
+    fireEvent.doubleClick(screen.getByTestId("note-title"));
+    const input = screen.getByRole("textbox", { name: "Not başlığını yeniden adlandır" });
+    fireEvent.change(input, { target: { value: "Something Else" } });
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(renameSpy).not.toHaveBeenCalled();
+    expect(screen.queryByRole("textbox", { name: "Not başlığını yeniden adlandır" })).not.toBeInTheDocument();
+    expect(screen.getByTestId("note-title")).toHaveTextContent("Alpha");
+    renameSpy.mockRestore();
+  });
+
+  it("saves rename on blur", async () => {
+    const renameSpy = vi.spyOn(ipc, "renameNote").mockResolvedValue({
+      type: "note", id: "a", title: "Alpha Blur", relPath: "Alpha Blur", isFavorite: false, tags: [], updatedAt: "2026-01-01T00:00:00Z"
+    });
+    render(<NoteViewer />);
+    fireEvent.doubleClick(screen.getByTestId("note-title"));
+    const input = screen.getByRole("textbox", { name: "Not başlığını yeniden adlandır" });
+    fireEvent.change(input, { target: { value: "Alpha Blur" } });
+    fireEvent.blur(input);
+
+    expect(renameSpy).toHaveBeenCalledWith("a", "Alpha Blur");
+    renameSpy.mockRestore();
+  });
+
+  it("shows error toast when rename fails with invalid name", async () => {
+    const renameSpy = vi.spyOn(ipc, "renameNote").mockRejectedValue({ code: "INVALID_NAME", message: "Invalid name." });
+    render(<NoteViewer />);
+    fireEvent.doubleClick(screen.getByTestId("note-title"));
+    const input = screen.getByRole("textbox", { name: "Not başlığını yeniden adlandır" });
+    fireEvent.change(input, { target: { value: "Bad/Name" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+
+    await waitFor(() => {
+      expect(useUiStore.getState().toasts).toEqual(
+        expect.arrayContaining([expect.objectContaining({ kind: "error", messageKey: "errors.INVALID_NAME" })])
+      );
+    });
+    renameSpy.mockRestore();
+  });
+
+  it("starts editing on F2 when heading is focused", () => {
+    render(<NoteViewer />);
+    const heading = screen.getByTestId("note-title");
+    fireEvent.keyDown(heading, { key: "F2" });
+    expect(screen.getByRole("textbox", { name: "Not başlığını yeniden adlandır" })).toBeInTheDocument();
   });
 });

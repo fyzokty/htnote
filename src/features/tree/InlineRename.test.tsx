@@ -36,4 +36,14 @@ describe("InlineRename", () => {
     fireEvent.blur(screen.getByRole("textbox"));
     expect(confirm).toHaveBeenCalledWith("Changed");
   });
+
+  it("supports underline variant without background", () => {
+    const confirm = vi.fn();
+    render(<InlineRename name="Heading" label="Rename title" variant="underline" onConfirm={confirm} onCancel={vi.fn()} />);
+    const input = screen.getByRole("textbox", { name: "Rename title" });
+    expect(input).toHaveClass("bg-transparent", "border-b-2", "border-app-accent");
+    fireEvent.change(input, { target: { value: "Updated Heading" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(confirm).toHaveBeenCalledWith("Updated Heading");
+  });
 });
