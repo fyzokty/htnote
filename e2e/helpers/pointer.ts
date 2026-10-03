@@ -1,7 +1,15 @@
 import type { ChainablePromiseElement } from "webdriverio";
 
 export interface PointerPoint { x: number; y: number }
-interface RecordedPoint extends PointerPoint { time: number }
+interface PointerSnapshot {
+  rect: { left: number; right: number; top: number; bottom: number; width: number; height: number } | null;
+  runningAnimations: { count: number; names: string[] };
+}
+interface RecordedPoint extends PointerPoint { time: number; snapshot: PointerSnapshot }
+interface PointerMeasurementResult {
+  error?: string;
+  measurement?: { point: PointerPoint; snapshot: PointerSnapshot };
+}
 export type PointerElement = WebdriverIO.Element | ChainablePromiseElement;
 type EventKind = "pointermove" | "mousemove" | "mousedown" | "mouseup";
 type PointerAction = { type: "pointerMove"; duration: number; origin: { "element-6066-11e4-a52e-4f735466cecf": string }; x: number; y: number }
@@ -11,6 +19,7 @@ declare global {
   interface Window {
     __htnotePointerProbe?: {
       events: Partial<Record<EventKind, RecordedPoint>>;
+      target?: Element;
       stop: () => void;
     };
   }
@@ -22,17 +31,61 @@ class PointerCoordinateError extends Error {}
 const matches = (actual: PointerPoint | undefined, expected: PointerPoint) => actual
   && Math.abs(actual.x - expected.x) <= tolerance && Math.abs(actual.y - expected.y) <= tolerance;
 
+async function measurePointer(element: PointerElement, timeout = 5000) {
+  const result = await browser.executeAsync<PointerMeasurementResult, [WebdriverIO.Element, number]>((element, timeout, done) => {
+    if (window.__htnotePointerProbe) window.__htnotePointerProbe.target = element;
+    const snapshot = (): PointerSnapshot => {
+      const rect = element.getBoundingClientRect();
+      const running = document.getAnimations().filter((animation) => animation.playState === "running");
+      return {
+        rect: { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height },
+        runningAnimations: {
+          count: running.length,
+          names: running.map((animation) => (animation as CSSAnimation).animationName
+            || (animation as CSSTransition).transitionProperty || animation.id || "Web Animation"),
+        },
+      };
+    };
+    let previous: PointerSnapshot | undefined;
+    let latest: PointerSnapshot | undefined;
+    let frame = 0;
+    const timer = setTimeout(() => {
+      cancelAnimationFrame(frame);
+      done({ error: `Pointer target did not stabilize within ${timeout}ms: ${JSON.stringify(latest)}` });
+    }, timeout);
+    const sample = () => {
+      latest = snapshot();
+      if (previous && JSON.stringify(previous.rect) === JSON.stringify(latest.rect)
+        && previous.runningAnimations.count === 0 && latest.runningAnimations.count === 0) {
+        clearTimeout(timer);
+        const rect = latest.rect!;
+        const left = Math.max(0, rect.left);
+        const right = Math.min(window.innerWidth, rect.right);
+        const top = Math.max(0, rect.top);
+        const bottom = Math.min(window.innerHeight, rect.bottom);
+        if (left >= right || top >= bottom) {
+          done({ error: "Pointer origin has no in-view center" });
+        } else {
+          // W3C element origins use the floored center of the visible rectangle.
+          done({ measurement: { point: { x: Math.floor((left + right) / 2), y: Math.floor((top + bottom) / 2) }, snapshot: latest } });
+        }
+        return;
+      }
+      previous = latest;
+      frame = requestAnimationFrame(sample);
+    };
+    frame = requestAnimationFrame(sample);
+  }, await element.getElement(), timeout);
+  if (result.error) throw new Error(result.error);
+  return result.measurement!;
+}
+
 export async function pointerCenter(element: PointerElement): Promise<PointerPoint> {
-  return browser.execute((element) => {
-    const rect = element.getBoundingClientRect();
-    const left = Math.max(0, rect.left);
-    const right = Math.min(window.innerWidth, rect.right);
-    const top = Math.max(0, rect.top);
-    const bottom = Math.min(window.innerHeight, rect.bottom);
-    if (left >= right || top >= bottom) throw new Error("Pointer origin has no in-view center");
-    // W3C element origins use the floored center of the visible rectangle.
-    return { x: Math.floor((left + right) / 2), y: Math.floor((top + bottom) / 2) };
-  }, await element.getElement());
+  return (await measurePointer(element)).point;
+}
+
+export async function waitForPointerStable(element: PointerElement, timeout = 5000): Promise<void> {
+  await measurePointer(element, timeout);
 }
 
 async function perform(actions: PointerAction[]) {
@@ -47,6 +100,8 @@ async function perform(actions: PointerAction[]) {
 // sandbox or dispatching synthetic events.
 class PointerSession {
   private frames: WebdriverIO.Element[] = [];
+  private measured?: PointerSnapshot;
+  private observed?: PointerSnapshot;
 
   private async inFrame<T>(frame: WebdriverIO.Element, run: () => Promise<T>): Promise<T> {
     await browser.switchFrame(frame);
@@ -60,8 +115,19 @@ class PointerSession {
       const events: Partial<Record<EventKind, RecordedPoint>> = {};
       const kinds: EventKind[] = ["pointermove", "mousemove", "mousedown", "mouseup"];
       const record = (event: MouseEvent) => {
-        if (event.isTrusted) events[event.type as EventKind] = {
+        if (!event.isTrusted) return;
+        const rect = window.__htnotePointerProbe?.target?.getBoundingClientRect();
+        const running = document.getAnimations().filter((animation) => animation.playState === "running");
+        events[event.type as EventKind] = {
           x: event.clientX, y: event.clientY, time: performance.timeOrigin + event.timeStamp,
+          snapshot: {
+            rect: rect ? { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height } : null,
+            runningAnimations: {
+              count: running.length,
+              names: running.map((animation) => (animation as CSSAnimation).animationName
+                || (animation as CSSTransition).transitionProperty || animation.id || "Web Animation"),
+            },
+          },
         };
       };
       kinds.forEach((kind) => document.addEventListener(kind, record, true));
@@ -104,13 +170,16 @@ class PointerSession {
         const rect = frame.getBoundingClientRect();
         return { x: rect.left + frame.clientLeft, y: rect.top + frame.clientTop };
       }, frame);
-      latest = { x: event.x + origin.x, y: event.y + origin.y, time: event.time };
+      latest = { ...event, x: event.x + origin.x, y: event.y + origin.y };
     }
+    this.observed = latest?.snapshot;
     return latest ? { x: latest.x, y: latest.y } : undefined;
   }
 
   private async moveAction(element: WebdriverIO.Element, point: PointerPoint, offset: PointerPoint, duration = 0): Promise<PointerAction> {
-    const center = await pointerCenter(element);
+    const measurement = await measurePointer(element);
+    const center = measurement.point;
+    this.measured = measurement.snapshot;
     return {
       type: "pointerMove", duration,
       origin: { "element-6066-11e4-a52e-4f735466cecf": element.elementId },
@@ -120,12 +189,13 @@ class PointerSession {
 
   private error(kind: EventKind, point: PointerPoint, actual: PointerPoint | undefined, offset?: PointerPoint) {
     return new PointerCoordinateError(`WebDriver ${kind} coordinate drift: expected ${JSON.stringify(point)}, `
-      + `received ${JSON.stringify(actual) ?? "no trusted event"}, correction ${JSON.stringify(offset ?? { x: 0, y: 0 })} (tolerance ±${tolerance}px)`);
+      + `received ${JSON.stringify(actual) ?? "no trusted event"}, correction ${JSON.stringify(offset ?? { x: 0, y: 0 })} (tolerance ±${tolerance}px)`
+      + `; measurement ${JSON.stringify(this.measured)}, event ${JSON.stringify(this.observed) ?? "no trusted event"}`);
   }
 
   async move(element: WebdriverIO.Element, point: PointerPoint, duration = 0, approach = true) {
-    // Drift depends on position: measure each target instead of reusing a
-    // global calibration. Accumulate corrections relative to the last command.
+    // Wait for layout/animation stability before measuring each element origin.
+    // Keep per-target corrections for any remaining driver coordinate mismatch.
     const offset = { x: 0, y: 0 };
     let actual: PointerPoint | undefined;
     for (let attempt = 0; attempt < 3; attempt++) {

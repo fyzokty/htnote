@@ -61,8 +61,16 @@ CI uses the runner's default WebView2 Runtime and installs the matching
 EdgeDriver with `msedgedriver-tool`. Updating the runtime was attempted, but the
 new runtime triggers [runner image issue 14738](https://github.com/actions/runner-images/issues/14738),
 causing sessions to fail with `DevToolsActivePort file doesn't exist`.
-Position-dependent WebDriver coordinate drift is corrected for each action by
-`e2e/helpers/pointer.ts`.
+The varying vertical coordinate differences in CI may come from measuring a
+target while an entry animation or transition is still moving it; a coordinate
+mismatch alone does not establish a WebDriver bug. The E2E driver environment
+appends `--force-prefers-reduced-motion` to
+`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, preserving any existing arguments.
+`tauri-driver`, EdgeDriver and the application inherit this setting. The session
+hook asserts `matchMedia('(prefers-reduced-motion: reduce)').matches === true`.
+The screenshot configuration inherits both the argument and the assertion.
+Only these test launches force reduced motion; production animation behavior
+and the Tauri application configuration are unchanged.
 
 Driver output is also saved to `e2e/logs/tauri-driver.log`. CI prints the driver
 and WebView2 versions, launches the debug app directly with temporary root and
@@ -72,10 +80,19 @@ Outside media clicks append geometry, hit testing, DOM and ProseMirror selection
 before/after mousedown and mouseup, handler decisions, and the user agent to
 `e2e/logs/media-click-diagnostics.json`. The same JSON appears in assertion
 failures. Coordinate-sensitive clicks, tab drags and hovers use `helpers/pointer.ts`
-with real WebDriver mouse actions. For each target point, the helper moves the
+with real WebDriver mouse actions. Before measuring an element origin, the
+helper waits for its rectangle to remain unchanged across two consecutive
+animation frames with no `running` animations from `document.getAnimations()`.
+The wait has a five-second timeout that reports geometry and animation names;
+finished/paused animations do not block it. Media gap clicks also wait before
+calculating their intended point. For each target point, the helper moves the
 pointer, reads the actual trusted DOM `clientX/clientY`, and adjusts the commanded
 coordinates by the measured error. Each point has at most three attempts to
-reach ±2 px tolerance; failures report the target, actual point and correction.
+reach ±2 px tolerance; failures report the target, actual point and correction,
+plus the target rectangle and running animation count/names at measurement and
+trusted event time (before application handlers run). Events inside a sandboxed
+child frame report that document's animations and a null target rectangle when
+the origin belongs to the parent document.
 There is no global calibration or assumption that offsets at different positions
 match. Down/up actions use the corrected pointer position and their actual events
 are also verified. Drags correct the activation point, every waypoint and the
@@ -86,7 +103,9 @@ visible note frames during a drag's vertical excursion and are removed in
 `finally`, along with releasing mouse buttons. The correction helper tests run
 with `node --import tsx --test e2e/helpers/pointer.test.ts` and inject offsets of
 0, 12 and 30 px, position-dependent and changing drift, missing events and
-persistent failures without an older runtime.
+persistent failures without an older runtime. They also cover moving target
+rectangles, waiting for running animations, bounded stability timeouts, and
+measurement/event snapshots that distinguish target motion from driver offsets.
 Assertions compare the handler's actual event coordinates with the
 intended point (allowing only 1 px rounding) and verify that it is outside the
 preview in the intended row using bounds recorded at mousedown, before selection

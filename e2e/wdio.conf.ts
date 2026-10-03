@@ -1,4 +1,5 @@
 import { spawn, type ChildProcess } from "node:child_process";
+import assert from "node:assert/strict";
 import { connect } from "node:net";
 import { createWriteStream } from "node:fs";
 import { cp, mkdir, mkdtemp, rm } from "node:fs/promises";
@@ -47,6 +48,8 @@ export const config = {
   async before() {
     await browser.setTimeout({ script: 60000 });
     await waitForApp();
+    assert.equal(await browser.execute(() => matchMedia("(prefers-reduced-motion: reduce)").matches), true,
+      "E2E WebView2 must start with --force-prefers-reduced-motion");
   },
   async beforeTest() {
     await browser.releaseActions();
@@ -67,7 +70,13 @@ export const config = {
     driverLog = createWriteStream(join(logDirectory, "tauri-driver.log"));
     console.info(`Starting tauri-driver ${driverArgs.join(" ")}`);
     driver = spawn("tauri-driver", driverArgs, {
-      env: { ...process.env, HTNOTE_ROOT_OVERRIDE: root, HTNOTE_CONFIG_DIR_OVERRIDE: configDir },
+      // tauri-driver and its EdgeDriver/app children inherit this E2E-only setting.
+      env: {
+        ...process.env,
+        WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `${process.env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS ?? ""} --force-prefers-reduced-motion`.trim(),
+        HTNOTE_ROOT_OVERRIDE: root,
+        HTNOTE_CONFIG_DIR_OVERRIDE: configDir,
+      },
       stdio: ["ignore", "pipe", "pipe"],
     });
     driver.stdout?.pipe(process.stdout);

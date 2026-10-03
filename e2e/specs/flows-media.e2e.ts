@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import type { Editor } from "@tiptap/core";
 import type { MediaClickDebug } from "../../src/features/editor/mediaSelection";
 
-import { pointerClickAt } from "../helpers/pointer";
+import { pointerClickAt, waitForPointerStable } from "../helpers/pointer";
 
 import { createNote, editNote, invoke, openNote, saveShortcut, useTempRoot, withNoteFrame } from "../helpers/flows";
 
@@ -58,6 +58,7 @@ const mediaClickDiagnostics: object[] = [];
 async function clickMediaGap(selector: string, side: "left" | "right" = "right") {
   const origin = await $(selector);
   await origin.scrollIntoView();
+  await waitForPointerStable(origin);
   const point = await browser.execute((selector, side) => {
     const surface = document.querySelector<HTMLElement>(".tiptap")! as HTMLElement & { editor: Editor };
     const editor = surface.getBoundingClientRect();

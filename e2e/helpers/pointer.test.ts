@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { pointerClickAt, pointerDrag, pointerMoveTo } from "./pointer";
+import { pointerCenter, pointerClickAt, pointerDrag, pointerMoveTo, waitForPointerStable } from "./pointer";
 
-// A driver double injects the CI offsets into trusted event coordinates. This
+// A driver double injects coordinate offsets into trusted event coordinates. This
 // exercises per-target correction without requiring an older WebView2 locally.
 function driver(initialOffset: { x: number; y: number }) {
   const listeners = new Map<string, Set<(event: object) => void>>();
   const testWindow = { innerWidth: 1000, innerHeight: 800 } as Window;
-  const sourceRect = { left: 100, right: 260, top: 10, bottom: 40 };
-  const targetRect = { left: 300, right: 460, top: 10, bottom: 40 };
+  const sourceRect = { left: 100, right: 260, top: 10, bottom: 40, width: 160, height: 30 };
+  const targetRect = { left: 300, right: 460, top: 10, bottom: 40, width: 160, height: 30 };
   const element = (id: string, rect: typeof sourceRect) => ({
     elementId: id,
     getBoundingClientRect: () => rect,
@@ -29,15 +29,33 @@ function driver(initialOffset: { x: number; y: number }) {
   let beforeEvent: ((kind: string, moveCount: number) => void) | undefined;
   let offsetAt: ((point: { x: number; y: number }) => typeof offset) | undefined;
   let recordMoves = true;
+  let animations: { playState: string; animationName?: string; transitionProperty?: string; id?: string }[] = [];
+  let frames = 0;
+  let beforeFrame: ((frame: number) => void) | undefined;
+  const frameTimers = new Map<number, ReturnType<typeof setTimeout>>();
   const globals = globalThis as unknown as Record<string, unknown>;
-  const previous = new Map(["window", "document", "browser", "$$"].map((key) => [key, globals[key]]));
+  const previous = new Map(["window", "document", "browser", "$$", "requestAnimationFrame", "cancelAnimationFrame"].map((key) => [key, globals[key]]));
   globals.window = testWindow;
   globals.document = {
+    getAnimations: () => animations,
     addEventListener: (kind: string, listener: (event: object) => void) => {
       if (!listeners.has(kind)) listeners.set(kind, new Set());
       listeners.get(kind)!.add(listener);
     },
     removeEventListener: (kind: string, listener: (event: object) => void) => listeners.get(kind)?.delete(listener),
+  };
+  globals.requestAnimationFrame = (callback: () => void) => {
+    const id = ++frames;
+    frameTimers.set(id, setTimeout(() => {
+      frameTimers.delete(id);
+      beforeFrame?.(id);
+      callback();
+    }, 1));
+    return id;
+  };
+  globals.cancelAnimationFrame = (id: number) => {
+    clearTimeout(frameTimers.get(id));
+    frameTimers.delete(id);
   };
   globals.$$ = async () => [];
   const emit = (kind: string) => {
@@ -47,6 +65,7 @@ function driver(initialOffset: { x: number; y: number }) {
   };
   globals.browser = {
     execute: async (callback: (...args: unknown[]) => unknown, ...args: unknown[]) => callback(...args),
+    executeAsync: async (callback: (...args: unknown[]) => void, ...args: unknown[]) => new Promise((done) => callback(...args, done)),
     performActions: async (sequences: { actions: { type: string; origin?: Record<string, string>; x: number; y: number }[] }[]) => {
       for (const action of sequences[0].actions) {
         if (action.type === "pointerMove") {
@@ -89,6 +108,10 @@ function driver(initialOffset: { x: number; y: number }) {
     suppressMoves: () => { recordMoves = false; },
     moves: () => moves,
     onEvent: (callback: typeof beforeEvent) => { beforeEvent = callback; },
+    onFrame: (callback: typeof beforeFrame) => { beforeFrame = callback; },
+    frames: () => frames,
+    setAnimations: (next: typeof animations) => { animations = next; },
+    shiftSource: (y: number) => { sourceRect.top += y; sourceRect.bottom += y; },
     displace: (x: number, y: number) => { position = { x: position.x + x, y: position.y + y }; },
     position: () => position,
     cancellations: () => cancellations,
@@ -97,12 +120,70 @@ function driver(initialOffset: { x: number; y: number }) {
       assert.ok(releases > 0, "Input state must be released on success and failure");
       assert.equal(testWindow.__htnotePointerProbe, undefined);
       assert.equal([...listeners.values()].reduce((sum, entries) => sum + entries.size, 0), 0);
+      assert.equal(frameTimers.size, 0, "Animation frame callbacks must be cancelled");
       for (const [key, value] of previous) {
         if (value === undefined) delete globals[key]; else globals[key] = value;
       }
     },
   };
 }
+
+test("center waits for two unchanged frames after target motion stops", async () => {
+  const fake = driver({ x: 0, y: 0 });
+  fake.onFrame((frame) => { if (frame <= 3) fake.shiftSource(4); });
+  try {
+    assert.deepEqual(await pointerCenter(fake.source), { x: 180, y: 37 });
+    assert.equal(fake.frames(), 4);
+    // This test only measures; start/stop a session to verify its cleanup too.
+    await pointerMoveTo(fake.source);
+  } finally { fake.cleanup(); }
+});
+
+test("stable geometry still waits for running animations, but ignores finished ones", async () => {
+  const fake = driver({ x: 0, y: 0 });
+  fake.setAnimations([{ playState: "running", animationName: "htnote-mode-enter" }]);
+  fake.onFrame((frame) => {
+    if (frame === 3) fake.setAnimations([{ playState: "finished", animationName: "htnote-mode-enter" }]);
+  });
+  try {
+    assert.deepEqual(await pointerCenter(fake.source), { x: 180, y: 25 });
+    assert.equal(fake.frames(), 4);
+    await pointerMoveTo(fake.source);
+  } finally { fake.cleanup(); }
+});
+
+test("stability timeout reports geometry and running animation names and cancels frames", async () => {
+  const fake = driver({ x: 0, y: 0 });
+  fake.setAnimations([{ playState: "running", animationName: "htnote-mode-enter" }]);
+  try {
+    await assert.rejects(waitForPointerStable(fake.source, 20), /did not stabilize within 20ms.*rect.*runningAnimations.*count.*1.*htnote-mode-enter/);
+    fake.setAnimations([]);
+    await pointerMoveTo(fake.source);
+  } finally { fake.cleanup(); }
+});
+
+test("coordinate failure captures target motion and animations at event time", async () => {
+  const fake = driver({ x: 0, y: 0 });
+  fake.onFrame(() => fake.setAnimations([]));
+  fake.onEvent((kind, moves) => {
+    if (kind === "move") {
+      fake.shiftSource(moves * 3);
+      fake.setAnimations([{ playState: "running", animationName: "htnote-tree-row-enter" }]);
+    }
+  });
+  try {
+    await assert.rejects(pointerMoveTo(fake.source), (error: Error) => {
+      assert.match(error.message, /failed after 3 attempts/);
+      const [, measured, observed] = error.message.match(/; measurement (.*), event (.*)$/)!;
+      const measurement = JSON.parse(measured);
+      const event = JSON.parse(observed);
+      assert.notDeepEqual(measurement.rect, event.rect);
+      assert.deepEqual(measurement.runningAnimations, { count: 0, names: [] });
+      assert.deepEqual(event.runningAnimations, { count: 1, names: ["htnote-tree-row-enter"] });
+      return true;
+    });
+  } finally { fake.cleanup(); }
+});
 
 for (const offset of [{ x: 0, y: 0 }, { x: 0, y: 12 }, { x: 0, y: 30 }, { x: -7, y: 12 }]) {
   test(`click lands at the intended point with driver offset ${JSON.stringify(offset)}`, async () => {
