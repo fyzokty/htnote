@@ -7,6 +7,64 @@ import { createVisualExtensions } from "@/features/editor/extensions";
 import { selectMediaGap } from "@/features/editor/mediaSelection";
 
 describe("media outside clicks", () => {
+  it.each(["image", "audio", "video"] as const)("uses the clicked %s row despite incorrect hit testing and event targets", (kind) => {
+    const editor = new Editor({ extensions: createVisualExtensions(""), content: {
+      type: "doc", content: ["image", "image", kind, "video"].map((type) => ({ type, attrs: { src: "media" } })),
+    } });
+    // A compact NodeView may receive an outside event in older WebView2.
+    // Playback NodeViews stop these events before handleDOMEvents runs.
+    const nodeView = () => {
+      const dom = document.createElement("div");
+      dom.innerHTML = '<div class="htnote-media-preview"></div><div class="htnote-media-toolbar"></div>';
+      return { dom, stopEvent: () => true };
+    };
+    editor.view.setProps({ nodeViews: { image: nodeView, audio: nodeView, video: nodeView } });
+    for (let pos = 0; pos < 4; pos += 1) {
+      const dom = editor.view.nodeDOM(pos) as HTMLElement;
+      const top = pos * 100;
+      vi.spyOn(dom, "getBoundingClientRect").mockReturnValue({ left: 100, right: 300, top, bottom: top + 80 } as DOMRect);
+      vi.spyOn(dom.querySelector(".htnote-media-preview")!, "getBoundingClientRect")
+        .mockReturnValue({ left: 100, right: 300, top: top + 20, bottom: top + 80 } as DOMRect);
+      vi.spyOn(dom.querySelector(".htnote-media-toolbar")!, "getBoundingClientRect")
+        .mockReturnValue({ left: 100, right: 350, top, bottom: top + 15 } as DOMRect);
+    }
+    vi.spyOn(editor.view, "focus").mockImplementation(() => {});
+    const hitTest = vi.spyOn(editor.view, "posAtCoords");
+    const dom = editor.view.nodeDOM(2) as HTMLElement;
+    for (const wrongHit of [{ pos: 1, inside: 0 }, { pos: 0, inside: -1 }, null]) {
+      hitTest.mockReturnValue(wrongHit);
+      for (const target of [editor.view.dom, dom.querySelector(".htnote-media-preview")!, dom.querySelector(".htnote-media-toolbar")!]) {
+        for (const [x, pos] of [[400, 3], [50, 2]]) {
+          editor.commands.setNodeSelection(0);
+          const event = new MouseEvent("mousedown", { clientX: x, clientY: 250, bubbles: true, cancelable: true });
+          target.dispatchEvent(event);
+          expect(event.defaultPrevented).toBe(true);
+          expect(editor.state.selection.toJSON()).toEqual({ type: "gapcursor", pos });
+          target.dispatchEvent(new MouseEvent("mouseup", { clientX: x, clientY: 250, bubbles: true }));
+          expect(editor.state.selection.toJSON()).toEqual({ type: "gapcursor", pos });
+          expect(hitTest).not.toHaveBeenCalled();
+        }
+      }
+    }
+    // Actual previews, overhanging toolbar controls, other rows and right
+    // clicks retain their native/NodeView behavior.
+    for (const [x, y, button] of [[200, 250, 0], [325, 205, 0], [400, 900, 0], [400, 250, 2]]) {
+      editor.commands.setNodeSelection(2);
+      const event = new MouseEvent("mousedown", { clientX: x, clientY: y, button, bubbles: true, cancelable: true });
+      dom.querySelector(".htnote-media-preview")!.dispatchEvent(event);
+      expect(event.defaultPrevented).toBe(false);
+      expect(editor.state.selection).toBeInstanceOf(NodeSelection);
+      expect(editor.state.selection.from).toBe(2);
+    }
+    editor.setEditable(false);
+    const readonlyClick = new MouseEvent("mousedown", { clientX: 400, clientY: 250, bubbles: true, cancelable: true });
+    dom.querySelector(".htnote-media-preview")!.dispatchEvent(readonlyClick);
+    expect(readonlyClick.defaultPrevented).toBe(false);
+    const removeListener = vi.spyOn(editor.view.dom, "removeEventListener");
+    editor.destroy();
+    expect(removeListener).toHaveBeenCalledWith("mousedown", expect.any(Function), true);
+  });
+
   it.each(["image", "audio", "video"] as const)("places a gap cursor before or after a lone %s", (kind) => {
     const editor = new Editor({ extensions: createVisualExtensions("") });
     editor.commands.insertMedia({ kind, relPath: "./assets/media", name: "Media" });

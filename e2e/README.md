@@ -38,9 +38,9 @@ have bounded timeouts for slower CI runners, without fixed sleeps or test retrie
 Settings controls use stable test IDs rather than translated button text; the
 tab sizing flow runs in both Turkish and English. Outside media clicks must leave
 a gap cursor immediately before or after that media, keep the same position on
-mouseup, and leave its toolbar hidden. WebView2 versions can resolve outside
-coordinates to either adjacent boundary; the unit tests separately verify the
-application's left/right placement with fixed geometry.
+mouseup, and leave its toolbar hidden. The application uses the media NodeView's
+bounds in the capture phase to place left/right clicks before/after that media.
+Unit tests also cover incorrect coordinate hit tests and media event targets.
 
 CodeMirror virtualizes off-screen lines, so `.cm-content.getText()` reads only
 the rendered viewport, not the entire HTML document. Scroll the relevant content
