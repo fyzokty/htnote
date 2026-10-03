@@ -114,4 +114,17 @@ The handler trace is enabled only for each diagnostic click through an explicit
 test hook. Gap-cursor and mouseup expectations remain unchanged.
 Failed tests save screenshots in `e2e/logs/` and print the current frame URL,
 document readiness and security probe results to the test log.
+Internal-link iframe failures also include a diagnostic JSON in the error and
+`e2e/logs/note-frame-<id>-<timestamp>.json`, before the temporary root is removed.
+It records the failing frame context and the currently attached frame separately,
+their URLs/revisions and document readiness, expected link presence, iframe
+visibility/geometry, host revision and loaded revision, active tab/editor mode,
+editing/saving state, and the actual `index.html` from disk with its link presence.
+The host cannot access the isolated frame's `contentDocument`; its null result is
+recorded, and document readiness is also read through WebDriver inside the frame.
+Probe failures are recorded independently and do not replace the original assertion.
+Assertions and their timeouts are unchanged; failed actions are not retried.
+For race diagnosis, set `HTNOTE_E2E_CPU_THROTTLE=4` before running the usual WDIO
+command to request fourfold CPU slowdown through EdgeDriver's DevTools endpoint.
+This is opt-in and leaves normal suite launches unchanged.
 CI E2E is pinned to `windows-2022` until [runner image issue 14738](https://github.com/actions/runner-images/issues/14738) is resolved.

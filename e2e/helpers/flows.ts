@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { waitForApp, waitForSavedEditor } from "./app";
+import { noteFrameFailure } from "./noteFrameDiagnostics";
 
 export interface NoteNode { type: "note"; id: string; title: string; relPath: string }
 interface FolderNode { type: "folder"; relPath: string; children: TreeNode[] }
@@ -71,7 +72,7 @@ export async function openNote(id: string): Promise<void> {
   await $(`iframe[title="${note.title}"]`).waitForExist();
 }
 
-export async function withNoteFrame<T>(id: string, run: () => Promise<T>): Promise<T> {
+export async function withNoteFrame<T>(id: string, run: () => Promise<T>, diagnostics?: { expectedHref: string }): Promise<T> {
   const note = flatten(await tree()).find((item) => item.id === id);
   assert.ok(note);
   try {
@@ -89,6 +90,9 @@ export async function withNoteFrame<T>(id: string, run: () => Promise<T>): Promi
       }
     }, { timeout: 15000, interval: 100, timeoutMsg: `Note iframe did not become ready: ${id}` });
     return await run();
+  } catch (error) {
+    if (diagnostics) throw await noteFrameFailure(error, { ...note, ...diagnostics });
+    throw error;
   } finally {
     await browser.switchFrame(null);
   }

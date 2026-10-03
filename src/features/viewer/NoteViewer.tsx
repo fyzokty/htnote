@@ -47,7 +47,7 @@ function relativeSaved(value: string, language: string, now: number): string {
   return formatter.format(Math.round(elapsed / 86_400_000), "day");
 }
 
-function NoteFrame({ id, active, editing, title, revision }: { id: string; active: boolean; editing: boolean; title: string; revision: string }) {
+function NoteFrame({ id, active, editing, saving, title, revision }: { id: string; active: boolean; editing: boolean; saving: boolean; title: string; revision: string }) {
   const { t } = useTranslation();
   const [loadedRevision, setLoadedRevision] = useState<string | null>(null);
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -58,7 +58,8 @@ function NoteFrame({ id, active, editing, title, revision }: { id: string; activ
   return (
     // Keep layout while editing: navigating a display:none iframe can leave its
     // new document without layout in WebView2 even after it becomes visible.
-    <div className={`h-full w-full ${editing ? "absolute inset-0 invisible pointer-events-none" : "relative"} ${active && !editing ? "htnote-mode-transition" : ""}`} hidden={!active} inert={!active || editing} aria-hidden={!active || editing} data-mode="view">
+    <div className={`h-full w-full ${editing ? "absolute inset-0 invisible pointer-events-none" : "relative"} ${active && !editing ? "htnote-mode-transition" : ""}`} hidden={!active} inert={!active || editing} aria-hidden={!active || editing} data-mode="view"
+      data-note-id={id} data-revision={revision} data-loaded-revision={loadedRevision ?? ""} data-editing={editing} data-saving={saving}>
       {loadedRevision !== revision && <div role="progressbar" aria-label={t("viewer.loading")} className="absolute inset-x-0 top-0 z-10 h-0.5 animate-pulse bg-app-accent" />}
       <iframe
         ref={frameRef}
@@ -176,6 +177,7 @@ export function NoteViewer() {
                   id={id}
                   active={id === activeId}
                   editing={Boolean(isEditing)}
+                  saving={Boolean(doc?.saving)}
                   title={note.title}
                   revision={`${doc?.lastSavedAt ?? 0}:${doc?.baseVersion ?? 0}`}
                 />

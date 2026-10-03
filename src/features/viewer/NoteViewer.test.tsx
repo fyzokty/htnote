@@ -45,6 +45,10 @@ describe("NoteViewer", () => {
     render(<NoteViewer />);
     const frame = await screen.findByTitle("Alpha") as HTMLIFrameElement;
     const container = frame.parentElement!;
+    expect(container).toHaveAttribute("data-note-id", "a");
+    expect(container).toHaveAttribute("data-revision", "0:0");
+    fireEvent.load(frame);
+    expect(container).toHaveAttribute("data-loaded-revision", "0:0");
     const base = { html: '<main id="htnote-content"><p>Content</p></main>', css: null, js: null, contentHash: "initial" };
     act(() => useTabsStore.getState().enterEdit("a", base, "visual", true));
     expect(screen.getByTitle("Alpha")).toBe(frame);
@@ -52,18 +56,25 @@ describe("NoteViewer", () => {
     expect(container).toHaveClass("absolute", "invisible", "pointer-events-none");
     expect(container).toHaveAttribute("inert");
     expect(container).toHaveAttribute("aria-hidden", "true");
+    expect(container).toHaveAttribute("data-editing", "true");
     const initialSrc = frame.src;
     act(() => {
       useTabsStore.getState().markSaving("a");
       useTabsStore.getState().saveSucceeded("a", { ...base, contentHash: "saved" });
     });
     expect(frame.src).not.toBe(initialSrc);
+    expect(container.dataset.revision).toBe(new URL(frame.src).searchParams.get("revision"));
+    expect(container).toHaveAttribute("data-loaded-revision", "0:0");
     act(() => useTabsStore.getState().cancelEdit("a"));
     expect(screen.getByTitle("Alpha")).toBe(frame);
     expect(container).not.toHaveAttribute("hidden");
     expect(container).not.toHaveAttribute("inert");
     expect(container).toHaveAttribute("aria-hidden", "false");
     expect(container).not.toHaveClass("invisible", "pointer-events-none", "absolute");
+    expect(container).toHaveAttribute("data-editing", "false");
+    expect(container).toHaveAttribute("data-saving", "false");
+    fireEvent.load(frame);
+    expect(container.dataset.loadedRevision).toBe(container.dataset.revision);
   });
 
   it("navigates the cached frame on external changes and waits for the new document's bridge", async () => {

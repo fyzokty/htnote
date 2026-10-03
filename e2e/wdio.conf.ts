@@ -50,6 +50,12 @@ export const config = {
     await waitForApp();
     assert.equal(await browser.execute(() => matchMedia("(prefers-reduced-motion: reduce)").matches), true,
       "E2E WebView2 must start with --force-prefers-reduced-motion");
+    if (process.env.HTNOTE_E2E_CPU_THROTTLE) {
+      const rate = Number(process.env.HTNOTE_E2E_CPU_THROTTLE);
+      assert.ok(Number.isFinite(rate) && rate >= 1, "HTNOTE_E2E_CPU_THROTTLE must be >= 1");
+      await browser.sendCommandAndGetResult("Emulation.setCPUThrottlingRate", { rate });
+      console.info(`Race diagnosis: CPU throttling rate=${rate}`);
+    }
   },
   async beforeTest() {
     await browser.releaseActions();

@@ -21,7 +21,7 @@ describe("internal link flows", () => {
     await $('[data-testid="save-note"]').click();
     await withNoteFrame(a.id, async () => {
       await $(`a[href="htnote://note/${b.id}"]`).waitForDisplayed();
-    });
+    }, { expectedHref: `htnote://note/${b.id}` });
     return { a, b };
   }
 
@@ -29,7 +29,7 @@ describe("internal link flows", () => {
     await openNote(a.id);
     await withNoteFrame(a.id, async () => {
       await $(`a[href="htnote://note/${b.id}"]`).click();
-    });
+    }, { expectedHref: `htnote://note/${b.id}` });
     await browser.waitUntil(async () => await $(`[role="tab"][data-note-id="${b.id}"]`).getAttribute("aria-selected") === "true");
     const backlinks = await $("section:has(> button[aria-expanded])");
     await backlinks.waitForDisplayed();
