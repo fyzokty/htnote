@@ -82,8 +82,17 @@ export async function withNoteFrame<T>(id: string, run: () => Promise<T>, diagno
       const frame = await $(`iframe[title="${note.title}"]`);
       if (!await frame.isExisting()) return false;
       try {
+        const revision = await browser.execute((noteId) => {
+          const host = document.querySelector<HTMLElement>(`[data-mode="view"][data-note-id="${noteId}"]`);
+          return host !== null && !host.hidden && !host.inert && host.dataset.editing === "false"
+            && host.dataset.saving === "false" && host.dataset.loadedRevision === host.dataset.revision
+            ? host.dataset.revision : null;
+        }, id);
+        if (!revision || !await frame.isDisplayed()) return false;
         await browser.switchFrame(frame);
-        return await browser.execute(() => window !== window.top && document.getElementById("htnote-content") !== null);
+        return await browser.execute((expected) => window !== window.top && document.readyState === "complete"
+          && document.getElementById("htnote-content") !== null
+          && new URL(location.href).searchParams.get("revision") === expected, revision);
       } catch (error) {
         if (error instanceof Error && /stale element|no such (frame|element)|frame detached/i.test(error.message)) return false;
         throw error;
@@ -125,4 +134,27 @@ export async function saveShortcut(): Promise<void> {
 export async function editNote(): Promise<void> {
   await (await $('[data-testid="edit-note"]')).click();
   await $('[data-testid="visual-mode"]').waitForDisplayed();
+  await $('.htnote-visual-editor .tiptap').waitForDisplayed();
+}
+
+export async function waitForDirtyEditor(): Promise<void> {
+  await $('.htnote-editor-unsaved').waitForDisplayed();
+}
+
+export async function saveAndView(id: string, contains: (html: string) => boolean): Promise<string> {
+  await waitForDirtyEditor();
+  const save = await $('[data-testid="save-note"]');
+  await save.waitForEnabled();
+  await save.click();
+  await browser.waitUntil(async () => browser.execute((noteId) => {
+    const host = document.querySelector<HTMLElement>(`[data-mode="view"][data-note-id="${noteId}"]`);
+    return host?.dataset.editing === "false" && host.dataset.saving === "false" && !host.inert
+      && document.querySelector('[data-testid="save-note"]') === null;
+  }, id), { timeout: 30000, timeoutMsg: `Save did not return note ${id} to view mode` });
+  let html = "";
+  await browser.waitUntil(async () => {
+    html = (await invoke<{ html: string }>("read_note", { id })).html;
+    return contains(html);
+  }, { timeout: 30000, timeoutMsg: `Saved HTML did not contain the expected content: ${id}` });
+  return html;
 }

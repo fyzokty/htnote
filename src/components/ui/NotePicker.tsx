@@ -18,18 +18,19 @@ export function NotePicker({ currentNoteId, onSelect, onClose }: NotePickerProps
   useTreeStore((state) => state.tree);
   const notes = useTreeStore.getState().flatNotes();
   const [query, setQuery] = useState("");
-  const [active, setActive] = useState(0);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const input = useRef<HTMLInputElement>(null);
   const dialog = useRef<HTMLDivElement>(null);
   const filtered = notes.filter((note) => note.id !== currentNoteId && textMatch(note.title, query));
+  const active = Math.max(0, filtered.findIndex((note) => note.id === activeId));
 
   useEffect(() => { input.current?.focus(); }, []);
-  const move = (direction: number) => setActive((index) => (index + direction + filtered.length) % filtered.length);
+  const move = (direction: number) => setActiveId(filtered[(active + direction + filtered.length) % filtered.length].id);
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "Escape") { event.preventDefault(); onClose(); }
     if (event.key === "ArrowDown" && filtered.length) { event.preventDefault(); move(1); }
     if (event.key === "ArrowUp" && filtered.length) { event.preventDefault(); move(-1); }
-    if (event.key === "Enter" && filtered[active]) { event.preventDefault(); onSelect(filtered[active]); }
+    if (event.key === "Enter" && event.target === input.current && filtered[active]) { event.preventDefault(); onSelect(filtered[active]); }
     if (event.key === "Tab") {
       const focusables = dialog.current?.querySelectorAll<HTMLElement>("button, input");
       if (!focusables?.length) return;
@@ -46,10 +47,10 @@ export function NotePicker({ currentNoteId, onSelect, onClose }: NotePickerProps
         <strong>{t("notePicker.title")}</strong>
         <IconButton type="button" onClick={onClose} label={t("notePicker.close")}>×</IconButton>
       </div>
-      <input ref={input} aria-label={t("notePicker.search")} value={query} onChange={(event) => { setQuery(event.target.value); setActive(0); }} />
+      <input ref={input} aria-label={t("notePicker.search")} value={query} onChange={(event) => { setQuery(event.target.value); setActiveId(null); }} />
       <div role="listbox" aria-label={t("notePicker.results")}>
-        {filtered.map((note, index) => <Button variant="ghost" key={note.id} type="button" role="option" aria-selected={active === index}
-          onMouseEnter={() => setActive(index)} onClick={() => onSelect(note)}>
+        {filtered.map((note, index) => <Button variant="ghost" key={note.id} type="button" role="option" aria-label={note.title} aria-selected={active === index}
+          onMouseEnter={() => setActiveId(note.id)} onClick={() => onSelect(note)}>
           <span>{note.title}</span><small>{note.relPath.split("/").slice(0, -1).join("/") || t("notePicker.root")}</small>
         </Button>)}
         {!filtered.length && <p>{t("notePicker.empty")}</p>}

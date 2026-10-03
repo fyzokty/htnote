@@ -14,7 +14,7 @@ function driver(advance = () => {}) {
   const results = [];
   const instance = {
     switchFrame: vi.fn().mockResolvedValue(undefined),
-    execute: vi.fn(async (run) => run()),
+    execute: vi.fn(async (run, ...args) => run(...args)),
     executeAsync: vi.fn(async (run, ...args) => new Promise((done) => run(...args, done))),
     waitUntil: vi.fn(async (condition) => {
       for (let attempt = 0; attempt < 5; attempt += 1) {
@@ -78,7 +78,7 @@ describe("e2e readiness", () => {
   it("reacquires a replaced iframe before running the note actions once", async () => {
     appShell();
     window.__TAURI_INTERNALS__ = { invoke: vi.fn().mockResolvedValue([{ type: "note", id: "test", title: "Test" }]) };
-    const frame = { isExisting: vi.fn().mockResolvedValue(true) };
+    const frame = { isExisting: vi.fn().mockResolvedValue(true), isDisplayed: vi.fn().mockResolvedValue(true) };
     vi.stubGlobal("$", vi.fn().mockResolvedValue(frame));
     const { instance } = driver();
     let replaced = false;
@@ -95,10 +95,39 @@ describe("e2e readiness", () => {
     expect(instance.switchFrame).toHaveBeenLastCalledWith(null);
   });
 
+  it("waits for view mode, frame load and the actual saved frame revision", async () => {
+    appShell();
+    const host = document.createElement("div");
+    host.dataset.mode = "view";
+    host.dataset.noteId = "test";
+    host.dataset.revision = "saved:0";
+    host.dataset.saving = "false";
+    document.body.append(host);
+    window.__TAURI_INTERNALS__ = { invoke: vi.fn().mockResolvedValue([{ type: "note", id: "test", title: "Test" }]) };
+    const frame = { isExisting: vi.fn().mockResolvedValue(true), isDisplayed: vi.fn().mockResolvedValue(true) };
+    vi.stubGlobal("$", vi.fn().mockResolvedValue(frame));
+    let observedRevision = "0:0";
+    let inFrame = false;
+    const { instance, results } = driver((attempt) => {
+      host.dataset.editing = attempt === 0 ? "true" : "false";
+      host.inert = attempt === 0;
+      host.dataset.loadedRevision = attempt < 2 ? "0:0" : "saved:0";
+      observedRevision = attempt < 3 ? "0:0" : "saved:0";
+    });
+    instance.switchFrame.mockImplementation(async (target) => { inFrame = target === frame; });
+    instance.execute.mockImplementation(async (run, ...args) => inFrame ? args[0] === observedRevision : run(...args));
+    const run = vi.fn().mockResolvedValue("saved content");
+    expect(await withNoteFrame("test", run)).toBe("saved content");
+    expect(results.slice(-4)).toEqual([false, false, false, true]);
+    expect(run).toHaveBeenCalledOnce();
+    expect(instance.execute).toHaveBeenCalledWith(expect.any(Function), "saved:0");
+    expect(instance.switchFrame).toHaveBeenLastCalledWith(null);
+  });
+
   it("restores the main frame and propagates failed note assertions without retrying", async () => {
     appShell();
     window.__TAURI_INTERNALS__ = { invoke: vi.fn().mockResolvedValue([{ type: "note", id: "test", title: "Test" }]) };
-    vi.stubGlobal("$", vi.fn().mockResolvedValue({ isExisting: vi.fn().mockResolvedValue(true) }));
+    vi.stubGlobal("$", vi.fn().mockResolvedValue({ isExisting: vi.fn().mockResolvedValue(true), isDisplayed: vi.fn().mockResolvedValue(true) }));
     const { instance } = driver();
     instance.execute.mockResolvedValue(true);
     const run = vi.fn().mockRejectedValue(new Error("security assertion failed"));
@@ -111,7 +140,7 @@ describe("e2e readiness", () => {
     appShell();
     const note = { type: "note", id: "test", title: "Test", relPath: "Test" };
     window.__TAURI_INTERNALS__ = { invoke: vi.fn().mockResolvedValue([note]) };
-    vi.stubGlobal("$", vi.fn().mockResolvedValue({ isExisting: vi.fn().mockResolvedValue(true) }));
+    vi.stubGlobal("$", vi.fn().mockResolvedValue({ isExisting: vi.fn().mockResolvedValue(true), isDisplayed: vi.fn().mockResolvedValue(true) }));
     const { instance } = driver();
     instance.execute.mockResolvedValue(true);
     const original = new Error("link not visible");

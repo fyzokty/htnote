@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { pointerCenter, pointerClickAt, pointerDrag, type PointerElement } from "../helpers/pointer";
+import { clampPointerPoint, pointerCenter, pointerClickAt, pointerDrag, type PointerElement } from "../helpers/pointer";
 
 import { createNote, invoke, openNote, useTempRoot, withNoteFrame } from "../helpers/flows";
 
@@ -37,6 +37,7 @@ describe("tab reordering", () => {
     await openNote(a.id);
     await openNote(b.id);
     for (const id of [a.id, b.id]) {
+      await openNote(id);
       await withNoteFrame(id, async () => {
         await browser.waitUntil(async () => await $("html").getAttribute("data-ht-theme") === "dark");
         await browser.execute(() => { document.documentElement.dataset.reorderTest = "preserved"; });
@@ -47,10 +48,14 @@ describe("tab reordering", () => {
     const to = await $(`[role="tab"][data-note-id="${a.id}"]`);
     const start = await from.getLocation();
     const end = await to.getLocation();
+    const fromPoint = await clampPointerPoint({ x: start.x + 60, y: start.y + 15 });
+    const toPoint = await clampPointerPoint({ x: end.x + 60, y: end.y + 15 });
+    const below = await clampPointerPoint({ x: fromPoint.x, y: start.y + 150 });
+    assert.ok(below.y - fromPoint.y > 10, "Vertical excursion must exceed the drag activation distance");
     await pointerDrag(from, to, {
-      fromPoint: { x: Math.round(start.x + 60), y: Math.round(start.y + 15) },
-      toPoint: { x: Math.round(end.x + 60), y: Math.round(end.y + 15) },
-      waypoints: [{ x: Math.round(start.x + 60), y: Math.round(start.y + 150) }],
+      fromPoint,
+      toPoint,
+      waypoints: [below],
       beforeDrop: async () => {
         assert.equal(await from.getAttribute("data-dragging"), "true");
         assert.ok(Math.abs((await from.getLocation()).y - start.y) < 2);

@@ -37,6 +37,9 @@ export async function saveTab(noteId: string): Promise<boolean> {
     });
     useTabsStore.getState().saveSucceeded(noteId, { ...snapshot, contentHash: result.contentHash });
     await deleteRecoveryDraft(noteId);
+    // IPC beklenirken yapılan görsel düzenleme henüz debounce kuyruğunda olabilir.
+    // Düzenlemeden çıkma kararı verilmeden önce onu taslağa aktar.
+    flushEditor(noteId);
     if (useTabsStore.getState().isDirty(noteId)) {
       // Kayıt sırasında yeni düzenleme geldiyse onun için yeniden zamanlayıcı kurulur.
       useTabsStore.getState().updateDraft(noteId, {});
