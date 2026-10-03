@@ -59,12 +59,12 @@ export function SplitView({ editor, children }: SplitViewProps) {
 
   return (
     <section className="htnote-split-view" aria-label={t("editor.split.label")}
-      style={{ display: "flex", flexDirection: "column", minWidth: 0, height: "100%" }}>
+      style={{ display: "flex", flexDirection: "column", minHeight: 0, minWidth: 0, height: "100%", overflow: "hidden" }}>
       {typeof editor !== "function" && <div className="htnote-editor-bar htnote-split-bar" role="toolbar" aria-label={t("editor.split.label")}>
         {previewToggle}
       </div>}
       <div ref={containerRef} style={{ display: "flex", flex: 1, minHeight: 0, minWidth: 0 }}>
-        <div style={{ width: preview ? `${ratio}%` : "100%", minWidth: 0, overflow: "auto" }}>
+        <div className="htnote-split-editor" style={{ width: preview ? `${ratio}%` : "100%", display: "flex", flexDirection: "column", minHeight: 0, minWidth: 0, overflow: "hidden" }}>
           {typeof editor === "function" ? editor(previewToggle) : editor}
         </div>
         {preview && <>

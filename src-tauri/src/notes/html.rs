@@ -35,15 +35,21 @@ fn meta_tags(meta: &NoteMetadata) -> String {
         .iter()
         .map(|(name, value)| format!("<meta name=\"{name}\" content=\"{}\">", escape_html(value)))
         .collect::<Vec<_>>()
-        .join("\n  ")
+        .join("\n    ")
 }
 
 pub fn render_new_note_html(meta: &NoteMetadata) -> String {
-    let title = escape_html(&meta.title);
-    format!(
-        "<!DOCTYPE html>\n<html lang=\"tr\">\n<head>\n  <meta charset=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n  <title>{title}</title>\n  {}\n  <style data-htnote=\"base\">\n    body {{\n      font-family: var(--ht-font, system-ui, -apple-system, sans-serif);\n      color: var(--ht-text, #222);\n      background-color: var(--ht-bg, #fff);\n      line-height: 1.6;\n      max-width: 800px;\n      margin: 0 auto;\n      padding: 2rem 1rem;\n    }}\n    img {{ max-width: 100%; height: auto; border-radius: 8px; }}\n    audio {{ width: 100%; margin: 1rem 0; }}\n  </style>\n</head>\n<body>\n  <main id=\"htnote-content\"><h1>{title}</h1><p></p></main>\n</body>\n</html>\n",
-        meta_tags(meta)
-    )
+    render_note_template(include_str!("../../templates/note.html"), meta)
+}
+
+// Only built-in templates are expanded; existing notes keep their original bytes.
+pub fn render_note_template(template: &str, meta: &NoteMetadata) -> String {
+    template
+        .trim_end()
+        .split("{{HTNOTE_METADATA}}")
+        .map(|part| part.replace("{{HTNOTE_TITLE}}", &escape_html(&meta.title)))
+        .collect::<Vec<_>>()
+        .join(&meta_tags(meta))
 }
 
 #[derive(Default)]
@@ -266,9 +272,17 @@ mod tests {
         let html = render_new_note_html(&meta);
         assert!(html.contains("<html lang=\"tr\">"));
         assert!(html.contains("<style data-htnote=\"base\">"));
-        assert!(html.contains("<main id=\"htnote-content\"><h1>A &lt;B&gt; &amp; &quot;C&quot;</h1><p></p></main>"));
+        assert!(html.contains("<main id=\"htnote-content\">\n      <h1>A &lt;B&gt; &amp; &quot;C&quot;</h1>\n      <p></p>\n    </main>"));
         assert!(html.contains("content=\"rust, a&lt;&amp;&quot;\""));
         assert_eq!(sync_head(&html, &meta, false, false), html);
+    }
+
+    #[test]
+    fn new_note_uses_two_space_document_and_content_indentation() {
+        let html = render_new_note_html(&NoteMetadata::new("Title"));
+        assert!(html.starts_with("<!DOCTYPE html>\n<html lang=\"tr\">\n  <head>\n    <meta"));
+        assert!(html.contains("\n  <body>\n    <main id=\"htnote-content\">\n      <h1>Title</h1>\n      <p></p>\n    </main>\n  </body>\n</html>"));
+        assert!(!html.contains("{{HTNOTE_"));
     }
 
     #[test]

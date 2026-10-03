@@ -1,10 +1,58 @@
+/// <reference types="node" />
 import { EditorView } from "@codemirror/view";
+import { readFileSync } from "node:fs";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { CodeEditor } from "@/features/editor/CodeEditor";
 import { fileName, getDropHandler, kindFromPath } from "@/features/editor/fileDrop";
 import { ipc } from "@/lib/ipc";
+const appStyles = readFileSync("src/index.css", "utf8");
+
+describe("CodeEditor formatting and layout", () => {
+  it("formats HTML from the toolbar and keyboard, and disables formatting on CSS/JS", () => {
+    const onChange = vi.fn();
+    const { container } = render(<CodeEditor html="<div><p>A</p><p>B</p></div>" css="p {}" js="run()" onChange={onChange} />);
+    const editor = EditorView.findFromDOM(container.querySelector(".cm-editor") as HTMLElement)!;
+    const button = screen.getByRole("button", { name: "Belgeyi biçimlendir" });
+    fireEvent.focus(button);
+    expect(screen.getByRole("tooltip")).toHaveTextContent("Shift+Alt+F");
+    fireEvent.click(button);
+    expect(onChange).toHaveBeenCalledExactlyOnceWith({ html: "<div>\n  <p>A</p>\n  <p>B</p>\n</div>" });
+    fireEvent.keyDown(editor.contentDOM, { key: "z", code: "KeyZ", ctrlKey: true });
+    expect(editor.state.doc.toString()).toBe("<div><p>A</p><p>B</p></div>");
+    fireEvent.keyDown(editor.contentDOM, { key: "f", code: "KeyF", keyCode: 70, shiftKey: true, altKey: true });
+    expect(editor.state.doc.toString()).toBe("<div>\n  <p>A</p>\n  <p>B</p>\n</div>");
+    for (const name of ["CSS", "JS"]) {
+      fireEvent.click(screen.getByRole("tab", { name }));
+      expect(button).toBeDisabled();
+      const before = editor.state.doc.toString();
+      fireEvent.keyDown(editor.contentDOM, { key: "F", code: "KeyF", shiftKey: true, altKey: true });
+      expect(editor.state.doc.toString()).toBe(before);
+    }
+  });
+
+  it("fills the host, scrolls inside CodeMirror, and enables wrapping and gutters", () => {
+    const style = document.createElement("style");
+    style.textContent = appStyles.match(/\.htnote-code-editor,\s*\.htnote-visual-editor\s*\{[^}]+\}/)?.[0] ?? "";
+    style.textContent += appStyles.match(/\.htnote-code-host(?:[^{}]*)\{[^}]+\}/g)?.join("\n") ?? "";
+    document.head.append(style);
+    try {
+      const { container } = render(<CodeEditor html="<div><p>A</p></div>" css="" js="" onChange={vi.fn()} />);
+      const section = container.querySelector(".htnote-code-editor")!;
+      const host = container.querySelector(".htnote-code-host")!;
+      const editor = EditorView.findFromDOM(container.querySelector(".cm-editor") as HTMLElement)!;
+      expect(getComputedStyle(section)).toMatchObject({ height: "100%", minHeight: "0px", display: "flex", overflow: "hidden" });
+      expect(getComputedStyle(host)).toMatchObject({ minHeight: "0px", overflow: "hidden" });
+      expect(getComputedStyle(editor.dom).height).toBe("100%");
+      expect(getComputedStyle(editor.scrollDOM)).toMatchObject({ overflow: "auto", fontSize: "13px", lineHeight: "1.6" });
+      expect(editor.lineWrapping).toBe(true);
+      expect(container.querySelector(".cm-lineNumbers")).not.toBeNull();
+      expect(container.querySelector(".cm-foldGutter")).not.toBeNull();
+      expect(container.querySelector(".cm-activeLine")).not.toBeNull();
+    } finally { style.remove(); }
+  });
+});
 
 describe("CodeEditor file drop", () => {
   it("inserts every tag in order at the drop point with one change", async () => {

@@ -82,12 +82,17 @@
   --color-app-shadow: var(--app-shadow);
 }
 
-.htnote-visual-editor { color: var(--app-text); background: var(--app-surface); }
+.htnote-code-editor, .htnote-visual-editor { display: flex; flex-direction: column; height: 100%; min-height: 0; min-width: 0; overflow: hidden; color: var(--app-text); background: var(--app-surface); }
+.htnote-code-host { flex: 1; min-height: 0; min-width: 0; overflow: hidden; }
+.htnote-code-host .cm-editor { height: 100%; }
+.htnote-code-host .cm-scroller { overflow: auto; }
+.htnote-visual-scroll { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }
+.htnote-visual-content { display: flex; flex-direction: column; flex: 1 0 auto; min-height: 100%; }
 .htnote-drop-target { outline: 2px dashed var(--app-accent) !important; outline-offset: -3px; }
 .htnote-editor-link { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; flex-basis: 100%; }
 .htnote-editor-link input { min-width: 0; padding: 0.375rem 0.5rem; border: 1px solid var(--app-border); border-radius: 0.375rem; background: var(--app-surface); color: var(--app-text); }
 .htnote-editor-link [role="alert"] { color: var(--app-danger); }
-.htnote-visual-editor .tiptap { min-height: 12rem; padding: 1rem 1.5rem; line-height: 1.65; outline: none; }
+.htnote-visual-editor .tiptap { flex: 1; min-height: 100%; padding: 1rem 1.5rem; line-height: 1.65; outline: none; }
 .htnote-visual-editor .tiptap p { margin: 0.65em 0; }
 .htnote-visual-editor .tiptap h1, .htnote-visual-editor .tiptap h2, .htnote-visual-editor .tiptap h3, .htnote-visual-editor .tiptap h4, .htnote-visual-editor .tiptap h5, .htnote-visual-editor .tiptap h6 { font-weight: 700; line-height: 1.25; margin: 1em 0 0.5em; }
 .htnote-visual-editor .tiptap h1 { font-size: 2em; } .htnote-visual-editor .tiptap h2 { font-size: 1.5em; } .htnote-visual-editor .tiptap h3 { font-size: 1.25em; }

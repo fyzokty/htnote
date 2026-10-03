@@ -4,6 +4,7 @@ import type { DefaultTreeAdapterTypes } from "parse5";
 import { classifyTopLevel } from "@/features/editor/blockClassifier";
 import { extractContent, replaceContent } from "@/features/editor/contentRegion";
 import type { ExtractResult } from "@/features/editor/contentRegion";
+import { formatHtml } from "@/features/editor/formatHtml";
 
 type Parts = Extract<ExtractResult, { ok: true }>;
 type Element = DefaultTreeAdapterTypes.Element;
@@ -73,5 +74,22 @@ export function loadForVisual(fullHtml: string): VisualLoadResult {
 }
 
 export function saveFromVisual(parts: Parts, editorHtml: string): string {
-  return replaceContent(parts, unwrapRawBlocks(editorHtml));
+  return replaceVisualContent(parts, serializeVisualHtml(editorHtml, visualContentIndent(parts)));
+}
+
+export function visualContentIndent(parts: Parts): number {
+  return Math.ceil(mainIndent(parts).replace(/\t/g, "  ").length / 2) + 1;
+}
+
+function mainIndent(parts: Parts): string {
+  return parts.before.slice(parts.before.lastIndexOf("\n") + 1).match(/^[ \t]*/)?.[0] ?? "";
+}
+
+export function serializeVisualHtml(editorHtml: string, indent = 0): string {
+  // Ham blokları biçimlendirme sonrasında açarak D10'daki birebir korumayı sürdür.
+  return unwrapRawBlocks(formatHtml(editorHtml, indent));
+}
+
+export function replaceVisualContent(parts: Parts, inner: string): string {
+  return replaceContent(parts, `\n${inner}\n${mainIndent(parts)}`);
 }

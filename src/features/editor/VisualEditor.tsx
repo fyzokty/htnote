@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import { useTranslation } from "react-i18next";
 
@@ -9,7 +9,7 @@ import { createVisualExtensions } from "@/features/editor/extensions";
 import { copyFilesSequentially, fileName, mediaFor, registerDropHandler } from "@/features/editor/fileDrop";
 import type { InsertMediaOptions } from "@/features/editor/mediaNodes";
 import { escapeHtml, noteLinkHref } from "@/features/editor/noteLinks";
-import { unwrapRawBlocks, wrapRawBlocks } from "@/features/editor/visualPipeline";
+import { serializeVisualHtml, wrapRawBlocks } from "@/features/editor/visualPipeline";
 import { ipc } from "@/lib/ipc";
 import type { FlatNote } from "@/lib/types";
 import { useUiStore } from "@/stores/uiStore";
@@ -17,6 +17,7 @@ import { useUiStore } from "@/stores/uiStore";
 interface VisualEditorProps {
   noteId?: string;
   initialInner: string;
+  contentIndent?: number;
   onChange: (inner: string) => void;
   visualAvailable?: boolean;
   onEditInCode?: () => void;
@@ -24,10 +25,12 @@ interface VisualEditorProps {
 
 export interface VisualEditorHandle { flush: () => void }
 
-export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(function VisualEditor({ noteId = "", initialInner, onChange, visualAvailable = true, onEditInCode }, ref) {
+export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(function VisualEditor({ noteId = "", initialInner, contentIndent = 0, onChange, visualAvailable = true, onEditInCode }, ref) {
   const { t } = useTranslation();
   const onChangeRef = useRef(onChange);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
+  const contentIndentRef = useRef(contentIndent);
+  useEffect(() => { contentIndentRef.current = contentIndent; }, [contentIndent]);
   const onEditInCodeRef = useRef(onEditInCode);
   useEffect(() => { onEditInCodeRef.current = onEditInCode; }, [onEditInCode]);
   const pending = useRef<string | null>(null);
@@ -43,16 +46,16 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
     selection.current = { from: current.state.selection.from, to: current.state.selection.to };
     setPickerOpen(true);
   };
-  const flush = () => {
+  const flush = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
     const html = pending.current;
     pending.current = null;
     if (html !== null && html !== lastReported.current) {
       lastReported.current = html;
-      onChangeRef.current(unwrapRawBlocks(html));
+      onChangeRef.current(serializeVisualHtml(html, contentIndentRef.current));
     }
-  };
+  }, []);
   useImperativeHandle(ref, () => ({ flush }));
 
   const editor = useEditor({
@@ -151,13 +154,24 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
     });
   }, [editor, noteId]);
 
-  useEffect(() => () => { flush(); }, []);
+  useEffect(() => () => { flush(); }, [flush]);
 
   if (!visualAvailable || !editor) return null;
   return (
     <section className="htnote-visual-editor">
       <EditorToolbar editor={editor} noteId={noteId} onLinkNote={openPicker} />
-      <EditorContent editor={editor} aria-label={t("editor.content")} />
+      <div className="htnote-visual-scroll">
+        <EditorContent editor={editor} className="htnote-visual-content" aria-label={t("editor.content")}
+          onMouseDownCapture={(event) => {
+            if (event.button !== 0 || event.target !== editor.view.dom && event.target !== event.currentTarget) return;
+            const last = editor.view.dom.lastElementChild;
+            if (!last || event.clientY > last.getBoundingClientRect().bottom) {
+              event.preventDefault();
+              event.stopPropagation();
+              editor.commands.focus("end");
+            }
+          }} />
+      </div>
       {pickerOpen && <NotePicker currentNoteId={noteId} onSelect={selectNote} onClose={() => setPickerOpen(false)} />}
     </section>
   );

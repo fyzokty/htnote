@@ -37,6 +37,8 @@ describe("SplitView", () => {
       }
     });
     const view = render(<SplitView editor={<div>Editör</div>}><div>Önizleme</div></SplitView>);
+    expect(view.container.querySelector(".htnote-split-view")).toHaveStyle({ minHeight: 0, overflow: "hidden" });
+    expect(view.container.querySelector(".htnote-split-editor")).toHaveStyle({ display: "flex", minHeight: 0, overflow: "hidden" });
     const separator = screen.getByRole("separator");
     expect(separator).toHaveAttribute("aria-valuenow", "35");
     Object.defineProperty(separator, "setPointerCapture", { value: vi.fn() });

@@ -5,11 +5,13 @@ import { keymap } from "@codemirror/view";
 import type { EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
 import { useTranslation } from "react-i18next";
+import { Braces } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
+import { IconButton } from "@/components/ui/IconButton";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { NotePicker } from "@/components/ui/NotePicker";
-import { codeChange, codeTheme, createCodeState } from "@/features/editor/codeState";
+import { codeChange, codeTheme, createCodeState, formatHtmlDocument } from "@/features/editor/codeState";
 import type { CodeChange, CodeTab } from "@/features/editor/codeState";
 import { codeTagFor, copyFilesSequentially, fileName, registerDropHandler } from "@/features/editor/fileDrop";
 import { codeNoteLink } from "@/features/editor/noteLinks";
@@ -78,7 +80,10 @@ export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = 
       if (update.docChanged) callbackRef.current(codeChange(activeRef.current, update.state.doc.toString()));
     });
     const states = {
-      html: createCodeState("html", html, themesRef.current.html, mode, [listener, keymap.of([{ key: "Mod-k", run: openPicker }])]),
+      html: createCodeState("html", html, themesRef.current.html, mode, [listener, keymap.of([
+        { key: "Mod-k", run: openPicker },
+        { key: "Shift-Alt-f", run: formatHtmlDocument },
+      ])]),
       css: createCodeState("css", css, themesRef.current.css, mode, [listener]),
       js: createCodeState("js", js, themesRef.current.js, mode, [listener]),
     };
@@ -158,7 +163,16 @@ export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = 
             </Button>
           </Tooltip>)}
         </div>
-        {toolbarActions && <div className="htnote-code-actions">{toolbarActions}</div>}
+        <div className="htnote-code-actions">
+          <IconButton size="sm" label={t("editor.code.formatDocument")} shortcut="Shift+Alt+F"
+            data-testid="format-document" disabled={activeTab !== "html"} onClick={() => {
+              if (viewRef.current && activeRef.current === "html") {
+                formatHtmlDocument(viewRef.current);
+                viewRef.current.focus();
+              }
+            }}><Braces size={16} aria-hidden="true" /></IconButton>
+          {toolbarActions}
+        </div>
       </div>
       <div className="htnote-code-host" ref={hostRef} id={`${tabId}-panel`} role="tabpanel" aria-labelledby={`${tabId}-${activeTab}`} />
       {pickerOpen && <NotePicker currentNoteId={noteId} onSelect={selectNote} onClose={() => setPickerOpen(false)} />}

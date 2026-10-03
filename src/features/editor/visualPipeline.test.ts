@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { Editor } from "@tiptap/core";
 import { describe, expect, it } from "vitest";
 
@@ -35,6 +36,18 @@ const rawFixtures = [
 ];
 
 describe("visualPipeline", () => {
+  it("keeps a new Rust note unchanged on the first visual save", () => {
+    const full = readFileSync("src-tauri/templates/note.html", "utf8")
+      .replace(/\{\{HTNOTE_TITLE\}\}/g, "New note")
+      .replace("{{HTNOTE_METADATA}}", '<meta name="htnote-tags" content="">').trimEnd();
+    const parts = loadForVisual(full);
+    if (!parts.ok) throw new Error(parts.reason);
+    const editor = new Editor({ extensions: createVisualExtensions(""), content: parts.editorHtml });
+    try {
+      expect(saveFromVisual(parts, editor.getHTML())).toBe(full);
+    } finally { editor.destroy(); }
+  });
+
   it.each(rawFixtures)("preserves raw fixture %# byte for byte", (html) => {
     expect(roundTrip(html)).toBe(html);
   });
@@ -93,8 +106,28 @@ describe("visualPipeline", () => {
     editor.destroy();
     expect(saved.slice(0, loaded.before.length)).toBe(loaded.before);
     expect(saved.slice(-loaded.after.length)).toBe(loaded.after);
-    expect(saved).toBe(loaded.before + "<canvas></canvas><p>New</p>" + loaded.after);
+    expect(saved).toBe(loaded.before + "\n  <canvas></canvas>\n  <p>New</p>\n" + loaded.after);
     expect(saved).not.toContain("htnote-raw");
+  });
+
+  it("keeps visual saves multiline and stable across visual/code round trips", () => {
+    const raw = "<div data-x='raw'>first\r\n  <span> second </span></div>";
+    const full = '<!doctype html>\n<html><head><title>Original</title></head><body>\n  <main id="htnote-content"><h1>Title</h1><ul><li><p>Item</p></li></ul>' + raw + '</main><aside>Outside</aside></body></html>';
+    function save(html: string): string {
+      const parts = loadForVisual(html);
+      if (!parts.ok) throw new Error(parts.reason);
+      const editor = new Editor({ extensions: createVisualExtensions(""), content: parts.editorHtml });
+      const output = saveFromVisual(parts, editor.getHTML());
+      editor.destroy();
+      expect(output.startsWith(parts.before)).toBe(true);
+      expect(output.endsWith(parts.after)).toBe(true);
+      return output;
+    }
+    const saved = save(full);
+    expect(saved).toContain('\n    <h1>Title</h1>\n    <ul>\n      <li>\n        <p>Item</p>');
+    expect(saved).toContain(raw);
+    expect(saved).toContain('\n  </main><aside>Outside</aside>');
+    expect(save(saved)).toBe(saved);
   });
 
   it("removes a deleted raw block", () => {
