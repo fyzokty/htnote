@@ -56,6 +56,16 @@ pub enum TabSizing {
     Fit,
 }
 
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ContentWidth {
+    Narrow,
+    #[default]
+    Comfortable,
+    Wide,
+    Full,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
@@ -68,6 +78,8 @@ pub struct Settings {
     pub sidebar_visible: bool,
     #[serde(default)]
     pub tab_sizing: TabSizing,
+    #[serde(default)]
+    pub content_width: ContentWidth,
     #[serde(default = "default_editor_split_ratio")]
     pub editor_split_ratio: u8,
     #[serde(default = "default_editor_live_preview")]
@@ -94,6 +106,7 @@ impl Default for Settings {
             sidebar_width: 260,
             sidebar_visible: true,
             tab_sizing: TabSizing::default(),
+            content_width: ContentWidth::default(),
             editor_split_ratio: default_editor_split_ratio(),
             editor_live_preview: default_editor_live_preview(),
             backlinks_expanded: default_backlinks_expanded(),
@@ -118,6 +131,7 @@ pub struct SettingsPatch {
     pub sidebar_width: Option<u32>,
     pub sidebar_visible: Option<bool>,
     pub tab_sizing: Option<TabSizing>,
+    pub content_width: Option<ContentWidth>,
     pub editor_split_ratio: Option<u8>,
     pub editor_live_preview: Option<bool>,
     pub backlinks_expanded: Option<bool>,
@@ -154,6 +168,7 @@ pub fn apply_patch(settings: &Settings, patch: SettingsPatch) -> Settings {
         sidebar_width: patch.sidebar_width.unwrap_or(settings.sidebar_width),
         sidebar_visible: patch.sidebar_visible.unwrap_or(settings.sidebar_visible),
         tab_sizing: patch.tab_sizing.unwrap_or_else(|| settings.tab_sizing.clone()),
+        content_width: patch.content_width.unwrap_or_else(|| settings.content_width.clone()),
         editor_split_ratio: patch.editor_split_ratio.unwrap_or(settings.editor_split_ratio).clamp(20, 80),
         editor_live_preview: patch.editor_live_preview.unwrap_or(settings.editor_live_preview),
         backlinks_expanded: patch.backlinks_expanded.unwrap_or(settings.backlinks_expanded),
@@ -409,6 +424,28 @@ mod tests {
             assert_eq!(load_settings(dir.path()).unwrap().tab_sizing, expected);
         }
         assert!(serde_json::from_str::<SettingsPatch>(r#"{"tabSizing":"invalid"}"#).is_err());
+    }
+
+    #[test]
+    fn content_width_defaults_patches_and_persists() {
+        let mut value = serde_json::to_value(Settings::default()).unwrap();
+        value.as_object_mut().unwrap().remove("contentWidth");
+        let settings: Settings = serde_json::from_value(value).unwrap();
+        assert_eq!(settings.content_width, ContentWidth::Comfortable);
+        for (value, expected) in [
+            ("narrow", ContentWidth::Narrow),
+            ("comfortable", ContentWidth::Comfortable),
+            ("wide", ContentWidth::Wide),
+            ("full", ContentWidth::Full),
+        ] {
+            let patch: SettingsPatch = serde_json::from_value(serde_json::json!({ "contentWidth": value })).unwrap();
+            let changed = apply_patch(&settings, patch);
+            assert_eq!(changed.content_width, expected);
+            let dir = tempdir().unwrap();
+            save_settings_atomic(dir.path(), &changed).unwrap();
+            assert_eq!(load_settings(dir.path()).unwrap().content_width, expected);
+        }
+        assert!(serde_json::from_str::<SettingsPatch>(r#"{"contentWidth":"invalid"}"#).is_err());
     }
 
     #[test]

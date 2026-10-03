@@ -12,6 +12,8 @@ import type { VisualEditorHandle } from "@/features/editor/VisualEditor";
 import { fileName, getDropHandler, kindFromPath } from "@/features/editor/fileDrop";
 import { ipc } from "@/lib/ipc";
 import { initNoteOrigin } from "@/lib/noteUrl";
+import type { Settings } from "@/lib/types";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { useUiStore } from "@/stores/uiStore";
 
 function normalized(html: string): string {
@@ -165,4 +167,14 @@ describe("VisualEditor", () => {
     view.unmount();
   });
 
+  it("reflects contentWidth setting as data-content-width attribute", () => {
+    useSettingsStore.setState({ settings: { contentWidth: "narrow" } as Settings });
+    const { container, rerender } = render(<VisualEditor initialInner="<p>Test</p>" onChange={vi.fn()} />);
+    const editorEl = container.querySelector(".htnote-visual-editor");
+    expect(editorEl).toHaveAttribute("data-content-width", "narrow");
+
+    useSettingsStore.setState({ settings: { contentWidth: "full" } as Settings });
+    rerender(<VisualEditor initialInner="<p>Test</p>" onChange={vi.fn()} />);
+    expect(editorEl).toHaveAttribute("data-content-width", "full");
+  });
 });

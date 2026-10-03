@@ -6,17 +6,17 @@
     <title>{{HTNOTE_TITLE}}</title>
     {{HTNOTE_METADATA}}
     <style data-htnote="base">
-      body {
+      :where(body) {
         font-family: var(--ht-font, system-ui, -apple-system, sans-serif);
         color: var(--ht-text, #222);
         background-color: var(--ht-bg, #fff);
         line-height: 1.6;
-        max-width: 800px;
+        max-width: 860px;
         margin: 0 auto;
         padding: 2rem 1rem;
       }
-      img { max-width: 100%; height: auto; border-radius: 8px; }
-      audio { width: 100%; margin: 1rem 0; }
+      :where(img) { max-width: 100%; height: auto; border-radius: 8px; }
+      :where(audio) { width: 100%; margin: 1rem 0; }
     </style>
   </head>
   <body>

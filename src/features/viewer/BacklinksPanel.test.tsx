@@ -10,7 +10,7 @@ beforeEach(() => {
   resetTabsStoreForTests();
   useSettingsStore.setState({ settings: {
     rootDir: null, lastExportDir: null, theme: "system", language: null, sidebarWidth: 260, sidebarVisible: true, tabSizing: "fixed",
-    editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true,
+    contentWidth: "comfortable", editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true,
     openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false,
   }, status: "ready" });
   mockIPC((command) => {

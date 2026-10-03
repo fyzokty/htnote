@@ -67,6 +67,12 @@ export function SettingsView({ onShowShortcuts }: { onShowShortcuts?: () => void
               options={(["fixed", "fit"] as const).map((value) => ({ value, label: t(`settings.tabSizingOptions.${value}`), disabled: !settings }))}
               onChange={(tabSizing) => void update({ tabSizing }).catch(notifyError)} />
           </div>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span id="settings-content-width">{t("settings.contentWidth")}</span>
+            <SegmentedControl label={t("settings.contentWidth")} value={settings?.contentWidth ?? "comfortable"}
+              options={(["narrow", "comfortable", "wide", "full"] as const).map((value) => ({ value, label: t(`settings.contentWidthOptions.${value}`), disabled: !settings }))}
+              onChange={(contentWidth) => void update({ contentWidth }).catch(notifyError)} />
+          </div>
           <label className="flex items-center justify-between gap-3">{t("settings.language")}
             <select value={settings?.language ?? "system"} onChange={(event) => void update({ language: event.target.value === "system" ? null : event.target.value as "tr" | "en" }).catch(notifyError)} className="rounded border border-app-border bg-app-bg px-3 py-2">
               <option value="system">{t("settings.system")}</option>

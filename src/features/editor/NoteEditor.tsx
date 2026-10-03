@@ -51,12 +51,20 @@ export function NoteEditor({ noteId, doc, session }: Props) {
       <ExternalChangeBanner noteId={noteId} doc={doc} />
       {!parts.ok && <div role="status" className="border-b border-app-border px-4 py-2 text-sm text-app-muted">{t("editor.session.visualUnavailable")}</div>}
       <div className="min-h-0 flex-1 overflow-hidden">
-        {/* Ref yalnızca editörün bekleyen değişikliğini olay sırasında boşaltmak için aktarılır. */}
-        {/* eslint-disable-next-line react-hooks/refs */}
-        {doc.mode === "visual" && parts?.ok && <VisualEditor key={doc.baseVersion} ref={session.visualRef} noteId={noteId} initialInner={parts.inner} contentIndent={visualContentIndent(parts)} onChange={session.onVisualChange} onEditInCode={() => session.switchMode("code")} />}
-        {doc.mode === "code" && <SplitView editor={(previewToggle) => <CodeEditor key={doc.baseVersion} noteId={noteId} html={draft.html} css={draft.css ?? ""} js={draft.js ?? ""} onChange={session.onCodeChange} toolbarActions={previewToggle} />}>
-          <LivePreview noteId={noteId} html={draft.html} css={draft.css ?? ""} js={draft.js ?? ""} />
-        </SplitView>}
+        {doc.mode === "visual" && parts?.ok && (
+          <div key="visual" className="h-full w-full htnote-mode-transition" data-mode="visual">
+            {/* Ref yalnızca editörün bekleyen değişikliğini olay sırasında boşaltmak için aktarılır. */}
+            {/* eslint-disable-next-line react-hooks/refs */}
+            <VisualEditor key={doc.baseVersion} ref={session.visualRef} noteId={noteId} initialInner={parts.inner} contentIndent={visualContentIndent(parts)} onChange={session.onVisualChange} onEditInCode={() => session.switchMode("code")} />
+          </div>
+        )}
+        {doc.mode === "code" && (
+          <div key="code" className="h-full w-full htnote-mode-transition" data-mode="code">
+            <SplitView editor={(previewToggle) => <CodeEditor key={doc.baseVersion} noteId={noteId} html={draft.html} css={draft.css ?? ""} js={draft.js ?? ""} onChange={session.onCodeChange} toolbarActions={previewToggle} />}>
+              <LivePreview noteId={noteId} html={draft.html} css={draft.css ?? ""} js={draft.js ?? ""} />
+            </SplitView>
+          </div>
+        )}
       </div>
     </div>
   );

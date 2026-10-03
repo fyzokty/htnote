@@ -38,6 +38,32 @@ beforeEach(() => {
 });
 
 describe("NoteViewer", () => {
+  it("keeps the editing frame laid out and restores interaction on return to view", async () => {
+    mockIPC((command) => command === "get_backlinks" || command === "get_broken_links" ? [] : undefined);
+    render(<NoteViewer />);
+    const frame = await screen.findByTitle("Alpha") as HTMLIFrameElement;
+    const container = frame.parentElement!;
+    const base = { html: '<main id="htnote-content"><p>Content</p></main>', css: null, js: null, contentHash: "initial" };
+    act(() => useTabsStore.getState().enterEdit("a", base, "visual", true));
+    expect(screen.getByTitle("Alpha")).toBe(frame);
+    expect(container).not.toHaveAttribute("hidden");
+    expect(container).toHaveClass("absolute", "invisible", "pointer-events-none");
+    expect(container).toHaveAttribute("inert");
+    expect(container).toHaveAttribute("aria-hidden", "true");
+    const initialSrc = frame.src;
+    act(() => {
+      useTabsStore.getState().markSaving("a");
+      useTabsStore.getState().saveSucceeded("a", { ...base, contentHash: "saved" });
+    });
+    expect(frame.src).not.toBe(initialSrc);
+    act(() => useTabsStore.getState().cancelEdit("a"));
+    expect(screen.getByTitle("Alpha")).toBe(frame);
+    expect(container).not.toHaveAttribute("hidden");
+    expect(container).not.toHaveAttribute("inert");
+    expect(container).toHaveAttribute("aria-hidden", "false");
+    expect(container).not.toHaveClass("invisible", "pointer-events-none", "absolute");
+  });
+
   it("navigates the cached frame on external changes and waits for the new document's bridge", async () => {
     const disk: NoteData = {
       metadata: {
@@ -238,7 +264,7 @@ describe("NoteViewer", () => {
   });
 
   it("locks the button during export and offers reveal on success", async () => {
-    useSettingsStore.setState({ settings: { rootDir: null, lastExportDir: null, theme: "system", language: "tr", sidebarWidth: 260, sidebarVisible: true, tabSizing: "fixed", editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false } });
+    useSettingsStore.setState({ settings: { rootDir: null, lastExportDir: null, theme: "system", language: "tr", sidebarWidth: 260, sidebarVisible: true, tabSizing: "fixed", contentWidth: "comfortable", editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false } });
     vi.mocked(save).mockResolvedValue("C:\\Exports\\Alpha.html");
     vi.mocked(revealItemInDir).mockResolvedValue();
     let finish: (result: { warnings: string[] }) => void = () => {};

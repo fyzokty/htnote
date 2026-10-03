@@ -12,6 +12,7 @@ import { escapeHtml, noteLinkHref } from "@/features/editor/noteLinks";
 import { serializeVisualHtml, wrapRawBlocks } from "@/features/editor/visualPipeline";
 import { ipc } from "@/lib/ipc";
 import type { FlatNote } from "@/lib/types";
+import { useSettingsStore } from "@/stores/settingsStore";
 import { useUiStore } from "@/stores/uiStore";
 
 interface VisualEditorProps {
@@ -27,6 +28,7 @@ export interface VisualEditorHandle { flush: () => void }
 
 export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(function VisualEditor({ noteId = "", initialInner, contentIndent = 0, onChange, visualAvailable = true, onEditInCode }, ref) {
   const { t } = useTranslation();
+  const contentWidth = useSettingsStore((state) => state.settings?.contentWidth ?? "comfortable");
   const onChangeRef = useRef(onChange);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
   const contentIndentRef = useRef(contentIndent);
@@ -158,7 +160,7 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
 
   if (!visualAvailable || !editor) return null;
   return (
-    <section className="htnote-visual-editor">
+    <section className="htnote-visual-editor" data-content-width={contentWidth}>
       <EditorToolbar editor={editor} noteId={noteId} onLinkNote={openPicker} />
       <div className="htnote-visual-scroll">
         <EditorContent editor={editor} className="htnote-visual-content" aria-label={t("editor.content")}

@@ -314,3 +314,20 @@ it("clears a highlight queued before any frame registers", () => {
     expect(frame.postMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: "HTNOTE_HIGHLIGHT" }), NOTE_ORIGIN);
   } finally { dispose(); unregister(); }
 });
+
+it("sends HTNOTE_CONTENT_WIDTH on ready and on settings change", () => {
+  useSettingsStore.setState({ settings: { contentWidth: "narrow" } as Settings });
+  useTabsStore.getState().openNote(id);
+  const unregister = registerFrame(id, frame);
+  const dispose = installBridgeHost();
+  try {
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }));
+    expect(frame.postMessage).toHaveBeenCalledWith({ type: "HTNOTE_CONTENT_WIDTH", contentWidth: "narrow" }, NOTE_ORIGIN);
+
+    useSettingsStore.setState({ settings: { contentWidth: "wide" } as Settings });
+    expect(frame.postMessage).toHaveBeenCalledWith({ type: "HTNOTE_CONTENT_WIDTH", contentWidth: "wide" }, NOTE_ORIGIN);
+  } finally {
+    dispose();
+    unregister();
+  }
+});

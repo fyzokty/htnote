@@ -11,7 +11,7 @@ import { useUiStore } from "@/stores/uiStore";
 
 const settings: Settings = {
   rootDir: null, lastExportDir: null, theme: "system", language: null, sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true,
-  sidebarVisible: true, tabSizing: "fixed", openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false,
+  sidebarVisible: true, tabSizing: "fixed", contentWidth: "comfortable", openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false,
 };
 const ids = () => useTabsStore.getState().tabs.map((tab) => tab.noteId);
 const base: DocBase = { html: "original", css: null, js: null, contentHash: "one" };

@@ -5,6 +5,7 @@ export interface AppInfo {
 
 export type Theme = "system" | "light" | "dark";
 export type Language = "tr" | "en";
+export type ContentWidth = "narrow" | "comfortable" | "wide" | "full";
 
 export interface Settings {
   rootDir: string | null;
@@ -14,6 +15,7 @@ export interface Settings {
   sidebarWidth: number;
   sidebarVisible: boolean;
   tabSizing: "fixed" | "fit";
+  contentWidth: ContentWidth;
   editorSplitRatio: number;
   editorLivePreview: boolean;
   backlinksExpanded: boolean;

@@ -61,6 +61,7 @@ export function AppShell() {
   const setSidebarVisible = useUiStore((state) => state.setSidebarVisible);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
   const [dragWidth, setDragWidth] = useState<number | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const previousFocus = useRef<HTMLElement | null>(null);
   const [recoveryCandidates, setRecoveryCandidates] = useState<RecoveryCandidate[]>([]);
@@ -75,7 +76,6 @@ export function AppShell() {
   const sidebarWidth = dragWidth ?? clampWidth(settings?.sidebarWidth ?? 260);
   const widthRef = useRef(sidebarWidth);
   const draggingRef = useRef(false);
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const openShortcuts = () => {
     if (shortcutsOpen) return;
@@ -186,21 +186,34 @@ export function AppShell() {
     if (savedVisible !== undefined) setSidebarVisible(savedVisible);
   }, [savedVisible, setSidebarVisible]);
 
-  useEffect(() => () => {
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      void updateSettings({ sidebarWidth: widthRef.current }).catch(() => {});
+  const finishResize = useCallback((event?: PointerEvent<HTMLDivElement>) => {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    setIsResizing(false);
+    if (event?.currentTarget?.hasPointerCapture?.(event.pointerId)) {
+      try {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      } catch {
+        void 0;
+      }
     }
+    const finalWidth = widthRef.current;
+    setDragWidth(null);
+    void updateSettings({ sidebarWidth: finalWidth }).catch(() => {});
   }, [updateSettings]);
 
+  useEffect(() => {
+    if (!isResizing) return;
+    const onBlur = () => finishResize();
+    window.addEventListener("blur", onBlur);
+    return () => window.removeEventListener("blur", onBlur);
+  }, [isResizing, finishResize]);
+
   function startResize(event: PointerEvent<HTMLDivElement>) {
-    if (saveTimerRef.current) {
-      clearTimeout(saveTimerRef.current);
-      saveTimerRef.current = null;
-    }
     draggingRef.current = true;
+    setIsResizing(true);
     widthRef.current = sidebarWidth;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    event.currentTarget.setPointerCapture?.(event.pointerId);
   }
 
   function resize(event: PointerEvent<HTMLDivElement>) {
@@ -209,21 +222,6 @@ export function AppShell() {
     const width = clampWidth(event.clientX - left);
     widthRef.current = width;
     setDragWidth(width);
-  }
-
-  function finishResize(event: PointerEvent<HTMLDivElement>) {
-    if (!draggingRef.current) return;
-    draggingRef.current = false;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      saveTimerRef.current = null;
-      void updateSettings({ sidebarWidth: widthRef.current })
-        .catch(() => {})
-        .finally(() => setDragWidth(null));
-    }, 150);
   }
 
   async function recoverDraft(id: string) {
@@ -253,6 +251,14 @@ export function AppShell() {
 
   return (
     <main className="select-none flex h-screen min-h-0 w-full overflow-hidden bg-app-bg text-app-text">
+      {isResizing && (
+        <div
+          className="fixed inset-0 z-50 cursor-col-resize select-none"
+          onPointerMove={resize}
+          onPointerUp={finishResize}
+          onPointerCancel={finishResize}
+        />
+      )}
       <UnsavedChangesDialog />
       <ConfirmDialog />
       {searchOpen && <SearchModal />}

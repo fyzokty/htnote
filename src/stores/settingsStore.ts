@@ -10,6 +10,14 @@ interface SettingsState {
   update: (patch: SettingsPatch) => Promise<Settings>;
 }
 
+let inFlight: Promise<unknown> | null = null;
+const pendingPatches: SettingsPatch[] = [];
+
+export function resetSettingsQueueForTests() {
+  inFlight = null;
+  pendingPatches.length = 0;
+}
+
 export const useSettingsStore = create<SettingsState>((set, get) => ({
   settings: null,
   status: "idle",
@@ -24,17 +32,41 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
       throw error;
     }
   },
-  async update(patch) {
-    const previous = get().settings;
-    if (!previous) throw new Error("Settings are not loaded");
+  update(patch) {
+    const current = get().settings;
+    if (!current) throw new Error("Settings are not loaded");
+    const previous = current;
     set({ settings: { ...previous, ...patch } });
-    try {
-      const settings = await ipc.updateSettings(patch);
-      set({ settings });
-      return settings;
-    } catch (error) {
-      set({ settings: previous });
-      throw error;
-    }
+    pendingPatches.push(patch);
+
+    const execute = async (): Promise<Settings> => {
+      try {
+        const serverResult = await ipc.updateSettings(patch);
+        const index = pendingPatches.indexOf(patch);
+        if (index !== -1) pendingPatches.splice(index, 1);
+        let merged = serverResult;
+        for (const pending of pendingPatches) {
+          merged = { ...merged, ...pending };
+        }
+        set({ settings: merged });
+        return serverResult;
+      } catch (error) {
+        const index = pendingPatches.indexOf(patch);
+        if (index !== -1) pendingPatches.splice(index, 1);
+        let reverted = previous;
+        for (const pending of pendingPatches) {
+          reverted = { ...reverted, ...pending };
+        }
+        set({ settings: reverted });
+        throw error;
+      }
+    };
+
+    const queuedPromise = inFlight ? inFlight.then(execute, execute) : execute();
+    const tail = queuedPromise.catch(() => {}).finally(() => {
+      if (inFlight === tail) inFlight = null;
+    });
+    inFlight = tail;
+    return queuedPromise;
   },
 }));
