@@ -1,6 +1,18 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { resolveLanguage } from "@/i18n/language";
+import { resolveLanguage, writeCachedLanguage } from "@/i18n/language";
+
+describe("writeCachedLanguage", () => {
+  it.each(["tr", "en"] as const)("caches %s", (language) => {
+    writeCachedLanguage(language);
+    expect(localStorage.getItem("htnote.language")).toBe(language);
+    localStorage.removeItem("htnote.language");
+  });
+  it("tolerates unavailable storage", () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("blocked"); });
+    expect(() => writeCachedLanguage("en")).not.toThrow();
+  });
+});
 
 describe("resolveLanguage", () => {
   it.each([

@@ -4,10 +4,28 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HTNote</title>
+    <link rel="stylesheet" href="/src/splash.css" />
+    <script src="/splash-boot.js"></script>
   </head>
 
   <body>
     <div id="root"></div>
+    <div id="htnote-splash" class="htnote-splash-screen">
+      <div class="htnote-splash-content">
+        <div class="htnote-splash-logo">
+          <svg width="56" height="56" viewBox="0 0 1024 1024" aria-hidden="true">
+            <path d="M210 278v468m0-234h244m0-234v468m106-468h254m-127 0v468" fill="none" stroke="#f5f3e8" stroke-width="86" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+        <h1 class="htnote-splash-wordmark">HTNote</h1>
+        <p class="htnote-splash-tagline" data-i18n-tr="HTML notlarınız, yerel ve güvende" data-i18n-en="Your HTML notes, local and safe">HTML notlarınız, yerel ve güvende</p>
+        <div class="htnote-splash-progress" role="progressbar" aria-label="Notlar hazırlanıyor…" data-i18n-tr="Notlar hazırlanıyor…" data-i18n-en="Preparing notes…">
+          <div class="htnote-splash-segment"></div>
+        </div>
+        <p class="htnote-splash-status" data-i18n-tr="Notlar hazırlanıyor…" data-i18n-en="Preparing notes…">Notlar hazırlanıyor…</p>
+      </div>
+    </div>
+    <script src="/splash-boot.js"></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

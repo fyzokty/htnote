@@ -1,8 +1,9 @@
 import { mockIPC } from "@tauri-apps/api/mocks";
 import { beforeEach, describe, expect, it } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import App from "@/App";
+import i18n from "@/i18n";
 import type { Settings } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
@@ -27,6 +28,44 @@ beforeEach(() => {
 });
 
 describe("App", () => {
+  it("keeps the static splash while loading and hides it when ready", async () => {
+    let finish!: (settings: Settings) => void;
+    const pending = new Promise<Settings>((resolve) => { finish = resolve; });
+    mockIPC((command) => command === "get_settings" ? pending : undefined);
+    const splash = document.createElement("div");
+    splash.id = "htnote-splash";
+    document.body.append(splash);
+    try {
+      const { container } = render(<App />);
+      expect(container).toBeEmptyDOMElement();
+      expect(splash.dataset.state).toBeUndefined();
+      await act(async () => { finish(defaults); });
+      await screen.findByRole("heading", { name: "HTNote" });
+      expect(splash.dataset.state).toBe("hidden");
+      expect(localStorage.getItem("htnote.language")).toBe("tr");
+    } finally {
+      splash.remove();
+      localStorage.removeItem("htnote.language");
+    }
+  });
+
+  it("hides the splash and displays the settings error on failure", async () => {
+    mockIPC((command) => {
+      if (command === "get_settings") throw new Error("settings unavailable");
+      return undefined;
+    });
+    const splash = document.createElement("div");
+    splash.id = "htnote-splash";
+    document.body.append(splash);
+    try {
+      render(<App />);
+      await waitFor(() => expect(useSettingsStore.getState().status).toBe("error"));
+      expect(screen.getByRole("main")).toHaveTextContent(i18n.t("errors.settingsLoad"));
+      expect(splash.dataset.state).toBe("hidden");
+    } finally {
+      splash.remove();
+    }
+  });
   it("opens, activates and toggles settings and trash as tabs with sidebar highlights", async () => {
     mockIPC((command) => {
       if (command === "get_settings") return defaults;
@@ -78,5 +117,7 @@ describe("App", () => {
     fireEvent.change(screen.getByRole("combobox", { name: "Dil" }), { target: { value: "en" } });
     expect(await screen.findByRole("heading", { name: "Appearance" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Language" })).toBeInTheDocument();
+    expect(localStorage.getItem("htnote.language")).toBe("en");
+    localStorage.removeItem("htnote.language");
   });
 });

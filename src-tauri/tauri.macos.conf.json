@@ -4,6 +4,7 @@
     "windows": [
       {
         "label": "main",
+        "visible": false,
         "title": "HTNote",
         "width": 1280,
         "height": 800,
