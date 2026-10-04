@@ -11,6 +11,7 @@ dist-ssr/
 # Rust / Tauri
 src-tauri/target/
 src-tauri/gen/schemas/
+release-artifacts/
 
 # Test çıktıları
 coverage/
