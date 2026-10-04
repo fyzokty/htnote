@@ -177,7 +177,7 @@ export function NoteViewer() {
               { id: "html", label: t("export.html"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "html") },
               { id: "zip", label: t("export.zip"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "zip") },
             ]} />}
-            {tabs.find((tab) => tab.noteId === activeId)?.doc.mode === "view" && <Tooltip label={t("viewer.edit")} shortcut={formatShortcut("toggleEdit")}><Button type="button" variant="primary" data-testid="edit-note" aria-label={t("viewer.edit")} onClick={() => { void session.toggleEdit(); }} ><Pencil className="size-4" aria-hidden /><span data-action-text data-action-priority="5">{t("viewer.edit")}</span><kbd data-action-text data-action-priority="4" className="htnote-shortcut-badge">{formatShortcut("toggleEdit")}</kbd></Button></Tooltip>}
+            {tabs.find((tab) => tab.noteId === activeId)?.doc.mode === "view" && <Tooltip label={t("viewer.edit")} shortcut={formatShortcut("toggleEdit")}><Button type="button" variant="primary" data-testid="edit-note" aria-label={t("viewer.edit")} onClick={() => { void session.toggleEdit(); }} ><Pencil className="size-4" aria-hidden /><span data-action-text data-action-priority="5">{t("viewer.edit")}</span></Button></Tooltip>}
             {editing && activeTab && <EditSessionHeader doc={activeTab.doc} session={session} compact={headerLayout.compactLevel >= 3} />}
           </div>
         </div>

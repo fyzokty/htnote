@@ -36,7 +36,7 @@ describe("NoteEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
     expect(actions.save).toHaveBeenCalledWith(false);
     expect(screen.getByTestId("note-header")).toContainElement(screen.getByTestId("save-note"));
-    expect(screen.getByTestId("save-note").querySelector("kbd")).toHaveTextContent(formatShortcut("save"));
+    expect(screen.getByTestId("save-note").querySelector("kbd")).toBeNull();
     expect(document.querySelector(".htnote-session-bar")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "İptal" }));
     expect(actions.cancel).toHaveBeenCalled();

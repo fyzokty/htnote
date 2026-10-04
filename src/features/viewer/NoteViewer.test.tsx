@@ -44,7 +44,7 @@ describe("NoteViewer", () => {
     act(() => useTabsStore.getState().enterEdit("a", base, "visual", true));
     render(<NoteViewer />);
     const header = within(screen.getByTestId("note-header"));
-    expect(header.getByTestId("save-note")).toHaveTextContent("Ctrl+S");
+    expect(header.getByTestId("save-note").querySelector("kbd")).toBeNull();
     expect(header.getByRole("button", { name: "İptal" })).toBeEnabled();
     expect(header.getByTestId("visual-mode")).toHaveAttribute("aria-pressed", "true");
     expect(header.queryByTestId("edit-note")).toBeNull();
@@ -54,12 +54,12 @@ describe("NoteViewer", () => {
     expect(within(screen.getByTestId("note-status")).getByRole("status")).toHaveTextContent("Kaydediliyor…");
     expect(header.getByTestId("save-note")).toBeDisabled();
   });
-  it("shows one header row, text export and the edit shortcut badge", () => {
+  it("shows one header row, text export and no edit shortcut badge", () => {
     mockIPC(() => []);
     render(<NoteViewer />);
     expect(screen.getByTestId("note-header")).toHaveClass("flex-nowrap");
     expect(screen.getByTestId("export-note")).toHaveTextContent("D\u0131\u015fa aktar");
-    expect(screen.getByTestId("edit-note")).toHaveTextContent("Ctrl+E");
+    expect(screen.getByTestId("edit-note").querySelector("kbd")).toBeNull();
     expect(screen.getByTestId("edit-note")).toHaveClass("htnote-button-primary");
     act(() => useTabsStore.getState().openSpecial("settings"));
     expect(screen.queryByTestId("note-status")).not.toBeInTheDocument();

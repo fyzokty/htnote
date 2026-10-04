@@ -20,7 +20,7 @@ vi.mock("@/lib/shortcuts/useShortcut", () => ({ useShortcut: () => {} }));
 const baseSettings: Settings = {
   rootDir: null,
   lastExportDir: null,
-  theme: "system", motion: "system",
+  theme: "system", motion: "off",
   language: null,
   sidebarWidth: 260,
   sidebarVisible: true,
@@ -37,9 +37,10 @@ const baseSettings: Settings = {
 
 describe("AppShell sidebar resizing", () => {
   beforeEach(() => {
+    localStorage.clear();
     resetSettingsQueueForTests();
     resetTabsStoreForTests();
-    useUiStore.setState({ unsavedDialog: null, toasts: [] });
+    useUiStore.setState({ unsavedDialog: null, toasts: [], searchOpen: false, sidebarVisible: true });
     useTreeStore.setState({ tree: [], load: async () => {} });
     useSettingsStore.setState({ settings: { ...baseSettings }, status: "ready" });
   });
@@ -56,9 +57,41 @@ describe("AppShell sidebar resizing", () => {
     expect(heading).toHaveAttribute("aria-expanded", "false");
     expect(folders).toHaveClass("flex-1", "min-h-0");
     expect(folders.nextElementSibling).toBe(tags);
+    expect(tags).toHaveClass("htnote-tags-section");
+    expect(tags).toHaveAttribute("data-expanded", "true");
+    fireEvent.click(screen.getByTestId("tags-toggle"));
+    expect(tags).toHaveAttribute("data-expanded", "false");
     expect(tags.parentElement!.nextElementSibling).toBe(footer);
     expect(footer).toHaveClass("mt-auto", "shrink-0");
     expect(screen.getByRole("complementary")).not.toHaveClass("overflow-y-auto");
+  });
+
+  it("orders the single-row actions and opens search with an icon-only button", () => {
+    mockIPC((command) => command === "list_drafts" ? [] : undefined);
+    const { container } = render(<AppShell />);
+    const actions = container.querySelector(".htnote-sidebar-actions")!;
+    expect([...actions.querySelectorAll("button")].map((button) => button.dataset.testid)).toEqual(["new-note", "new-folder", "global-search"]);
+    const search = screen.getByTestId("global-search");
+    expect(search).toHaveAttribute("aria-label", "Ara");
+    expect(search.textContent).toBe("");
+    expect(search.querySelector("svg")).not.toBeNull();
+    expect(actions.querySelector("kbd")).toBeNull();
+    fireEvent.click(search);
+    expect(useUiStore.getState().searchOpen).toBe(true);
+  });
+
+  it("shows shortcuts in all sidebar action tooltips while keeping buttons free of badges", () => {
+    mockIPC((command) => command === "list_drafts" ? [] : undefined);
+    render(<AppShell />);
+    for (const [id, shortcut] of [["new-note", "Ctrl+N"], ["new-folder", "Ctrl+Shift+N"], ["global-search", "Ctrl+Shift+F"]]) {
+      const button = screen.getByTestId(id);
+      expect(button.querySelector("kbd")).toBeNull();
+      vi.spyOn(button.parentElement!, "getBoundingClientRect").mockReturnValue({ width: 28, height: 28, left: 0, top: 0, bottom: 28 } as DOMRect);
+      vi.spyOn(button, "matches").mockImplementation((selector) => selector === ":focus-visible");
+      act(() => button.focus());
+      expect(screen.getByRole("tooltip").querySelector("kbd")).toHaveTextContent(shortcut);
+      act(() => button.blur());
+    }
   });
 
   it("updates width optimistically on pointer release and sends sidebarWidth patch", async () => {

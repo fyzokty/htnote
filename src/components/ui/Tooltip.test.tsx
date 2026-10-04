@@ -23,6 +23,7 @@ describe("Tooltip", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     act(() => vi.advanceTimersByTime(1));
     const tooltip = screen.getByRole("tooltip");
+    expect(tooltip.querySelector("kbd")).toHaveTextContent("Ctrl+S");
     expect(tooltip.parentElement).toBe(document.body);
     expect(container).not.toContainElement(tooltip);
     expect(button).toHaveAttribute("aria-describedby", `help ${tooltip.id}`);

@@ -7,7 +7,7 @@ beforeEach(() => { resetTabsStoreForTests(); useUiStore.setState({ trashCount: 4
 it("shows trash count and settings hint and highlights the selected view", () => {
   render(<SidebarFooter />);
   expect(screen.getByTestId("trash")).toHaveTextContent("4");
-  expect(screen.getByTestId("settings")).toHaveTextContent("Ctrl+,");
+  expect(screen.getByTestId("settings").querySelector("kbd")).toBeNull();
   fireEvent.click(screen.getByTestId("settings"));
   expect(screen.getByTestId("settings")).toHaveAttribute("aria-pressed", "true");
   expect(screen.getByTestId("settings")).toHaveClass("bg-app-selected");

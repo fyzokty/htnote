@@ -23,8 +23,6 @@
   },
   "titleBar": {
     "label": "Başlık çubuğu",
-    "search": "Ara…",
-    "searchLabel": "Tüm notlarda ara",
     "windowControls": "Pencere denetimleri",
     "minimize": "Simge durumuna küçült",
     "maximize": "Ekranı kapla",

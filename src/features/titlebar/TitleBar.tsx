@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { PanelLeft, Search } from "lucide-react";
+import { PanelLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { IconButton } from "@/components/ui/IconButton";
@@ -13,7 +13,7 @@ import { useUiStore } from "@/stores/uiStore";
 
 /**
  * Sistem başlık çubuğunun yerini alan üst satır (D29). Boş alanlar `data-tauri-drag-region`
- * ile pencereyi taşır ve çift tıklamada büyütür; sekmeler, düğmeler ve arama kutusu taşımaz.
+ * ile pencereyi taşır ve çift tıklamada büyütür; sekmeler ve düğmeler taşımaz.
  */
 export function TitleBar() {
   const { t } = useTranslation();
@@ -21,10 +21,8 @@ export function TitleBar() {
   const customControls = usesCustomWindowControls(platform);
   const sidebarVisible = useUiStore((state) => state.sidebarVisible);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
-  const openSearch = useUiStore((state) => state.openSearch);
   const [windowState, setWindowState] = useState<WindowState>({ maximized: false, focused: true });
   useEffect(() => subscribeWindowState(setWindowState), []);
-  const searchShortcut = formatShortcut("globalSearch");
 
   return (
     <header data-tauri-drag-region data-testid="titlebar" data-platform={platform}
@@ -38,11 +36,6 @@ export function TitleBar() {
       </IconButton>
       <TabBar />
       <div data-tauri-drag-region data-testid="titlebar-drag-region" className="htnote-titlebar-spacer" />
-      <button type="button" data-testid="titlebar-search" onClick={openSearch} aria-label={t("titleBar.searchLabel")} className="htnote-titlebar-search">
-        <Search className="size-4 shrink-0" aria-hidden />
-        <span className="min-w-0 flex-1 truncate text-left">{t("titleBar.search")}</span>
-        <kbd aria-hidden>{searchShortcut}</kbd>
-      </button>
       {customControls && <WindowControls maximized={windowState.maximized} />}
     </header>
   );
