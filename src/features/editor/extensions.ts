@@ -5,6 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 
 import { GlobalAttributes } from "@/features/editor/globalAttributesExtension";
 import { HtmlBlock } from "@/features/editor/htmlBlockNode";
+import { TextBox } from "./textBoxNode";
 import { Audio, Image, InsertMedia, Video } from "@/features/editor/mediaNodes";
 import { MediaSelection } from "@/features/editor/mediaSelection";
 import { NoteLinkDecorations, noteLinkShortcut } from "@/features/editor/noteLinks";
@@ -30,6 +31,7 @@ export function createVisualExtensions(placeholder: string, onEditInCode?: () =>
     InsertMedia,
     MediaSelection,
     HtmlBlock.configure({ onEditInCode }),
+    TextBox,
     NoteLinkDecorations,
     ...(onLinkNote ? [noteLinkShortcut(onLinkNote)] : []),
   ];

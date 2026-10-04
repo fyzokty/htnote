@@ -260,7 +260,13 @@
     "fontDefault": "Varsayılan",
     "fontSearch": "Font ara",
     "fontNoResults": "Font bulunamadı",
-    "fontSizeValue": "{{size}} px"
+    "fontSizeValue": "{{size}} px",
+    "textBox": {
+      "insert": "Metin kutusu",
+      "title": "Başlık",
+      "content": "Metin kutusu içeriği",
+      "select": "Metin kutusunu seç"
+    }
   },
   "errors": {
     "settingsLoad": "Ayarlar yüklenemedi.",
@@ -472,5 +478,11 @@
     "words_other": "{{value}} Kelime",
     "characters_one": "{{value}} Karakter",
     "characters_other": "{{value}} Karakter"
+  },
+  "textBox": {
+    "copy": "Kopyala",
+    "copied": "Kopyalandı",
+    "copyFailed": "Kopyalanamadı",
+    "reset": "Varsayılana dön"
   }
 }

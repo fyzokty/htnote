@@ -102,6 +102,95 @@
   paragraphStyle.id = "htnote-paragraph-base";
   paragraphStyle.textContent = ":where(#htnote-content p){margin:0.3em 0;min-height:1lh}";
   document.head.append(paragraphStyle);
+  const boxStyle = document.createElement("style");
+  boxStyle.id = "htnote-textbox-base";
+  boxStyle.textContent = `
+  :where(.htnote-textbox){position:relative;box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-border);border-radius:12px;color:var(--ht-text);background:var(--ht-bg)}
+  :where(.htnote-textbox-title){font-weight:600;min-height:1lh;margin-bottom:8px;padding-right:12rem;white-space:pre-wrap;overflow-wrap:anywhere}
+  :where(.htnote-textbox-input){display:block;box-sizing:border-box;width:100%;min-height:4.8em;field-sizing:content;resize:vertical;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;color:inherit;background:transparent;border:0;overflow-y:hidden}
+  .htnote-textbox-actions{position:absolute;top:8px;right:8px;display:flex;gap:4px;font:12px/1.4 var(--ht-font,system-ui,sans-serif)}
+  .htnote-textbox-actions button{border:1px solid var(--ht-border);border-radius:8px;padding:4px 8px;color:var(--ht-text);background:var(--ht-bg);cursor:pointer}
+  .htnote-textbox-actions button:hover{background:var(--ht-code-bg)}
+  .htnote-textbox-actions button:disabled{opacity:.45;cursor:default}
+  .htnote-textbox-actions button:focus-visible{outline:2px solid var(--ht-accent);outline-offset:2px}
+  .htnote-textbox-print{display:none;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;margin:0}
+  @media print{.htnote-textbox-actions,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}.htnote-textbox-title{padding-right:0}.htnote-textbox{break-inside:auto}}
+  ${printing ? ".htnote-textbox-actions,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}" : ""}
+  `;
+  document.head.append(boxStyle);
+  const textBoxes = new WeakMap();
+  let boxLabels = {};
+  function enhanceTextBox(box) {
+    if (textBoxes.has(box)) return;
+    const input = box.querySelector(":scope > textarea.htnote-textbox-input");
+    if (!input) return;
+    const actions = document.createElement("div");
+    actions.className = "htnote-textbox-actions";
+    const copy = document.createElement("button"), reset = document.createElement("button");
+    copy.type = reset.type = "button";
+    copy.dataset.testid = "textbox-copy"; reset.dataset.testid = "textbox-reset";
+    actions.append(copy, reset);
+    const mirror = document.createElement("pre");
+    mirror.className = "htnote-textbox-print";
+    mirror.setAttribute("aria-hidden", "true");
+    let feedback = "copy", timer;
+    const update = () => {
+      if (copy.textContent !== (boxLabels[feedback] || "")) copy.textContent = boxLabels[feedback] || "";
+      if (reset.textContent !== (boxLabels.reset || "")) reset.textContent = boxLabels.reset || "";
+      reset.disabled = input.value === input.defaultValue;
+      // Aynı metin gözlemci döngüsü oluşturmasın.
+      if (mirror.textContent !== input.value) mirror.textContent = input.value;
+      if (!window.CSS?.supports?.("field-sizing", "content")) {
+        input.style.height = "auto";
+        input.style.height = `${Math.max(input.scrollHeight, 3 * (parseFloat(getComputedStyle(input).lineHeight) || 21))}px`;
+      }
+    };
+    copy.setAttribute("aria-live", "polite");
+    copy.addEventListener("mousedown", (event) => event.preventDefault());
+    copy.addEventListener("click", async () => {
+      const value = input.value;
+      const active = document.activeElement;
+      const start = input.selectionStart, end = input.selectionEnd, direction = input.selectionDirection;
+      const activeRange = active && typeof active.selectionStart === "number" ? [active.selectionStart, active.selectionEnd, active.selectionDirection] : null;
+      const selection = window.getSelection();
+      const ranges = selection ? Array.from({ length: selection.rangeCount }, (_, index) => selection.getRangeAt(index).cloneRange()) : [];
+      const scroll = { x: window.scrollX, y: window.scrollY, t: input.scrollTop, l: input.scrollLeft };
+      let copied = false;
+      try { await navigator.clipboard.writeText(value); copied = true; } catch { /* İzin politikası engellerse yerel belge içindeki seçimi kopyala. */ }
+      if (!copied) {
+        try { input.focus({ preventScroll: true }); input.select(); copied = document.execCommand("copy"); }
+        catch { copied = false; }
+        finally {
+          input.setSelectionRange(start, end, direction);
+          active?.focus?.({ preventScroll: true });
+          if (activeRange) active.setSelectionRange(...activeRange);
+          if (selection) { selection.removeAllRanges(); ranges.forEach((range) => selection.addRange(range)); }
+          input.scrollTop = scroll.t; input.scrollLeft = scroll.l;
+          if (window.scrollX !== scroll.x || window.scrollY !== scroll.y) window.scrollTo(scroll.x, scroll.y);
+        }
+      }
+      feedback = copied ? "copied" : "copyFailed";
+      clearTimeout(timer); update();
+      timer = setTimeout(() => { feedback = "copy"; update(); }, 1500);
+    });
+    reset.addEventListener("click", () => { input.value = input.defaultValue; update(); });
+    input.addEventListener("input", update);
+    textBoxes.set(box, { update });
+    box.append(actions, mirror);
+    update();
+  }
+  function scanTextBoxes(node) {
+    if (node.nodeType !== 1) return;
+    if (node.matches('[data-htnote-widget="textbox"]')) enhanceTextBox(node);
+    node.querySelectorAll('[data-htnote-widget="textbox"]').forEach(enhanceTextBox);
+  }
+  scanTextBoxes(root);
+  new MutationObserver((records) => records.forEach((record) => {
+    record.addedNodes.forEach(scanTextBoxes);
+    const box = record.target.nodeType === 1 ? record.target.closest('[data-htnote-widget="textbox"]') : null;
+    if (box) { enhanceTextBox(box); textBoxes.get(box)?.update(); }
+  })).observe(root, { childList: true, subtree: true });
+  window.addEventListener("beforeprint", () => document.querySelectorAll('[data-htnote-widget="textbox"]').forEach((box) => textBoxes.get(box)?.update()));
   const audioPlayers = new WeakMap();
   let audioLabels = {};
   const audioTime = (value) => {
@@ -431,7 +520,13 @@
   let scrolling = false, scrollToken;
   window.addEventListener("message", (e) => {
     if (e.source !== window.parent || !e.data || typeof e.data !== "object") return;
-    const { type, vars, mode, query, scrollY, token, contentWidth, audioLabels: labels } = e.data;
+    const { type, vars, mode, query, scrollY, token, contentWidth, audioLabels: labels, labels: widgetLabels } = e.data;
+    if (type === "HTNOTE_THEME" && widgetLabels && typeof widgetLabels === "object" && !Array.isArray(widgetLabels)) {
+      for (const key of ["copy", "copied", "copyFailed", "reset"]) {
+        if (typeof widgetLabels[key] === "string" && widgetLabels[key].length <= 200) boxLabels[key] = widgetLabels[key];
+      }
+      document.querySelectorAll('[data-htnote-widget="textbox"]').forEach((box) => textBoxes.get(box)?.update());
+    }
     if (type === "HTNOTE_THEME" && labels && typeof labels === "object") {
       for (const key of ["play", "pause", "mute", "unmute", "seek", "title", "error"]) {
         if (typeof labels[key] === "string" && labels[key].length <= 200) audioLabels[key] = labels[key];

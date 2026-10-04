@@ -47,6 +47,72 @@ describe("note bridge", () => {
     vi.spyOn(window.parent, "postMessage").mockImplementation(messages);
   });
 
+  async function addTextBox() {
+    document.body.innerHTML = '<div class="htnote-textbox" data-htnote-widget="textbox"><div class="htnote-textbox-title">Saved title</div><textarea class="htnote-textbox-input" spellcheck="false" rows="3">Saved\n&lt;&amp;</textarea></div>';
+    await vi.waitFor(() => expect(document.querySelector('[data-testid="textbox-copy"]')).not.toBeNull());
+    hostMessage({ type: "HTNOTE_THEME", labels: { copy: "Copy", copied: "Copied", copyFailed: "Copy failed", reset: "Reset" } });
+    return document.querySelector("textarea")!;
+  }
+
+  it("enhances new boxes only once, resets transient values and mirrors complete text for print", async () => {
+    const input = await addTextBox();
+    const reset = document.querySelector<HTMLButtonElement>('[data-testid="textbox-reset"]')!;
+    expect(reset.disabled).toBe(true);
+    input.value = "Changed\n" + "long line\n".repeat(20);
+    input.dispatchEvent(new Event("input"));
+    expect(reset.disabled).toBe(false);
+    expect(document.querySelector(".htnote-textbox-print")?.textContent).toBe(input.value);
+    expect(document.querySelector(".htnote-textbox-title")?.textContent).toBe("Saved title");
+    reset.click();
+    expect(input.value).toBe(input.defaultValue);
+    expect(reset.disabled).toBe(true);
+    document.querySelector(".htnote-textbox")!.append(document.createElement("span"));
+    await Promise.resolve();
+    expect(document.querySelectorAll(".htnote-textbox-actions")).toHaveLength(1);
+    const css = document.getElementById("htnote-textbox-base")!.textContent;
+    expect(css).toContain(":where(.htnote-textbox)");
+    expect(css).toContain("field-sizing:content");
+    expect(css).toContain("@media print{.htnote-textbox-actions,.htnote-textbox-input{display:none!important}");
+    expect(css).toContain(".htnote-textbox-print{display:block!important}");
+    hostMessage({ type: "HTNOTE_THEME", labels: { copy: 4, reset: "x".repeat(201) } });
+    expect(document.querySelector('[data-testid="textbox-copy"]')?.textContent).toBe("Copy");
+    expect(reset.textContent).toBe("Reset");
+  });
+
+  it("copies the live text through the clipboard API with brief feedback", async () => {
+    const input = await addTextBox();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    input.value = "Current text";
+    const copy = document.querySelector<HTMLButtonElement>('[data-testid="textbox-copy"]')!;
+    copy.click();
+    await vi.waitFor(() => expect(copy.textContent).toBe("Copied"));
+    expect(writeText).toHaveBeenCalledWith("Current text");
+    await vi.waitFor(() => expect(copy.textContent).toBe("Copy"), { timeout: 2200 });
+    delete (navigator as { clipboard?: unknown }).clipboard;
+  });
+
+  it.each([true, false])("falls back in the iframe and restores focus/selection (success=%s)", async (success) => {
+    const input = await addTextBox();
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error("Policy")) } });
+    const copyCommand = vi.fn(() => {
+      expect(document.activeElement).toBe(input);
+      expect(input.selectionStart).toBe(0);
+      expect(input.selectionEnd).toBe(input.value.length);
+      return success;
+    });
+    Object.defineProperty(document, "execCommand", { configurable: true, value: copyCommand });
+    input.focus(); input.setSelectionRange(2, 4, "backward");
+    const copy = document.querySelector<HTMLButtonElement>('[data-testid="textbox-copy"]')!;
+    copy.click();
+    await vi.waitFor(() => expect(copy.textContent).toBe(success ? "Copied" : "Copy failed"));
+    expect(copyCommand).toHaveBeenCalledWith("copy");
+    expect(document.activeElement).toBe(input);
+    expect([input.selectionStart, input.selectionEnd, input.selectionDirection]).toEqual([2, 4, "backward"]);
+    delete (navigator as { clipboard?: unknown }).clipboard;
+    delete (document as unknown as { execCommand?: unknown }).execCommand;
+  });
+
   it.each([
     ["<div data-target></div>", true],
     ['<input type="checkbox" data-target>', true],
@@ -133,8 +199,8 @@ describe("note bridge", () => {
 
   it("exposes frozen note metadata within the size limit", () => {
     expect(Object.isFrozen((window as unknown as { htnote: object }).htnote)).toBe(true);
-    // Ses oynatıcı ve kök kaplama çubuğu ayrı paket yerine köprüde sunulur.
-    expect(new TextEncoder().encode(source).length).toBeLessThan(32768);
+    // Ses oynatıcı, kök çubuk ve metin kutusu tek köprüde sunulur; bütçe 40 KiB.
+    expect(new TextEncoder().encode(source).length).toBeLessThan(40960);
   });
 
   it("uses low-specificity theme defaults and the portable preset stylesheet", () => {

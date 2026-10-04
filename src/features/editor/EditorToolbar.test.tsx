@@ -227,7 +227,7 @@ it("orders history, text, marks, blocks, table, media and links", () => {
   const groups = [...document.querySelectorAll('.htnote-toolbar-groups > [data-toolbar-group] > [role="group"]')];
   expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual(["Geçmiş", "Metin", "Metin biçimi", "Listeler ve bloklar", "Tablo araçları", "Medya", "Bağlantılar ve ekleme"]);
   const blocks = groups[3].querySelectorAll("button");
-  expect([...blocks].slice(-2).map((button) => button.getAttribute("aria-label"))).toEqual(["Kod bloğu", "Satır içi kod"]);
+  expect([...blocks].slice(-3).map((button) => button.getAttribute("aria-label"))).toEqual(["Kod bloğu", "Satır içi kod", "Metin kutusu"]);
   expect(groups[2]).toContainElement(screen.getByRole("button", { name: "Yazı rengi" }));
 });
 it("applies and removes font family and size to the captured text selection", async () => {
