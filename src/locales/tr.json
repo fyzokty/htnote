@@ -261,6 +261,10 @@
     "fontSearch": "Font ara",
     "fontNoResults": "Font bulunamadı",
     "fontSizeValue": "{{size}} px",
+    "widgets": {
+      "insert": "Widget ekle",
+      "background": "Widget arka planı"
+    },
     "textBox": {
       "insert": "Metin kutusu",
       "title": "Başlık",
@@ -478,6 +482,9 @@
     "words_other": "{{value}} Kelime",
     "characters_one": "{{value}} Karakter",
     "characters_other": "{{value}} Karakter"
+  },
+  "widgetTypes": {
+    "textbox": "METİN KUTUSU"
   },
   "textBox": {
     "copy": "Kopyala",

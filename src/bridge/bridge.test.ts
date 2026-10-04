@@ -50,9 +50,24 @@ describe("note bridge", () => {
   async function addTextBox() {
     document.body.innerHTML = '<div class="htnote-textbox" data-htnote-widget="textbox"><div class="htnote-textbox-title">Saved title</div><textarea class="htnote-textbox-input" spellcheck="false" rows="3">Saved\n&lt;&amp;</textarea></div>';
     await vi.waitFor(() => expect(document.querySelector('[data-testid="textbox-copy"]')).not.toBeNull());
-    hostMessage({ type: "HTNOTE_THEME", labels: { copy: "Copy", copied: "Copied", copyFailed: "Copy failed", reset: "Reset" } });
+    hostMessage({ type: "HTNOTE_THEME", labels: { copy: "Copy", copied: "Copied", copyFailed: "Copy failed", reset: "Reset", textboxType: "TEXT BOX" } });
     return document.querySelector("textarea")!;
   }
+
+  it("provides shared background rules and accepts widget theme variables through the existing theme message", async () => {
+    await addTextBox();
+    const box = document.querySelector('[data-htnote-widget="textbox"]')!;
+    box.setAttribute("data-htnote-bg", "mint");
+    const css = document.getElementById("htnote-textbox-base")!.textContent!;
+    expect(css).toContain(':where([data-htnote-widget][data-htnote-bg="mint"])');
+    expect(css).toContain("--ht-note-mint:");
+    hostMessage({ type: "HTNOTE_THEME", mode: "dark", vars: { "--ht-widget-accent": "host-accent", "--ht-note-mint": "host-background" } });
+    expect(document.documentElement.style.getPropertyValue("--ht-widget-accent")).toBe("host-accent");
+    expect(document.documentElement.style.getPropertyValue("--ht-note-mint")).toBe("host-background");
+    expect(box.getAttribute("data-htnote-bg")).toBe("mint");
+    document.documentElement.style.removeProperty("--ht-widget-accent");
+    document.documentElement.style.removeProperty("--ht-note-mint");
+  });
 
   it("enhances new boxes only once, resets transient values and mirrors complete text for print", async () => {
     const input = await addTextBox();
@@ -68,15 +83,37 @@ describe("note bridge", () => {
     expect(reset.disabled).toBe(true);
     document.querySelector(".htnote-textbox")!.append(document.createElement("span"));
     await Promise.resolve();
-    expect(document.querySelectorAll(".htnote-textbox-actions")).toHaveLength(1);
-    const css = document.getElementById("htnote-textbox-base")!.textContent;
-    expect(css).toContain(":where(.htnote-textbox)");
-    expect(css).toContain("field-sizing:content");
-    expect(css).toContain("@media print{.htnote-textbox-actions,.htnote-textbox-input{display:none!important}");
-    expect(css).toContain(".htnote-textbox-print{display:block!important}");
+    expect(document.querySelectorAll("[data-htnote-widget-header]")).toHaveLength(1);
+    expect(document.querySelectorAll('[data-testid="textbox-copy"]')).toHaveLength(1);
     hostMessage({ type: "HTNOTE_THEME", labels: { copy: 4, reset: "x".repeat(201) } });
     expect(document.querySelector('[data-testid="textbox-copy"]')?.textContent).toBe("Copy");
     expect(reset.textContent).toBe("Reset");
+  });
+
+  it("validates host type labels, renders them as text and updates existing and later widget headers", async () => {
+    await addTextBox();
+    const header = document.querySelector("[data-htnote-widget-header]")!;
+    expect(header.textContent).toContain("TEXT BOX");
+    hostMessage({ type: "HTNOTE_THEME", labels: { textboxType: "Untrusted" } }, null);
+    hostMessage({ type: "HTNOTE_THEME", labels: { textboxType: 4 } });
+    hostMessage({ type: "HTNOTE_THEME", labels: { textboxType: "x".repeat(201) } });
+    hostMessage({ type: "HTNOTE_THEME", labels: ["Untrusted"] });
+    expect(header.textContent).toContain("TEXT BOX");
+    const label = "<img src=x onerror=alert(1)>";
+    hostMessage({ type: "HTNOTE_THEME", labels: { textboxType: label } });
+    expect(header.textContent).toContain(label);
+    expect(header.querySelector("img")).toBeNull();
+    const later = document.createElement("div");
+    later.innerHTML = '<div data-htnote-widget="textbox"><div class="htnote-textbox-title">Later</div><textarea class="htnote-textbox-input">Value</textarea></div>';
+    document.body.append(later);
+    await vi.waitFor(() => expect(document.querySelectorAll("[data-htnote-widget-header]")).toHaveLength(2));
+    expect(later.textContent).toContain(label);
+    hostMessage({ type: "HTNOTE_THEME", labels: { textboxType: "x".repeat(200) } });
+    expect(header.textContent).toContain("x".repeat(200));
+    hostMessage({ type: "HTNOTE_THEME", labels: { textboxType: "METİN KUTUSU" } });
+    expect(header.textContent).toContain("METİN KUTUSU");
+    expect(later.textContent).toContain("METİN KUTUSU");
+    expect(document.querySelector("[data-htnote-widget-header]")).toBe(header);
   });
 
   it("copies the live text through the clipboard API with brief feedback", async () => {

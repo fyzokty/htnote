@@ -1,9 +1,31 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { NOTE_BACKGROUNDS, noteBackgroundStyle, readNoteBackground, writeNoteBackground } from "./noteAppearance";
+import { NOTE_BACKGROUNDS, noteBackgroundStyle, readNoteBackground, writeNoteBackground, syncAppearanceStyle } from "./noteAppearance";
+import { serializeTextBox } from "@/features/editor/textBox";
 
 afterEach(() => { document.documentElement.removeAttribute("style"); });
 
 describe("portable note background", () => {
+  it("embeds widget presets without a body preset and keeps the stylesheet until the last preset is removed", () => {
+    for (const preset of NOTE_BACKGROUNDS) for (const mode of ["light", "dark"]) {
+      document.documentElement.style.setProperty(`--app-note-${preset}-${mode}`, mode === "light" ? "#abcdef" : "#123456");
+    }
+    const box = serializeTextBox({ title: "Title", content: "Content", html: null, background: "mint" });
+    const html = `<html><head></head><body><main id="htnote-content">${box}</main></body></html>`;
+    const saved = syncAppearanceStyle(html);
+    const doc = new DOMParser().parseFromString(saved, "text/html");
+    expect(doc.body.hasAttribute("data-ht-bg")).toBe(false);
+    const css = doc.getElementById("htnote-appearance")!.textContent!;
+    for (const preset of NOTE_BACKGROUNDS) {
+      expect(css).toContain(`--ht-note-${preset}:`);
+      expect(css).toContain(`[data-htnote-widget][data-htnote-bg="${preset}"]`);
+    }
+    expect(saved).toContain(box);
+    expect(syncAppearanceStyle(saved)).toBe(saved);
+    expect(writeNoteBackground(writeNoteBackground(saved, "rose"), "")).toContain('id="htnote-appearance"');
+    const reset = syncAppearanceStyle(saved.replace(' data-htnote-bg="mint"', ""));
+    expect(reset).not.toContain("htnote-appearance");
+    expect(syncAppearanceStyle(html.replace(' data-htnote-bg="mint"', ""))).toBe(html.replace(' data-htnote-bg="mint"', ""));
+  });
   it("writes presets without changing the content, author CSS or scripts", () => {
     document.documentElement.style.setProperty("--app-note-sepia-light", "#faf3e5");
     document.documentElement.style.setProperty("--app-note-sepia-dark", "#302b23");

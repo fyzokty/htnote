@@ -20,10 +20,14 @@ describe("TextBoxView", () => {
       expect(useTabsStore.getState().isDirty("widget")).toBe(false);
       fireEvent.change(screen.getByTestId("textbox-title"), { target: { value: "Saved title" } });
       fireEvent.change(screen.getByTestId("textbox-content"), { target: { value: "Saved\n<&" } });
+      fireEvent.click(screen.getByRole("button", { name: "Widget arka planı" }));
+      fireEvent.click(screen.getByRole("button", { name: "Nane" }));
       act(() => { vi.advanceTimersByTime(150); });
       expect(useTabsStore.getState().isDirty("widget")).toBe(true);
       expect(useTabsStore.getState().tabs[0].doc.draft?.html).toContain("Saved title");
       expect(useTabsStore.getState().tabs[0].doc.draft?.html).toContain("Saved\n&lt;&amp;");
+      expect(useTabsStore.getState().tabs[0].doc.draft?.html).toContain('data-htnote-bg="mint"');
+      expect(useTabsStore.getState().tabs[0].doc.draft?.html).toContain('id="htnote-appearance"');
     } finally { unmount(); unmountHook(); resetTabsStoreForTests(); vi.useRealTimers(); }
   });
   it("updates attributes through real fields, reports changes, preserves app shortcuts and exits the box", () => {
@@ -60,8 +64,14 @@ describe("TextBoxView", () => {
       fireEvent.keyDown(content, { key: "ArrowDown" });
       expect(editor.view.dom).toHaveFocus();
       expect(editor.state.selection.$from.parent.type.name).toBe("paragraph");
-      fireEvent.click(screen.getByTestId("insert-textbox"));
+      fireEvent.click(screen.getByTestId("insert-widget"));
+      fireEvent.keyDown(screen.getByTestId("insert-textbox"), { key: "ArrowDown" });
+      expect(screen.getByTestId("insert-textbox")).toHaveFocus();
+      fireEvent.keyDown(screen.getByTestId("insert-textbox"), { key: "Enter" });
       expect(editor.state.doc.content.content.filter((node) => node.type.name === "textBox")).toHaveLength(2);
+      fireEvent.keyDown(screen.getAllByRole("button", { name: "Metin kutusunu seç" })[0], { key: "Enter" });
+      expect(editor.state.selection.from).toBe(0);
+      expect(editor.state.selection.to).toBe(editor.state.doc.firstChild!.nodeSize);
     } finally { unmount(); vi.useRealTimers(); }
   });
 });

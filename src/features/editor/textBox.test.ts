@@ -18,6 +18,10 @@ describe("textBox format", () => {
     } finally { editor.destroy(); }
   });
   it.each([
+    box.replace('data-htnote-widget="textbox"', 'data-htnote-widget="textbox" data-htnote-bg="unknown"'),
+    box.replace('data-htnote-widget="textbox"', 'data-htnote-widget="textbox" data-htnote-bg=""'),
+    box.replace('data-htnote-widget="textbox"', 'data-htnote-widget="textbox" data-htnote-bg="mint" data-extra="x"'),
+    box.replace('data-htnote-widget="textbox"', 'data-htnote-widget="textbox" data-htnote-bg="mint" data-htnote-bg="mint"'),
     box.replace('data-htnote-widget="textbox"', 'data-htnote-widget="textbox" data-v="2"'),
     box.replace('class="htnote-textbox-title"', 'class="htnote-textbox-title" id="extra"'),
     box.replace('rows="3"', 'rows="4"'),
@@ -38,9 +42,29 @@ describe("textBox format", () => {
   });
   it.each(["", "\nfirst\n<&>\nlast", "\r\nfirst\rnext", '</textarea><script>alert("x")</script>'])("round-trips empty titles and escaped multiline content: %s", (content) => {
     const html = serializeTextBox({ title: "", content, html: null });
-    expect(readTextBox(html)).toEqual({ title: "", content, html });
+    expect(readTextBox(html)).toEqual({ title: "", content, html, background: "" });
     const editor = new Editor({ extensions: createVisualExtensions(""), content: wrapRawBlocks(html) });
     try { expect(editor.state.doc.firstChild?.attrs.content).toBe(content); } finally { editor.destroy(); }
+  });
+  it("round-trips a preset and retains the unchanged source until the background changes", () => {
+    const original = box.replace('data-htnote-widget="textbox"', "data-htnote-widget='textbox' data-htnote-bg='mint'");
+    const attrs = readTextBox(original)!;
+    expect(attrs.background).toBe("mint");
+    expect(serializeTextBox(attrs)).toBe(original);
+    const editor = new Editor({ extensions: createVisualExtensions(""), content: wrapRawBlocks(original) });
+    try {
+      expect(serializeVisualHtml(editor.getHTML())).toBe(original + "\n<p></p>");
+      editor.commands.setNodeSelection(0);
+      editor.commands.updateAttributes("textBox", { background: "rose" });
+      const changed = serializeVisualHtml(editor.getHTML());
+      expect(changed).toContain('data-htnote-bg="rose"');
+      expect(readTextBox(changed.split("\n<p>")[0])?.content).toBe(attrs.content);
+      editor.commands.undo();
+      expect(serializeVisualHtml(editor.getHTML())).toBe(original + "\n<p></p>");
+      const reset = serializeTextBox({ ...attrs, background: "" });
+      expect(reset).not.toContain("data-htnote-bg");
+      expect(readTextBox(reset)?.content).toBe(attrs.content);
+    } finally { editor.destroy(); }
   });
   it("inserts an empty box followed by a paragraph, supports selection, deletion and history", () => {
     const editor = new Editor({ extensions: createVisualExtensions(""), content: "<p></p>" });

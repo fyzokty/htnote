@@ -7,6 +7,7 @@ import type { ExtractResult } from "@/features/editor/contentRegion";
 import { formatHtml } from "@/features/editor/formatHtml";
 import { readTextBox, serializeTextBox } from "./textBox";
 import type { TextBoxAttributes } from "./textBox";
+import { syncAppearanceStyle } from "@/features/viewer/noteAppearance";
 
 type Parts = Extract<ExtractResult, { ok: true }>;
 type Element = DefaultTreeAdapterTypes.Element;
@@ -109,5 +110,5 @@ export function serializeVisualHtml(editorHtml: string, indent = 0): string {
 }
 
 export function replaceVisualContent(parts: Parts, inner: string): string {
-  return replaceContent(parts, `\n${inner}\n${mainIndent(parts)}`);
+  return syncAppearanceStyle(replaceContent(parts, `\n${inner}\n${mainIndent(parts)}`));
 }

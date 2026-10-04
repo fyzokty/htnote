@@ -12,7 +12,7 @@ describe("ContextMenu", () => {
     render(<ContextMenu x={0} y={0} trigger={trigger} onClose={close} items={[
       { id: "one", label: "One", onSelect: vi.fn() },
       { id: "off", label: "Off", disabled: true, onSelect: vi.fn() },
-      { id: "two", label: "Two", onSelect: select },
+      { id: "two", label: "Two", icon: <svg><title>Decorative icon</title></svg>, onSelect: select },
     ]} />);
     expect(screen.getByRole("menuitem", { name: "One" })).toHaveFocus();
     fireEvent.keyDown(screen.getByRole("menuitem", { name: "One" }), { key: "ArrowDown" });

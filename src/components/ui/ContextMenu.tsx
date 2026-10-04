@@ -1,10 +1,12 @@
 import { useDialogActive } from "./useDialogPresence";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 import { Button } from "@/components/ui/Button";
 export interface ContextMenuItem {
   id: string;
+  testId?: string;
   label: string;
+  icon?: ReactNode;
   shortcut?: string;
   disabled?: boolean;
   danger?: boolean;
@@ -44,6 +46,7 @@ export function ContextMenu({ items, x, y, trigger, onClose }: Props) {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); return; }
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
+      event.stopPropagation();
       if (enabled.length === 0) return;
       const current = Number((event.target as HTMLElement).dataset.index);
       const at = enabled.indexOf(current);
@@ -51,10 +54,10 @@ export function ContextMenu({ items, x, y, trigger, onClose }: Props) {
       menu.current?.querySelector<HTMLElement>(`[data-index="${next}"]`)?.focus();
     }
   }}>
-    {items.map((item, index) => <div key={item.id} title={item.title}>{item.separatorBefore && <div role="separator" className="my-1 border-t border-app-border" />}<Button variant="ghost" size="sm" type="button" role="menuitem" data-index={index} tabIndex={-1} title={item.title} aria-disabled={item.disabled || undefined} disabled={item.disabled} onClick={() => activate(item)} onKeyDown={(event) => {
+    {items.map((item, index) => <div key={item.id} title={item.title}>{item.separatorBefore && <div role="separator" className="my-1 border-t border-app-border" />}<Button variant="ghost" size="sm" type="button" role="menuitem" data-testid={item.testId} data-index={index} tabIndex={-1} title={item.title} aria-disabled={item.disabled || undefined} disabled={item.disabled} onClick={() => activate(item)} onKeyDown={(event) => {
       if (event.key === "Enter" || event.key === " ") { event.preventDefault(); activate(item); }
     }} className={`flex w-full items-center justify-between gap-5 rounded px-3 py-1.5 text-left hover:bg-app-subtle focus:bg-app-subtle focus-visible:outline-2 focus-visible:outline-app-focus disabled:opacity-50 ${item.danger ? "text-app-danger" : ""}`}>
-      {item.label}{item.shortcut && <kbd className="htnote-kbd">{item.shortcut}</kbd>}
+      {item.icon ? <span className="flex items-center gap-2"><span className="shrink-0" aria-hidden>{item.icon}</span>{item.label}</span> : item.label}{item.shortcut && <kbd className="htnote-kbd">{item.shortcut}</kbd>}
     </Button></div>)}
   </div>;
 }

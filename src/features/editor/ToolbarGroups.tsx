@@ -41,7 +41,7 @@ export function ToolbarGroups({ groups }: { groups: ReactNode[] }) {
     if (!open) return;
     if (focusOnOpen.current) panel.current?.querySelector<HTMLElement>("button:not(:disabled), select, input")?.focus();
     const outside = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node) && !(event.target as HTMLElement).closest?.(".htnote-color-popover, .htnote-font-popover, .htnote-select-popover, .htnote-tooltip")) setOpen(false);
+      if (!root.current?.contains(event.target as Node) && !(event.target as HTMLElement).closest?.(".htnote-color-popover, .htnote-font-popover, .htnote-select-popover, .htnote-widget-menu, .htnote-tooltip")) setOpen(false);
     };
     document.addEventListener("pointerdown", outside);
     return () => document.removeEventListener("pointerdown", outside);
