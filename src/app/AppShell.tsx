@@ -280,7 +280,7 @@ export function AppShell() {
             aria-label={t("sidebar.label")}
           >
             <div className="flex shrink-0 items-center gap-3 px-4 pt-5 pb-2">
-              <span className="rounded-xl bg-app-accent p-2 text-app-accent-text"><NotebookPen className="size-5" aria-hidden /></span>
+              <span className="rounded-xl bg-app-primary p-2 text-app-accent-text"><NotebookPen className="size-5" aria-hidden /></span>
               <div className="min-w-0"><h1 className="select-none text-lg font-semibold">{t("common.appName")}</h1>{settings?.rootDir && <p title={settings.rootDir} className="truncate text-xs text-app-muted">{settings.rootDir.replace(/[\\/]+$/, "").split(/[\\/]/).pop()}</p>}</div>
             </div>
             <div className="shrink-0 space-y-3 p-3">

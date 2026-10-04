@@ -27,9 +27,11 @@ Not içeriği kabuğun parçası değildir. Kullanıcının HTML/CSS'i, içeriğ
 | `--app-subtle` | `#eff4ff` | İkincil yüzey |
 | `--app-hover` | `#e6eeff` | Nötr hover |
 | `--app-active`, `--app-selected` | `#e1e0ff` | Basılı / seçili satır |
-| `--app-accent` | `#4648d4` | Birincil indigo |
-| `--app-accent-hover` | `#393bb8` | Birincil hover |
-| `--app-accent-active` | `#2f2ebe` | Birincil basılı |
+| `--app-accent` | `#4648d4` | Metin, ikon ve seçili satır vurgusu |
+| `--app-primary` / `--app-primary-hover` / `--app-primary-active` | `#4648d4` / `#393bb8` / `#2f2ebe` | Birincil düğme durumları |
+| `--app-highlight` / `--app-highlight-text` | `#fff0b3` / `#593c00` | Arama eşleşmesi zemini / metni |
+| `--app-accent-hover` | `#393bb8` | Geriye uyumlu vurgu hover |
+| `--app-accent-active` | `#2f2ebe` | Geriye uyumlu vurgu basılı |
 | `--app-accent-text` | `#ffffff` | Birincil düğme metni |
 | `--app-success` | `#006c49` | Başarı |
 | `--app-warning` | `#825100` | Uyarı |
@@ -67,10 +69,14 @@ Tema mevcut `.dark` sınıf stratejisiyle seçilir. Açık/koyu not yüzeyi ve m
 | `--app-subtle` | `#182131` | İkincil yüzey |
 | `--app-hover` | `#222c40` | Nötr hover |
 | `--app-active`, `--app-selected` | `#27274a` | Basılı / seçili satır |
-| `--app-accent` | `#a5a6ff` | Küçük metinde de okunabilen indigo |
-| `--app-accent-hover` | `#c0c1ff` | Birincil hover |
-| `--app-accent-active` | `#e1e0ff` | Birincil basılı |
-| `--app-accent-text` | `#07006c` | Birincil düğme metni |
+| `--app-accent` | `#a5a6ff` | Küçük metin, ikon ve seçili satır vurgusu |
+| `--app-primary` | `#5145d9` | Dolgun indigo birincil düğme |
+| `--app-primary-hover` | `#5c50e3` | Birincil düğme hover |
+| `--app-primary-active` | `#483ac8` | Birincil düğme basılı |
+| `--app-highlight` / `--app-highlight-text` | `#594618` / `#fff0b3` | Arama eşleşmesi zemini / metni |
+| `--app-accent-hover` | `#c0c1ff` | Geriye uyumlu vurgu hover |
+| `--app-accent-active` | `#e1e0ff` | Geriye uyumlu vurgu basılı |
+| `--app-accent-text` | `#ffffff` | Birincil düğme metni |
 | `--app-success` | `#6ffbbe` | Başarı |
 | `--app-warning` | `#ffb95f` | Uyarı |
 | `--app-danger` | `#fb929e` | Tehlike |
@@ -165,12 +171,12 @@ Minimum pencere **900×600**'dür. Bu ölçüde kart boşluğu korunur; çalış
 - **Düzenleme oturumu:** Başlık düzeninde “Kaydedilmedi” uyarı pill'i, Görsel | Kod segmentli kontrolü, “İptal” ve birincil “Kaydet” + Ctrl+S bulunur. Okuma eylemleriyle gereksiz kalabalık oluşturulmaz. Kayıt, iptal, taslak kurtarma ve dış değişiklik akışları aynı kalır.
 - **Yüzen biçimlendirme araç çubuğu:** Görsel editör içinde 12px köşeli küçük yüzey; paragraf, metin biçimi, liste, alıntı, kod, tablo, medya, bağlantı ve renk araçları mevcut işlevleriyle sürer. İçerik kayarken erişilebilir kalır; not HTML'ine kaydedilmez. Araç grupları ince ayırıcılarla ayrılır.
 - **Kod modu:** index.html, style.css ve script.js dosya sekmeleri monospace etiketler ve semantik dosya renkleri kullanır. Yanındaki canlı önizleme kartı ayrı başlık ve mevcut kontrollerle sunulur; bölücü sürükleme davranışı korunur. Önizleme sandbox'lı not iframe'i olarak kalır.
-- **Arama diyaloğu:** Ortalanmış 12–16px köşeli kart, en fazla 800px ve pencere kenarlarından en az 16px boşluk. Başlık, büyük arama alanı, kaydırılabilir sonuçlar ve klavye ipuçları. Seçili sonuç indigo seçili yüzey, başlık, yol ve snippet taşır; eşleşmeler belirginleştirilir. Tam metin arama kısayol ipucu `Ctrl+Shift+F`'dir (`globalSearch`); `Ctrl+K` editörde bağlantı kısayoludur ve arama için kullanılmaz.
-- **Ayarlar kartları:** Depolama, Görünüm ve Hakkında grupları, 12–16px köşeli opak kartlarda. Etiket ve açıklama solda, kontrol sağda; dar alanda alt satıra geçer. Mevcut seçenekler, sürüm bilgisi ve bağlantılar korunur; sürüm ayrı bir rozet haline getirilmez.
+- **Arama diyaloğu:** Ortalanmış 12–16px köşeli kart, en fazla 800px ve pencere kenarlarından en az 16px boşluk. Başlıkta arama ikonu ve kapatma, büyük arama alanında temizleme ve Esc rozeti vardır. Kaydırılabilir sonuçlarda not ikonu, eşleşme vurgulu başlık, yol ve eşleşme sayısı pill’leri, en fazla iki satır sarımsı vurgulu snippet bulunur. Seçili sonuç indigo tonlu zemin ve 1px kenarlık taşır. Altta merkezi kısayol biçimlendirmesinden gelen ↑ ↓ / Enter / Esc ipuçları ve bulunan not sayısı yer alır. Tam metin arama kısayol ipucu `Ctrl+Shift+F`'dir (`globalSearch`); `Ctrl+K` editörde bağlantı kısayoludur ve arama için kullanılmaz.
+- **Ayarlar kartları:** Depolama, Görünüm ve Hakkında grupları, 12–16px köşeli opak kartlarda. Etiket ve açıklama solda, kontrol sağda; dar alanda alt satıra geçer. Depolamada salt okunur, seçilebilir yol ve kopyalama simgesi; Görünümde ikonlu Sistem/Açık/Koyu segmentleri, Dil listesi, Sekme boyutu ve İçerik genişliği segmentleri bulunur. Etiket renkleri Görünüm kartının alt bölümünde korunur. Hakkında uygulama ikonu, HTNote adı ve gerçek sürüm pill’iyle kısayollar, lisans ve belge bağlantılarını taşır.
 - **Durum çubuğu:** Kartın altında solda “Diske kaydedildi” / “Kaydedilmedi”, UTF-8 ve HTML; sağda kelime ve karakter sayısı. Küçük metin, ince üst ayırıcı; durum yalnız renk ile anlatılmaz.
 - **Kısayol rozeti (`kbd`):** 4px iç boşluk, 8px veya pill köşe; nötr düğmede ikincil yüzey, birincil düğmede kontrastı koruyan vurgu yüzeyi. Windows biçimi Ctrl+N, Ctrl+Shift+F, Ctrl+E, Ctrl+S; macOS'ta platforma göre ⌘ gösterilir. Metin her zaman merkezi kısayol registry'sinden üretilir. İpucu gerçek registry eylemiyle eşleşir.
 - **Bağlam menüsü:** Opak kart, 8–12px köşe, hafif gölge; ikon, etiket ve varsa kısayol. Silme gibi tehlikeli eylemler semantik tehlike rengi kullanır. Sekme, ağaç, etiket ve not menüleri korunur.
-- **Diyalog:** Modal örtüsü üzerinde opak kart; anlamlı başlık, açıklama ve hizalı eylemler. Başlangıç odağı, odak tuzağı, Escape ve tetikleyiciye odak iadesi korunur. Kaydet/Kaydetme/İptal ayrı ve açık eylemlerdir.
+- **Diyalog:** `htnote-dialog-backdrop` üzerinde `htnote-dialog-surface` ortak kartı (16px köşe, 1px kart sınırı ve token gölgesi); örtü 8px buzlu cam efekti kullanır, reduced-transparency ve veri özniteliği yedeklerinde blur kaldırılır. Menü, tooltip ve bildirimler `htnote-popover-surface` ile aynı yüzeyi paylaşır. Kısayollar `htnote-kbd` rozetidir; anlamlı başlık, açıklama ve hizalı eylemler. Başlangıç odağı, odak tuzağı, Escape ve tetikleyiciye odak iadesi korunur. Kaydet/Kaydetme/İptal ayrı ve açık eylemlerdir.
 - **Toast:** Kabuk üzerinde içerik ve eylemleri kapatmayacak konumda küçük opak kart. Başarı/uyarı/tehlike ikon ve metinle belirtilir; erişilebilir canlı bölge ve mevcut kapanma davranışı korunur.
 
 Ortak Button, IconButton, Tooltip, SegmentedControl, ContextMenu ve ConfirmDialog primitifleri kullanılır; genişletmeler geriye uyumlu olur. İkon-only düğmelerde aria-label ve tooltip bulunur.
@@ -186,7 +192,7 @@ Renk, kenarlık ve gölge geçişleri 120–200ms ease-out; varsayılan 150ms. �
 Aşağıdaki dekoratif/uydurma arayüz öğeleri eklenmez:
 
 - “5 gün kaldı”, “görev tamamlandı”, “dk okuma” satırı.
-- “aktif” rozeti, sürüm rozeti ve kullanıcı avatarı.
+- “aktif” rozeti ve kullanıcı avatarı. Sürüm pill’i yalnızca Hakkında kartında gerçek uygulama sürümünü gösterir; kabukta sürüm rozeti yoktur.
 - “Varsayılana dön” ve “Senkronize edildi”.
 - Başlık çubuğundaki yıldız ve ⋮ menüsü; notun kendi favori yıldızı ve mevcut bağlam menüleri korunur.
 - “Uygulama / Ayarlar” breadcrumb'ı.

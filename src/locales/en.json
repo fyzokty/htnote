@@ -128,7 +128,14 @@
     "indexing": "Indexing notes...",
     "error": "Search failed.",
     "matchCount_one": "{{count}} match",
-    "matchCount_other": "{{count}} matches"
+    "matchCount_other": "{{count}} matches",
+    "clear": "Clear search",
+    "navigate": "navigate",
+    "open": "open",
+    "dismiss": "close",
+    "prompt": "Type at least two characters to search.",
+    "found_one": "{{count}} note found",
+    "found_other": "{{count}} notes found"
   },
   "editor": {
     "dropInEditMode": "Drop files into the visual editor or HTML tab in edit mode.",
@@ -352,7 +359,16 @@
     "changeRootWarning": "Existing notes will not be moved. The app will use {{path}} from now on. You can return to the old folder later.",
     "version": "Version {{version}}",
     "license": "License",
-    "docs": "Documentation"
+    "docs": "Documentation",
+    "storageHint": "Where your notes are stored on this computer",
+    "appearanceHint": "Interface and note area preferences",
+    "aboutHint": "Version information and application links",
+    "themeHint": "Choose the application color scheme",
+    "languageHint": "Interface language",
+    "tabSizingHint": "Width of tabs in the title bar",
+    "contentWidthHint": "Width of the note reading and editing area",
+    "copyPath": "Copy storage path",
+    "appName": "HTNote"
   },
   "shortcuts": {
     "title": "Keyboard shortcuts",

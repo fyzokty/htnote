@@ -41,8 +41,8 @@ export function NotePicker({ currentNoteId, onSelect, onClose }: NotePickerProps
     }
   };
 
-  return <div className="htnote-note-picker-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <div ref={dialog} className="htnote-note-picker" role="dialog" aria-modal="true" aria-label={t("notePicker.title")} onKeyDown={onKeyDown}>
+  return <div className="htnote-note-picker-backdrop htnote-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div ref={dialog} className="htnote-note-picker htnote-dialog-surface" role="dialog" aria-modal="true" aria-label={t("notePicker.title")} onKeyDown={onKeyDown}>
       <div className="htnote-note-picker-header">
         <strong>{t("notePicker.title")}</strong>
         <IconButton type="button" onClick={onClose} label={t("notePicker.close")}>×</IconButton>

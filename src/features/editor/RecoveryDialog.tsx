@@ -41,8 +41,8 @@ export function RecoveryDialog({ candidates, onRecover, onIgnore }: Props) {
   }, [candidates.length]);
 
   if (!candidates.length) return null;
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop p-4">
-    <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="recovery-title" className="w-full max-w-lg rounded-lg border border-app-border bg-app-surface p-5 text-app-text shadow-xl">
+  return <div className="htnote-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop p-4">
+    <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="recovery-title" className="htnote-dialog-surface w-full max-w-lg  p-5 text-app-text shadow-xl">
       <h2 id="recovery-title" className="text-lg font-semibold">{t("recovery.title")}</h2>
       <p className="mt-2 text-sm text-app-muted">{t("recovery.description")}</p>
       <ul className="mt-4 max-h-80 space-y-3 overflow-auto">{candidates.map(({ draft, note, diskChanged }, index) => <li key={draft.id} className="rounded border border-app-border p-3">

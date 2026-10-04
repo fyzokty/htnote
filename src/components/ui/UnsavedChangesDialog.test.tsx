@@ -14,6 +14,8 @@ it("handles actions, Escape and focus trapping", () => {
   useUiStore.getState().openUnsavedDialog(["a", "b"], resolve);
   const { unmount } = render(<UnsavedChangesDialog />);
   const dialog = screen.getByRole("dialog");
+  expect(screen.getByRole("dialog")).toHaveClass("htnote-dialog-surface");
+  expect(screen.getByRole("dialog").parentElement).toHaveClass("htnote-dialog-backdrop");
   expect(dialog).toHaveAttribute("aria-modal", "true");
   const cancel = screen.getByRole("button", { name: "İptal" });
   expect(cancel).toHaveClass("htnote-button-secondary");

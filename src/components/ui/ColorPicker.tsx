@@ -60,7 +60,7 @@ function ColorPopover({ label, value, options, onChange, custom, anchor, onClose
       if (document.activeElement === document.body || element?.contains(document.activeElement)) anchor.focus();
     };
   }, [anchor]);
-  return createPortal(<div ref={panel} role="dialog" aria-label={label} className="htnote-color-popover" style={position}
+  return createPortal(<div ref={panel} role="dialog" aria-label={label} className="htnote-dialog-surface htnote-color-popover" style={position}
     onKeyDown={(event) => {
       if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
       if (["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Tab"].includes(event.key)) {

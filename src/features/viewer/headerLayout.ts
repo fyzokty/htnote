@@ -26,8 +26,10 @@ export function fitNoteHeader(input: HeaderMeasurements) {
     + input.add + input.tags.slice(0, visibleTags).reduce((sum, value) => sum + value + 4, 0)
     + (visibleTags < input.tags.length ? input.overflow + 4 : 0);
   if (width() > input.available) saved = 0;
-  while (visibleTags > 0 && width() > input.available) visibleTags--;
+  // A long breadcrumb can yield space without hiding tags that otherwise fit.
   path -= Math.min(Math.max(0, path - 24), Math.max(0, width() - input.available));
+  while (visibleTags > 0 && width() > input.available) visibleTags--;
+
   for (const savings of input.actionSavings ?? []) {
     if (width() <= input.available) break;
     actions -= savings;

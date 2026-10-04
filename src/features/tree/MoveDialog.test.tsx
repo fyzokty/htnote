@@ -11,6 +11,8 @@ const destination: TreeNode = { type: "folder", name: "B", relPath: "b", childre
 it("disables invalid folders and moves to a keyboard-selected destination", () => {
   const move = vi.fn();
   render(<MoveDialog source={source} tree={[source, destination]} onMove={move} onClose={vi.fn()} />);
+  expect(screen.getByRole("dialog")).toHaveClass("htnote-dialog-surface");
+  expect(screen.getByRole("dialog").parentElement).toHaveClass("htnote-dialog-backdrop");
   expect(screen.getByRole("option", { name: "A" })).toBeDisabled();
   expect(screen.getByRole("option", { name: "Child" })).toBeDisabled();
   expect(screen.getByRole("button", { name: "İptal" })).toHaveClass("htnote-button-secondary");

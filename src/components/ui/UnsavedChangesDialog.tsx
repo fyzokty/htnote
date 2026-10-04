@@ -41,8 +41,8 @@ export function UnsavedChangesDialog() {
   if (!dialog) return null;
   const title = dialog.noteIds.length > 1 ? t("unsaved.multipleTitle") : t("unsaved.title");
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop p-4">
-      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="unsaved-title" aria-describedby="unsaved-description" className="w-full max-w-md rounded-lg border border-app-border bg-app-surface p-5 text-app-text shadow-xl">
+    <div className="htnote-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop p-4">
+      <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="unsaved-title" aria-describedby="unsaved-description" className="htnote-dialog-surface w-full max-w-md  p-5 text-app-text shadow-xl">
         <h2 id="unsaved-title" className="text-lg font-semibold">{title}</h2>
         <p id="unsaved-description" className="select-text mt-2 text-sm text-app-muted">{t(dialog.purpose === "export" ? "export.unsaved" : "unsaved.description")}</p>
         {dialog.noteIds.length > 1 && <ul className="mt-3 max-h-40 list-disc overflow-auto pl-5 text-sm">{dialog.noteIds.map((id) => {

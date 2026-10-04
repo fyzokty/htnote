@@ -128,7 +128,14 @@
     "indexing": "Notlar indeksleniyor...",
     "error": "Arama başarısız oldu.",
     "matchCount_one": "{{count}} eşleşme",
-    "matchCount_other": "{{count}} eşleşme"
+    "matchCount_other": "{{count}} eşleşme",
+    "clear": "Aramayı temizle",
+    "navigate": "gezin",
+    "open": "aç",
+    "dismiss": "kapat",
+    "prompt": "Aramak için en az iki karakter yazın.",
+    "found_one": "{{count}} not bulundu",
+    "found_other": "{{count}} not bulundu"
   },
   "editor": {
     "dropInEditMode": "Dosyaları düzenleme modunda HTML veya görsel editöre bırakın.",
@@ -352,7 +359,16 @@
     "changeRootWarning": "Mevcut notlar taşınmaz. Uygulama bundan sonra {{path}} klasörünü kullanır. Eski klasöre daha sonra dönebilirsiniz.",
     "version": "Sürüm {{version}}",
     "license": "Lisans",
-    "docs": "Belgeler"
+    "docs": "Belgeler",
+    "storageHint": "Notlarınızın yerel dosya sistemindeki kayıt konumu",
+    "appearanceHint": "Arayüz ve not alanı tercihleri",
+    "aboutHint": "Sürüm bilgisi ve uygulama bağlantıları",
+    "themeHint": "Uygulama renk şemasını seçin",
+    "languageHint": "Arayüz dili",
+    "tabSizingHint": "Üst çubuk sekmelerinin genişliği",
+    "contentWidthHint": "Not okuma ve düzenleme alanının genişliği",
+    "copyPath": "Depolama yolunu kopyala",
+    "appName": "HTNote"
   },
   "shortcuts": {
     "title": "Klavye kısayolları",

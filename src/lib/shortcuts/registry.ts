@@ -128,3 +128,8 @@ function formatBinding(shortcut: Binding, platform: Platform): string {
   const modifier = shortcut.modifier === "none" ? "" : "Ctrl+";
   return `${modifier}${shortcut.alt ? "Alt+" : ""}${shortcut.shift ? "Shift+" : ""}${shortcut.key}`;
 }
+
+/** Labels for local dialog navigation, kept alongside global shortcut formatting. */
+export function formatNavigationKey(key: "ArrowUp" | "ArrowDown" | "Enter" | "Escape"): string {
+  return { ArrowUp: "↑", ArrowDown: "↓", Enter: "Enter", Escape: "Esc" }[key];
+}
