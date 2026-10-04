@@ -32,6 +32,18 @@ beforeEach(() => {
 });
 
 describe("SidebarTree keyboard focus", () => {
+  it("collapses the folders section and retains direct note counts under filtering", () => {
+    useTreeStore.setState({ filterQuery: "missing", tree: [{ type: "folder", name: "missing", relPath: "A", children: [note, { type: "folder", name: "Nested", relPath: "A/Nested", children: [note] }] }] });
+    render(<SidebarTree onOpenNote={vi.fn()} />);
+    expect(screen.getAllByTestId("folder-note-count")[0]).toHaveTextContent("1");
+    const heading = screen.getByRole("button", { name: "KLAS\u00d6RLER" });
+    fireEvent.click(heading);
+    expect(heading).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("tree")).not.toBeInTheDocument();
+    fireEvent.click(heading);
+    expect(screen.getByRole("tree")).toBeInTheDocument();
+  });
+
   it("deletes the focused tree row with Delete", () => {
     useTreeStore.setState({ expanded: new Set(["A"]) });
     render(<SidebarTree onOpenNote={vi.fn()} />);
@@ -47,7 +59,7 @@ describe("SidebarTree keyboard focus", () => {
     expect(deleteMock).toHaveBeenCalledWith(note);
   });
 
-  it.each([["Linux", "Dışa Aktar ▸ Yazdır / PDF Olarak Kaydet"], ["Win32", "Dışa Aktar ▸ PDF"]])("labels PDF export on %s", (system, label) => {
+  it.each([["Linux", "Dışa aktar ▸ Yazdır / PDF Olarak Kaydet"], ["Win32", "Dışa aktar ▸ PDF"]])("labels PDF export on %s", (system, label) => {
     const platform = Object.getOwnPropertyDescriptor(navigator, "platform");
     Object.defineProperty(navigator, "platform", { configurable: true, value: system });
     try {

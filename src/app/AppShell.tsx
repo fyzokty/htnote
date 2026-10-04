@@ -1,11 +1,12 @@
 import { tagColor, tagColorStyle } from "@/features/tags/tagColors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
-import { FilePlus2, FolderPlus, NotebookPen, Search, Settings2, Trash2 } from "lucide-react";
+import { FilePlus2, FolderPlus, NotebookPen, Search, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { Tooltip } from "@/components/ui/Tooltip";
+import { IconButton } from "@/components/ui/IconButton";
 import { Button } from "@/components/ui/Button";
 import { installUnsavedWindowGuard } from "@/app/unsavedWindowGuard";
 import { UnsavedChangesDialog } from "@/components/ui/UnsavedChangesDialog";
@@ -22,6 +23,7 @@ import { SettingsView } from "@/features/settings/SettingsView";
 import { ShortcutsModal } from "@/features/settings/ShortcutsModal";
 import { TrashView } from "@/features/trash/TrashView";
 import { refreshTrashCount } from "@/features/trash/deleteCoordinator";
+import { SidebarFooter } from "@/features/tree/SidebarFooter";
 import { SidebarTree } from "@/features/tree/SidebarTree";
 import { FavoritesSection } from "@/features/favorites/FavoritesSection";
 import { TagsSection } from "@/features/tags/TagsSection";
@@ -71,7 +73,6 @@ export function AppShell() {
   const activeId = useTabsStore((state) => state.activeId);
   const trashOpen = activeId === "special:trash";
   const settingsOpen = activeId === "special:settings";
-  const trashCount = useUiStore((state) => state.trashCount);
   const openSearch = useUiStore((state) => state.openSearch);
   useDraftAutosave();
   const sidebarWidth = dragWidth ?? clampWidth(settings?.sidebarWidth ?? 260);
@@ -97,6 +98,7 @@ export function AppShell() {
   useShortcut("showShortcuts", openShortcuts);
   useShortcut("toggleSidebar", toggleSidebar);
   useShortcut("globalSearch", openSearch);
+  useShortcut("openSettings", () => useTabsStore.getState().openSpecial("settings"));
   useShortcut("newNote", () => { void createNote(); });
   useShortcut("newFolder", () => { void createFolder(); });
   useShortcut("rename", () => {
@@ -277,38 +279,35 @@ export function AppShell() {
             style={{ width: sidebarWidth }}
             aria-label={t("sidebar.label")}
           >
-            <div className="flex h-10 shrink-0 items-center gap-2 border-b border-app-border px-4">
-              <NotebookPen className="size-5 text-app-accent" aria-hidden />
-              <h1 className="select-none text-lg font-semibold">{t("common.appName")}</h1>
+            <div className="flex shrink-0 items-center gap-3 px-4 pt-5 pb-2">
+              <span className="rounded-xl bg-app-accent p-2 text-app-accent-text"><NotebookPen className="size-5" aria-hidden /></span>
+              <div className="min-w-0"><h1 className="select-none text-lg font-semibold">{t("common.appName")}</h1>{settings?.rootDir && <p title={settings.rootDir} className="truncate text-xs text-app-muted">{settings.rootDir.replace(/[\\/]+$/, "").split(/[\\/]/).pop()}</p>}</div>
             </div>
             <div className="shrink-0 space-y-3 p-3">
-              <div className="flex gap-1">
-                <Tooltip label={t("sidebar.newNote")} shortcut={formatShortcut("newNote")} className="flex-1"><Button type="button" data-testid="new-note" onClick={() => void createNote()} variant="primary" size="sm" className="min-w-0 flex-1 px-2 text-xs">
-                  <FilePlus2 className="size-4 shrink-0" aria-hidden /> {t("sidebar.newNote")}
+              <div className="htnote-sidebar-actions grid grid-cols-[minmax(56px,0.7fr)_minmax(0,1.3fr)] gap-2">
+                <Tooltip label={t("sidebar.newNote")} shortcut={formatShortcut("newNote")} className="col-span-2"><Button type="button" data-testid="new-note" onClick={() => void createNote()} variant="primary" size="sm" className="w-full min-w-0 justify-start px-3">
+                  <FilePlus2 className="size-4 shrink-0" aria-hidden /> {t("sidebar.newNote")}<kbd className="htnote-shortcut-badge ml-auto">{formatShortcut("newNote")}</kbd>
                 </Button></Tooltip>
-                <Tooltip label={t("sidebar.newFolder")} shortcut={formatShortcut("newFolder")} className="flex-1"><Button type="button" data-testid="new-folder" onClick={() => void createFolder()} size="sm" className="min-w-0 flex-1 px-2 text-xs">
-                  <FolderPlus className="size-4 shrink-0" aria-hidden /> {t("sidebar.newFolder")}
+                <Tooltip label={t("sidebar.newFolder")} shortcut={formatShortcut("newFolder")} className="min-w-0"><Button type="button" data-testid="new-folder" onClick={() => void createFolder()} size="sm" className="w-full min-w-0 px-2 text-xs">
+                  <FolderPlus className="size-4 shrink-0" aria-hidden /> {t("sidebar.folderAction")}
                 </Button></Tooltip>
-                <Tooltip label={t("sidebar.search")} shortcut={formatShortcut("globalSearch")} className="flex-1"><Button type="button" data-testid="global-search" onClick={openSearch} size="sm" className="min-w-0 flex-1 px-2 text-xs">
-                  <Search className="size-4 shrink-0" aria-hidden /> {t("sidebar.search")}
+                <Tooltip label={t("sidebar.search")} shortcut={formatShortcut("globalSearch")} className="min-w-0"><Button type="button" data-testid="global-search" onClick={openSearch} size="sm" className="w-full min-w-0 px-2 text-xs">
+                  <Search className="size-4 shrink-0" aria-hidden /> {t("sidebar.search")}<kbd className="htnote-shortcut-badge ml-auto">{formatShortcut("globalSearch")}</kbd>
                 </Button></Tooltip>
               </div>
               <div className="flex items-center gap-1">
-                <input type="search" aria-label={t("sidebar.quickFilter")} placeholder={t("sidebar.quickFilterPlaceholder")} value={filterQuery} onChange={(event) => setFilterQuery(event.target.value)} onKeyDown={(event) => handleQuickFilterKeyDown(event, () => setFilterQuery(""))} className="min-w-0 flex-1 rounded-md border border-app-border bg-app-bg px-3 py-2 text-sm outline-none focus:border-app-accent" />
+                <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 size-3.5 text-app-muted" aria-hidden />
+                <input type="search" aria-label={t("sidebar.quickFilter")} placeholder={t("sidebar.quickFilterPlaceholder")} value={filterQuery} onChange={(event) => setFilterQuery(event.target.value)} onKeyDown={(event) => handleQuickFilterKeyDown(event, () => setFilterQuery(""))} className="min-w-0 flex-1 rounded-md border border-app-border bg-app-bg w-full pl-7 pr-7 py-1.5 text-xs outline-none focus:border-app-accent" />
+                {filterQuery && <IconButton size="sm" label={t("sidebar.clearFilter")} className="absolute right-1 top-1/2 -translate-y-1/2 size-5" onClick={() => setFilterQuery("")}><X className="size-3" aria-hidden /></IconButton>}
+                </div>
                 {filterTag && <Button style={tagColorStyle(tagColor(tagColors, filterTag))} type="button" onClick={() => setFilterTag(null)} aria-label={t("tags.clearFilter", { tag: filterTag })} className={`max-w-24 shrink-0 truncate rounded bg-app-subtle px-2 py-1 text-xs ${tagColor(tagColors, filterTag) ? "htnote-colored-tag" : ""}`}>{filterTag} ×</Button>}
               </div>
             </div>
             <FavoritesSection onOpenNote={openNote} />
             <SidebarTree onOpenNote={openNote} />
             <TagsSection />
-            <div className="shrink-0 border-t border-app-border p-2">
-              <Button type="button" data-testid="trash" onClick={() => useTabsStore.getState().toggleSpecial("trash")} aria-pressed={trashOpen} variant="ghost" className="w-full justify-start gap-3">
-                <Trash2 className="size-4" aria-hidden /> {t("sidebar.trash")} <span className="ml-auto">{trashCount}</span>
-              </Button>
-              <Button type="button" data-testid="settings" onClick={() => useTabsStore.getState().toggleSpecial("settings")} aria-pressed={settingsOpen} variant="ghost" className="w-full justify-start gap-3">
-                <Settings2 className="size-4" aria-hidden /> {t("sidebar.settings")}
-              </Button>
-            </div>
+            <SidebarFooter />
             <div
               role="separator"
               aria-label={t("sidebar.resize")}

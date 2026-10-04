@@ -42,23 +42,35 @@ describe("global tag colors", () => {
   it("renders themed chips and opens a global tag palette", () => {
     useSettingsStore.setState({ settings: { ...defaults, tagColors: { is: "blue" } } });
     render(<><TagInput tags={["İş"]} suggestions={[]} onChange={vi.fn()} /><TagColorPicker tag="İş" /></>);
-    const chip = screen.getByText("İş");
+    const chip = screen.getByText("#İş").parentElement!;
     expect(chip.style.color).toBe("var(--app-color-blue)");
     expect(chip.querySelector(".htnote-tag-dot")).not.toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "İş etiketinin rengi" }));
     expect(screen.getByRole("button", { name: "Mavi" })).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("renders a neutral dot for an uncolored tag", () => {
+    localStorage.removeItem("htnote:tagsExpanded");
+    useTreeStore.setState({ tree: [{ type: "note", id: "a", title: "A", relPath: "A", isFavorite: false, tags: ["neutral"], updatedAt: "" }], filterTag: null });
+    render(<TagsSection />);
+    expect(screen.getByRole("button", { name: "neutral etiketinin rengi" }).querySelector(".htnote-tag-dot")).toHaveStyle({ background: "var(--app-color-gray)" });
+  });
+
   it("renders sidebar colors and keeps color selection separate from filtering", () => {
     useSettingsStore.setState({ settings: { ...defaults, tagColors: { work: "red" } } });
     useTreeStore.setState({ tree: [{ type: "note", id: "a", title: "A", relPath: "A", isFavorite: false, tags: ["Work"], updatedAt: "" }], filterTag: null });
     render(<TagsSection />);
-    const tag = screen.getByRole("button", { name: /^Work\s*1$/ });
-    expect(tag.style.color).toBe("var(--app-color-red)");
+    const tag = screen.getByRole("button", { name: /^#Work\s*1$/ });
+    expect(screen.getByRole("button", { name: "Work etiketinin rengi" }).querySelector(".htnote-tag-dot")).toHaveStyle({ background: "var(--app-color-red)" });
+    expect(tag.parentElement!.querySelectorAll(".htnote-tag-dot")).toHaveLength(1);
+    expect(tag.parentElement!.firstElementChild!.contains(screen.getByRole("button", { name: "Work etiketinin rengi" }))).toBe(true);
     fireEvent.click(screen.getByRole("button", { name: "Work etiketinin rengi" }));
     expect(useTreeStore.getState().filterTag).toBeNull();
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
     fireEvent.click(tag);
     expect(useTreeStore.getState().filterTag).toBe("Work");
+    expect(tag).toHaveClass("bg-app-selected", "text-app-accent");
+    fireEvent.click(screen.getByRole("button", { name: "Etiketler" }));
+    expect(screen.queryByRole("button", { name: /^#Work/ })).not.toBeInTheDocument();
   });
 });

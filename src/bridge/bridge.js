@@ -243,7 +243,7 @@
       (code === "Tab" && c && !m) ||
       (mod && (
         (s ? "nfb" : "sewn").includes(k.toLowerCase()) ||
-        k === "/" ||
+        k === "/" || (!s && k === ",") ||
         (!s && /Backslash$/.test(code))
       ))
     );

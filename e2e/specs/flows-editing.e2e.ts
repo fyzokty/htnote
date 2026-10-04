@@ -22,6 +22,10 @@ describe("editing flows", () => {
     await waitForFile(join(root, note.relPath, "index.html"), (bytes) => bytes.toString().includes("Visual smoke content"));
     await browser.keys(["Control", "e"]);
     await $('[data-testid="edit-note"]').waitForDisplayed();
+    const counts = $('[data-testid="note-counts"]');
+    await counts.waitForDisplayed();
+    const countText = await counts.getText();
+    assert.match(countText, /[1-9][\d,.]* (?:words?|kelime)\s*·\s*[1-9][\d,.]* (?:characters?|karakter)/i);
     await withNoteFrame(note.id, async () => {
       assert.match(await $("#htnote-content").getText(), /Visual smoke content/);
     });

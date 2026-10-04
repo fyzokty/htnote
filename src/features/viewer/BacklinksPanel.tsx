@@ -31,7 +31,7 @@ export function BacklinksPanel({ id, saveRevision }: { id: string; saveRevision:
   const contentId = `backlinks-content-${id}`;
 
   return (
-    <section className="select-none shrink-0 border-t border-app-border bg-app-surface text-sm" aria-label={t("backlinks.title")}>
+    <section data-testid="backlinks-panel" className="select-none shrink-0 border-t border-app-border bg-app-card text-sm" aria-label={t("backlinks.title")}>
       <Button
         variant="ghost"
         size="sm"
@@ -69,7 +69,7 @@ export function BacklinksPanel({ id, saveRevision }: { id: string; saveRevision:
               >
                 <span className="block font-medium">{item.title}</span>
                 <span className="block text-xs text-app-muted">{item.relPath}</span>
-                <span className="block text-xs">{item.snippet}</span>
+                <span className="block truncate text-xs text-app-muted">{item.snippet}</span>
               </Button>
             ))}
             {broken.length > 0 && (

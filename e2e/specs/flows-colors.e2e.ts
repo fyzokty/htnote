@@ -88,11 +88,20 @@ describe("note colors", () => {
     await browser.refresh();
     await openNote(note.id);
     const chipColor = await browser.execute(() => {
-      const chip = [...document.querySelectorAll("span")].find((element) => element.textContent?.startsWith("Work") && element.querySelector(".htnote-tag-dot"));
+      const header = document.querySelector('[data-testid="note-header"]') ?? document;
+      const removeButton = header.querySelector('button[aria-label="Remove Work tag"]');
+      const chip =
+        removeButton?.closest<HTMLElement>(".htnote-colored-tag, [data-compact-tags] > span") ??
+        [...header.querySelectorAll("span")].find(
+          (element) =>
+            Boolean(element.querySelector(".htnote-tag-dot")) &&
+            Boolean(element.textContent && /^#?Work\b/.test(element.textContent.trim()))
+        );
       return chip ? getComputedStyle(chip).color : null;
     });
     assert.ok(chipColor);
     await $('section[aria-label="Tags"] button[aria-pressed]').click();
+    await $('button[aria-label="Remove Work tag filter"]').waitForDisplayed();
     assert.equal(await browser.execute(() => getComputedStyle(document.querySelector('button[aria-label="Remove Work tag filter"]')!).color), chipColor);
   });
 });
