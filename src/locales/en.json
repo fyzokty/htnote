@@ -152,16 +152,19 @@
       "label": "Code editor",
       "formatDocument": "Format document",
       "tabs": "Code tabs",
-      "html": "HTML",
-      "css": "CSS",
-      "js": "JS"
+      "html": "index.html",
+      "css": "style.css",
+      "js": "script.js"
     },
     "split": {
       "label": "Split view",
+      "loadError": "Could not load the preview.",
+      "retry": "Retry",
       "livePreview": "Live preview",
       "resize": "Resize split",
       "preview": "Preview"
     },
+    "overflow": "More formatting tools",
     "toolbar": "Formatting toolbar",
     "content": "Note content",
     "placeholder": "Start writing…",
@@ -376,6 +379,10 @@
       "editorBold": "Bold",
       "editorItalic": "Italic",
       "editorUnderline": "Underline",
+      "editorUndo": "Undo",
+      "editorRedo": "Redo",
+      "editorStrike": "Strikethrough",
+      "formatDocument": "Format document",
       "editorLink": "Link note",
       "openSettings": "Open settings"
     }

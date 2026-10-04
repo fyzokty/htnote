@@ -16,6 +16,7 @@ import type { CodeChange, CodeTab } from "@/features/editor/codeState";
 import { codeTagFor, copyFilesSequentially, fileName, registerDropHandler } from "@/features/editor/fileDrop";
 import { codeNoteLink } from "@/features/editor/noteLinks";
 import { useThemeMode } from "@/hooks/useThemeMode";
+import { formatShortcut } from "@/lib/shortcuts/registry";
 import { ipc } from "@/lib/ipc";
 import type { FlatNote } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -166,7 +167,7 @@ export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = 
           </Tooltip>)}
         </div>
         <div className="htnote-code-actions">
-          <IconButton size="sm" label={t("editor.code.formatDocument")} shortcut="Shift+Alt+F"
+          <IconButton size="sm" label={t("editor.code.formatDocument")} shortcut={formatShortcut("formatDocument")}
             data-testid="format-document" disabled={activeTab !== "html"} onClick={() => {
               if (viewRef.current && activeRef.current === "html") {
                 formatHtmlDocument(viewRef.current);

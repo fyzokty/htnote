@@ -20,6 +20,42 @@ afterEach(() => {
 });
 
 describe("EditorToolbar", () => {
+  it("moves overflowing groups to keyboard-accessible tools and restores them on resize", () => {
+    let width = 400;
+    const widths = [132, 141, 141, 209, 107, 177, 73];
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(() => width);
+    let resize: (() => void) | undefined;
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: () => void) { resize = callback; }
+      observe() {}
+      disconnect() {}
+    });
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
+      return { left: 0, right: 100, top: 0, bottom: 32, height: 32, width: this.classList.contains("htnote-toolbar-groups") ? width : this.hasAttribute("data-toolbar-group") ? widths[Number(this.dataset.toolbarGroup)] : 0 } as DOMRect;
+    });
+    try {
+      editor = new Editor({ extensions: createVisualExtensions(""), content: "<p>Text</p>" });
+      render(<EditorToolbar editor={editor} />);
+      const trigger = screen.getByTestId("editor-overflow");
+      expect(screen.queryByRole("button", { name: "Madde listesi" })).toBeNull();
+      fireEvent.click(trigger);
+      const panel = screen.getByRole("dialog", { name: "Diğer biçimlendirme araçları" });
+      const list = within(panel).getByRole("button", { name: "Madde listesi" });
+      expect(list).toHaveFocus();
+      fireEvent.click(list);
+      expect(editor.getHTML()).toContain("<ul>");
+      expect(list).toHaveAttribute("aria-pressed", "true");
+      fireEvent.keyDown(list, { key: "ArrowRight" });
+      expect(within(panel).getByRole("button", { name: "Numaralı liste" })).toHaveFocus();
+      fireEvent.keyDown(document.activeElement!, { key: "Escape" });
+      expect(trigger).toHaveFocus();
+      expect(trigger).toHaveAttribute("aria-expanded", "false");
+      width = 1138;
+      act(() => resize?.());
+      expect(screen.queryByTestId("editor-overflow")).toBeNull();
+      expect(screen.getByRole("button", { name: "Madde listesi" })).toHaveAttribute("aria-pressed", "true");
+    } finally { vi.unstubAllGlobals(); vi.restoreAllMocks(); }
+  });
   it("applies custom text color to the preserved selection and resets it", async () => {
     editor = new Editor({ extensions: createVisualExtensions(""), content: "<p>Text</p>" });
     editor.commands.setTextSelection({ from: 1, to: 5 });

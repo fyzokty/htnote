@@ -37,6 +37,37 @@ afterEach(() => {
 });
 
 describe("VisualEditor", () => {
+  it("reserves scroll clearance for the sticky toolbar and its expanded link controls", () => {
+    let resize: (() => void) | undefined;
+    const disconnect = vi.fn();
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: () => void) { resize = callback; }
+      observe() {}
+      disconnect = disconnect;
+    });
+    const bounds = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect");
+    let height = 48;
+    bounds.mockImplementation(function (this: HTMLElement) {
+      return { width: 0, height: this.classList.contains("htnote-editor-toolbar") ? height : 0 } as DOMRect;
+    });
+    const { container, unmount } = render(<VisualEditor initialInner="<p>Content</p>" onChange={vi.fn()} />);
+    try {
+      const toolbar = container.querySelector<HTMLElement>(".htnote-editor-toolbar")!;
+      const scroll = container.querySelector<HTMLElement>(".htnote-visual-scroll")!;
+      toolbar.style.top = "16px";
+      act(() => resize?.());
+      expect(scroll.style.scrollPaddingTop).toBe("72px");
+      height = 96;
+      act(() => resize?.());
+      expect(scroll.style.scrollPaddingTop).toBe("120px");
+      unmount();
+      expect(disconnect).toHaveBeenCalled();
+    } finally {
+      unmount();
+      bounds.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
   it.each([false, true])("restores the captured note-link selection after dialog focus (range=%s)", (range) => {
     vi.useFakeTimers();
     const id = "11111111-1111-4111-8111-111111111111";

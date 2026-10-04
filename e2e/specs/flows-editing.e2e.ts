@@ -3,7 +3,7 @@ import { join } from "node:path";
 
 import { pointerMoveTo } from "../helpers/pointer";
 
-import { createNote, editNote, flatten, invoke, openNote, saveAndView, saveShortcut, tree, typeInVisualEditor, useTempRoot, waitForFile, withNoteFrame } from "../helpers/flows";
+import { visibleEditorTool, createNote, editNote, flatten, invoke, openNote, saveAndView, saveShortcut, tree, typeInVisualEditor, useTempRoot, waitForFile, withNoteFrame } from "../helpers/flows";
 
 describe("editing flows", () => {
   let restore: (() => Promise<void>) | undefined;
@@ -85,21 +85,29 @@ describe("editing flows", () => {
         const visualLayout = await browser.execute(() => {
           const scroll = document.querySelector(".htnote-visual-scroll")!;
           const surface = document.querySelector(".htnote-visual-editor .tiptap")!;
+          const toolbar = document.querySelector(".htnote-editor-toolbar")!;
           return { scrollHeight: scroll.clientHeight, surfaceHeight: surface.getBoundingClientRect().height,
+            toolbarHeight: toolbar.getBoundingClientRect().height + parseFloat(getComputedStyle(toolbar).marginTop),
             overflow: getComputedStyle(scroll).overflowY };
         });
         assert.ok(visualLayout.scrollHeight > 100);
-        assert.ok(visualLayout.surfaceHeight >= visualLayout.scrollHeight - 1);
+        assert.ok(visualLayout.surfaceHeight + visualLayout.toolbarHeight >= visualLayout.scrollHeight - 1);
         assert.equal(visualLayout.overflow, "auto");
-        await pointerMoveTo(await $('.htnote-editor-toolbar button[aria-label] svg'));
+        const undo = await visibleEditorTool('.htnote-editor-toolbar button[aria-label="Geri al"]');
+        await pointerMoveTo(await undo.$("svg"));
         await $('[role="tooltip"]').waitForDisplayed();
         assert.ok((await $('[role="tooltip"]').getText()).includes("Ctrl+Z"));
         assert.equal(await browser.execute(() => getComputedStyle(document.querySelector(".htnote-editor-toolbar")!).position), "sticky");
+        const overflow = await $('[data-testid="editor-overflow"]');
+        if (await overflow.isExisting() && await overflow.getAttribute("aria-expanded") === "true") await overflow.click();
+        assert.equal(await $('[data-testid="note-header"] [data-testid="save-note"]').isDisplayed(), true);
+        assert.equal(await $(".htnote-session-bar").isExisting(), false);
         await pointerMoveTo(await $('[data-testid="save-note"] svg'));
         await browser.waitUntil(async () => (await $('[role="tooltip"]').getText()).includes("Ctrl+S"));
         assert.notEqual(await browser.execute(() => getComputedStyle(document.querySelector('[data-testid="save-note"]')!).backgroundColor), "rgba(0, 0, 0, 0)");
         await $('[data-testid="code-mode"]').click();
         assert.equal(await $('[data-testid="code-mode"]').getAttribute("aria-pressed"), "true");
+        await $('[data-testid="live-preview"][data-loaded="true"]').waitForDisplayed();
         const html = await $('[data-testid="code-tab-html"]');
         const css = await $('[data-testid="code-tab-css"]');
         assert.equal(await html.getAttribute("aria-selected"), "true");

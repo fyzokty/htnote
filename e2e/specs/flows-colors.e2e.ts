@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { createNote, editNote, invoke, openNote, useTempRoot, withNoteFrame } from "../helpers/flows";
+import { visibleEditorTool, createNote, editNote, invoke, openNote, useTempRoot, withNoteFrame } from "../helpers/flows";
 
 describe("note colors", () => {
   let restore: (() => Promise<void>) | undefined;
@@ -50,9 +50,9 @@ describe("note colors", () => {
     const editor = await $(".tiptap");
     await editor.click();
     await browser.keys(["Control", "a"]);
-    await $('button[aria-label="Text color"]').click();
+    await (await visibleEditorTool('button[aria-label="Text color"]')).click();
     await browser.execute(() => {
-      const input = document.querySelector<HTMLInputElement>('[role="dialog"] input[type="color"]')!;
+      const input = document.querySelector<HTMLInputElement>('.htnote-color-popover input[type="color"]')!;
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "#3266bb");
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));

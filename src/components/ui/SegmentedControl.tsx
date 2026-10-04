@@ -14,13 +14,14 @@ interface Option<T extends string> {
 
 interface Props<T extends string> {
   label: string;
+  compact?: boolean;
   value: T;
   options: readonly Option<T>[];
   onChange: (value: T) => void;
 }
 
-export function SegmentedControl<T extends string>({ label, value, options, onChange }: Props<T>) {
-  return <div role="group" aria-label={label} className="htnote-segmented-control"
+export function SegmentedControl<T extends string>({ label, value, options, onChange, compact = false }: Props<T>) {
+  return <div role="group" aria-label={label} className="htnote-segmented-control" data-compact={compact}
     onKeyDown={(event) => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
       const buttons = Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>("button:not(:disabled)"));
@@ -34,8 +35,8 @@ export function SegmentedControl<T extends string>({ label, value, options, onCh
     }}>
     {options.map((option) => <Tooltip key={option.value} label={option.tooltip ?? option.label}>
       <Button size="sm" variant="ghost" data-testid={option.testId} disabled={option.disabled}
-        aria-pressed={value === option.value} onClick={() => onChange(option.value)}>
-        {option.icon}{option.label}
+        aria-label={option.label} aria-pressed={value === option.value} onClick={() => onChange(option.value)}>
+        {option.icon}<span data-action-text>{option.label}</span>
       </Button>
     </Tooltip>)}
   </div>;

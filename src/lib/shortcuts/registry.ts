@@ -20,7 +20,11 @@ export type ShortcutId =
   | "editorBold"
   | "editorItalic"
   | "editorUnderline"
-  | "editorLink";
+  | "editorLink"
+  | "editorUndo"
+  | "editorRedo"
+  | "editorStrike"
+  | "formatDocument";
 
 export type ShortcutCategory = "general" | "tabs" | "editing" | "editor";
 
@@ -66,6 +70,10 @@ const SHORTCUTS: Record<ShortcutId, ShortcutDefinition> = {
   editorBold: { codes: ["KeyB"], key: "B", modifier: "mod", shift: false, category: "editor", displayOnly: true, bound: true },
   editorItalic: { codes: ["KeyI"], key: "I", modifier: "mod", shift: false, category: "editor", displayOnly: true, bound: true },
   editorUnderline: { codes: ["KeyU"], key: "U", modifier: "mod", shift: false, category: "editor", displayOnly: true, bound: true },
+  editorUndo: { codes: ["KeyZ"], key: "Z", modifier: "mod", shift: false, category: "editor", displayOnly: true, bound: true },
+  editorRedo: { codes: ["KeyZ"], key: "Z", modifier: "mod", shift: true, category: "editor", displayOnly: true, bound: true },
+  editorStrike: { codes: ["KeyS"], key: "S", modifier: "mod", shift: true, category: "editor", displayOnly: true, bound: true },
+  formatDocument: { codes: ["KeyF"], key: "F", modifier: "none", shift: true, alt: true, category: "editor", displayOnly: true, bound: true },
   editorLink: { codes: ["KeyK"], key: "K", modifier: "mod", shift: false, category: "editor", displayOnly: true, bound: true },
 };
 

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { mockIPC } from "@tauri-apps/api/mocks";
 
@@ -38,6 +38,22 @@ beforeEach(() => {
 });
 
 describe("NoteViewer", () => {
+  it("puts the edit session in the single header and shares saving status with the footer", () => {
+    mockIPC(() => []);
+    const base = { html: '<main id="htnote-content"><p>Content</p></main>', css: null, js: null, contentHash: "initial" };
+    act(() => useTabsStore.getState().enterEdit("a", base, "visual", true));
+    render(<NoteViewer />);
+    const header = within(screen.getByTestId("note-header"));
+    expect(header.getByTestId("save-note")).toHaveTextContent("Ctrl+S");
+    expect(header.getByRole("button", { name: "İptal" })).toBeEnabled();
+    expect(header.getByTestId("visual-mode")).toHaveAttribute("aria-pressed", "true");
+    expect(header.queryByTestId("edit-note")).toBeNull();
+    expect(header.getByTestId("export-note")).toBeEnabled();
+    act(() => useTabsStore.getState().markSaving("a"));
+    expect(header.getByRole("status")).toHaveTextContent("Kaydediliyor…");
+    expect(within(screen.getByTestId("note-status")).getByRole("status")).toHaveTextContent("Kaydediliyor…");
+    expect(header.getByTestId("save-note")).toBeDisabled();
+  });
   it("shows one header row, text export and the edit shortcut badge", () => {
     mockIPC(() => []);
     render(<NoteViewer />);

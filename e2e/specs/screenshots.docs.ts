@@ -15,6 +15,14 @@ describe("documentation screenshots", () => {
     await note.waitForDisplayed();
     await note.click();
     await $('iframe[title="Haftalık odak planı"]').waitForExist();
+    await $('[data-testid="note-counts"]').waitForDisplayed();
+    await browser.waitUntil(async () => browser.execute(() => {
+      const view = document.querySelector('[data-mode="view"][data-note-id="a8f4510e-5c7a-42b9-a38b-25f9d771ea40"]') as HTMLElement | null;
+      return !!view && view.dataset.loadedRevision === view.dataset.revision;
+    }));
+    await browser.switchFrame(await $('iframe[title="Haftalık odak planı"]'));
+    await $('#htnote-content').waitForDisplayed();
+    await browser.switchToParentFrame();
     await capture("main-view");
 
     await $('[data-testid="edit-note"]').click();
@@ -22,9 +30,13 @@ describe("documentation screenshots", () => {
     await capture("editor-visual");
     await $('[data-testid="code-mode"]').click();
     await $(".htnote-code-host .cm-content").waitForDisplayed();
+    await $('[data-testid="live-preview"][data-loaded="true"]').waitForDisplayed();
+    await browser.switchFrame(await $('.htnote-preview-card iframe'));
+    await $('#htnote-content').waitForDisplayed();
+    await browser.switchToParentFrame();
     await capture("editor-code");
 
-    await $(".htnote-session-actions button").click();
+    await $('[data-testid="cancel-edit"]').click();
     await $('iframe[title="Haftalık odak planı"]').waitForExist();
     await $('[data-testid="global-search"]').click();
     await $('[data-testid="search-input"]').setValue("odak");

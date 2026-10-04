@@ -54,7 +54,7 @@ export function SplitView({ editor, children }: SplitViewProps) {
     <Button size="sm" variant="ghost" className="htnote-preview-toggle"
       data-testid="live-preview-toggle" disabled={!settings} aria-pressed={preview} onClick={() => {
         if (settings) void update({ editorLivePreview: !preview }).catch(() => {});
-      }}><PanelRight size={16} aria-hidden="true" />{t("editor.split.livePreview")}</Button>
+      }}><PanelRight size={16} aria-hidden="true" /><span className="htnote-preview-toggle-label">{t("editor.split.livePreview")}</span></Button>
   </Tooltip>;
 
   return (
@@ -88,7 +88,7 @@ export function SplitView({ editor, children }: SplitViewProps) {
               setDragRatio(next);
               if (settings) void update({ editorSplitRatio: next }).catch(() => {});
             }} />
-          <div aria-label={t("editor.split.preview")} style={{ flex: 1, minWidth: 0, overflow: "auto" }}>{children}</div>
+          <div aria-label={t("editor.split.preview")} className="htnote-split-preview" style={{ flex: 1, minWidth: 0, minHeight: 0, overflow: "hidden" }}>{children}</div>
         </>}
       </div>
     </section>
