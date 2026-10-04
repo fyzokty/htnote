@@ -18,6 +18,31 @@ async function mount(content: string) {
 }
 
 describe("media node views", () => {
+  it.each(["image", "audio", "video"] as const)("floats %s without changing wrapper style and closes outside or with Escape", async (kind) => {
+    const tag = kind === "image" ? "img" : kind;
+    const view = await mount(`<${tag} src="media">${kind === "image" ? "" : `</${tag}>`}<p>After</p>`);
+    await act(async () => { editor.commands.setTextSelection(2); });
+    const wrapper = view.container.querySelector<HTMLElement>(".htnote-media")!;
+    const style = wrapper.getAttribute("style");
+    const preview = wrapper.querySelector(".htnote-media-preview")!;
+    await act(async () => { fireEvent.click(preview); });
+    expect(screen.getByRole("toolbar").closest(".htnote-media-floating")?.parentElement).toBe(document.body);
+    expect(wrapper.getAttribute("style")).toBe(style);
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Sağa hizala" }));
+    expect(screen.getByRole("toolbar")).toBeVisible();
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole("toolbar")).toBeNull();
+    expect(document.querySelector(".htnote-media-floating")).toHaveAttribute("inert");
+    expect(editor.state.selection.constructor.name).toBe("NodeSelection");
+    await act(async () => { fireEvent.click(preview); });
+    expect(screen.getByRole("toolbar")).toBeVisible();
+    fireEvent.keyDown(document.body, { key: "Escape" });
+    expect(screen.queryByRole("toolbar")).toBeNull();
+    expect(wrapper.getAttribute("style")).toBe(style);
+    await act(async () => { fireEvent.click(preview); });
+    await act(async () => { editor.commands.setTextSelection(2); });
+    expect(wrapper.getAttribute("style")).toBe(style);
+  });
   it("previews SVG assets as images without inserting inline SVG content", async () => {
     const view = await mount('<img src="./assets/diagram.svg" alt="Diagram">');
     expect(screen.getByRole("img", { name: "Diagram" })).toHaveAttribute("src", "http://127.0.0.1:4123/note/assets/diagram.svg");
@@ -83,6 +108,8 @@ describe("media node views", () => {
     fireEvent.change(input(), { target: { value: "New description" } });
     expect(editor.state.doc.firstChild?.attrs.alt).toBe("Original");
     fireEvent.keyDown(input(), { key: "Escape" });
+    expect(screen.queryByRole("toolbar")).toBeNull();
+    fireEvent.click(screen.getByRole("img"));
     expect(input()).toHaveValue("Original");
     fireEvent.change(input(), { target: { value: "New description" } });
     input().focus();

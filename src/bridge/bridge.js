@@ -20,6 +20,10 @@
   mediaStyle.id = "htnote-media-base";
   mediaStyle.textContent = ":where(video,img){max-width:100%;height:auto}:where(video){max-height:75vh}";
   document.head.append(mediaStyle);
+  const paragraphStyle = document.createElement("style");
+  paragraphStyle.id = "htnote-paragraph-base";
+  paragraphStyle.textContent = ":where(#htnote-content p){margin:0.3em 0;min-height:1lh}";
+  document.head.append(paragraphStyle);
   const audioPlayers = new WeakMap();
   let audioLabels = {};
   const audioTime = (value) => {

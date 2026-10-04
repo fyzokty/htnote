@@ -5,8 +5,28 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createVisualExtensions } from "@/features/editor/extensions";
 import { selectMediaGap } from "@/features/editor/mediaSelection";
+import { mediaToolbarOwners } from "./mediaToolbarPosition";
 
 describe("media outside clicks", () => {
+  it("recognizes only its own active portal toolbar bounds", () => {
+    const editor = new Editor({ extensions: createVisualExtensions(""), content: '<img src="a.svg">' });
+    const toolbar = document.createElement("div");
+    toolbar.className = "htnote-media-floating";
+    document.body.append(toolbar);
+    mediaToolbarOwners.set(toolbar, editor.view.dom);
+    vi.spyOn(toolbar, "getBoundingClientRect").mockReturnValue(new DOMRect(300, 60, 200, 40));
+    vi.spyOn(editor.view.nodeDOM(0) as HTMLElement, "getBoundingClientRect").mockReturnValue(new DOMRect(100, 50, 200, 150));
+    vi.spyOn(editor.view, "focus").mockImplementation(() => {});
+    const event = new MouseEvent("mousedown", { clientX: 400, clientY: 80 });
+    try {
+      expect(selectMediaGap(editor.view, event)).toBe(false);
+      toolbar.setAttribute("inert", "");
+      expect(selectMediaGap(editor.view, event)).toBe(true);
+      toolbar.removeAttribute("inert");
+      mediaToolbarOwners.delete(toolbar);
+      expect(selectMediaGap(editor.view, event)).toBe(true);
+    } finally { toolbar.remove(); editor.destroy(); }
+  });
   it("records handler decisions only while the diagnostic hook is enabled", () => {
     const editor = new Editor({ extensions: createVisualExtensions(""), content: '<img src="a.svg">' });
     const dom = editor.view.nodeDOM(0) as HTMLElement;

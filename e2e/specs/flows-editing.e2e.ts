@@ -12,6 +12,73 @@ describe("editing flows", () => {
   beforeEach(async () => { ({ root, restore } = await useTempRoot()); });
   afterEach(async () => { await restore?.(); });
 
+  it("matches compact semantic paragraph spacing and empty line height in the viewer", async () => {
+    const note = await createNote("Paragraph spacing");
+    await openNote(note.id);
+    await editNote();
+    await $(".tiptap").click();
+    await browser.keys(["Control", "a"]);
+    await browser.keys("first");
+    await browser.keys("Enter");
+    await browser.keys("second");
+    await browser.keys("Enter");
+    await browser.keys("Enter");
+    await browser.keys("last");
+    const measure = (selector: string) => {
+      const paragraphs = Array.from(document.querySelectorAll<HTMLElement>(`${selector} > p`));
+      return paragraphs.map((p) => {
+        const style = getComputedStyle(p);
+        return { margin: parseFloat(style.marginTop) / parseFloat(style.fontSize),
+          line: parseFloat(style.lineHeight) / parseFloat(style.fontSize),
+          height: p.getBoundingClientRect().height / parseFloat(style.fontSize) };
+      });
+    };
+    const editor = await browser.execute(measure, ".tiptap");
+    assert.equal(editor.length, 4);
+    const saved = await saveAndView(note.id, (html) => html.includes("last"));
+    assert.match(saved, /<p><\/p>/);
+    await withNoteFrame(note.id, async () => {
+      const viewer = await browser.execute(measure, "#htnote-content");
+      assert.equal(viewer.length, 4);
+      for (let i = 0; i < viewer.length; i++) {
+        assert.ok(Math.abs(viewer[i].margin - editor[i].margin) < 0.02);
+        assert.ok(Math.abs(viewer[i].line - editor[i].line) < 0.02);
+        assert.ok(Math.abs(viewer[i].height - editor[i].height) < 0.02);
+      }
+    });
+  });
+
+  it("keeps real Enter keystrokes in one code block after save and reopen", async () => {
+    const note = await createNote("Code Enter");
+    await openNote(note.id);
+    await editNote();
+    const surface = await $(".htnote-visual-editor .tiptap");
+    await surface.click();
+    await browser.keys(["Control", "a"]);
+    await browser.keys("first");
+    const codeTool = await visibleEditorTool('.htnote-editor-toolbar button[aria-label="Kod bloğu"]');
+    await codeTool.click();
+    await browser.keys("End");
+    await browser.keys("Enter");
+    await browser.keys("  second");
+    await browser.keys("Enter");
+    await browser.keys("third");
+    assert.equal(await surface.$$("pre").length, 1);
+    assert.equal(await surface.$("pre code").getText(), "first\n  second\nthird");
+    const saved = await saveAndView(note.id, (html) => html.includes("third"));
+    assert.match(saved, /<pre><code>first\n  second\nthird<\/code><\/pre>/);
+    await withNoteFrame(note.id, async () => {
+      assert.equal(await $("#htnote-content pre code").getText(), "first\n  second\nthird");
+    });
+    await editNote();
+    assert.equal(await $(".tiptap pre code").getText(), "first\n  second\nthird");
+    await $(".tiptap pre code").click();
+    await browser.keys(["Control", "End"]);
+    await browser.keys(["Control", "Enter"]);
+    await browser.keys("after code");
+    assert.equal(await $(".tiptap > p:last-child").getText(), "after code");
+  });
+
   it("creates, saves and displays a visual note", async () => {
     await $('[data-testid="new-note"]').click();
     await browser.waitUntil(async () => flatten(await tree()).length === 1);

@@ -324,6 +324,8 @@ describe("note bridge", () => {
   });
 
   it("constrains media with low specificity so author sizes win", () => {
+    expect(document.querySelector("#htnote-paragraph-base")?.textContent)
+      .toBe(":where(#htnote-content p){margin:0.3em 0;min-height:1lh}");
     expect(document.querySelector("#htnote-media-base")?.textContent).toContain(":where(video,img){max-width:100%;height:auto}");
     expect(document.querySelector("#htnote-media-base")?.textContent).toContain(":where(video){max-height:75vh}");
     const author = document.createElement("style");

@@ -272,6 +272,7 @@ mod tests {
         let html = render_new_note_html(&meta);
         assert!(html.contains("<html lang=\"tr\">"));
         assert!(html.contains("<style data-htnote=\"base\">"));
+        assert!(html.contains(":where(#htnote-content p) { margin: 0.3em 0; min-height: 1lh; }"));
         assert!(html.contains("<main id=\"htnote-content\">\n      <h1>A &lt;B&gt; &amp; &quot;C&quot;</h1>\n      <p></p>\n    </main>"));
         assert!(html.contains("content=\"rust, a&lt;&amp;&quot;\""));
         assert_eq!(sync_head(&html, &meta, false, false), html);

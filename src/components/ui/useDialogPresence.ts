@@ -13,7 +13,7 @@ export const DialogActiveContext = createContext(true);
 export const useDialogActive = () => useContext(DialogActiveContext);
 export const useReducedMotion = () => useSyncExternalStore(subscribeMotion, readMotion, () => false);
 
-export function useDialogPresence<T>(content: T | null) {
+export function useDialogPresence<T>(content: T | null, closeMs?: number) {
   const reducedMotion = useReducedMotion();
   const [state, setState] = useState<DialogPresenceState<T>>({ content, open: content !== null });
   const open = content !== null;
@@ -24,9 +24,9 @@ export function useDialogPresence<T>(content: T | null) {
   }
   useEffect(() => {
     if (open) return;
-    const timer = setTimeout(() => setState({ content: null, open: false }), dialogCloseDuration(reducedMotion));
+    const timer = setTimeout(() => setState({ content: null, open: false }), reducedMotion ? 0 : closeMs ?? dialogCloseDuration(false));
     return () => clearTimeout(timer);
-  }, [open, reducedMotion]);
+  }, [open, reducedMotion, closeMs]);
   return { content: current.content, mounted: current.content !== null, closing: !open };
 }
 
