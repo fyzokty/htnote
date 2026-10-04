@@ -18,3 +18,6 @@ export function subscribeSystemMotion(notify: () => void): () => void {
 export function applyReducedMotion(reduced: boolean): void {
   document.documentElement.dataset.reducedMotion = String(reduced);
 }
+
+export const MODE_TRANSITION_MS = 200;
+export const MOTION_ENTER_EASING = "cubic-bezier(0.16, 1, 0.3, 1)";

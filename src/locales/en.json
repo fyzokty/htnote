@@ -90,7 +90,9 @@
     "export": "Export",
     "edit": "Edit",
     "renameHint": "Double-click to rename",
-    "renameLabel": "Rename note title"
+    "renameLabel": "Rename note title",
+    "emptyNewNote": "Create new note",
+    "emptySearch": "Search"
   },
   "export": {
     "pdf": "PDF",

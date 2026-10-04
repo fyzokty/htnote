@@ -108,7 +108,8 @@ describe("editing flows", () => {
     await $('[data-testid="new-note"]').click();
     await browser.waitUntil(async () => flatten(await tree()).length === 1);
     const note = flatten(await tree())[0];
-    await editNote();
+    await $(".tiptap").waitForDisplayed();
+    assert.equal(await $('[data-testid="edit-note"]').isExisting(), false);
     await typeInVisualEditor("Visual smoke content");
     await saveShortcut();
     await waitForFile(join(root, note.relPath, "index.html"), (bytes) => bytes.toString().includes("Visual smoke content"));
@@ -121,6 +122,37 @@ describe("editing flows", () => {
     await withNoteFrame(note.id, async () => {
       assert.match(await $("#htnote-content").getText(), /Visual smoke content/);
     });
+  });
+
+  it("retains a loaded visible revision throughout a save reload", async () => {
+    const note = await createNote("Buffered save");
+    await openNote(note.id);
+    await withNoteFrame(note.id, async () => {});
+    await browser.execute(() => {
+      const audit = { failures: [] as string[], samples: 0, running: true };
+      (window as unknown as { frameAudit: typeof audit }).frameAudit = audit;
+      const sample = () => {
+        const view = document.querySelector<HTMLElement>('[data-mode="view"][data-note-id]');
+        const frame = view?.querySelector<HTMLIFrameElement>('[data-frame-visible="true"]');
+        if (view?.dataset.editing === "false") {
+          audit.samples++;
+          if (!frame || !view.dataset.loadedRevision || frame.dataset.frameRevision !== view.dataset.loadedRevision) audit.failures.push(view?.dataset.loadedRevision || "missing");
+        }
+        if (audit.running) requestAnimationFrame(sample);
+      };
+      requestAnimationFrame(sample);
+    });
+    await editNote();
+    await typeInVisualEditor("Buffered content");
+    await saveAndView(note.id, (html) => html.includes("Buffered content"));
+    await withNoteFrame(note.id, async () => {});
+    const audit = await browser.execute(() => {
+      const value = (window as unknown as { frameAudit: { failures: string[]; samples: number; running: boolean } }).frameAudit;
+      value.running = false;
+      return value;
+    });
+    assert.ok(audit.samples > 0);
+    assert.deepEqual(audit.failures, []);
   });
 
   it("keeps a script counter working after a visual edit", async () => {

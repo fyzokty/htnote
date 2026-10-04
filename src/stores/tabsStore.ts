@@ -27,7 +27,7 @@ interface TabsState {
   tabs: Tab[];
   activeId: string | null;
   restored: boolean;
-  openNote: (id: string, options?: { activate?: boolean }) => void;
+  openNote: (id: string, options?: { activate?: boolean; editBase?: DocBase }) => void;
   openSpecial: (kind: SpecialTabKind) => void;
   toggleSpecial: (kind: SpecialTabKind) => void;
   close: (id: string) => Promise<boolean>;
@@ -106,13 +106,13 @@ export const useTabsStore = create<TabsState>((set, get) => ({
   tabs: [],
   activeId: null,
   restored: false,
-  openNote(id, { activate = true } = {}) {
+  openNote(id, { activate = true, editBase } = {}) {
     if (isSpecialTabId(id)) return;
     const current = get();
     const alreadyOpen = current.tabs.some((tab) => tab.noteId === id);
     const tabs = alreadyOpen
       ? current.tabs
-      : [...current.tabs, { noteId: id, doc: createDocState() }];
+      : [...current.tabs, { noteId: id, doc: editBase ? { ...enterEdit(createDocState(), editBase, "visual", true), focusOnMount: true } : createDocState() }];
     const activeId = activate ? id : current.activeId;
     if (tabs !== current.tabs || activeId !== current.activeId) {
       set({ tabs, activeId });

@@ -3,6 +3,7 @@ import source from "./bridge.js?raw";
 import { writeNoteBackground } from "@/features/viewer/noteAppearance";
 
 const messages = vi.fn();
+let scrollbarShadow: ShadowRoot;
 
 function hostMessage(data: object, sourceWindow: MessageEventSource | null = window.parent) {
   window.dispatchEvent(new MessageEvent("message", { data, source: sourceWindow }));
@@ -23,7 +24,14 @@ describe("note bridge", () => {
     history.replaceState(null, "", "/123e4567-e89b-12d3-a456-426614174000/index.html");
     document.body.innerHTML = '<video controls></video><audio controls></audio>';
     vi.spyOn(window.parent, "postMessage").mockImplementation(messages);
+    const attach = Element.prototype.attachShadow;
+    const spy = vi.spyOn(Element.prototype, "attachShadow").mockImplementation(function (this: Element, options) {
+      const shadow = attach.call(this, options);
+      if (this.hasAttribute("data-htnote-scrollbars")) scrollbarShadow = shadow;
+      return shadow;
+    });
     window.eval(source);
+    spy.mockRestore();
     expect(document.querySelector("video")).toHaveAttribute("controlslist", "nodownload");
     expect(document.querySelector("audio")?.hidden).toBe(true);
     expect(document.querySelector(".ht-audio-player")?.shadowRoot).not.toBeNull();
@@ -125,8 +133,8 @@ describe("note bridge", () => {
 
   it("exposes frozen note metadata within the size limit", () => {
     expect(Object.isFrozen((window as unknown as { htnote: object }).htnote)).toBe(true);
-    // The dependency-free audio UI is served with the bridge rather than a separate bundle.
-    expect(new TextEncoder().encode(source).length).toBeLessThan(24576);
+    // Ses oynatıcı ve kök kaplama çubuğu ayrı paket yerine köprüde sunulur.
+    expect(new TextEncoder().encode(source).length).toBeLessThan(32768);
   });
 
   it("uses low-specificity theme defaults and the portable preset stylesheet", () => {
@@ -467,4 +475,53 @@ describe("note bridge", () => {
     baseStyle.remove();
     styleEl?.remove();
   });
+});
+
+it("isolates root overlay geometry, scroll visibility and drag in a closed shadow", () => {
+  const root = document.documentElement;
+  const host = root.querySelector<HTMLElement>("[data-htnote-scrollbars]")!;
+  expect(host.shadowRoot).toBeNull();
+  expect(host.style.position).toBe("fixed");
+  expect(host.style.getPropertyPriority("all")).toBe("important");
+  expect(getComputedStyle(root).scrollbarWidth).toBe("none");
+  expect(scrollbarShadow.querySelector("style")?.textContent).toContain("@media print");
+  Object.defineProperty(document, "scrollingElement", { configurable: true, value: root });
+  Object.defineProperties(root, { clientHeight: { configurable: true, value: 100 }, scrollHeight: { configurable: true, value: 400 } });
+  root.scrollTop = 0;
+  window.dispatchEvent(new Event("scroll"));
+  const track = scrollbarShadow.querySelector<HTMLElement>(".vertical")!;
+  const thumb = track.querySelector<HTMLElement>(".thumb")!;
+  expect(track.dataset.visible).toBe("true");
+  expect(thumb.style.height).toBe("25px");
+  vi.useFakeTimers();
+  try {
+    window.dispatchEvent(new Event("scroll"));
+    vi.advanceTimersByTime(800);
+    expect(track.dataset.visible).toBe("false");
+    hostMessage({ type: "HTNOTE_THEME", vars: { "--ht-reduced-motion": "1" } });
+    window.dispatchEvent(new Event("scroll"));
+    expect(host.dataset.reducedMotion).toBe("true");
+    expect(scrollbarShadow.querySelector("style")?.textContent).toContain(":host([data-reduced-motion=true]) .track{transition:none}");
+  } finally {
+    document.documentElement.style.removeProperty("--ht-reduced-motion");
+    vi.useRealTimers();
+  }
+
+  thumb.setPointerCapture = vi.fn();
+  const pointer = (type: string, y: number) => {
+    const event = new MouseEvent(type, { clientY: y, button: 0 });
+    Object.defineProperty(event, "pointerId", { value: 1 });
+    thumb.dispatchEvent(event);
+  };
+  pointer("pointerdown", 10); pointer("pointermove", 35);
+  expect(root.scrollTop).toBe(100);
+  pointer("pointercancel", 35);
+  const author = document.createElement("style"); author.textContent = "html { scrollbar-width: auto; }"; document.head.append(author);
+  window.dispatchEvent(new Event("scroll"));
+  expect(getComputedStyle(root).scrollbarWidth).toBe("auto");
+  expect(track.style.display).toBe("none");
+  author.remove();
+  delete (document as unknown as { scrollingElement?: Element }).scrollingElement;
+  delete (root as unknown as { clientHeight?: number }).clientHeight;
+  delete (root as unknown as { scrollHeight?: number }).scrollHeight;
 });

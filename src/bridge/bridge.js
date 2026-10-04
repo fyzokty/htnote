@@ -12,8 +12,86 @@
   if (!document.getElementById("htnote-scrollbars")) {
     const s = document.createElement("style");
     s.id = "htnote-scrollbars";
-    s.textContent = ":where(html){background:var(--ht-note-bg,var(--ht-bg));color:var(--ht-text);color-scheme:light dark}:where(*){scrollbar-width:thin;scrollbar-color:var(--ht-scrollbar,var(--ht-border)) transparent}:where(*:hover){scrollbar-color:var(--ht-scrollbar-hover,var(--ht-muted)) transparent}:where(*)::-webkit-scrollbar{width:8px;height:8px}:where(*)::-webkit-scrollbar-track,:where(*)::-webkit-scrollbar-corner{background:transparent}:where(*)::-webkit-scrollbar-thumb{background:var(--ht-scrollbar,var(--ht-border));border:2px solid transparent;border-radius:999px;background-clip:padding-box}:where(*)::-webkit-scrollbar-thumb:hover{background-color:var(--ht-scrollbar-hover,var(--ht-muted))}";
+    s.textContent = ":where(html){background:var(--ht-note-bg,var(--ht-bg));color:var(--ht-text);color-scheme:light dark}:where(*:not(html)){scrollbar-width:thin;scrollbar-color:var(--ht-scrollbar,var(--ht-border)) transparent}:where(*:hover){scrollbar-color:var(--ht-scrollbar-hover,var(--ht-muted)) transparent}:where(*)::-webkit-scrollbar{width:8px;height:8px}:where(*)::-webkit-scrollbar-track,:where(*)::-webkit-scrollbar-corner{background:transparent}:where(*)::-webkit-scrollbar-thumb{background:var(--ht-scrollbar,var(--ht-border));border:2px solid transparent;border-radius:999px;background-clip:padding-box}:where(*)::-webkit-scrollbar-thumb:hover{background-color:var(--ht-scrollbar-hover,var(--ht-muted))}:where(html){scrollbar-width:none}:where(html)::-webkit-scrollbar{width:0;height:0}";
     document.head.prepend(s);
+  }
+  // Kök çubuk tek host ve kapalı shadow root içinde yer kaplamadan çizilir.
+  if (!printing && !document.querySelector("[data-htnote-scrollbars]")) {
+    const host = document.createElement("div");
+    host.dataset.htnoteScrollbars = "true";
+    host.setAttribute("aria-hidden", "true");
+    for (const [key, value] of Object.entries({ all: "initial", position: "fixed", inset: "0", width: "auto", height: "auto", margin: "0", padding: "0", border: "0", transform: "none", opacity: "1", visibility: "visible", zIndex: "2147483647", pointerEvents: "none" })) {
+      host.style.setProperty(key.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`), value, "important");
+    }
+    const shadow = host.attachShadow({ mode: "closed" });
+    const style = document.createElement("style");
+    style.textContent = `
+      :host{display:block} .track{position:absolute;pointer-events:none;opacity:0;transition:opacity var(--ht-motion-duration,180ms) var(--ht-motion-easing,ease-out)}
+      .track[data-visible=true]{opacity:1} .vertical{right:0;top:0;width:10px;height:100%} .horizontal{bottom:0;left:0;height:10px;width:100%}
+      .thumb{position:absolute;pointer-events:auto;touch-action:none;border-radius:999px;background:var(--ht-scrollbar,var(--ht-border));cursor:default}
+      .vertical .thumb{right:1px;width:5px} .horizontal .thumb{bottom:1px;height:5px}
+      .thumb:hover,.thumb[data-dragging=true]{background:var(--ht-scrollbar-hover,var(--ht-muted))}
+      .vertical .thumb:hover,.vertical .thumb[data-dragging=true]{width:8px} .horizontal .thumb:hover,.horizontal .thumb[data-dragging=true]{height:8px}
+      :host([data-reduced-motion=true]) .track{transition:none}
+      @media print{:host{display:none!important}}
+    `;
+    shadow.append(style);
+    root.append(host);
+    let active = false, hover = false, dragging = false, timer, frame = 0;
+    const tracks = [true, false].map((vertical) => {
+      const track = document.createElement("div"), thumb = document.createElement("div");
+      track.className = `track ${vertical ? "vertical" : "horizontal"}`;
+      thumb.className = "thumb"; track.append(thumb); shadow.append(track);
+      let drag;
+      thumb.addEventListener("pointerdown", (event) => {
+        if (event.button !== 0) return;
+        const scroller = document.scrollingElement || root;
+        const viewport = vertical ? scroller.clientHeight : scroller.clientWidth;
+        const content = vertical ? scroller.scrollHeight : scroller.scrollWidth;
+        const length = Math.min(viewport, Math.max(24, viewport * viewport / Math.max(content, 1)));
+        drag = { pointer: event.pointerId, point: vertical ? event.clientY : event.clientX, start: vertical ? scroller.scrollTop : scroller.scrollLeft, range: Math.max(0, content - viewport), travel: Math.max(0, viewport - length) };
+        event.preventDefault(); thumb.setPointerCapture(event.pointerId); dragging = true; thumb.dataset.dragging = "true"; update();
+      });
+      thumb.addEventListener("pointermove", (event) => {
+        if (!drag || event.pointerId !== drag.pointer) return;
+        const delta = (vertical ? event.clientY : event.clientX) - drag.point;
+        const value = Math.max(0, Math.min(drag.range, drag.start + (drag.travel ? delta * drag.range / drag.travel : 0)));
+        const scroller = document.scrollingElement || root;
+        if (vertical) scroller.scrollTop = value; else scroller.scrollLeft = value;
+        update();
+      });
+      const end = () => { drag = null; dragging = false; thumb.dataset.dragging = "false"; update(); };
+      thumb.addEventListener("pointerup", (event) => { if (thumb.hasPointerCapture(event.pointerId)) thumb.releasePointerCapture(event.pointerId); end(); });
+      thumb.addEventListener("lostpointercapture", end); thumb.addEventListener("pointercancel", end);
+      thumb.addEventListener("pointerenter", () => { hover = true; update(); });
+      thumb.addEventListener("pointerleave", () => { hover = false; update(); });
+      return { track, thumb, vertical };
+    });
+    function update() {
+      const scroller = document.scrollingElement || root;
+      host.dataset.reducedMotion = String(root.style.getPropertyValue("--ht-reduced-motion").trim() === "1" || (!root.style.getPropertyValue("--ht-reduced-motion") && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches));
+      tracks.forEach(({ track, thumb, vertical }) => {
+        const viewport = vertical ? scroller.clientHeight : scroller.clientWidth;
+        const content = vertical ? scroller.scrollHeight : scroller.scrollWidth;
+        const position = vertical ? scroller.scrollTop : scroller.scrollLeft;
+        const length = Math.min(viewport, Math.max(24, viewport * viewport / Math.max(content, 1)));
+        const range = Math.max(0, content - viewport), travel = Math.max(0, viewport - length);
+        const offset = range ? Math.max(0, Math.min(range, position)) / range * travel : 0;
+        // Yazarın açık yerel çubuk tercihi düşük özgüllüklü varsayılanı geçersiz kılar.
+        track.style.display = range > 1 && getComputedStyle(root).scrollbarWidth === "none" ? "block" : "none";
+        track.dataset.visible = String(active || hover || dragging);
+        if (vertical) Object.assign(thumb.style, { top: `${offset}px`, height: `${length}px` });
+        else Object.assign(thumb.style, { left: `${offset}px`, width: `${length}px` });
+      });
+    }
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(() => { frame = 0; update(); }); };
+    window.addEventListener("scroll", () => { active = true; clearTimeout(timer); timer = setTimeout(() => { active = false; update(); }, 800); update(); }, { passive: true });
+    window.addEventListener("pointermove", (event) => { hover = event.clientX >= innerWidth - 10 || event.clientY >= innerHeight - 10; schedule(); }, { passive: true });
+    document.addEventListener("pointerleave", () => { hover = false; update(); });
+    window.addEventListener("resize", schedule); window.addEventListener("load", schedule); window.addEventListener("message", schedule);
+    if (typeof ResizeObserver !== "undefined") new ResizeObserver(schedule).observe(root);
+    new MutationObserver(schedule).observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ["style", "class"] });
+    update();
   }
   window.htnote = Object.freeze({ noteId, version: 1 });
   const mediaStyle = document.createElement("style");

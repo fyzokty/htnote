@@ -1,10 +1,13 @@
+import { MODE_TRANSITION_MS, MOTION_ENTER_EASING } from "@/lib/motion";
+import { requestRevision, revealRevision, type FrameBuffer } from "./frameBuffer";
+import { modeTransition } from "./modeTransition";
 import { useReducedMotion } from "@/components/ui/useDialogPresence";
-import { FileText } from "lucide-react";
+import { FileText, Plus, Search } from "lucide-react";
 import { useHeaderLayout } from "./useHeaderLayout";
 import { NoteStatusBar } from "./NoteStatusBar";
 import { formatShortcut } from "@/lib/shortcuts/registry";
 import { NoteAppearancePicker } from "./NoteAppearancePicker";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useLayoutEffect, type CSSProperties } from "react";
 import { Clock3, Download, Pencil, Star } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -18,12 +21,12 @@ import { useEditSession } from "@/features/editor/useEditSession";
 import { toggleFavorite } from "@/features/favorites/favorites";
 import { TagInput } from "@/features/tags/TagInput";
 import { InlineRename } from "@/features/tree/InlineRename";
-import { renameNoteItem } from "@/features/tree/useTreeActions";
+import { renameNoteItem, useTreeActions } from "@/features/tree/useTreeActions";
 import { BacklinksPanel } from "@/features/viewer/BacklinksPanel";
 import { deriveTags, setNoteTags } from "@/features/tags/tags";
 import { nextMounted } from "@/features/viewer/lru";
 import { exportNote, pdfMode } from "@/features/viewer/exportNote";
-import { registerFrame } from "@/features/viewer/bridgeHost";
+import { activateFrame, registerFrame } from "@/features/viewer/bridgeHost";
 import { NOTE_IFRAME_SANDBOX, noteUrl } from "@/lib/noteUrl";
 import { useShortcut } from "@/lib/shortcuts/useShortcut";
 import type { NoteNode, TreeNode } from "@/lib/types";
@@ -53,29 +56,41 @@ function relativeSaved(value: string, language: string, now: number): string {
   return formatter.format(Math.round(elapsed / 86_400_000), "day");
 }
 
+function BufferedIframe({ id, revision, title, visible, onReady }: { id: string; revision: string; title: string; visible: boolean; onReady: (revision: string) => void }) {
+  const ref = useRef<HTMLIFrameElement>(null);
+  const ready = useRef(onReady);
+  useLayoutEffect(() => { ready.current = onReady; });
+  const raf = useRef(0);
+  useLayoutEffect(() => {
+    const frame = ref.current?.contentWindow;
+    const unregister = frame ? registerFrame(id, frame, true) : undefined;
+    return () => { unregister?.(); cancelAnimationFrame(raf.current); };
+  }, [id]);
+  useLayoutEffect(() => {
+    if (visible && ref.current?.contentWindow) activateFrame(id, ref.current.contentWindow);
+  }, [id, visible]);
+  return <iframe ref={ref} title={title} src={`${noteUrl(id)}?revision=${encodeURIComponent(revision)}`}
+    sandbox={NOTE_IFRAME_SANDBOX} referrerPolicy="no-referrer" data-frame-revision={revision} data-frame-visible={visible}
+    className="absolute inset-0 h-full w-full border-0 bg-app-surface" style={{ opacity: visible ? 1 : 0, pointerEvents: visible ? undefined : "none", colorScheme: "light dark" }}
+    onLoad={() => { cancelAnimationFrame(raf.current); raf.current = requestAnimationFrame(() => { raf.current = requestAnimationFrame(() => ready.current(revision)); }); }} />;
+}
+
 function NoteFrame({ id, active, editing, saving, title, revision }: { id: string; active: boolean; editing: boolean; saving: boolean; title: string; revision: string }) {
   const { t } = useTranslation();
-  const [loadedRevision, setLoadedRevision] = useState<string | null>(null);
-  const frameRef = useRef<HTMLIFrameElement>(null);
-  useEffect(() => {
-    const frame = frameRef.current?.contentWindow;
-    return frame ? registerFrame(id, frame) : undefined;
-  }, [id, revision]);
+  const [buffer, setBuffer] = useState<FrameBuffer>({ visible: null, pending: null });
+  // Yeni not düzenlemede açıldığında ilk okuma geçişine kadar iframe kurulmaz.
+  const [started, setStarted] = useState(!editing);
+  if (!editing && !started) setStarted(true);
+  const next = started ? requestRevision(buffer, revision) : buffer;
+  if (next !== buffer) setBuffer(next);
+  const frames = [next.visible, next.pending].filter((value): value is string => value !== null);
   return (
-    // Keep layout while editing: navigating a display:none iframe can leave its
-    // new document without layout in WebView2 even after it becomes visible.
-    <div className={`h-full w-full ${editing ? "absolute inset-0 invisible pointer-events-none" : "relative"} ${active && !editing ? "htnote-mode-transition" : ""}`} hidden={!active} inert={!active || editing} aria-hidden={!active || editing} data-mode="view"
-      data-note-id={id} data-revision={revision} data-loaded-revision={loadedRevision ?? ""} data-editing={editing} data-saving={saving}>
-      {loadedRevision !== revision && <div role="progressbar" aria-label={t("viewer.loading")} className="absolute inset-x-0 top-0 z-10 h-0.5 animate-pulse bg-app-accent" />}
-      <iframe
-        ref={frameRef}
-        title={title}
-        src={`${noteUrl(id)}?revision=${encodeURIComponent(revision)}`}
-        sandbox={NOTE_IFRAME_SANDBOX}
-        referrerPolicy="no-referrer"
-        onLoad={() => setLoadedRevision(revision)}
-        className="h-full w-full border-0"
-      />
+    // WebView2'de düzenleme sırasında da çerçevenin yerleşimi ve katmanı korunur.
+    <div className={`h-full w-full bg-app-surface ${editing ? "absolute inset-0 opacity-0 pointer-events-none" : "relative"} ${active && !editing ? "htnote-mode-transition" : ""}`} hidden={!active} inert={!active || editing} aria-hidden={!active || editing} data-mode="view"
+      data-note-id={id} data-revision={revision} data-loaded-revision={next.visible ?? ""} data-editing={editing} data-saving={saving}>
+      {next.visible !== revision && <div role="progressbar" aria-label={t("viewer.loading")} className="absolute inset-x-0 top-0 z-10 h-0.5 animate-pulse bg-app-accent" />}
+      {frames.map((value) => <BufferedIframe key={value} id={id} title={title} revision={value} visible={value === next.visible}
+        onReady={(loaded) => setBuffer((state) => revealRevision(state, loaded))} />)}
     </div>
   );
 }
@@ -85,6 +100,7 @@ export function NoteViewer() {
   const tabs = useTabsStore((state) => state.tabs);
   const activeId = useTabsStore((state) => state.activeId && !isSpecialTabId(state.activeId) ? state.activeId : null);
   const session = useEditSession(activeId);
+  const { createNote } = useTreeActions();
   useShortcut("toggleEdit", () => { void session.toggleEdit(); });
   useShortcut("save", () => { void session.save(true); });
   const tree = useTreeStore((state) => state.tree);
@@ -102,6 +118,9 @@ export function NoteViewer() {
   const activeTab = tabs.find((tab) => tab.noteId === activeId);
   const editing = !!activeTab && activeTab.doc.mode !== "view";
   const tagSuggestions = deriveTags(tree);
+  const currentMode = activeTab?.doc.mode ?? "view";
+  const [transition, setTransition] = useState({ id: activeId, mode: currentMode, kind: "none" as ReturnType<typeof modeTransition> });
+  if (transition.id !== activeId || transition.mode !== currentMode) setTransition({ id: activeId, mode: currentMode, kind: modeTransition(transition.mode, currentMode) });
 
   useShortcut("rename", () => {
     if (!activeNote || isRenaming) return;
@@ -122,7 +141,7 @@ export function NoteViewer() {
   const saved = activeNote ? relativeSaved(activeNote.updatedAt, i18n.language, now) : "";
   const headerLayout = useHeaderLayout(headerRef, `${activeNote?.id}:${activeNote?.title}:${activeNote?.relPath}:${activeNote?.tags.join(",")}:${saved}:${i18n.language}:${isRenaming}:${editing}:${activeTab?.doc.saving}:${activeTab?.doc.dirty}`, activeNote?.tags.length ?? 0);
   return (
-    <div className="htnote-note-viewer flex h-full min-h-0 w-full flex-col text-left">
+    <div style={{ "--htnote-mode-duration": `${MODE_TRANSITION_MS}ms`, "--htnote-mode-easing": MOTION_ENTER_EASING } as CSSProperties} className="htnote-note-viewer flex h-full min-h-0 w-full flex-col text-left">
       {(activeNote || activeTab?.doc.removedOnDisk) && (
         <div data-testid="note-header" data-compact-level={headerLayout.compactLevel} className="htnote-note-header flex min-h-16 shrink-0 flex-nowrap items-center justify-between gap-2 border-b border-app-card-border bg-app-card px-4 py-2">
           <div ref={headerRef} data-header-content className="flex min-w-0 flex-1 items-center gap-2 overflow-visible whitespace-nowrap">
@@ -183,7 +202,10 @@ export function NoteViewer() {
         </div>
       )}
       <div className="relative min-h-0 flex-1">
-        {!activeId && <div className="htnote-empty-state h-full"><FileText aria-hidden /><p>{t("viewer.empty")}</p></div>}
+        {!activeId && <div className="htnote-empty-state h-full"><FileText aria-hidden /><p>{t("viewer.empty")}</p><div className="flex flex-wrap justify-center gap-2">
+          <Button variant="primary" data-testid="empty-new-note" onClick={() => void createNote()}><Plus className="size-4" aria-hidden />{t("viewer.emptyNewNote")}</Button>
+          <Button data-testid="empty-search" onClick={() => useUiStore.getState().openSearch()}><Search className="size-4" aria-hidden />{t("viewer.emptySearch")}</Button>
+        </div></div>}
         {activeId && !activeNote && !activeTab?.doc.removedOnDisk && <div className="flex h-full items-center justify-center text-app-muted">{t("viewer.notFound")}</div>}
         {/* Sabit DOM sırası iframe'lerin sekme sıralamasında taşınıp yeniden yüklenmesini önler. */}
         {openIds.filter((id) => mounted.includes(id)).sort().map((id) => {
@@ -204,7 +226,7 @@ export function NoteViewer() {
                 />
               )}
               {isEditing && (
-                <div key={doc.mode} className="h-full w-full htnote-mode-transition" data-mode={doc.mode}>
+                <div key={doc.mode} className={`h-full w-full ${transition.kind === "slide" && !reducedMotion ? "htnote-editor-transition" : ""}`} data-mode={doc.mode}>
                   <NoteEditor noteId={id} doc={doc} session={session} />
                 </div>
               )}

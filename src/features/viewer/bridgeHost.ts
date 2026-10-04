@@ -23,6 +23,7 @@ export type BridgeMessage =
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const frames = new Map<string, Window>();
+const stagedFrames = new Map<Window, string>();
 const readyFrames = new Set<Window>();
 const pendingHighlights = new Map<string, string>();
 
@@ -104,7 +105,24 @@ export function parseBridgeMessage(event: MessageEvent, expectedWindow: Window, 
   }
 }
 
-export function registerFrame(noteId: string, frame: Window): () => void {
+export function activateFrame(noteId: string, frame: Window) {
+  const previous = frames.get(noteId);
+  if (previous && previous !== frame) readyFrames.delete(previous);
+  stagedFrames.delete(frame);
+  frames.set(noteId, frame);
+  const query = pendingHighlights.get(noteId);
+  if (query && readyFrames.has(frame)) requestHighlight(noteId, query);
+}
+
+export function registerFrame(noteId: string, frame: Window, staged = false): () => void {
+  if (staged) {
+    stagedFrames.set(frame, noteId);
+    return () => {
+      stagedFrames.delete(frame);
+      readyFrames.delete(frame);
+      if (frames.get(noteId) === frame) frames.delete(noteId);
+    };
+  }
   const previous = frames.get(noteId);
   if (previous) readyFrames.delete(previous);
   frames.set(noteId, frame);
@@ -146,7 +164,7 @@ function sendTheme(frame: Window) {
 }
 
 export function sendThemeToAll() {
-  for (const frame of new Set(frames.values())) sendTheme(frame);
+  for (const frame of new Set([...frames.values(), ...stagedFrames.keys()])) sendTheme(frame);
 }
 
 function sendContentWidth(frame: Window) {
@@ -156,13 +174,14 @@ function sendContentWidth(frame: Window) {
 }
 
 export function sendContentWidthToAll() {
-  for (const frame of new Set(frames.values())) sendContentWidth(frame);
+  for (const frame of new Set([...frames.values(), ...stagedFrames.keys()])) sendContentWidth(frame);
 }
 
 const allowExternalOpen = createRateLimiter(1000);
 
 export function handleBridgeMessage(event: MessageEvent) {
-  const entry = [...frames].find(([, candidate]) => candidate === event.source);
+  const entry = [...frames].find(([, candidate]) => candidate === event.source)
+    ?? [...stagedFrames].map(([candidate, id]) => [id, candidate] as const).find(([, candidate]) => candidate === event.source);
   if (!entry) return;
   const [noteId, frame] = entry;
   const message = parseBridgeMessage(event, frame, getNoteOrigin());
@@ -205,7 +224,7 @@ export function installBridgeHost(target: Window = window): () => void {
   i18n.on("languageChanged", sendThemeToAll);
   // React applies the root theme class after the settings store notification.
   const themeObserver = new MutationObserver(sendThemeToAll);
-  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+  themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-reduced-motion"] });
   const unsubscribe = useSettingsStore.subscribe((state, previous) => {
     if (state.settings?.theme !== previous.settings?.theme) sendThemeToAll();
     if (state.settings?.contentWidth !== previous.settings?.contentWidth) sendContentWidthToAll();
@@ -226,6 +245,7 @@ export function installBridgeHost(target: Window = window): () => void {
 
 export function resetBridgeHostForTests() {
   frames.clear();
+  stagedFrames.clear();
   readyFrames.clear();
   pendingHighlights.clear();
 }

@@ -1,7 +1,7 @@
 import i18n from "@/i18n";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { clearHighlight, createRateLimiter, installBridgeHost, parseBridgeMessage, registerFrame, requestHighlight, requestPrint, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
+import { activateFrame, clearHighlight, createRateLimiter, installBridgeHost, parseBridgeMessage, registerFrame, requestHighlight, requestPrint, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
 import { initNoteOrigin } from "@/lib/noteUrl";
 import { ipc } from "@/lib/ipc";
 import { subscribeShortcut } from "@/lib/shortcuts/manager";
@@ -347,4 +347,28 @@ it("sends HTNOTE_CONTENT_WIDTH on ready and on settings change", () => {
     dispose();
     unregister();
   }
+});
+
+it("validates hidden frame messages and switches print registration atomically", () => {
+  useTabsStore.getState().openNote(id);
+  const oldCleanup = registerFrame(id, frame);
+  const newCleanup = registerFrame(id, otherFrame, true);
+  const dispose = installBridgeHost();
+  try {
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }));
+    window.dispatchEvent(message({ type: "HTNOTE_READY" }, otherFrame));
+    expect(otherFrame.postMessage).toHaveBeenCalledWith(expect.objectContaining({ type: "HTNOTE_THEME" }), NOTE_ORIGIN);
+    window.dispatchEvent(message({ type: "HTNOTE_OPEN_NOTE", id: otherId }, otherFrame, "https://evil.test"));
+    expect(useTabsStore.getState().activeId).toBe(id);
+    window.dispatchEvent(message({ type: "HTNOTE_OPEN_EXTERNAL", url: "https://example.com" }, otherFrame));
+    expect(ipc.openExternalUrl).toHaveBeenCalledWith("https://example.com");
+    expect(requestPrint(id)).toBe(true);
+    expect(frame.postMessage).toHaveBeenLastCalledWith({ type: "HTNOTE_PRINT" }, NOTE_ORIGIN);
+    activateFrame(id, otherFrame);
+    oldCleanup();
+    expect(requestPrint(id)).toBe(true);
+    expect(otherFrame.postMessage).toHaveBeenLastCalledWith({ type: "HTNOTE_PRINT" }, NOTE_ORIGIN);
+    newCleanup();
+    expect(requestPrint(id)).toBe(false);
+  } finally { dispose(); oldCleanup(); newCleanup(); }
 });

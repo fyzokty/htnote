@@ -113,17 +113,17 @@ describe("NoteEditor", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
-  it("applies mode transition container and data-mode attribute on mode changes", () => {
+  it("keeps mode wrappers without duplicating the viewer entry animation", () => {
     const actions = session();
     const doc = enterEdit(createDocState(), { html: '<main id="htnote-content"><p>A</p></main>', css: null, js: null, contentHash: "one" });
     const { rerender, container } = render(<Editing noteId="a" doc={doc} session={actions} />);
     const visualWrapper = container.querySelector('[data-mode="visual"]');
     expect(visualWrapper).toBeInTheDocument();
-    expect(visualWrapper).toHaveClass("htnote-mode-transition");
+    expect(visualWrapper).not.toHaveClass("htnote-mode-transition");
 
     rerender(<Editing noteId="a" doc={{ ...doc, mode: "code" }} session={actions} />);
     const codeWrapper = container.querySelector('[data-mode="code"]');
     expect(codeWrapper).toBeInTheDocument();
-    expect(codeWrapper).toHaveClass("htnote-mode-transition");
+    expect(codeWrapper).not.toHaveClass("htnote-mode-transition");
   });
 });
