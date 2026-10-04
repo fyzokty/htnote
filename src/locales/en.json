@@ -332,6 +332,9 @@
     "chooseFirst": "Choose how to handle the external change before saving."
   },
   "settings": {
+    "motion": "Animations",
+    "motionHint": "System follows the operating system animation effects setting.",
+    "motionOptions": {"system": "System", "on": "On", "off": "Off"},
     "theme": "Theme",
     "system": "System",
     "light": "Light",

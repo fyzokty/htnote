@@ -1,3 +1,4 @@
+import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -11,6 +12,7 @@ import { useTabsStore } from "@/stores/tabsStore";
 
 export function BacklinksPanel({ id, saveRevision }: { id: string; saveRevision: string }) {
   const { t } = useTranslation();
+  const reducedMotion = useReducedMotion();
   const expanded = useSettingsStore((state) => state.settings?.backlinksExpanded ?? true);
   const update = useSettingsStore((state) => state.update);
   const [backlinks, setBacklinks] = useState<BacklinkItem[]>([]);
@@ -44,16 +46,18 @@ export function BacklinksPanel({ id, saveRevision }: { id: string; saveRevision:
         <span>{t("backlinks.title")} ({backlinks.length})</span>
         <ChevronDown
           data-testid="backlinks-chevron"
-          className={`size-4 shrink-0 transition-transform duration-[180ms] ease-out motion-reduce:transition-none ${expanded ? "rotate-180" : ""}`}
+          style={{ transition: reducedMotion ? "none" : undefined }}
+          className={`size-4 shrink-0 transition-transform duration-[180ms] ease-out ${expanded ? "rotate-180" : ""}`}
           aria-hidden
         />
       </Button>
       <div
         id={contentId}
+        style={{ transition: reducedMotion ? "none" : undefined }}
         role="region"
         aria-label={t("backlinks.title")}
         inert={!expanded ? true : undefined}
-        className={`grid transition-[grid-template-rows] duration-[180ms] ease-out motion-reduce:transition-none ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
+        className={`grid transition-[grid-template-rows] duration-[180ms] ease-out ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
       >
         <div className="overflow-hidden">
           <div className="max-h-48 overflow-auto px-5 pb-3">

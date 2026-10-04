@@ -302,7 +302,7 @@ describe("NoteViewer", () => {
   });
 
   it("locks the button during export and offers reveal on success", async () => {
-    useSettingsStore.setState({ settings: { rootDir: null, lastExportDir: null, theme: "system", language: "tr", sidebarWidth: 260, sidebarVisible: true, tabSizing: "fixed", contentWidth: "comfortable", editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false } });
+    useSettingsStore.setState({ settings: { rootDir: null, lastExportDir: null, theme: "system", motion: "system", language: "tr", sidebarWidth: 260, sidebarVisible: true, tabSizing: "fixed", contentWidth: "comfortable", editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false } });
     vi.mocked(save).mockResolvedValue("C:\\Exports\\Alpha.html");
     let finish: (result: { warnings: string[] }) => void = () => {};
     mockIPC((command) => command === "get_backlinks" || command === "get_broken_links" ? [] : command === "update_settings" ? useSettingsStore.getState().settings

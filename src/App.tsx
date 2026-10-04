@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { AppShell } from "@/app/AppShell";
 import { Toaster } from "@/components/ui/Toaster";
+import { useMotionMode } from "@/hooks/useReducedMotion";
 import { useThemeMode } from "@/hooks/useThemeMode";
 import i18n from "@/i18n";
 import { resolveLanguage, writeCachedLanguage } from "@/i18n/language";
@@ -17,6 +18,7 @@ function App() {
   const treeStatus = useTreeStore((state) => state.status);
   const { t } = useTranslation();
   useThemeMode();
+  useMotionMode();
 
   useEffect(() => {
     void load().catch(() => {});

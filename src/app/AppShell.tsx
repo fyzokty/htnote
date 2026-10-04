@@ -291,7 +291,7 @@ export function AppShell() {
         {sidebarVisible && (
           <aside
             ref={sidebarRef}
-            className="htnote-sidebar-card relative flex h-full min-h-0 shrink-0 flex-col"
+            className="htnote-sidebar-card relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden"
             style={{ width: sidebarWidth }}
             aria-label={t("sidebar.label")}
           >
@@ -320,9 +320,11 @@ export function AppShell() {
                 {filterTag && <Button style={tagColorStyle(tagColor(tagColors, filterTag))} type="button" onClick={() => setFilterTag(null)} aria-label={t("tags.clearFilter", { tag: filterTag })} className={`max-w-24 shrink-0 truncate rounded bg-app-subtle px-2 py-1 text-xs ${tagColor(tagColors, filterTag) ? "htnote-colored-tag" : ""}`}>{filterTag} ×</Button>}
               </div>
             </div>
-            <FavoritesSection onOpenNote={openNote} />
-            <SidebarTree onOpenNote={openNote} />
-            <TagsSection />
+            <div className="htnote-sidebar-sections flex min-h-0 flex-1 flex-col">
+              <FavoritesSection onOpenNote={openNote} />
+              <SidebarTree onOpenNote={openNote} />
+              <TagsSection />
+            </div>
             <SidebarFooter />
             <div
               role="separator"
@@ -336,7 +338,7 @@ export function AppShell() {
               onPointerMove={resize}
               onPointerUp={finishResize}
               onPointerCancel={finishResize}
-              className="absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize touch-none hover:bg-app-accent/30"
+              className="absolute inset-y-0 right-0 z-10 w-2 cursor-col-resize touch-none hover:bg-app-accent/30"
             />
           </aside>
         )}

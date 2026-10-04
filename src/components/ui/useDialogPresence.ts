@@ -1,17 +1,12 @@
-import { createContext, useContext, useEffect, useState, useSyncExternalStore } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { dialogCloseDuration, nextDialogPresence } from "./dialogPresenceState";
 import type { DialogPresenceState } from "./dialogPresenceState";
 
-const motionQuery = "(prefers-reduced-motion: reduce)";
-const subscribeMotion = (notify: () => void) => {
-  const media = window.matchMedia?.(motionQuery);
-  media?.addEventListener("change", notify);
-  return () => media?.removeEventListener("change", notify);
-};
-const readMotion = () => window.matchMedia?.(motionQuery).matches ?? false;
+import { useReducedMotion } from "@/hooks/useReducedMotion";
+export { useReducedMotion } from "@/hooks/useReducedMotion";
+
 export const DialogActiveContext = createContext(true);
 export const useDialogActive = () => useContext(DialogActiveContext);
-export const useReducedMotion = () => useSyncExternalStore(subscribeMotion, readMotion, () => false);
 
 export function useDialogPresence<T>(content: T | null, closeMs?: number) {
   const reducedMotion = useReducedMotion();

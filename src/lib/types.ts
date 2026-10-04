@@ -3,6 +3,7 @@ export interface AppInfo {
   platform: string;
 }
 
+export type Motion = "system" | "on" | "off";
 export type Theme = "system" | "light" | "dark";
 export type Language = "tr" | "en";
 export type ContentWidth = "narrow" | "comfortable" | "wide" | "full";
@@ -12,6 +13,7 @@ export interface Settings {
   rootDir: string | null;
   lastExportDir: string | null;
   theme: Theme;
+  motion: Motion;
   language: Language | null;
   sidebarWidth: number;
   sidebarVisible: boolean;

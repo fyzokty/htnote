@@ -1,3 +1,4 @@
+import { applyReducedMotion, readSystemReducedMotion } from "@/lib/motion";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "@/App";
@@ -10,6 +11,7 @@ import { installContextMenuGuard } from "@/lib/contextMenuGuard";
 import "@fontsource-variable/plus-jakarta-sans/wght.css";
 import "@/index.css";
 
+applyReducedMotion(readSystemReducedMotion());
 installContextMenuGuard();
 applyThemeClass(readCachedThemeMode() ?? (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
 

@@ -14,6 +14,65 @@ describe("shared UI foundation", () => {
     await restore?.();
   });
 
+  it("keeps the footer and tags anchored when folders collapse at minimum size", async () => {
+    const size = await browser.getWindowSize();
+    const previous = await invoke<{ sidebarWidth: number; sidebarVisible: boolean; motion: string }>("get_settings");
+    try {
+      await browser.setWindowSize(900, 600);
+      await invoke("update_settings", { patch: { sidebarWidth: 200, sidebarVisible: true, motion: "on" } });
+      for (let index = 0; index < 16; index++) {
+        const note = await invoke<{ id: string }>("create_note", { parentRelPath: "", title: `Layout ${index}` });
+        await invoke("update_metadata", { id: note.id, patch: { isFavorite: true, tags: [`tag-${index}`] } });
+      }
+      await browser.refresh();
+      await $('[data-testid="folders-toggle"]').waitForDisplayed();
+      await browser.waitUntil(async () => await browser.execute(() => document.documentElement.dataset.reducedMotion) === "false");
+      const geometry = () => browser.execute(() => {
+        const aside = document.querySelector<HTMLElement>("aside")!;
+        const trash = document.querySelector<HTMLElement>('[data-testid="trash"]')!;
+        const footer = trash.parentElement!;
+        const tags = document.querySelector<HTMLElement>('[data-testid="tags-toggle"]')!.parentElement!;
+        const folders = document.querySelector<HTMLElement>('[data-testid="folders-toggle"]')!.parentElement!;
+        const rect = aside.getBoundingClientRect();
+        return { bottom: rect.bottom, width: rect.width, trashBottom: trash.getBoundingClientRect().bottom,
+          footerBottom: footer.getBoundingClientRect().bottom, footerTop: footer.getBoundingClientRect().top,
+          tagsBottom: tags.getBoundingClientRect().bottom, tagsTop: tags.getBoundingClientRect().top,
+          folderHeight: folders.getBoundingClientRect().height,
+          overflow: aside.scrollHeight - aside.clientHeight, horizontalOverflow: aside.scrollWidth - aside.clientWidth };
+      });
+      const before = await geometry();
+      assert.equal(before.width, 200);
+      assert.ok(before.folderHeight > 80, `Long favorites and tags must leave room for the tree: ${JSON.stringify(before)}`);
+      await $('[data-testid="folders-toggle"]').click();
+      await browser.waitUntil(async () => await $('[role="tree"]').isExisting() === false);
+      const closed = await geometry();
+      assert.ok(Math.abs(closed.trashBottom - before.trashBottom) <= 1, "Trash must not move when folders close");
+      assert.ok(closed.bottom - closed.trashBottom < 60, "Trash must stay near the bottom of the sidebar");
+      assert.ok(Math.abs(closed.footerBottom - closed.bottom) <= 2);
+      assert.ok(Math.abs(closed.tagsBottom - closed.footerTop) <= 1);
+      assert.ok(closed.overflow <= 1 && closed.horizontalOverflow <= 1, "The sidebar must not overflow");
+      await $('[data-testid="tags-toggle"]').click();
+      await browser.waitUntil(async () => await browser.execute(() => {
+        const section = document.querySelector('[data-testid="tags-toggle"]')!.parentElement!;
+        return section.querySelectorAll(".htnote-tag-row").length === 0;
+      }));
+      const tagsClosed = await geometry();
+      assert.ok(Math.abs(tagsClosed.tagsBottom - closed.tagsBottom) <= 1);
+      assert.ok(tagsClosed.tagsTop > closed.tagsTop, "Tags must collapse downward with a fixed bottom");
+      assert.ok(Math.abs(tagsClosed.trashBottom - before.trashBottom) <= 1);
+      await $('[data-testid="tags-toggle"]').click();
+      await $('[data-testid="folders-toggle"]').click();
+    } finally {
+      const folders = await $('[data-testid="folders-toggle"]');
+      if (await folders.getAttribute("aria-expanded") === "false") await folders.click();
+      const tags = await $('[data-testid="tags-toggle"]');
+      if (await tags.isExisting() && await tags.getAttribute("aria-expanded") === "false") await tags.click();
+      await browser.setWindowSize(size.width, size.height);
+      await invoke("update_settings", { patch: { sidebarWidth: previous.sidebarWidth, sidebarVisible: previous.sidebarVisible, motion: previous.motion } });
+      await browser.refresh();
+    }
+  });
+
   it("keeps note header controls at equal heights in view and edit modes, including compact layouts", async () => {
     const note = await createNote("Header heights");
     await openNote(note.id);

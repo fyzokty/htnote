@@ -9,7 +9,6 @@ import { resetTabsStoreForTests } from "@/stores/tabsStore";
 import { useTreeStore } from "@/stores/treeStore";
 import { useUiStore } from "@/stores/uiStore";
 
-vi.mock("@/features/tree/SidebarTree", () => ({ SidebarTree: () => null }));
 vi.mock("@/features/tabs/TabBar", () => ({ TabBar: () => null }));
 vi.mock("@/features/viewer/NoteViewer", () => ({ NoteViewer: () => null }));
 vi.mock("@/features/viewer/bridgeHost", () => ({ installBridgeHost: () => () => {} }));
@@ -21,7 +20,7 @@ vi.mock("@/lib/shortcuts/useShortcut", () => ({ useShortcut: () => {} }));
 const baseSettings: Settings = {
   rootDir: null,
   lastExportDir: null,
-  theme: "system",
+  theme: "system", motion: "system",
   language: null,
   sidebarWidth: 260,
   sidebarVisible: true,
@@ -43,6 +42,23 @@ describe("AppShell sidebar resizing", () => {
     useUiStore.setState({ unsavedDialog: null, toasts: [] });
     useTreeStore.setState({ tree: [], load: async () => {} });
     useSettingsStore.setState({ settings: { ...baseSettings }, status: "ready" });
+  });
+
+  it("keeps tags before the footer and the closed folders section flexible", () => {
+    mockIPC((command) => command === "list_drafts" ? [] : undefined);
+    useTreeStore.setState({ tree: [{ type: "note", id: "layout", title: "Layout", relPath: "Layout", isFavorite: false, tags: ["tag"], updatedAt: "" }] });
+    render(<AppShell />);
+    const heading = screen.getByTestId("folders-toggle");
+    const folders = heading.parentElement!;
+    const tags = screen.getByTestId("tags-toggle").parentElement!;
+    const footer = screen.getByTestId("trash").parentElement!;
+    fireEvent.click(heading);
+    expect(heading).toHaveAttribute("aria-expanded", "false");
+    expect(folders).toHaveClass("flex-1", "min-h-0");
+    expect(folders.nextElementSibling).toBe(tags);
+    expect(tags.parentElement!.nextElementSibling).toBe(footer);
+    expect(footer).toHaveClass("mt-auto", "shrink-0");
+    expect(screen.getByRole("complementary")).not.toHaveClass("overflow-y-auto");
   });
 
   it("updates width optimistically on pointer release and sends sidebarWidth patch", async () => {

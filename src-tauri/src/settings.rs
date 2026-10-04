@@ -42,6 +42,15 @@ pub enum Theme {
     Dark,
 }
 
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Motion {
+    #[default]
+    System,
+    On,
+    Off,
+}
+
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Language {
@@ -76,6 +85,8 @@ pub struct Settings {
     #[serde(default)]
     pub last_export_dir: Option<String>,
     pub theme: Theme,
+    #[serde(default)]
+    pub motion: Motion,
     pub language: Option<Language>,
     pub sidebar_width: u32,
     pub sidebar_visible: bool,
@@ -106,6 +117,7 @@ impl Default for Settings {
             root_dir: None,
             last_export_dir: None,
             theme: Theme::System,
+            motion: Motion::System,
             language: None,
             sidebar_width: 260,
             sidebar_visible: true,
@@ -131,6 +143,7 @@ pub struct SettingsPatch {
     #[serde(default, deserialize_with = "nullable_field")]
     pub last_export_dir: Option<Option<String>>,
     pub theme: Option<Theme>,
+    pub motion: Option<Motion>,
     #[serde(default, deserialize_with = "nullable_field")]
     pub language: Option<Option<Language>>,
     pub sidebar_width: Option<u32>,
@@ -174,6 +187,7 @@ pub fn apply_patch(settings: &Settings, patch: SettingsPatch) -> Settings {
         root_dir: patch.root_dir.unwrap_or_else(|| settings.root_dir.clone()),
         last_export_dir: patch.last_export_dir.unwrap_or_else(|| settings.last_export_dir.clone()),
         theme: patch.theme.unwrap_or_else(|| settings.theme.clone()),
+        motion: patch.motion.unwrap_or_else(|| settings.motion.clone()),
         language: patch.language.unwrap_or_else(|| settings.language.clone()),
         sidebar_width: patch.sidebar_width.unwrap_or(settings.sidebar_width),
         sidebar_visible: patch.sidebar_visible.unwrap_or(settings.sidebar_visible),
@@ -403,6 +417,23 @@ mod tests {
             assert!(config_dir_override().is_none());
         }
         std::env::remove_var(name);
+    }
+
+    #[test]
+    fn motion_defaults_and_round_trip() {
+        let mut legacy = serde_json::to_value(Settings::default()).unwrap();
+        legacy.as_object_mut().unwrap().remove("motion");
+        assert_eq!(serde_json::from_value::<Settings>(legacy).unwrap().motion, Motion::System);
+        for (name, motion) in [("system", Motion::System), ("on", Motion::On), ("off", Motion::Off)] {
+            let patch = serde_json::from_value(serde_json::json!({"motion": name})).unwrap();
+            let updated = apply_patch(&Settings::default(), patch);
+            assert_eq!(updated.motion, motion);
+            let value = serde_json::to_value(&updated).unwrap();
+            assert_eq!(value["motion"], name);
+            assert_eq!(serde_json::from_value::<Settings>(value).unwrap(), updated);
+            assert_eq!(apply_patch(&updated, SettingsPatch::default()).motion, motion);
+        }
+        assert!(serde_json::from_value::<SettingsPatch>(serde_json::json!({"motion": "invalid"})).is_err());
     }
 
     #[test]

@@ -12,7 +12,7 @@ import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
 
 const defaults: Settings = {
   rootDir: null, lastExportDir: null,
-  theme: "system",
+  theme: "system", motion: "system",
   language: "tr",
   sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true,
   sidebarVisible: true, tabSizing: "fixed", contentWidth: "comfortable",
