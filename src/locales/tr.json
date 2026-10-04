@@ -45,6 +45,8 @@
     "moveTitle": "Öğeyi taşı",
     "moveTarget": "Hedef klasör",
     "root": "Kök",
+    "dragInvalid": "Buraya taşınamaz",
+    "dragTarget": "Hedef: {{name}}",
     "dropToRoot": "Ana dizine taşı",
     "invalidTarget": "Buraya taşınamaz",
     "cancelMove": "İptal",

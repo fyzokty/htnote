@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { pointerCenter, pointerClickAt } from "../helpers/pointer";
+import { pointerCenter, pointerClickAt, pointerDrag } from "../helpers/pointer";
 
 import { createNote, flatten, invoke, openNote, tree, useTempRoot, waitForTreeItem, withNoteFrame } from "../helpers/flows";
 
@@ -11,6 +11,34 @@ describe("organize and search flows", () => {
   let root: string;
   beforeEach(async () => { ({ root, restore } = await useTempRoot()); });
   afterEach(async () => { await restore?.(); });
+
+  it("shows a drag card and moves a note into a folder and back to root", async () => {
+    const folder = await invoke<{ relPath: string }>("create_folder", { parentRelPath: "", name: "Destination" });
+    const note = await createNote("Drag me");
+    const destination = await $(`[data-tree-key="folder:${folder.relPath}"]`);
+    await destination.waitForDisplayed();
+    await pointerDrag(await waitForTreeItem(note.id), destination, {
+      afterActivation: async () => {
+        const preview = await $('[data-testid="tree-drag-preview"]');
+        await preview.waitForDisplayed();
+        assert.match(await preview.getText(), /Drag me/);
+        assert.equal(await browser.execute(() => document.body.style.cursor), "grabbing");
+      },
+    });
+    await $('[data-testid="tree-drag-preview"]').waitForExist({ reverse: true });
+    await browser.waitUntil(async () => flatten(await tree()).some((item) => item.id === note.id && item.relPath.startsWith(`${folder.relPath}/`)));
+    assert.equal(await browser.execute(() => document.body.style.cursor), "");
+    if (await destination.getAttribute("aria-expanded") !== "true") await destination.click();
+    const source = await waitForTreeItem(note.id);
+    const treeElement = await $('[role="tree"]');
+    const bottom = await browser.execute((element) => {
+      const rect = element.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.bottom - 12 };
+    }, await treeElement.getElement());
+    await pointerDrag(source, treeElement, { toPoint: bottom });
+    await $('[data-testid="tree-drag-preview"]').waitForExist({ reverse: true });
+    await browser.waitUntil(async () => flatten(await tree()).some((item) => item.id === note.id && !item.relPath.includes("/")));
+  });
 
   it("deletes a note and restores it from trash", async () => {
     const note = await createNote("Restore me");

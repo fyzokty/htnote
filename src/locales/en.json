@@ -45,6 +45,8 @@
     "moveTitle": "Move item",
     "moveTarget": "Destination folder",
     "root": "Root",
+    "dragInvalid": "Cannot move here",
+    "dragTarget": "Target: {{name}}",
     "dropToRoot": "Move to root",
     "invalidTarget": "Cannot move here",
     "cancelMove": "Cancel",
