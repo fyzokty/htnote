@@ -4,10 +4,11 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 
 import App from "@/App";
 import i18n from "@/i18n";
-import type { Settings } from "@/lib/types";
+import { initNoteOrigin } from "@/lib/noteUrl";
+import type { Settings, TreeNode } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
-import { resetTreeStoreForTests } from "@/stores/treeStore";
+import { resetTreeStoreForTests, useTreeStore } from "@/stores/treeStore";
 
 const defaults: Settings = {
   rootDir: null, lastExportDir: null,
@@ -28,10 +29,22 @@ beforeEach(() => {
 });
 
 describe("App", () => {
-  it("keeps the static splash while loading and hides it when ready", async () => {
+  it("keeps the static splash until settings and the initial tree are ready, then restores tabs", async () => {
     let finish!: (settings: Settings) => void;
     const pending = new Promise<Settings>((resolve) => { finish = resolve; });
-    mockIPC((command) => command === "get_settings" ? pending : undefined);
+    let finishTree!: (tree: TreeNode[]) => void;
+    const pendingTree = new Promise<TreeNode[]>((resolve) => { finishTree = resolve; });
+    initNoteOrigin("http://127.0.0.1:4123");
+    const noteId = "11111111-1111-4111-8111-111111111111";
+    const note: TreeNode = { type: "note", id: noteId, title: "Açık not", relPath: "Açık not", isFavorite: false, tags: [], updatedAt: "2026-01-01T00:00:00Z" };
+    mockIPC((command) => {
+      if (command === "get_settings") return pending;
+      // Rust ilk tarama bitene kadar get_note_tree yanıtını bekletir.
+      if (command === "get_note_tree") return pendingTree;
+      if (["list_drafts", "list_trash", "get_backlinks", "get_broken_links"].includes(command)) return [];
+      if (command === "read_note") return new Promise(() => {});
+      return undefined;
+    });
     const splash = document.createElement("div");
     splash.id = "htnote-splash";
     document.body.append(splash);
@@ -39,13 +52,39 @@ describe("App", () => {
       const { container } = render(<App />);
       expect(container).toBeEmptyDOMElement();
       expect(splash.dataset.state).toBeUndefined();
-      await act(async () => { finish(defaults); });
+      await act(async () => { finish({ ...defaults, openTabs: [noteId], activeTab: noteId }); });
       await screen.findByRole("heading", { name: "HTNote" });
-      expect(splash.dataset.state).toBe("hidden");
+      // Kabuk açılış ekranının altında hazırlanır; tarama sürerken sekmeler kapatılmaz ve ekran kalkmaz.
+      expect(splash.dataset.state).toBeUndefined();
+      expect(useTabsStore.getState().restored).toBe(false);
+      await act(async () => { finishTree([note]); });
+      await waitFor(() => expect(splash.dataset.state).toBe("hidden"));
+      await waitFor(() => expect(useTabsStore.getState().restored).toBe(true));
+      expect(useTabsStore.getState().tabs.map((tab) => tab.noteId)).toEqual([noteId]);
+      expect(useTabsStore.getState().activeId).toBe(noteId);
       expect(localStorage.getItem("htnote.language")).toBe("tr");
     } finally {
       splash.remove();
       localStorage.removeItem("htnote.language");
+    }
+  });
+
+  it("hides the splash when the initial tree fails to load", async () => {
+    mockIPC((command) => {
+      if (command === "get_settings") return defaults;
+      if (command === "get_note_tree") throw new Error("scan failed");
+      if (["list_drafts", "list_trash"].includes(command)) return [];
+      return undefined;
+    });
+    const splash = document.createElement("div");
+    splash.id = "htnote-splash";
+    document.body.append(splash);
+    try {
+      render(<App />);
+      await waitFor(() => expect(useTreeStore.getState().status).toBe("error"));
+      await waitFor(() => expect(splash.dataset.state).toBe("hidden"));
+    } finally {
+      splash.remove();
     }
   });
 

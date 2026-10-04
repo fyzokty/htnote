@@ -141,6 +141,11 @@
 - `notify-debouncer-full`, 250 ms, kök dizinde recursive çalışır. Değişiklikte `NoteIndex` ve arama indeksi güncellenir,
   ardından frontend'e `fs-change` event'i gönderilir (payload: etkilenen göreli yollar ve id'ler).
 - Başlangıçta tam tarama yapılır. Olaylarda etkilenen alt ağaç yeniden taranır; belirsiz durumda tam taramaya düşülür.
+- **İlk tarama arka plandadır:** pencere ve açılış ekranı taramayı beklemez. Sıra: watcher kurulur ve olayları
+  biriktirir → kök taranır → arama indeksi başlatılır → indeks hazır işaretlenir; biriken olaylar ancak sonra dolu
+  indekse uygulanır (tarama sırasındaki değişiklik kaybolmaz, eski tarama sonucu yeninin üstüne yazılmaz). İndekse
+  bağlı komutlar ve not sunucusu hazır olmayı ana iş parçacığı dışında bekler; senkron komutlar beklemez. Tarama
+  başarısızsa indeks boş kalır ve uygulama yine açılır. Açılış ekranı ilk not ağacı yüklenene kadar kalır.
 - Uygulamanın kendi yazımları da event üretir. Açık notta "dış değişiklik" tespiti için son kaydedilen içerik hash'i
   tutulur. Diskteki hash farklıysa değişiklik dıştandır.
 - Dış değişiklik: sekme temizse sessizce yeniden yüklenir. Sekme kirliyse "Dosya dışarıda değişti" uyarısı gösterilir

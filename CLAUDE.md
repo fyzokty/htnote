@@ -41,6 +41,7 @@ Tauri v2 masaüstü uygulaması: Rust çekirdeği (`src-tauri/src`) + React 19/T
 - İçinde `metadata.json` olan dizin bir nottur (`index.html`, isteğe bağlı `style.css`, `script.js`, `assets/`); olmayan dizin klasördür. `.` ile başlayan dizinler (`.trash` dahil) taranmaz.
 - Notlar UUID (`metadata.id`) ile, klasörler köke göreli yolla adreslenir. Klasör adı = `sanitize(title)` (D05).
 - Rust'taki bellek içi `NoteIndex` (`index/`) id → yol/metadata eşlemesini, `search/` Türkçe kurallı küçük harfle tam metin indeksini tutar. İkisi de `watcher.rs` (notify-debouncer-full, 250 ms) ile güncellenir ve ön yüze `fs-change` event'i gider.
+- İlk tarama arka planda yapılır; hazır olana kadar indekse bağlı komutlar bekler (ayrıntı: D12, `lib.rs` `run_startup_indexing`).
 - Yazımlar atomiktir (geçici dosya + rename, `fs_util.rs`). `<head>` senkronizasyonu (`<title>`, `meta[name^=htnote-]`, style/script etiketleri) Rust'ta `lol_html` ile yapılır (`notes/html.rs`, `notes/save.rs`).
 - Ayarlar ve taslaklar not kökünde değil, app config/data dizinindedir (`%APPDATA%\com.htnote.app\`).
 

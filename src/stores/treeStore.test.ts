@@ -34,6 +34,31 @@ describe("treeStore", () => {
     expect([...useTreeStore.getState().expanded]).toEqual([]);
   });
 
+  it("tracks the initial load status and keeps ready after a later refresh failure", async () => {
+    let release!: (nodes: TreeNode[]) => void;
+    const pending = new Promise<TreeNode[]>((resolve) => { release = resolve; });
+    let fail = false;
+    mockIPC((command) => {
+      if (command !== "get_note_tree") return undefined;
+      if (fail) throw new Error("scan failed");
+      return pending;
+    });
+    const load = useTreeStore.getState().load();
+    expect(useTreeStore.getState().status).toBe("idle");
+    release(tree);
+    await load;
+    expect(useTreeStore.getState().status).toBe("ready");
+    fail = true;
+    await expect(useTreeStore.getState().refresh()).rejects.toThrow();
+    expect(useTreeStore.getState().status).toBe("ready");
+  });
+
+  it("marks the initial load as failed when the first tree request fails", async () => {
+    mockIPC((command) => { if (command === "get_note_tree") throw new Error("scan failed"); });
+    await expect(useTreeStore.getState().load()).rejects.toThrow();
+    expect(useTreeStore.getState().status).toBe("error");
+  });
+
   it("coalesces refresh calls during load into one fresh request", async () => {
     let release!: (nodes: TreeNode[]) => void;
     const pending = new Promise<TreeNode[]>((resolve) => { release = resolve; });
