@@ -56,7 +56,10 @@ tab sizing flow runs in both Turkish and English. Specs that select translated
 labels pin the language in settings (editing: `tr`, colors: `en`), because the
 default follows the OS locale and CI runs in `en-US`. Right-side media gap clicks
 stay left of a visible overlay scrollbar track, which owns clicks on its strip
-when a smaller window makes the editor scrollable. Outside media clicks must leave
+when a smaller window makes the editor scrollable. The external-change flow polls
+the frame text without implicit element waits, so a reload right after frame
+entry re-enters the new frame; search queries replace the remembered text via
+keyboard selection and wait for the input value. Outside media clicks must leave
 a gap cursor immediately before or after that media, keep the same position on
 mouseup, and leave its toolbar hidden. The application uses the media NodeView's
 bounds in the capture phase to place left/right clicks before/after that media.
