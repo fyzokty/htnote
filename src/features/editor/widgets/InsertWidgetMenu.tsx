@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Editor } from "@tiptap/core";
-import { Blocks, TextCursorInput } from "lucide-react";
+import { Blocks, TextCursorInput, ListChecks } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { IconButton } from "@/components/ui/IconButton";
 import { ContextMenu } from "@/components/ui/ContextMenu";
@@ -9,6 +9,7 @@ import { PopoverPresence } from "@/components/ui/PopoverPresence";
 
 const widgets = [
   { id: "textbox", label: "editor.textBox.insert", icon: TextCursorInput, insert: (editor: Editor) => editor.chain().focus().insertTextBox().run() },
+  { id: "checklist", label: "editor.checklist.insert", icon: ListChecks, insert: (editor: Editor) => editor.chain().focus().insertChecklist().run() },
 ] as const;
 
 export function InsertWidgetMenu({ editor }: { editor: Editor }) {

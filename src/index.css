@@ -750,3 +750,18 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 .htnote-widget-tools { display: flex; flex-shrink: 0; align-items: center; gap: 8px; }
 .htnote-widget-handle { display: inline-block; width: 16px; height: 20px; cursor: grab; border-radius: 4px; background: radial-gradient(circle, var(--app-muted) 1px, transparent 1.5px) 0 0 / 5px 5px; }
 .htnote-widget-background-swatch { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--app-widget-border); }
+.htnote-checklist-editor { position: relative; margin: 16px 0; padding: 12px; border: 1px solid var(--app-widget-border); border-radius: 12px; background: var(--app-card); color: var(--app-text); }
+.htnote-checklist-editor.is-selected { outline: 2px solid var(--app-focus); outline-offset: 2px; }
+.htnote-checklist-editor-title { box-sizing: border-box; width: 100%; padding: 8px; margin-bottom: 8px; border: 0; border-radius: 8px; background: transparent; font-weight: 700; color: var(--app-text); }
+.htnote-checklist-editor-title:hover { background: var(--app-hover); }
+.htnote-checklist-editor-items { border-top: 1px solid var(--app-widget-divider); }
+.htnote-checklist-editor-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--app-widget-divider); }
+.htnote-checklist-editor-row input[type=text], .htnote-checklist-editor-row input:not([type]) { flex: 1; min-width: 0; padding: 8px; border: 1px solid var(--app-widget-border); border-radius: 8px; background: var(--app-widget-field); color: var(--app-text); }
+.htnote-checklist-editor-row input[type=checkbox] { appearance: auto; flex-shrink: 0; width: 16px; height: 16px; accent-color: var(--app-accent); }
+.htnote-checklist-remove, .htnote-checklist-add { display: inline-flex; align-items: center; gap: 6px; padding: 8px; border-radius: 8px; cursor: pointer; }
+.htnote-checklist-remove { opacity: 0; color: var(--app-muted); }
+.htnote-checklist-editor-row:hover .htnote-checklist-remove, .htnote-checklist-editor-row:focus-within .htnote-checklist-remove { opacity: 1; }
+.htnote-checklist-remove:hover, .htnote-checklist-add:hover { background: var(--app-hover); }
+.htnote-checklist-add { margin-top: 8px; color: var(--app-accent); }
+.htnote-checklist-editor input:focus-visible, .htnote-checklist-editor button:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 2px; }
+@media print { .htnote-checklist-editor button, .htnote-checklist-editor .htnote-widget-tools { display: none; } }

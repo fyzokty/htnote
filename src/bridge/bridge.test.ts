@@ -54,6 +54,109 @@ describe("note bridge", () => {
     return document.querySelector("textarea")!;
   }
 
+  async function addChecklist(empty = false) {
+    document.body.innerHTML = `<div class="htnote-checklist" data-htnote-widget="checklist"><div class="htnote-checklist-title">Saved</div><ul class="htnote-checklist-items">${empty ? "" : '<li><label><input type="checkbox" checked> First &lt;&amp;&gt;</label></li><li><label><input type="checkbox"> Second</label></li><li><label><input type="checkbox">  Third</label></li>'}</ul></div>`;
+    await vi.waitFor(() => expect(document.querySelector('[data-testid="checklist-copy"]')).not.toBeNull());
+    hostMessage({ type: "HTNOTE_THEME", labels: { checklistType: "CHECKLIST", checklistReset: "Reset", copyRemaining: "Copy remaining", checklistProgress: "Progress", copied: "Copied", copyFailed: "Copy failed" } });
+    return Array.from(document.querySelectorAll<HTMLInputElement>('.htnote-checklist-items input'));
+  }
+
+  it("keeps checkbox changes temporary, updates silent progress and resets to saved defaults", async () => {
+    const inputs = await addChecklist();
+    const reset = document.querySelector<HTMLButtonElement>('[data-testid="checklist-reset"]')!;
+    const progress = document.querySelector('[role="progressbar"]')!;
+    const counter = document.querySelector('[data-testid="checklist-counter"]')!;
+    expect(reset.disabled).toBe(true);
+    expect(counter.textContent).toBe("1 / 3");
+    expect(counter.closest("[aria-live]")).toBeNull();
+    expect(progress.getAttribute("aria-valuenow")).toBe("1");
+    expect(progress.getAttribute("aria-valuemax")).toBe("3");
+    inputs[0].click(); inputs[1].click();
+    expect(inputs.map((input) => input.checked)).toEqual([false, true, false]);
+    expect(inputs.map((input) => input.defaultChecked)).toEqual([true, false, false]);
+    expect(reset.disabled).toBe(false);
+    inputs[2].click();
+    expect(counter.textContent).toBe("2 / 3");
+    expect(progress.getAttribute("aria-valuenow")).toBe("2");
+    reset.click();
+    expect(inputs.map((input) => input.checked)).toEqual([true, false, false]);
+    expect(reset.disabled).toBe(true);
+    expect(messages).not.toHaveBeenCalled();
+  });
+
+  it("copies only remaining plain text and reports clipboard success briefly", async () => {
+    const inputs = await addChecklist();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    try {
+      const copy = document.querySelector<HTMLButtonElement>('[data-testid="checklist-copy"]')!;
+      copy.click();
+      await vi.waitFor(() => expect(copy.textContent).toBe("Copied"));
+      expect(writeText).toHaveBeenLastCalledWith("Second\n Third");
+      await vi.waitFor(() => expect(copy.textContent).toBe("Copy remaining"), { timeout: 2200 });
+      inputs[0].click(); inputs[1].click(); inputs[2].click();
+      copy.click();
+      await vi.waitFor(() => expect(writeText).toHaveBeenLastCalledWith("First <&>"));
+      inputs[0].click(); copy.click();
+      await vi.waitFor(() => expect(writeText).toHaveBeenLastCalledWith(""));
+    } finally { delete (navigator as { clipboard?: unknown }).clipboard; }
+  });
+
+  it.each([true, false])("copies through a temporary textarea fallback, preserving focus and selection (success=%s)", async (success) => {
+    await addChecklist();
+    const field = document.createElement("input");
+    field.value = "Focus stays here"; document.body.append(field);
+    field.focus(); field.setSelectionRange(2, 6, "backward");
+    const range = document.createRange(); range.selectNodeContents(document.querySelector('.htnote-checklist-title')!);
+    window.getSelection()?.addRange(range);
+    const selectedText = window.getSelection()?.toString();
+    const execCommand = vi.fn(() => {
+      const input = document.activeElement as HTMLTextAreaElement;
+      expect(input.tagName).toBe("TEXTAREA");
+      expect(input.value).toBe("Second\n Third");
+      expect(input.selectionEnd).toBe(input.value.length);
+      return success;
+    });
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error("Policy")) } });
+    Object.defineProperty(document, "execCommand", { configurable: true, value: execCommand });
+    try {
+      const copy = document.querySelector<HTMLButtonElement>('[data-testid="checklist-copy"]')!;
+      copy.click();
+      await vi.waitFor(() => expect(copy.textContent).toBe(success ? "Copied" : "Copy failed"));
+      expect(document.activeElement).toBe(field);
+      expect([field.selectionStart, field.selectionEnd, field.selectionDirection]).toEqual([2, 6, "backward"]);
+      expect(window.getSelection()?.toString()).toBe(selectedText);
+      expect(document.querySelector("textarea")).toBeNull();
+    } finally {
+      delete (navigator as { clipboard?: unknown }).clipboard;
+      delete (document as unknown as { execCommand?: unknown }).execCommand;
+    }
+  });
+
+  it("supports empty and later lists, accepts only bounded host labels as text", async () => {
+    await addChecklist(true);
+    expect(document.querySelector('[data-testid="checklist-counter"]')?.textContent).toBe("0 / 0");
+    const reset = document.querySelector<HTMLButtonElement>('[data-testid="checklist-reset"]')!;
+    expect(reset.disabled).toBe(true);
+    hostMessage({ type: "HTNOTE_THEME", labels: { checklistType: "Untrusted", copyRemaining: "Untrusted" } }, null);
+    hostMessage({ type: "HTNOTE_THEME", labels: { checklistType: 4, copyRemaining: "x".repeat(201) } });
+    expect(document.querySelector('.htnote-widget-type')?.textContent).toBe("CHECKLIST");
+    expect(document.querySelector('[data-testid="checklist-copy"]')?.textContent).toBe("Copy remaining");
+    const safe = "<img onerror=x()>";
+    hostMessage({ type: "HTNOTE_THEME", labels: { checklistType: safe, copyRemaining: safe, checklistProgress: "x".repeat(200) } });
+    expect(document.querySelector('.htnote-widget-type')?.textContent).toBe(safe);
+    expect(document.querySelector("img")).toBeNull();
+    const list = document.querySelector('.htnote-checklist-items')!;
+    list.innerHTML = '<li><label><input type="checkbox" checked> Later</label></li>';
+    await vi.waitFor(() => expect(document.querySelector('[data-testid="checklist-counter"]')?.textContent).toBe("1 / 1"));
+    expect(document.querySelectorAll('[data-testid="checklist-copy"]')).toHaveLength(1);
+    const later = document.createElement("div");
+    later.innerHTML = '<div data-htnote-widget="checklist"><div class="htnote-checklist-title">Later</div><ul class="htnote-checklist-items"></ul></div>';
+    document.body.append(later);
+    await vi.waitFor(() => expect(later.querySelector('[data-testid="checklist-reset"]')).not.toBeNull());
+    expect(later.querySelector('.htnote-widget-type')?.textContent).toBe(safe);
+  });
+
   it("provides shared background rules and accepts widget theme variables through the existing theme message", async () => {
     await addTextBox();
     const box = document.querySelector('[data-htnote-widget="textbox"]')!;
@@ -236,8 +339,8 @@ describe("note bridge", () => {
 
   it("exposes frozen note metadata within the size limit", () => {
     expect(Object.isFrozen((window as unknown as { htnote: object }).htnote)).toBe(true);
-    // Ses oynatıcı, kök çubuk ve metin kutusu tek köprüde sunulur; bütçe 40 KiB.
-    expect(new TextEncoder().encode(source).length).toBeLessThan(40960);
+    // Ses oynatıcı, kök çubuk ve widget’lar tek köprüde sunulur; bütçe 48 KiB.
+    expect(new TextEncoder().encode(source).length).toBeLessThan(49152);
   });
 
   it("uses low-specificity theme defaults and the portable preset stylesheet", () => {

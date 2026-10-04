@@ -270,6 +270,15 @@
       "title": "Başlık",
       "content": "Metin kutusu içeriği",
       "select": "Metin kutusunu seç"
+    },
+    "checklist": {
+      "insert": "Kontrol listesi",
+      "title": "Başlık",
+      "select": "Kontrol listesini seç",
+      "checked": "{{index}}. maddenin varsayılan durumu",
+      "item": "Madde {{index}}",
+      "remove": "Madde {{index}} sil",
+      "add": "Madde ekle"
     }
   },
   "errors": {
@@ -484,12 +493,18 @@
     "characters_other": "{{value}} Karakter"
   },
   "widgetTypes": {
-    "textbox": "METİN KUTUSU"
+    "textbox": "METİN KUTUSU",
+    "checklist": "KONTROL LİSTESİ"
   },
   "textBox": {
     "copy": "Kopyala",
     "copied": "Kopyalandı",
     "copyFailed": "Kopyalanamadı",
     "reset": "Varsayılana dön"
+  },
+  "checklist": {
+    "reset": "Sıfırla",
+    "copyRemaining": "Kalanları kopyala",
+    "progress": "Tamamlanma oranı"
   }
 }
