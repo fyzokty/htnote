@@ -1,3 +1,4 @@
+import { enterNoteEdit } from "@/features/editor/useEditSession";
 import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -29,6 +30,7 @@ export function useTreeActions(onOpenNote?: (id: string) => void) {
       if (node.type === "note") {
         useTreeStore.getState().revealNote(node.id);
         useTreeStore.getState().flashNode(`note:${node.id}`);
+        await enterNoteEdit(node.id, true);
         onOpenNote?.(node.id);
       }
     } catch (error) { notifyError(error); }

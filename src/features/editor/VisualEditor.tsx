@@ -23,6 +23,7 @@ interface VisualEditorProps {
   surfaceStyle?: CSSProperties;
   noteId?: string;
   initialInner: string;
+  autoFocus?: boolean;
   contentIndent?: number;
   onChange: (inner: string) => void;
   visualAvailable?: boolean;
@@ -31,7 +32,7 @@ interface VisualEditorProps {
 
 export interface VisualEditorHandle { flush: () => void }
 
-export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(function VisualEditor({ surfaceStyle, noteId = "", initialInner, contentIndent = 0, onChange, visualAvailable = true, onEditInCode }, ref) {
+export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(function VisualEditor({ surfaceStyle, noteId = "", initialInner, autoFocus = false, contentIndent = 0, onChange, visualAvailable = true, onEditInCode }, ref) {
   const { t } = useTranslation();
   const contentWidth = useSettingsStore((state) => state.settings?.contentWidth ?? "comfortable");
   const onChangeRef = useRef(onChange);
@@ -67,6 +68,7 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
   useImperativeHandle(ref, () => ({ flush }));
 
   const editor = useEditor({
+    autofocus: autoFocus ? "end" : false,
     // TipTap bu geri çağırmayı yalnızca NodeView buton olayı sırasında çalıştırır.
     extensions: createVisualExtensions(t("editor.placeholder"), () => {
       flush();

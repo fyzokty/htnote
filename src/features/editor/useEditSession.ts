@@ -10,6 +10,23 @@ import { clearHighlight } from "@/features/viewer/bridgeHost";
 import { useTabsStore } from "@/stores/tabsStore";
 import { useUiStore } from "@/stores/uiStore";
 
+export async function enterNoteEdit(noteId: string, open = false): Promise<void> {
+  const getDoc = () => useTabsStore.getState().tabs.find((tab) => tab.noteId === noteId)?.doc;
+  if (!open && getDoc()?.mode !== "view") return;
+  try {
+    const base = await ipc.readNote(noteId);
+    if (open) useTabsStore.getState().openNote(noteId, { editBase: base });
+    else if (getDoc()?.mode === "view") {
+      clearHighlight(noteId);
+      useTabsStore.getState().enterEdit(noteId, base, "visual", extractContent(base.html).ok);
+    }
+  } catch (error) {
+    if (open) useTabsStore.getState().openNote(noteId);
+    const code = typeof error === "object" && error !== null && "code" in error && typeof error.code === "string" ? error.code : "UNKNOWN";
+    useUiStore.getState().pushToast({ kind: "error", messageKey: code === "CONFLICT" ? "editor.session.conflict" : `errors.${code}` });
+  }
+}
+
 export function useEditSession(noteId: string | null) {
   const visualRef = useRef<VisualEditorHandle>(null);
   useEffect(() => noteId ? registerEditorFlush(noteId, () => visualRef.current?.flush()) : undefined, [noteId]);
@@ -22,13 +39,7 @@ export function useEditSession(noteId: string | null) {
   const clearPreview = () => { if (noteId) void ipc.clearPreviewDraft(noteId).catch(notifyError); };
 
   async function enter() {
-    if (!noteId || getDoc()?.mode !== "view") return;
-    try {
-      const base = await ipc.readNote(noteId);
-      if (getDoc()?.mode !== "view") return;
-      clearHighlight(noteId);
-      useTabsStore.getState().enterEdit(noteId, base, "visual", extractContent(base.html).ok);
-    } catch (error) { notifyError(error); }
+    if (noteId) await enterNoteEdit(noteId);
   }
 
   function onVisualChange(inner: string) {

@@ -14,6 +14,17 @@ describe("shared UI foundation", () => {
     await restore?.();
   });
 
+  it("creates in visual mode and opens search from the empty screen", async () => {
+    await $('[data-testid="empty-search"]').waitForDisplayed();
+    await $('[data-testid="empty-search"]').click();
+    await $('[role="dialog"]').waitForDisplayed();
+    await browser.keys("Escape");
+    await $('[data-testid="empty-new-note"]').click();
+    await $(".htnote-visual-editor .tiptap").waitForDisplayed();
+    assert.equal(await $('[data-testid="edit-note"]').isExisting(), false);
+    assert.equal(await $("[data-frame-revision]").isExisting(), false);
+  });
+
   it("uses overlay scrollbars without taking width from the overflowing tree", async () => {
     for (let index = 0; index < 45; index++) {
       await invoke("create_folder", { parentRelPath: "", name: `Overlay ${index}` });
@@ -279,8 +290,12 @@ describe("shared UI foundation", () => {
       assert.equal(state.scrollbar, "none");
       await withNoteFrame(note.id, async () => {
         await browser.waitUntil(async () => await $("html").getAttribute("data-ht-theme") === mode);
-        assert.equal(await browser.execute(() => getComputedStyle(document.documentElement).scrollbarWidth), "thin");
+        assert.equal(await browser.execute(() => getComputedStyle(document.documentElement).scrollbarWidth), "none");
         assert.equal(await browser.execute(() => document.documentElement.style.getPropertyValue("--ht-scrollbar")), state.thumb);
+        assert.deepEqual(await browser.execute(() => {
+          const host = document.querySelector<HTMLElement>("[data-htnote-scrollbars]")!;
+          return { fixed: getComputedStyle(host).position, shadow: host.shadowRoot === null, width: document.documentElement.clientWidth === innerWidth };
+        }), { fixed: "fixed", shadow: true, width: true });
         assert.equal(await browser.execute(() => {
           const style = document.createElement("style");
           style.textContent = ".author-scroll { scrollbar-width: auto; }";

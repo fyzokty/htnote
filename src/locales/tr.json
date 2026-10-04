@@ -90,7 +90,9 @@
     "export": "Dışa aktar",
     "edit": "Düzenle",
     "renameHint": "Yeniden adlandırmak için çift tıklayın",
-    "renameLabel": "Not başlığını yeniden adlandır"
+    "renameLabel": "Not başlığını yeniden adlandır",
+    "emptyNewNote": "Yeni not oluştur",
+    "emptySearch": "Ara"
   },
   "export": {
     "pdf": "PDF",

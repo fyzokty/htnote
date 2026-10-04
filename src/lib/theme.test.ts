@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { getNoteThemeVars, resolveThemeMode } from "@/lib/theme";
 
-const keys = ["--ht-bg", "--ht-text", "--ht-accent", "--ht-font", "--ht-muted", "--ht-border", "--ht-code-bg"];
+const keys = ["--ht-bg", "--ht-text", "--ht-accent", "--ht-font", "--ht-muted", "--ht-border", "--ht-code-bg", "--ht-reduced-motion", "--ht-motion-duration", "--ht-motion-easing"];
 
 describe("getNoteThemeVars", () => {
   it("takes the exact note surface and text from the requested app theme", () => {

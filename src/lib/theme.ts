@@ -48,6 +48,9 @@ export function getNoteThemeVars(mode: ThemeMode): Record<string, string> {
     const value = style.getPropertyValue(`--app-${token}-${mode}`).trim();
     if (value) vars[`--ht-${token}`] = value;
   }
+  vars["--ht-reduced-motion"] = document.documentElement.dataset.reducedMotion === "true" ? "1" : "0";
+  vars["--ht-motion-duration"] = style.getPropertyValue("--htnote-mode-duration").trim() || "200ms";
+  vars["--ht-motion-easing"] = style.getPropertyValue("--htnote-mode-easing").trim() || "cubic-bezier(0.16, 1, 0.3, 1)";
   return vars;
 }
 

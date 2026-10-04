@@ -5,6 +5,7 @@ export type DocBase = Pick<NoteData, "html" | "css" | "js" | "contentHash">;
 export type DocDraft = Pick<DocBase, "html" | "css" | "js">;
 
 export interface DocState {
+  focusOnMount?: boolean;
   mode: Mode;
   base: DocBase | null;
   draft: DocDraft | null;
@@ -99,7 +100,7 @@ export function saveFailed(state: DocState): DocState {
 
 export function cancelEdit(state: DocState): DocState {
   if (state.mode === "view") return invalid(state, "cancelEdit");
-  return { ...state, mode: "view", draft: null, dirty: false, saving: false, externalConflict: null };
+  return { ...state, ...(state.focusOnMount ? { focusOnMount: false } : {}), mode: "view", draft: null, dirty: false, saving: false, externalConflict: null };
 }
 
 export function reloadBase(state: DocState, newBase: DocBase): DocState {

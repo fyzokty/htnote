@@ -73,12 +73,13 @@ describe("NoteViewer", () => {
     expect(container).toHaveAttribute("data-note-id", "a");
     expect(container).toHaveAttribute("data-revision", "0:0");
     fireEvent.load(frame);
+    await waitFor(() => expect(frame).toHaveAttribute("data-frame-visible", "true"));
     expect(container).toHaveAttribute("data-loaded-revision", "0:0");
     const base = { html: '<main id="htnote-content"><p>Content</p></main>', css: null, js: null, contentHash: "initial" };
     act(() => useTabsStore.getState().enterEdit("a", base, "visual", true));
     expect(screen.getByTitle("Alpha")).toBe(frame);
     expect(container).not.toHaveAttribute("hidden");
-    expect(container).toHaveClass("absolute", "invisible", "pointer-events-none");
+    expect(container).toHaveClass("absolute", "opacity-0", "pointer-events-none");
     expect(container).toHaveAttribute("inert");
     expect(container).toHaveAttribute("aria-hidden", "true");
     expect(container).toHaveAttribute("data-editing", "true");
@@ -87,19 +88,23 @@ describe("NoteViewer", () => {
       useTabsStore.getState().markSaving("a");
       useTabsStore.getState().saveSucceeded("a", { ...base, contentHash: "saved" });
     });
-    expect(frame.src).not.toBe(initialSrc);
-    expect(container.dataset.revision).toBe(new URL(frame.src).searchParams.get("revision"));
+    expect(frame.src).toBe(initialSrc);
+    const pending = screen.getAllByTitle("Alpha").find((candidate) => candidate !== frame) as HTMLIFrameElement;
+    expect(pending).toHaveAttribute("data-frame-visible", "false");
+    expect(container.dataset.revision).toBe(new URL(pending.src).searchParams.get("revision"));
     expect(container).toHaveAttribute("data-loaded-revision", "0:0");
     act(() => useTabsStore.getState().cancelEdit("a"));
-    expect(screen.getByTitle("Alpha")).toBe(frame);
+    expect(frame).toHaveAttribute("data-frame-visible", "true");
     expect(container).not.toHaveAttribute("hidden");
     expect(container).not.toHaveAttribute("inert");
     expect(container).toHaveAttribute("aria-hidden", "false");
     expect(container).not.toHaveClass("invisible", "pointer-events-none", "absolute");
     expect(container).toHaveAttribute("data-editing", "false");
     expect(container).toHaveAttribute("data-saving", "false");
-    fireEvent.load(frame);
-    expect(container.dataset.loadedRevision).toBe(container.dataset.revision);
+    fireEvent.load(pending);
+    await waitFor(() => expect(container.dataset.loadedRevision).toBe(container.dataset.revision));
+    expect(frame.isConnected).toBe(false);
+    expect(pending).toHaveAttribute("data-frame-visible", "true");
   });
 
   it("navigates the cached frame on external changes and waits for the new document's bridge", async () => {
@@ -113,7 +118,7 @@ describe("NoteViewer", () => {
     mockIPC((command) => command === "read_note" ? disk : []);
     const dispose = installBridgeHost();
     const viewer = render(<NoteViewer />);
-    const frame = await screen.findByTitle("Alpha") as HTMLIFrameElement;
+    let frame = await screen.findByTitle("Alpha") as HTMLIFrameElement;
     const initialUrl = frame.src;
     const frameWindow = frame.contentWindow!;
     let post = vi.spyOn(frameWindow, "postMessage");
@@ -123,25 +128,32 @@ describe("NoteViewer", () => {
     try {
       ready();
       fireEvent.load(frame);
+      await waitFor(() => expect(frame).toHaveAttribute("data-frame-visible", "true"));
       expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
       act(() => useTabsStore.getState().openSpecial("settings"));
       await act(() => handleExternalChanges({
         changedNoteIds: ["a"], removedNoteIds: [], treeChanged: false, trashChanged: false,
       }));
-      expect(screen.getByTitle("Alpha")).toBe(frame);
+      expect(frame.src).toBe(initialUrl);
+      const previousFrame = frame;
+      frame = screen.getAllByTitle("Alpha").find((candidate) => candidate !== previousFrame) as HTMLIFrameElement;
+      expect(previousFrame).toHaveAttribute("data-frame-visible", "true");
       expect(frame.src).not.toBe(initialUrl);
       expect(new URL(frame.src).pathname).toBe("/a/");
       expect(screen.getByRole("progressbar", { hidden: true })).toBeInTheDocument();
       act(() => useTabsStore.getState().openNote("a"));
-      expect(screen.getByTitle("Alpha")).toBe(frame);
-      // jsdom creates a new Window object for src navigation.
+      expect(frame).toHaveAttribute("data-frame-visible", "false");
+      // Yeni revizyon farklı bir pencereye sahiptir.
       post.mockRestore();
       post = vi.spyOn(frame.contentWindow!, "postMessage");
+      fireEvent.load(frame);
+      await waitFor(() => expect(frame).toHaveAttribute("data-frame-visible", "true"));
       requestHighlight("a", "External");
       expect(post).not.toHaveBeenCalled();
       ready();
       expect(post).toHaveBeenCalledWith({ type: "HTNOTE_HIGHLIGHT", query: "External" }, NOTE_ORIGIN);
       fireEvent.load(frame);
+      await waitFor(() => expect(frame).toHaveAttribute("data-frame-visible", "true"));
       expect(screen.queryByRole("progressbar")).not.toBeInTheDocument();
       const updatedUrl = frame.src;
       await act(() => handleExternalChanges({
@@ -210,6 +222,10 @@ describe("NoteViewer", () => {
       expect(mutations.takeRecords()).toEqual([]);
       expect(first.contentWindow).toBe(firstWindow);
       expect(second.contentWindow).toBe(secondWindow);
+      for (const frame of [first, second]) {
+        fireEvent.load(frame);
+        await waitFor(() => expect(frame).toHaveAttribute("data-frame-visible", "true"));
+      }
       for (const source of [firstWindow, secondWindow]) {
         window.dispatchEvent(new MessageEvent("message", { source, origin: NOTE_ORIGIN, data: { type: "HTNOTE_READY" } }));
       }
@@ -289,6 +305,8 @@ describe("NoteViewer", () => {
       render(<NoteViewer />);
       const frame = await screen.findByTitle("Alpha") as HTMLIFrameElement;
       const post = vi.spyOn(frame.contentWindow!, "postMessage");
+      fireEvent.load(frame);
+      await waitFor(() => expect(frame).toHaveAttribute("data-frame-visible", "true"));
       window.dispatchEvent(new MessageEvent("message", { source: frame.contentWindow, origin: NOTE_ORIGIN, data: { type: "HTNOTE_READY" } }));
       fireEvent.click(screen.getByRole("button", { name: "Dışa aktar" }));
       fireEvent.click(screen.getByRole("menuitem", { name: "Yazdır / PDF Olarak Kaydet" }));
@@ -424,4 +442,31 @@ it("animates the favorite star only after clicks and clears it on animation end 
   expect(star()).not.toHaveAttribute("data-animate");
   act(() => useTabsStore.getState().openNote("a"));
   expect(star()).not.toHaveAttribute("data-animate");
+});
+
+it("opens search and creates a visual note from the empty screen", async () => {
+  resetTabsStoreForTests();
+  const base = { html: '<main id="htnote-content"><p></p></main>', css: null, js: null, contentHash: "new" };
+  const create = vi.spyOn(ipc, "createNote").mockResolvedValue(notes[0]);
+  vi.spyOn(ipc, "readNote").mockResolvedValue({ ...base, metadata: { id: "a" } } as NoteData);
+  const search = vi.spyOn(useUiStore.getState(), "openSearch");
+  render(<NoteViewer />);
+  fireEvent.click(screen.getByTestId("empty-search"));
+  expect(search).toHaveBeenCalledOnce();
+  fireEvent.click(screen.getByTestId("empty-new-note"));
+  await waitFor(() => expect(useTabsStore.getState().tabs[0]?.doc.mode).toBe("visual"));
+  expect(create).toHaveBeenCalledOnce();
+  expect(screen.queryByTestId("edit-note")).toBeNull();
+  expect(document.querySelector("iframe")).toBeNull();
+  await waitFor(() => expect(document.querySelector(".tiptap")).toHaveFocus());
+});
+it("keeps a new note open in reading mode and reports read failures", async () => {
+  resetTabsStoreForTests();
+  vi.spyOn(ipc, "createNote").mockResolvedValue(notes[0]);
+  vi.spyOn(ipc, "readNote").mockRejectedValue({ code: "IO_ERROR" });
+  render(<NoteViewer />);
+  fireEvent.click(screen.getByTestId("empty-new-note"));
+  await waitFor(() => expect(useTabsStore.getState().activeId).toBe("a"));
+  expect(useTabsStore.getState().tabs[0].doc.mode).toBe("view");
+  expect(useUiStore.getState().toasts[useUiStore.getState().toasts.length - 1]?.messageKey).toBe("errors.IO_ERROR");
 });
