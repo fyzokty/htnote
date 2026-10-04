@@ -1,6 +1,5 @@
 /// <reference types="node" />
 import { createRef } from "react";
-import { readFileSync } from "node:fs";
 import { Editor } from "@tiptap/core";
 import { EditorView } from "@tiptap/pm/view";
 import { act, fireEvent, render, screen } from "@testing-library/react";
@@ -37,37 +36,7 @@ afterEach(() => {
 });
 
 describe("VisualEditor", () => {
-  it("reserves scroll clearance for the sticky toolbar and its expanded link controls", () => {
-    let resize: (() => void) | undefined;
-    const disconnect = vi.fn();
-    vi.stubGlobal("ResizeObserver", class {
-      constructor(callback: () => void) { resize = callback; }
-      observe() {}
-      disconnect = disconnect;
-    });
-    const bounds = vi.spyOn(HTMLElement.prototype, "getBoundingClientRect");
-    let height = 48;
-    bounds.mockImplementation(function (this: HTMLElement) {
-      return { width: 0, height: this.classList.contains("htnote-editor-toolbar") ? height : 0 } as DOMRect;
-    });
-    const { container, unmount } = render(<VisualEditor initialInner="<p>Content</p>" onChange={vi.fn()} />);
-    try {
-      const toolbar = container.querySelector<HTMLElement>(".htnote-editor-toolbar")!;
-      const scroll = container.querySelector<HTMLElement>(".htnote-visual-scroll")!;
-      toolbar.style.top = "16px";
-      act(() => resize?.());
-      expect(scroll.style.scrollPaddingTop).toBe("72px");
-      height = 96;
-      act(() => resize?.());
-      expect(scroll.style.scrollPaddingTop).toBe("120px");
-      unmount();
-      expect(disconnect).toHaveBeenCalled();
-    } finally {
-      unmount();
-      bounds.mockRestore();
-      vi.unstubAllGlobals();
-    }
-  });
+
   it.each([false, true])("restores the captured note-link selection after dialog focus (range=%s)", (range) => {
     vi.useFakeTimers();
     const id = "11111111-1111-4111-8111-111111111111";
@@ -101,7 +70,7 @@ describe("VisualEditor", () => {
     vi.spyOn(ipc, "copyAsset").mockResolvedValue({ relPath: "./assets/drop.svg", kind: "image", mime: "image/svg+xml" });
     const view = render(<VisualEditor noteId="note" initialInner="<p>Text</p>" onChange={vi.fn()} />);
     updateDropPreview("note", { x: 50, y: 30 });
-    expect(document.querySelector(".htnote-native-drop-cursor")).toHaveStyle({ width: "2px", height: "24px" });
+    expect(document.querySelector(".htnote-native-drop-cursor")).not.toBeNull();
     updateDropPreview(null, null);
     expect(document.querySelector(".htnote-native-drop-cursor")).toBeNull();
     updateDropPreview("note", { x: 50, y: 30 });
@@ -141,32 +110,21 @@ describe("VisualEditor", () => {
     expect(save).toHaveBeenCalledWith("note", "diagram.svg", expect.any(Uint8Array));
     expect(view.container.querySelector("img")).toHaveAttribute("src", "http://127.0.0.1:4123/note/assets/diagram.svg");
   });
-  it("extends the editing surface and moves the cursor to the end only on a blank left click", () => {
+  it("moves the cursor to the end only on a blank left click", () => {
     vi.spyOn(EditorView.prototype, "posAtCoords").mockReturnValue(null);
-    const style = document.createElement("style");
-    const styles = readFileSync("src/index.css", "utf8");
-    style.textContent = styles.match(/\.htnote-code-editor,\s*\.htnote-visual-editor\s*\{[^}]+\}/)?.[0] ?? "";
-    style.textContent += styles.match(/\.htnote-visual-(?:scroll|content)\s*\{[^}]+\}/g)?.join("\n") ?? "";
-    style.textContent += styles.match(/\.htnote-visual-editor \.tiptap\s*\{[^}]+\}/)?.[0] ?? "";
-    document.head.append(style);
-    try {
-      const { container } = render(<VisualEditor initialInner="<p>First</p><p>Last</p>" onChange={vi.fn()} />);
-      const surface = screen.getByRole("textbox", { name: "Not içeriği" });
-      const editor = (surface as HTMLElement & { editor: Editor }).editor;
-      const last = surface.lastElementChild!;
-      vi.spyOn(last, "getBoundingClientRect").mockReturnValue({ bottom: 120 } as DOMRect);
-      expect(getComputedStyle(container.querySelector(".htnote-visual-editor")!)).toMatchObject({ height: "100%", overflow: "hidden" });
-      expect(getComputedStyle(container.querySelector(".htnote-visual-scroll")!)).toMatchObject({ overflow: "auto", minHeight: "0px" });
-      expect(getComputedStyle(surface).minHeight).toBe("100%");
-      act(() => editor.commands.setTextSelection(1));
-      fireEvent.mouseDown(surface, { button: 2, clientY: 300 });
-      expect(editor.state.selection.from).toBe(1);
-      fireEvent.mouseDown(surface, { button: 0, clientY: 300 });
-      expect(editor.state.selection.from).toBe(editor.state.doc.content.size - 1);
-      act(() => editor.commands.setTextSelection(1));
-      fireEvent.mouseDown(surface.firstElementChild!, { button: 0, clientY: 20 });
-      expect(editor.state.selection.from).toBe(1);
-    } finally { style.remove(); }
+    render(<VisualEditor initialInner="<p>First</p><p>Last</p>" onChange={vi.fn()} />);
+    const surface = screen.getByRole("textbox", { name: "Not içeriği" });
+    const editor = (surface as HTMLElement & { editor: Editor }).editor;
+    const last = surface.lastElementChild!;
+    vi.spyOn(last, "getBoundingClientRect").mockReturnValue({ bottom: 120 } as DOMRect);
+    act(() => editor.commands.setTextSelection(1));
+    fireEvent.mouseDown(surface, { button: 2, clientY: 300 });
+    expect(editor.state.selection.from).toBe(1);
+    fireEvent.mouseDown(surface, { button: 0, clientY: 300 });
+    expect(editor.state.selection.from).toBe(editor.state.doc.content.size - 1);
+    act(() => editor.commands.setTextSelection(1));
+    fireEvent.mouseDown(surface.firstElementChild!, { button: 0, clientY: 20 });
+    expect(editor.state.selection.from).toBe(1);
   });
   it("drops three images and audio together at the drop point in order", async () => {
     const hitTest = vi.spyOn(EditorView.prototype, "posAtCoords").mockReturnValue({ pos: 7, inside: 0 });

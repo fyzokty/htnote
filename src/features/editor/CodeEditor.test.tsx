@@ -1,16 +1,12 @@
-/// <reference types="node" />
 import { EditorView } from "@codemirror/view";
-import { readFileSync } from "node:fs";
 import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { CodeEditor } from "@/features/editor/CodeEditor";
 import { fileName, getDropHandler, kindFromPath, updateDropPreview } from "@/features/editor/fileDrop";
-import { formatShortcut } from "@/lib/shortcuts/registry";
 import { ipc } from "@/lib/ipc";
 import type { Settings } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
-const appStyles = readFileSync("src/index.css", "utf8");
 
 describe("CodeEditor formatting and layout", () => {
   it("formats HTML from the toolbar and keyboard, and disables formatting on CSS/JS", () => {
@@ -18,10 +14,6 @@ describe("CodeEditor formatting and layout", () => {
     const { container } = render(<CodeEditor html="<div><p>A</p><p>B</p></div>" css="p {}" js="run()" onChange={onChange} />);
     const editor = EditorView.findFromDOM(container.querySelector(".cm-editor") as HTMLElement)!;
     const button = screen.getByRole("button", { name: "Belgeyi biçimlendir" });
-    vi.spyOn(button.parentElement!, "getBoundingClientRect").mockReturnValue({ width: 28, height: 28, left: 0, top: 0, bottom: 28 } as DOMRect);
-    vi.spyOn(button, "matches").mockImplementation((selector) => selector === ":focus-visible");
-    act(() => button.focus());
-    expect(screen.getByRole("tooltip")).toHaveTextContent(formatShortcut("formatDocument"));
     fireEvent.click(button);
     expect(onChange).toHaveBeenCalledExactlyOnceWith({ html: "<div>\n  <p>A</p>\n  <p>B</p>\n</div>" });
     fireEvent.keyDown(editor.contentDOM, { key: "z", code: "KeyZ", ctrlKey: true });
@@ -35,27 +27,6 @@ describe("CodeEditor formatting and layout", () => {
       fireEvent.keyDown(editor.contentDOM, { key: "F", code: "KeyF", shiftKey: true, altKey: true });
       expect(editor.state.doc.toString()).toBe(before);
     }
-  });
-
-  it("fills the host, scrolls inside CodeMirror, and enables wrapping and gutters", () => {
-    const style = document.createElement("style");
-    style.textContent = appStyles.match(/\.htnote-code-editor,\s*\.htnote-visual-editor\s*\{[^}]+\}/)?.[0] ?? "";
-    style.textContent += appStyles.match(/\.htnote-code-host(?:[^{}]*)\{[^}]+\}/g)?.join("\n") ?? "";
-    document.head.append(style);
-    try {
-      const { container } = render(<CodeEditor html="<div><p>A</p></div>" css="" js="" onChange={vi.fn()} />);
-      const section = container.querySelector(".htnote-code-editor")!;
-      const host = container.querySelector(".htnote-code-host")!;
-      const editor = EditorView.findFromDOM(container.querySelector(".cm-editor") as HTMLElement)!;
-      expect(getComputedStyle(section)).toMatchObject({ height: "100%", minHeight: "0px", display: "flex", overflow: "hidden" });
-      expect(getComputedStyle(host)).toMatchObject({ minHeight: "0px", overflow: "hidden" });
-      expect(getComputedStyle(editor.dom).height).toBe("100%");
-      expect(getComputedStyle(editor.scrollDOM)).toMatchObject({ overflow: "auto", fontSize: "13px", lineHeight: "1.6" });
-      expect(editor.lineWrapping).toBe(true);
-      expect(container.querySelector(".cm-lineNumbers")).not.toBeNull();
-      expect(container.querySelector(".cm-foldGutter")).not.toBeNull();
-      expect(container.querySelector(".cm-activeLine")).not.toBeNull();
-    } finally { style.remove(); }
   });
 });
 
@@ -106,7 +77,6 @@ describe("CodeEditor tabs", () => {
     const tablist = screen.getByRole("tablist", { name: "Kod sekmeleri" });
     const tabs = within(tablist).getAllByRole("tab");
     expect(tabs.map((tab) => tab.textContent)).toEqual(["index.html", "style.css", "script.js"]);
-    expect(tabs.map((tab) => tab.querySelector(".htnote-code-dot")?.className)).toEqual(["htnote-code-dot htnote-code-dot-html", "htnote-code-dot htnote-code-dot-css", "htnote-code-dot htnote-code-dot-js"]);
     expect(tabs.map((tab) => tab.getAttribute("aria-selected"))).toEqual(["true", "false", "false"]);
     expect(tabs.map((tab) => tab.tabIndex)).toEqual([0, -1, -1]);
     expect(screen.getByRole("tabpanel", { name: "index.html" }).id).toBe(tabs[0].getAttribute("aria-controls"));

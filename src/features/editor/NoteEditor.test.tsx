@@ -9,7 +9,6 @@ import { NoteEditor } from "@/features/editor/NoteEditor";
 import type { VisualEditorHandle } from "@/features/editor/VisualEditor";
 import type { useEditSession } from "@/features/editor/useEditSession";
 import type { SplitView } from "@/features/editor/SplitView";
-import { formatShortcut } from "@/lib/shortcuts/registry";
 
 vi.mock("@/features/editor/VisualEditor", () => ({ VisualEditor: () => <div>Visual content</div> }));
 vi.mock("@/features/editor/CodeEditor", () => ({ CodeEditor: () => <div>Code content</div> }));
@@ -36,7 +35,6 @@ describe("NoteEditor", () => {
     fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
     expect(actions.save).toHaveBeenCalledWith(false);
     expect(screen.getByTestId("note-header")).toContainElement(screen.getByTestId("save-note"));
-    expect(screen.getByTestId("save-note").querySelector("kbd")).toBeNull();
     expect(document.querySelector(".htnote-session-bar")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "İptal" }));
     expect(actions.cancel).toHaveBeenCalled();
@@ -87,7 +85,6 @@ describe("NoteEditor", () => {
     expect(save).toBeDisabled();
     expect(save).toHaveAttribute("aria-busy", "true");
     expect(save).toHaveTextContent("Kaydediliyor…");
-    expect(save.querySelector(".htnote-editor-spinner")).not.toBeNull();
     const cancel = screen.getByRole("button", { name: "İptal" });
     expect(cancel).toBeDisabled();
     fireEvent.click(save);
@@ -98,10 +95,6 @@ describe("NoteEditor", () => {
     expect(save).toBeEnabled();
     expect(cancel).toBeEnabled();
     expect(save).toHaveAttribute("aria-busy", "false");
-    vi.spyOn(save.parentElement!, "getBoundingClientRect").mockReturnValue({ width: 28, height: 28, left: 0, top: 0, bottom: 28 } as DOMRect);
-    vi.spyOn(save, "matches").mockImplementation((selector) => selector === ":focus-visible");
-    act(() => save.focus());
-    expect(screen.getByRole("tooltip")).toHaveTextContent(formatShortcut("save"));
   });
 
   it("shows the unsaved status only while dirty", () => {
@@ -111,19 +104,5 @@ describe("NoteEditor", () => {
     expect(screen.getByRole("status")).toHaveTextContent("Kaydedilmedi");
     rerender(<Editing noteId="a" doc={doc} session={actions} />);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-  });
-
-  it("keeps mode wrappers without duplicating the viewer entry animation", () => {
-    const actions = session();
-    const doc = enterEdit(createDocState(), { html: '<main id="htnote-content"><p>A</p></main>', css: null, js: null, contentHash: "one" });
-    const { rerender, container } = render(<Editing noteId="a" doc={doc} session={actions} />);
-    const visualWrapper = container.querySelector('[data-mode="visual"]');
-    expect(visualWrapper).toBeInTheDocument();
-    expect(visualWrapper).not.toHaveClass("htnote-mode-transition");
-
-    rerender(<Editing noteId="a" doc={{ ...doc, mode: "code" }} session={actions} />);
-    const codeWrapper = container.querySelector('[data-mode="code"]');
-    expect(codeWrapper).toBeInTheDocument();
-    expect(codeWrapper).not.toHaveClass("htnote-mode-transition");
   });
 });

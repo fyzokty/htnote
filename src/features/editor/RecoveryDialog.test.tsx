@@ -11,13 +11,9 @@ it("shows draft time and disk warning, and routes recover and ignore", () => {
     note: { type: "note", id: "a", title: "Başlık", relPath: "Başlık", isFavorite: false, tags: [], updatedAt: "2026-09-30T00:00:00Z" },
     diskChanged: true,
   }]} onRecover={onRecover} onIgnore={onIgnore} />);
-  expect(screen.getByRole("dialog")).toHaveClass("htnote-dialog-surface");
-  expect(screen.getByRole("dialog").parentElement).toHaveClass("htnote-dialog-backdrop");
   expect(screen.getByRole("dialog")).toHaveAttribute("aria-modal", "true");
   expect(screen.getByText("Başlık")).toBeInTheDocument();
   expect(screen.getByText(/diskte değişti/)).toBeInTheDocument();
-  expect(screen.getByRole("button", { name: "Kurtar" })).toHaveClass("htnote-button-primary");
-  expect(screen.getByRole("button", { name: "Yok say" })).toHaveClass("htnote-button-danger");
   fireEvent.click(screen.getByRole("button", { name: "Kurtar" }));
   fireEvent.click(screen.getByRole("button", { name: "Yok say" }));
   expect(onRecover).toHaveBeenCalledWith("a");

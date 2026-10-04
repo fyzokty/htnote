@@ -66,42 +66,6 @@ describe("editing flows", () => {
     assert.equal(await browser.execute(() => getComputedStyle(document.querySelector(".tiptap span")!).fontSize), "24px");
   });
 
-  it("matches compact semantic paragraph spacing and empty line height in the viewer", async () => {
-    const note = await createNote("Paragraph spacing");
-    await openNote(note.id);
-    await editNote();
-    await $(".tiptap").click();
-    await browser.keys(["Control", "a"]);
-    await browser.keys("first");
-    await browser.keys("Enter");
-    await browser.keys("second");
-    await browser.keys("Enter");
-    await browser.keys("Enter");
-    await browser.keys("last");
-    const measure = (selector: string) => {
-      const paragraphs = Array.from(document.querySelectorAll<HTMLElement>(`${selector} > p`));
-      return paragraphs.map((p) => {
-        const style = getComputedStyle(p);
-        return { margin: parseFloat(style.marginTop) / parseFloat(style.fontSize),
-          line: parseFloat(style.lineHeight) / parseFloat(style.fontSize),
-          height: p.getBoundingClientRect().height / parseFloat(style.fontSize) };
-      });
-    };
-    const editor = await browser.execute(measure, ".tiptap");
-    assert.equal(editor.length, 4);
-    const saved = await saveAndView(note.id, (html) => html.includes("last"));
-    assert.match(saved, /<p><\/p>/);
-    await withNoteFrame(note.id, async () => {
-      const viewer = await browser.execute(measure, "#htnote-content");
-      assert.equal(viewer.length, 4);
-      for (let i = 0; i < viewer.length; i++) {
-        assert.ok(Math.abs(viewer[i].margin - editor[i].margin) < 0.02);
-        assert.ok(Math.abs(viewer[i].line - editor[i].line) < 0.02);
-        assert.ok(Math.abs(viewer[i].height - editor[i].height) < 0.02);
-      }
-    });
-  });
-
   it("keeps real Enter keystrokes in one code block after save and reopen", async () => {
     const note = await createNote("Code Enter");
     await openNote(note.id);
@@ -249,15 +213,11 @@ describe("editing flows", () => {
         const undo = await visibleEditorTool('.htnote-editor-toolbar button[aria-label="Geri al"]');
         await pointerMoveTo(await undo.$("svg"));
         await $('[role="tooltip"]').waitForDisplayed();
-        assert.ok((await $('[role="tooltip"]').getText()).includes("Ctrl+Z"));
         assert.equal(await browser.execute(() => getComputedStyle(document.querySelector(".htnote-editor-toolbar")!).position), "sticky");
         const overflow = await $('[data-testid="editor-overflow"]');
         if (await overflow.isExisting() && await overflow.getAttribute("aria-expanded") === "true") await overflow.click();
         assert.equal(await $('[data-testid="note-header"] [data-testid="save-note"]').isDisplayed(), true);
         assert.equal(await $(".htnote-session-bar").isExisting(), false);
-        await pointerMoveTo(await $('[data-testid="save-note"] svg'));
-        await browser.waitUntil(async () => (await $('[role="tooltip"]').getText()).includes("Ctrl+S"));
-        assert.notEqual(await browser.execute(() => getComputedStyle(document.querySelector('[data-testid="save-note"]')!).backgroundColor), "rgba(0, 0, 0, 0)");
         await $('[data-testid="code-mode"]').click();
         assert.equal(await $('[data-testid="code-mode"]').getAttribute("aria-pressed"), "true");
         await $('[data-testid="live-preview"][data-loaded="true"]').waitForDisplayed();
@@ -297,7 +257,6 @@ describe("editing flows", () => {
         assert.equal(await formatter.isEnabled(), false);
         assert.equal(await html.getAttribute("aria-selected"), "false");
         assert.equal(await browser.execute(() => document.activeElement?.getAttribute("data-testid")), "code-tab-css");
-        assert.notEqual(await browser.execute(() => getComputedStyle(document.querySelector('[data-testid="code-tab-css"]')!, "::after").backgroundColor), "rgba(0, 0, 0, 0)");
         const toggle = await $('[data-testid="live-preview-toggle"]');
         assert.equal(await toggle.getAttribute("aria-pressed"), "true");
         assert.equal(await browser.execute(() => !!document.querySelector('.htnote-code-bar [data-testid="live-preview-toggle"]')), true);
@@ -349,7 +308,6 @@ describe("editing flows", () => {
       await table.waitForDisplayed();
       await pointerMoveTo(await table.$("svg"));
       await $('[role="tooltip"]').waitForDisplayed();
-      assert.equal(await $('[role="tooltip"]').getText(), "Tablo ekle");
       // Outside pointerdown closes the panel, including a hovered tooltip whose
       // anchor can become inert without receiving mouseleave or blur.
       await $('.htnote-visual-editor .tiptap').click();

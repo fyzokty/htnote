@@ -40,8 +40,6 @@ describe("ExternalChangeBanner", () => {
     });
     useTabsStore.getState().markConflict("a", disk.contentHash);
     render(<ExternalChangeBanner noteId="a" doc={doc()!} />);
-    expect(screen.getByRole("button", { name: "Diskten yükle" })).toHaveClass("htnote-button-danger");
-    expect(screen.getByRole("button", { name: "Benimkini koru" })).toHaveClass("htnote-button-primary");
     fireEvent.click(screen.getByRole("button", { name: "Diskten yükle" }));
     await waitFor(() => expect(doc()).toMatchObject({ base: disk, draft: { html: "disk" }, dirty: false, externalConflict: null }));
     expect(commands).toContain("delete_draft");

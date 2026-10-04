@@ -2,7 +2,6 @@ import { act, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { TabBar } from "@/features/tabs/TabBar";
-import type { Settings } from "@/lib/types";
 import { dispatchShortcut } from "@/lib/shortcuts/manager";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
@@ -30,24 +29,16 @@ describe("TabBar", () => {
     const tab = screen.getByRole("tab", { name: "Alpha" });
     const dot = tab.querySelector('[data-testid="tab-dirty"]');
     expect(dot).not.toHaveClass("hidden");
-    expect(dot).toHaveClass("size-4", "group-hover:hidden", "group-focus-within:hidden");
-    expect(tab.querySelector(".htnote-tab-close svg")).toHaveClass("size-4", "hidden", "group-hover:block", "group-focus-within:block");
-    expect(screen.getByRole("button", { name: "Alpha sekmesini kapat" })).toHaveClass("htnote-tab-close");
     act(() => useTabsStore.getState().updateDraft("a", { html: "old" }));
     expect(dot).toHaveClass("hidden");
-    expect(tab.querySelector(".htnote-tab-close svg")).not.toHaveClass("hidden");
   });
 
-  it("renders special titles and icons, without the note reveal action", async () => {
+  it("renders special titles without the note reveal action", async () => {
     useTabsStore.getState().openSpecial("settings");
     useTabsStore.getState().openSpecial("trash");
     render(<TabBar />);
     const settings = screen.getByRole("tab", { name: "Ayarlar" });
     const trash = screen.getByRole("tab", { name: "Çöp kutusu" });
-    expect(settings.querySelectorAll("svg")).toHaveLength(2);
-    expect(trash.querySelectorAll("svg")).toHaveLength(2);
-    expect(settings.querySelector(".lucide-settings-2")).toBeInTheDocument();
-    expect(trash.querySelector(".lucide-trash-2")).toBeInTheDocument();
     expect(trash).toHaveAttribute("aria-selected", "true");
     fireEvent.contextMenu(settings);
     expect(screen.queryByRole("menuitem", { name: "Ağaçta Göster" })).not.toBeInTheDocument();
@@ -56,17 +47,6 @@ describe("TabBar", () => {
     await waitFor(() => expect(screen.queryByRole("tab", { name: "Ayarlar" })).not.toBeInTheDocument());
     fireEvent(trash, new MouseEvent("auxclick", { bubbles: true, button: 1 }));
     await waitFor(() => expect(screen.queryByRole("tab", { name: "Çöp kutusu" })).not.toBeInTheDocument());
-  });
-
-  it("applies fixed and title-based sizing to every tab", () => {
-    useTabsStore.getState().openSpecial("settings");
-    render(<TabBar />);
-    for (const tab of screen.getAllByRole("tab")) expect(tab).toHaveClass("w-40");
-    act(() => useSettingsStore.setState({ settings: { tabSizing: "fit" } as Settings }));
-    for (const tab of screen.getAllByRole("tab")) {
-      expect(tab).toHaveClass("w-max", "min-w-28", "max-w-64");
-      expect(tab).not.toHaveClass("w-40");
-    }
   });
 
   it("scrolls the active tab into view and converts wheel movement to horizontal scrolling", () => {
@@ -139,7 +119,6 @@ describe("TabBar", () => {
     const alpha = screen.getByRole("tab", { name: "Alpha" });
     const beta = screen.getByRole("tab", { name: "Beta" });
     expect(alpha).not.toHaveAttribute("title");
-    expect(alpha).toHaveClass("select-none");
     expect(beta).toHaveAttribute("aria-selected", "true");
     fireEvent.click(alpha);
     expect(alpha).toHaveAttribute("aria-selected", "true");
@@ -147,12 +126,6 @@ describe("TabBar", () => {
       useTreeStore.setState({ tree: [{ type: "folder", relPath: "folder", name: "folder", children: [{ ...notes[0], title: "Renamed" }, notes[1]] }] });
     });
     expect(screen.getByRole("tab", { name: "Renamed" })).toHaveAttribute("aria-label", "Renamed");
-    const close = screen.getByRole("button", { name: "Renamed sekmesini kapat" });
-    vi.spyOn(close.parentElement!, "getBoundingClientRect").mockReturnValue({ width: 28, height: 28, left: 0, top: 0, bottom: 28 } as DOMRect);
-    vi.spyOn(close, "matches").mockImplementation((selector) => selector === ":focus-visible");
-    act(() => close.focus());
-    expect(screen.getByRole("tooltip")).toHaveTextContent("Renamed sekmesini kapatCtrl+W");
-    expect(close).toHaveAttribute("aria-describedby", screen.getByRole("tooltip").id);
   });
 
   it("closes tabs with the middle button and close control", async () => {

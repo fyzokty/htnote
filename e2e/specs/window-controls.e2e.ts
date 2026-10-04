@@ -28,23 +28,15 @@ describe("custom title bar", () => {
       const header = document.querySelector<HTMLElement>('[data-testid="titlebar"]')!;
       const regions = [...header.querySelectorAll("[data-tauri-drag-region]")].map((element) => element.className);
       const interactive = [...header.querySelectorAll('button, [role="tab"], [role="tablist"]')];
-      const caption = [...header.querySelectorAll<HTMLElement>(".htnote-caption-button")].map((button) => button.getBoundingClientRect());
       return {
         headerIsDragRegion: header.hasAttribute("data-tauri-drag-region"),
         regions,
         interactiveDragRegions: interactive.filter((element) => element.hasAttribute("data-tauri-drag-region")).length,
-        headerHeight: header.getBoundingClientRect().height,
-        caption: caption.map((rect) => ({ width: Math.round(rect.width), height: Math.round(rect.height), right: Math.round(rect.right), top: Math.round(rect.top) })),
-        viewport: window.innerWidth,
       };
     });
     assert.equal(layout.headerIsDragRegion, true);
     assert.equal(layout.interactiveDragRegions, 0);
     assert.ok(layout.regions.some((name) => name.includes("htnote-titlebar-spacer")));
-    assert.equal(layout.headerHeight, 48);
-    assert.equal(layout.caption.length, 3);
-    for (const rect of layout.caption) assert.deepEqual([rect.width, rect.height, rect.top], [46, 48, 0]);
-    assert.equal(layout.caption[2].right, layout.viewport, "Close button must sit in the top-right corner");
     assert.equal(await isMaximized(), false);
   });
 
@@ -54,12 +46,10 @@ describe("custom title bar", () => {
     await button.click();
     await waitForMaximized(true);
     assert.notEqual(await button.getAttribute("aria-label"), restoredLabel);
-    assert.equal(await $('[data-testid="window-maximize"] [data-icon="restore"]').isExisting(), true);
 
     await button.click();
     await waitForMaximized(false);
     assert.equal(await button.getAttribute("aria-label"), restoredLabel);
-    assert.equal(await $('[data-testid="window-maximize"] [data-icon="maximize"]').isExisting(), true);
   });
 
   it("opens full-text search from the sidebar search button", async () => {

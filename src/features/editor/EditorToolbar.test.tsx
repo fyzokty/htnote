@@ -7,7 +7,6 @@ import { EditorToolbar } from "@/features/editor/EditorToolbar";
 import { createVisualExtensions } from "@/features/editor/extensions";
 import { ipc } from "@/lib/ipc";
 import { useUiStore } from "@/stores/uiStore";
-import { formatShortcut } from "@/lib/shortcuts/registry";
 
 vi.mock("@tauri-apps/plugin-dialog", () => ({ open: vi.fn() }));
 
@@ -100,38 +99,11 @@ describe("EditorToolbar", () => {
     render(<EditorToolbar editor={editor} noteId="note" />);
     const button = screen.getByRole("button", { name: label as string });
     expect(button).not.toHaveAttribute("title");
-    expect(button.querySelector("svg")).not.toBeNull();
     expect(screen.queryByRole("button", { name: "Medya ekle" })).toBeNull();
     await act(async () => fireEvent.click(button));
     expect(open).toHaveBeenCalledExactlyOnceWith({ multiple: true, filters: [{ name, extensions }] });
     expect(copy).not.toHaveBeenCalled();
     expect(editor.getHTML()).toBe("<p>Text</p>");
-  });
-
-  it("shows every action tooltip when hovering its SVG icon, including disabled actions", () => {
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ width: 28, height: 28, left: 0, top: 0, bottom: 28 } as DOMRect);
-    editor = new Editor({ extensions: createVisualExtensions(""), content: "<p>Text</p>" });
-    render(<EditorToolbar editor={editor} onLinkNote={vi.fn()} />);
-    const toolbar = screen.getByRole("toolbar");
-    expect(within(toolbar).getByRole("group", { name: "Geçmiş" })).toContainElement(screen.getByRole("button", { name: "Geri al" }));
-    expect(within(toolbar).getByRole("group", { name: "Metin biçimi" })).toContainElement(screen.getByRole("button", { name: "Kalın" }));
-    vi.useFakeTimers();
-    for (const button of within(toolbar).getAllByRole("button")) {
-      const icon = button.querySelector("svg")!;
-      expect(icon).not.toBeNull();
-      fireEvent.mouseEnter(icon);
-      act(() => vi.advanceTimersByTime(400));
-      const tooltip = screen.getByRole("tooltip");
-      expect(tooltip).toHaveTextContent(button.getAttribute("aria-label")!);
-      expect(button).toHaveAttribute("aria-describedby", tooltip.id);
-      if (button.getAttribute("aria-label") === "Kalın") expect(tooltip).toHaveTextContent(formatShortcut("editorBold"));
-      if (button.getAttribute("aria-label") === "İtalik") expect(tooltip).toHaveTextContent(formatShortcut("editorItalic"));
-      if (button.getAttribute("aria-label") === "Altı çizili") expect(tooltip).toHaveTextContent(formatShortcut("editorUnderline"));
-      if (button.getAttribute("aria-label") === "Geri al") expect(tooltip).toHaveTextContent("Ctrl+Z");
-      if (button.getAttribute("aria-label") === "Yinele") expect(tooltip).toHaveTextContent("Ctrl+Shift+Z");
-      fireEvent.mouseLeave(icon);
-      expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
-    }
   });
 
   it("keeps undo and redo availability in sync with formatting transactions", () => {
@@ -219,16 +191,6 @@ describe("EditorToolbar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Satırı sil" }));
     expect(editor.getHTML().match(/<tr>/g)).toHaveLength(3);
   });
-});
-
-it("orders history, text, marks, blocks, table, media and links", () => {
-  editor = new Editor({ extensions: createVisualExtensions(""), content: "<p>Text</p>" });
-  render(<EditorToolbar editor={editor} />);
-  const groups = [...document.querySelectorAll('.htnote-toolbar-groups > [data-toolbar-group] > [role="group"]')];
-  expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual(["Geçmiş", "Metin", "Metin biçimi", "Listeler ve bloklar", "Tablo araçları", "Medya", "Bağlantılar ve ekleme"]);
-  const blocks = groups[3].querySelectorAll("button");
-  expect([...blocks].slice(-3).map((button) => button.getAttribute("aria-label"))).toEqual(["Kod bloğu", "Satır içi kod", "Metin kutusu"]);
-  expect(groups[2]).toContainElement(screen.getByRole("button", { name: "Yazı rengi" }));
 });
 it("applies and removes font family and size to the captured text selection", async () => {
   editor = new Editor({ extensions: createVisualExtensions(""), content: "<p>Text tail</p>" });

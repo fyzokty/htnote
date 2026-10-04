@@ -96,17 +96,15 @@ describe("TitleBar", () => {
     expect(screen.queryByTestId("titlebar-search")).not.toBeInTheDocument();
   });
 
-  it("swaps the maximize icon and label when the window size changes", async () => {
+  it("swaps the maximize label when the window size changes", async () => {
     await renderTitleBar();
     const maximize = screen.getByTestId("window-maximize");
     expect(maximize).toHaveAttribute("aria-label", "Ekranı kapla");
-    expect(maximize.querySelector('[data-icon="maximize"]')).not.toBeNull();
 
     windowMock.maximized = true;
     await act(async () => { windowMock.resized?.({ payload: {} }); await Promise.resolve(); });
     expect(maximize).toHaveAttribute("aria-label", "Önceki boyuta getir");
     expect(maximize).toHaveAttribute("data-maximized", "true");
-    expect(maximize.querySelector('[data-icon="restore"]')).not.toBeNull();
 
     windowMock.maximized = false;
     await act(async () => { windowMock.resized?.({ payload: {} }); await Promise.resolve(); });
@@ -124,11 +122,10 @@ describe("TitleBar", () => {
     expect(windowMock.destroy).not.toHaveBeenCalled();
   });
 
-  it("leaves the remaining space draggable without a search box or hints", async () => {
+  it("leaves the remaining space draggable without a search box", async () => {
     await renderTitleBar();
     expect(screen.queryByTestId("titlebar-search")).not.toBeInTheDocument();
     expect(screen.getByTestId("titlebar-drag-region")).toHaveAttribute("data-tauri-drag-region");
-    expect(screen.getByTestId("titlebar").querySelector("kbd")).toBeNull();
   });
 
   it("marks only empty areas as drag regions", async () => {

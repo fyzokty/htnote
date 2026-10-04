@@ -23,7 +23,6 @@ describe("Tooltip", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
     act(() => vi.advanceTimersByTime(1));
     const tooltip = screen.getByRole("tooltip");
-    expect(tooltip.querySelector("kbd")).toHaveTextContent("Ctrl+S");
     expect(tooltip.parentElement).toBe(document.body);
     expect(container).not.toContainElement(tooltip);
     expect(button).toHaveAttribute("aria-describedby", `help ${tooltip.id}`);
@@ -120,21 +119,5 @@ describe("Tooltip", () => {
     vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({ width: 0, height: 0 } as DOMRect);
     act(() => resize());
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
-  });
-
-  it("flips above the trigger and clamps against viewport edges", () => {
-    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
-      return this.getAttribute("role") === "tooltip"
-        ? { width: 200, height: 40 } as DOMRect
-        : { left: window.innerWidth - 25, top: window.innerHeight - 25, bottom: window.innerHeight - 5, width: 20, height: 20 } as DOMRect;
-    });
-    render(<Tooltip label="Save"><button>Save</button></Tooltip>);
-    keyboardFocus(screen.getByRole("button"));
-    expect(screen.getByRole("tooltip")).toHaveStyle({
-      left: `${window.innerWidth - 208}px`, top: `${window.innerHeight - 73}px`,
-    });
-    fireEvent.resize(window);
-    fireEvent.scroll(document);
-    expect(screen.getByRole("tooltip")).toHaveStyle({ left: `${window.innerWidth - 208}px` });
   });
 });

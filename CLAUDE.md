@@ -35,4 +35,5 @@ HTNote: Tauri v2 masaüstü not uygulaması. Rust çekirdeği `src-tauri/src` al
 - IPC yalnızca `src/lib/ipc.ts` sarmalayıcılarıyla çağrılır. Yeni komut eklerken `generate_handler!` (`lib.rs`), `commands/mod.rs`, `ipc.ts` ve `types.ts` birlikte güncellenir. Hatalar `AppError { code, message }` olarak döner.
 - UI metinleri `src/locales/{tr,en}.json` anahtarlarından gelir; JSX literal metin lint hatası verir. Kısayollar `src/lib/shortcuts` registry'sindedir.
 - Mantık test edilebilir `*.ts` modüllerinde tutulur. Ön yüz testleri `mockIPC`, Rust testleri `tempfile` kullanır. Kod yorumları Türkçedir.
+- Test yalnızca davranış, mantık, veri bütünlüğü ve güvenlik için yazılır. Salt görsel ayrıntı (sıra, sınıf/stil, animasyon zamanlaması, tooltip metni, piksel ölçümü) test edilmez; böyle bir test kırılırsa silinir. E2E yalnızca kritik akışları kapsar.
 - Birincil platform Windows'tur ama kod macOS/Linux'ta da derlenmelidir. Windows'a özgü kod derlenebilir bir yedekle `#[cfg(windows)]` arkasında tutulur. Yollar `PathBuf`/`path.join` ile birleştirilir.
