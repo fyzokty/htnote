@@ -1,3 +1,4 @@
+import { useDialogActive, useDialogBackdrop } from "@/components/ui/useDialogPresence";
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -14,6 +15,8 @@ interface Props {
 }
 
 export function MoveDialog({ source, tree, onMove, onClose }: Props) {
+  const active = useDialogActive();
+  const backdrop = useDialogBackdrop();
   const { t } = useTranslation();
   const folders: { path: string; name: string; depth: number }[] = [{ path: "", name: t("tree.root"), depth: 0 }];
   function append(nodes: TreeNode[], depth: number) {
@@ -28,10 +31,11 @@ export function MoveDialog({ source, tree, onMove, onClose }: Props) {
   const dialog = useRef<HTMLDivElement>(null);
   const listbox = useRef<HTMLDivElement>(null);
   useEffect(() => {
+    if (!active) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     dialog.current?.querySelector<HTMLElement>("[role=listbox]")?.focus();
     return () => previous?.focus();
-  }, []);
+  }, [active]);
   function onKeyDown(event: KeyboardEvent) {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
     if (event.key === "Tab") {
@@ -54,8 +58,8 @@ export function MoveDialog({ source, tree, onMove, onClose }: Props) {
       }
     }
   }
-  return <div className="htnote-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <div ref={dialog} role="dialog" aria-modal="true" aria-label={t("tree.moveTitle")} tabIndex={-1} onKeyDown={onKeyDown} className="htnote-dialog-surface max-h-[80vh] w-80 overflow-y-auto  p-4 text-app-text shadow-xl outline-none">
+  return <div {...backdrop} className="htnote-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div ref={dialog} role="dialog" aria-modal="true" aria-label={t("tree.moveTitle")} tabIndex={-1} onKeyDown={active ? onKeyDown : undefined} className="htnote-dialog-surface max-h-[80vh] w-80 overflow-y-auto  p-4 text-app-text shadow-xl outline-none">
       <h2 className="mb-3 font-semibold">{t("tree.moveTitle")}</h2>
       <div ref={listbox} role="listbox" tabIndex={0} aria-label={t("tree.moveTarget")} aria-activedescendant={valid.some((folder) => folder.path === focused) ? `move-${folders.findIndex((folder) => folder.path === focused)}` : undefined}>
         {folders.map((folder, index) => {

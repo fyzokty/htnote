@@ -1,3 +1,4 @@
+import { DialogPresence } from "@/components/ui/DialogPresence";
 import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Compartment } from "@codemirror/state";
@@ -178,7 +179,7 @@ export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = 
         </div>
       </div>
       <div className="htnote-code-host" ref={hostRef} id={`${tabId}-panel`} role="tabpanel" aria-labelledby={`${tabId}-${activeTab}`} />
-      {pickerOpen && <NotePicker currentNoteId={noteId} onSelect={selectNote} onClose={() => setPickerOpen(false)} />}
+      <DialogPresence>{pickerOpen && <NotePicker currentNoteId={noteId} onSelect={selectNote} onClose={() => setPickerOpen(false)} />}</DialogPresence>
     </section>
   );
 }

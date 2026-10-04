@@ -1,3 +1,4 @@
+import { useDialogActive, useDialogBackdrop } from "@/components/ui/useDialogPresence";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -14,6 +15,8 @@ interface NotePickerProps {
 }
 
 export function NotePicker({ currentNoteId, onSelect, onClose }: NotePickerProps) {
+  const dialogActive = useDialogActive();
+  const backdrop = useDialogBackdrop();
   const { t } = useTranslation();
   useTreeStore((state) => state.tree);
   const notes = useTreeStore.getState().flatNotes();
@@ -24,7 +27,12 @@ export function NotePicker({ currentNoteId, onSelect, onClose }: NotePickerProps
   const filtered = notes.filter((note) => note.id !== currentNoteId && textMatch(note.title, query));
   const active = Math.max(0, filtered.findIndex((note) => note.id === activeId));
 
-  useEffect(() => { input.current?.focus(); }, []);
+  useEffect(() => {
+    if (!dialogActive) return;
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    input.current?.focus();
+    return () => previous?.focus();
+  }, [dialogActive]);
   const move = (direction: number) => setActiveId(filtered[(active + direction + filtered.length) % filtered.length].id);
   const onKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "Escape") { event.preventDefault(); onClose(); }
@@ -41,8 +49,8 @@ export function NotePicker({ currentNoteId, onSelect, onClose }: NotePickerProps
     }
   };
 
-  return <div className="htnote-note-picker-backdrop htnote-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <div ref={dialog} className="htnote-note-picker htnote-dialog-surface" role="dialog" aria-modal="true" aria-label={t("notePicker.title")} onKeyDown={onKeyDown}>
+  return <div {...backdrop} className="htnote-note-picker-backdrop htnote-dialog-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div ref={dialog} className="htnote-note-picker htnote-dialog-surface" role="dialog" aria-modal="true" aria-label={t("notePicker.title")} onKeyDown={dialogActive ? onKeyDown : undefined}>
       <div className="htnote-note-picker-header">
         <strong>{t("notePicker.title")}</strong>
         <IconButton type="button" onClick={onClose} label={t("notePicker.close")}>×</IconButton>

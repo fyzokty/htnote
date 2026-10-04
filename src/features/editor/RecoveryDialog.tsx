@@ -1,3 +1,5 @@
+import { useDialogActive, useDialogBackdrop } from "@/components/ui/useDialogPresence";
+import { DialogPresence } from "@/components/ui/DialogPresence";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -16,11 +18,18 @@ interface Props {
   onIgnore: (id: string) => void;
 }
 
-export function RecoveryDialog({ candidates, onRecover, onIgnore }: Props) {
+export function RecoveryDialog(props: Props) {
+  return <DialogPresence>{props.candidates.length > 0 && <RecoveryDialogContent {...props} />}</DialogPresence>;
+}
+
+function RecoveryDialogContent({ candidates, onRecover, onIgnore }: Props) {
+  const active = useDialogActive();
+  const backdrop = useDialogBackdrop();
   const { t } = useTranslation();
   const panel = useRef<HTMLDivElement>(null);
   const first = useRef<HTMLButtonElement>(null);
   useEffect(() => {
+    if (!active) return;
     if (!candidates.length) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     first.current?.focus();
@@ -38,10 +47,9 @@ export function RecoveryDialog({ candidates, onRecover, onIgnore }: Props) {
     }
     document.addEventListener("keydown", onKeyDown);
     return () => { document.removeEventListener("keydown", onKeyDown); previous?.focus(); };
-  }, [candidates.length]);
+  }, [active, candidates.length]);
 
-  if (!candidates.length) return null;
-  return <div className="htnote-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop p-4">
+  return <div {...backdrop} className="htnote-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop p-4">
     <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="recovery-title" className="htnote-dialog-surface w-full max-w-lg  p-5 text-app-text shadow-xl">
       <h2 id="recovery-title" className="text-lg font-semibold">{t("recovery.title")}</h2>
       <p className="mt-2 text-sm text-app-muted">{t("recovery.description")}</p>

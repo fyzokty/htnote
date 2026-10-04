@@ -14,6 +14,51 @@ describe("shared UI foundation", () => {
     await restore?.();
   });
 
+  it("keeps note header controls at equal heights in view and edit modes, including compact layouts", async () => {
+    const note = await createNote("Header heights");
+    await openNote(note.id);
+    const checkHeights = async () => {
+      const sizes = await browser.execute(() => {
+        const actions = document.querySelector('[data-testid="note-header"] [data-header-actions]')!;
+        const controls = [...actions.querySelectorAll<HTMLElement>("button, .htnote-segmented-control")]
+          .filter((element) => element.getBoundingClientRect().width > 0 && getComputedStyle(element).visibility !== "hidden");
+        return controls.map((element) => ({ name: element.getAttribute("aria-label") ?? element.className, height: element.getBoundingClientRect().height }));
+      });
+      assert.ok(sizes.length >= 4, JSON.stringify(sizes));
+      for (const size of sizes) assert.ok(Math.abs(size.height - 32) <= 1, JSON.stringify(sizes));
+      assert.ok(Math.max(...sizes.map((size) => size.height)) - Math.min(...sizes.map((size) => size.height)) <= 1, JSON.stringify(sizes));
+    };
+    for (const editing of [false, true]) {
+      if (editing) {
+        await $('[data-testid="edit-note"]').click();
+        await $(".htnote-visual-editor .tiptap").waitForDisplayed();
+      }
+      await checkHeights();
+      for (const level of [0, 1, 2, 3, 4, 5]) {
+        await browser.execute((level: number) => {
+          document.querySelector('[data-testid="note-header"]')!.setAttribute("data-compact-level", String(level));
+          document.querySelector(".htnote-session-actions .htnote-segmented-control")?.setAttribute("data-compact", String(level >= 3));
+        }, level);
+        await checkHeights();
+      }
+    }
+  });
+
+  it("compacts the sidebar with a real double click on the captured resize separator", async () => {
+    const previous = (await invoke<{ sidebarWidth: number }>("get_settings")).sidebarWidth;
+    try {
+      await invoke("update_settings", { patch: { sidebarWidth: 320 } });
+      await browser.refresh();
+      const separator = await $('[role="separator"][aria-orientation="vertical"]');
+      await separator.waitForDisplayed();
+      await separator.doubleClick();
+      await browser.waitUntil(async () => (await invoke<{ sidebarWidth: number }>("get_settings")).sidebarWidth === 200);
+      assert.equal(await browser.execute(() => document.querySelector("aside")!.getBoundingClientRect().width), 200);
+    } finally {
+      await invoke("update_settings", { patch: { sidebarWidth: previous } });
+    }
+  });
+
   it("blocks native context menus while preserving editing, copying and custom menus", async () => {
     const note = await createNote("Context menu guard");
     await openNote(note.id);

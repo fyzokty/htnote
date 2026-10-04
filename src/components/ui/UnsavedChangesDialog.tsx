@@ -1,3 +1,5 @@
+import { DialogPresence } from "@/components/ui/DialogPresence";
+import { useDialogActive, useDialogBackdrop } from "@/components/ui/useDialogPresence";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -6,14 +8,20 @@ import { useTreeStore } from "@/stores/treeStore";
 import { useUiStore } from "@/stores/uiStore";
 
 export function UnsavedChangesDialog() {
-  const { t } = useTranslation();
   const dialog = useUiStore((state) => state.unsavedDialog);
+  return <DialogPresence>{dialog && <UnsavedChangesDialogContent dialog={dialog} />}</DialogPresence>;
+}
+
+function UnsavedChangesDialogContent({ dialog }: { dialog: NonNullable<ReturnType<typeof useUiStore.getState>["unsavedDialog"]> }) {
+  const active = useDialogActive();
+  const backdrop = useDialogBackdrop();
+  const { t } = useTranslation();
   const tree = useTreeStore((state) => state.tree);
   const panel = useRef<HTMLDivElement>(null);
   const cancel = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (!dialog) return;
+    if (!active) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     cancel.current?.focus();
     function onKeyDown(event: KeyboardEvent) {
@@ -36,12 +44,11 @@ export function UnsavedChangesDialog() {
     }
     document.addEventListener("keydown", onKeyDown);
     return () => { document.removeEventListener("keydown", onKeyDown); previous?.focus(); };
-  }, [dialog]);
+  }, [active, dialog]);
 
-  if (!dialog) return null;
   const title = dialog.noteIds.length > 1 ? t("unsaved.multipleTitle") : t("unsaved.title");
   return (
-    <div className="htnote-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop p-4">
+    <div {...backdrop} className="htnote-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop p-4">
       <div ref={panel} role="dialog" aria-modal="true" aria-labelledby="unsaved-title" aria-describedby="unsaved-description" className="htnote-dialog-surface w-full max-w-md  p-5 text-app-text shadow-xl">
         <h2 id="unsaved-title" className="text-lg font-semibold">{title}</h2>
         <p id="unsaved-description" className="select-text mt-2 text-sm text-app-muted">{t(dialog.purpose === "export" ? "export.unsaved" : "unsaved.description")}</p>

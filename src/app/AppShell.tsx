@@ -1,3 +1,4 @@
+import { DialogPresence } from "@/components/ui/DialogPresence";
 import { tagColor, tagColorStyle } from "@/features/tags/tagColors";
 import { displayPath } from "@/lib/displayPath";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -44,7 +45,8 @@ import { useTabsStore } from "@/stores/tabsStore";
 import { useTreeStore } from "@/stores/treeStore";
 import { useUiStore } from "@/stores/uiStore";
 
-const clampWidth = (width: number) => Math.min(480, Math.max(200, width));
+const SIDEBAR_COMPACT_WIDTH = 200;
+const clampWidth = (width: number) => Math.min(480, Math.max(SIDEBAR_COMPACT_WIDTH, width));
 
 export function AppShell() {
   const { t } = useTranslation();
@@ -216,7 +218,20 @@ export function AppShell() {
     return () => window.removeEventListener("blur", onBlur);
   }, [isResizing, finishResize]);
 
+  function compactSidebar() {
+    draggingRef.current = false;
+    setIsResizing(false);
+    widthRef.current = SIDEBAR_COMPACT_WIDTH;
+    setDragWidth(null);
+    void updateSettings({ sidebarWidth: SIDEBAR_COMPACT_WIDTH }).catch(() => {});
+  }
+
   function startResize(event: PointerEvent<HTMLDivElement>) {
+    // İkinci basış sürükleme başlatmaz; sonraki pointerup kompakt değeri ezemez.
+    if (event.detail >= 2) {
+      compactSidebar();
+      return;
+    }
     draggingRef.current = true;
     setIsResizing(true);
     widthRef.current = sidebarWidth;
@@ -270,9 +285,9 @@ export function AppShell() {
         )}
         <UnsavedChangesDialog />
         <ConfirmDialog />
-        {searchOpen && <SearchModal />}
-        {shortcutsOpen && <ShortcutsModal onClose={closeShortcuts} />}
-        {!unsavedDialog && <RecoveryDialog candidates={recoveryCandidates} onRecover={(id) => void recoverDraft(id)} onIgnore={(id) => void ignoreDraft(id)} />}
+        <DialogPresence>{searchOpen && <SearchModal />}</DialogPresence>
+        <DialogPresence>{shortcutsOpen && <ShortcutsModal onClose={closeShortcuts} />}</DialogPresence>
+        <DialogPresence>{!unsavedDialog && <RecoveryDialog candidates={recoveryCandidates} onRecover={(id) => void recoverDraft(id)} onIgnore={(id) => void ignoreDraft(id)} />}</DialogPresence>
         {sidebarVisible && (
           <aside
             ref={sidebarRef}
@@ -317,6 +332,7 @@ export function AppShell() {
               aria-valuemax={480}
               aria-valuenow={sidebarWidth}
               onPointerDown={startResize}
+              onDoubleClick={compactSidebar}
               onPointerMove={resize}
               onPointerUp={finishResize}
               onPointerCancel={finishResize}

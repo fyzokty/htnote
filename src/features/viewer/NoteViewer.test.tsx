@@ -402,3 +402,26 @@ describe("NoteViewer", () => {
     expect(screen.getByRole("textbox", { name: "Not başlığını yeniden adlandır" })).toBeInTheDocument();
   });
 });
+
+it("animates the favorite star only after clicks and clears it on animation end or tab change", async () => {
+  mockIPC((command) => command === "read_note" ? { html: '<main id="htnote-content"></main>', css: null, js: null, contentHash: "initial" } : []);
+  vi.spyOn(ipc, "updateMetadata").mockImplementation(async (_id, patch) => ({
+    metadata: { id: "a", title: "Alpha", isFavorite: patch.isFavorite ?? false, tags: [], hasCustomCss: false, hasCustomJs: false, createdAt: "2026-01-01", updatedAt: "2026-01-01" },
+    contentHash: "updated",
+  }));
+  const { container } = render(<NoteViewer />);
+  const star = () => container.querySelector(".htnote-favorite-star")!;
+  expect(star()).not.toHaveAttribute("data-animate");
+  const favorite = screen.getByRole("button", { name: "Favori" });
+  await act(async () => { fireEvent.click(favorite); });
+  expect(star()).toHaveAttribute("data-animate", "add");
+  // jsdom AnimationEvent sağlamadığında React WebKit olay adını seçer.
+  fireEvent(star(), new Event("webkitAnimationEnd", { bubbles: true }));
+  expect(star()).not.toHaveAttribute("data-animate");
+  await act(async () => { fireEvent.click(favorite); });
+  expect(star()).toHaveAttribute("data-animate", "remove");
+  act(() => useTabsStore.getState().openNote("b"));
+  expect(star()).not.toHaveAttribute("data-animate");
+  act(() => useTabsStore.getState().openNote("a"));
+  expect(star()).not.toHaveAttribute("data-animate");
+});

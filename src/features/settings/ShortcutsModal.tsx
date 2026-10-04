@@ -1,3 +1,4 @@
+import { useDialogActive, useDialogBackdrop } from "@/components/ui/useDialogPresence";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -9,12 +10,15 @@ import type { ShortcutCategory } from "@/lib/shortcuts/registry";
 const categories: readonly ShortcutCategory[] = ["general", "tabs", "editing", "editor"];
 
 export function ShortcutsModal({ onClose }: { onClose: () => void }) {
+  const active = useDialogActive();
+  const backdrop = useDialogBackdrop();
   const { t } = useTranslation();
   const closeButton = useRef<HTMLButtonElement>(null);
   const platform = getPlatform();
   const shortcuts = listShortcuts();
 
   useEffect(() => {
+    if (!active) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeButton.current?.focus();
     const onKeyDown = (event: KeyboardEvent) => {
@@ -26,10 +30,10 @@ export function ShortcutsModal({ onClose }: { onClose: () => void }) {
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => { window.removeEventListener("keydown", onKeyDown, true); previous?.focus(); };
-  }, [onClose]);
+  }, [active, onClose]);
 
   return (
-    <div role="presentation" className="htnote-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div {...backdrop} role="presentation" className="htnote-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop p-4" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div role="dialog" aria-modal="true" aria-label={t("shortcuts.title")} className="htnote-dialog-surface max-h-[80vh] w-full max-w-xl overflow-y-auto  p-5 shadow-xl">
         <div className="flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold">{t("shortcuts.title")}</h2>
