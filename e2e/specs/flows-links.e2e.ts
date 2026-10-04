@@ -39,7 +39,7 @@ describe("internal link flows", () => {
       await $(`a[href="htnote://note/${b.id}"]`).click();
     }, { expectedHref: `htnote://note/${b.id}` });
     await browser.waitUntil(async () => await $(`[role="tab"][data-note-id="${b.id}"]`).getAttribute("aria-selected") === "true");
-    const backlinks = await $("section:has(> button[aria-expanded])");
+    const backlinks = await $("[data-testid=backlinks-panel]");
     await backlinks.waitForDisplayed();
     await browser.waitUntil(async () => (await backlinks.getText()).includes(a.title));
     assert.match(await backlinks.getText(), /Source A/);

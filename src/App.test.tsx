@@ -43,7 +43,7 @@ describe("App", () => {
     expect(settings).toHaveAttribute("aria-pressed", "true");
     const trash = screen.getByTestId("trash");
     fireEvent.click(trash);
-    expect(screen.getByRole("tab", { name: "Çöp Kutusu" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Çöp kutusu" })).toHaveAttribute("aria-selected", "true");
     expect(trash).toHaveAttribute("aria-pressed", "true");
     expect(settings).toHaveAttribute("aria-pressed", "false");
     fireEvent.click(settings);

@@ -5,7 +5,7 @@
   },
   "sidebar": {
     "label": "Sidebar",
-    "newNote": "+ Note",
+    "newNote": "New note",
     "newFolder": "+ Folder",
     "search": "Search",
     "quickFilter": "Quick filter",
@@ -16,7 +16,10 @@
     "settings": "Settings",
     "resize": "Resize sidebar",
     "hide": "Hide sidebar",
-    "show": "Show sidebar"
+    "show": "Show sidebar",
+    "folders": "FOLDERS",
+    "folderAction": "Folder",
+    "clearFilter": "Clear filter"
   },
   "titleBar": {
     "label": "Title bar",
@@ -30,7 +33,7 @@
   },
   "tree": {
     "label": "Note tree",
-    "empty": "No notes yet — start with + Note",
+    "empty": "No notes yet — start with New note",
     "folder": "Folder: {{name}}",
     "note": "Note: {{name}}",
     "untitledNote": "Untitled Note",
@@ -62,7 +65,9 @@
     "clearFilter": "Remove {{tag}} tag filter",
     "color": "Color for tag {{tag}}",
     "colors": "Tag colors",
-    "colorsHint": "Colors apply to all notes using the same tag."
+    "colorsHint": "Colors apply to all notes using the same tag.",
+    "overflow": "{{count}} more tags",
+    "addPill": "+ tag"
   },
   "tabs": {
     "label": "Tabs",
@@ -371,7 +376,8 @@
       "editorBold": "Bold",
       "editorItalic": "Italic",
       "editorUnderline": "Underline",
-      "editorLink": "Link note"
+      "editorLink": "Link note",
+      "openSettings": "Open settings"
     }
   },
   "ui": {
@@ -409,5 +415,16 @@
       "lavender": "Lavender",
       "charcoal": "Charcoal"
     }
+  },
+  "status": {
+    "saved": "Saved to disk",
+    "dirty": "Unsaved",
+    "saving": "Saving…",
+    "encoding": "UTF-8",
+    "format": "HTML",
+    "words_one": "{{value}} word",
+    "words_other": "{{value}} words",
+    "characters_one": "{{value}} character",
+    "characters_other": "{{value}} characters"
   }
 }

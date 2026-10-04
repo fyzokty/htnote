@@ -20,6 +20,14 @@ describe("matchShortcut", () => {
     expect(matchShortcut({ ...payload, ctrl: false, meta: true }, "mac")).toBe("newFolder");
   });
 
+  it("matches settings from host and bridge on Windows and macOS", () => {
+    expect(matchShortcut({ ...base, key: ",", code: "Comma", ctrl: true }, "windows")).toBe("openSettings");
+    expect(matchShortcut({ ...base, key: ",", meta: true }, "mac")).toBe("openSettings");
+    expect(matchShortcut({ ...base, key: ",", ctrl: true, shift: true }, "windows")).toBeNull();
+    expect(formatShortcut("openSettings", "windows")).toBe("Ctrl+,");
+    expect(formatShortcut("openSettings", "mac")).toBe("\u2318,");
+  });
+
   it.each<{ name: string; platform: Platform; input: Partial<KeyInput>; expected: ShortcutId | null }>([
     { name: "Windows Ctrl+N", platform: "windows", input: { key: "n", code: "KeyN", ctrl: true }, expected: "newNote" },
     { name: "macOS Cmd+N", platform: "mac", input: { key: "n", code: "KeyN", meta: true }, expected: "newNote" },

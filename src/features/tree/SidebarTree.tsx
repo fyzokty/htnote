@@ -5,6 +5,7 @@ import type { CollisionDetection, DragEndEvent, DragOverEvent, DragStartEvent } 
 import { ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { Button } from "@/components/ui/Button";
 import { ContextMenu } from "@/components/ui/ContextMenu";
 import { toggleFavorite } from "@/features/favorites/favorites";
 import type { ContextMenuItem } from "@/components/ui/ContextMenu";
@@ -27,6 +28,7 @@ import { useUiStore } from "@/stores/uiStore";
 interface RowProps {
   node: TreeNode;
   depth: number;
+  noteCount?: number;
   expanded: boolean;
   selected: boolean;
   tabbable: boolean;
@@ -45,7 +47,7 @@ interface RowProps {
 
 const treeCollisionDetection: CollisionDetection = (args) => preferTreeRow(pointerWithin(args));
 
-export const TreeRow = memo(function TreeRow({ node, depth, expanded, selected, tabbable, onSelect, onMenu, renaming, onRename, onCancelRename, dragSource, dropPath, dropValid, filterQuery, isFlashed, isHoverExpanding }: RowProps) {
+export const TreeRow = memo(function TreeRow({ node, depth, noteCount, expanded, selected, tabbable, onSelect, onMenu, renaming, onRename, onCancelRename, dragSource, dropPath, dropValid, filterQuery, isFlashed, isHoverExpanding }: RowProps) {
   const { t } = useTranslation();
   const isFolder = node.type === "folder";
   const drag = useDraggable({ id: `drag:${node.relPath}`, data: { node }, disabled: renaming });
@@ -86,7 +88,7 @@ export const TreeRow = memo(function TreeRow({ node, depth, expanded, selected, 
           : ""
       } ${
         selected
-          ? "bg-app-accent text-app-accent-text hover:bg-app-accent-hover"
+          ? "bg-app-selected text-app-accent hover:bg-app-selected"
           : "text-app-text hover:bg-app-subtle"
       } ${
         isFlashed ? "htnote-tree-row-flash flash ring-1 ring-app-accent/40" : ""
@@ -119,6 +121,7 @@ export const TreeRow = memo(function TreeRow({ node, depth, expanded, selected, 
           {range ? <>{label.slice(0, range[0])}<mark className="bg-app-accent/30 text-inherit">{label.slice(range[0], range[1])}</mark>{label.slice(range[1])}</> : label}
         </span>
       )}
+      {isFolder && <span data-testid="folder-note-count" className="ml-auto shrink-0 text-xs text-app-muted">{noteCount ?? node.children.filter((child) => child.type === "note").length}</span>}
       {isHoverExpanding && (
         <span
           aria-hidden="true"
@@ -138,6 +141,7 @@ function isSelected(node: TreeNode, selected: TreeSelection | null) {
 
 export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }) {
   const { t } = useTranslation();
+  const [sectionExpanded, setSectionExpanded] = useState(true);
   const tree = useTreeStore((state) => state.tree);
   const expanded = useTreeStore((state) => state.expanded);
   const filterQuery = useTreeStore((state) => state.filterQuery);
@@ -162,6 +166,15 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const setRootRef = (element: HTMLDivElement | null) => { rootRef.current = element; rootDrop.setNodeRef(element); };
   const pendingFocusKey = useRef<string | null>(null);
   const filtered = useMemo(() => filterTree(tree, filterQuery, { tag: filterTag ?? undefined }), [tree, filterQuery, filterTag]);
+  const directCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    const pending = [...tree];
+    while (pending.length) {
+      const node = pending.pop()!;
+      if (node.type === "folder") { counts.set(node.relPath, node.children.filter((child) => child.type === "note").length); pending.push(...node.children); }
+    }
+    return counts;
+  }, [tree]);
   const visibleTree = filtered.tree;
   const effectiveExpanded = useMemo(() => {
     if (!filterQuery.trim() && !filterTag) return expanded;
@@ -276,6 +289,9 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const isRootTarget = dragSource !== null && dropPath === "";
 
   return (
+    <section className={`flex min-h-0 flex-col px-3 py-2 ${sectionExpanded ? "flex-1" : "shrink-0"}`} aria-label={t("sidebar.folders")}>
+    <Button variant="ghost" size="sm" aria-expanded={sectionExpanded} onClick={() => setSectionExpanded(!sectionExpanded)} className="flex w-full justify-start items-center gap-2 rounded px-2 py-1 text-left text-[11px] font-bold uppercase tracking-wider hover:bg-app-subtle"><ChevronRight className={`size-4 ${sectionExpanded ? "rotate-90" : ""}`} aria-hidden /><Folder className="size-4" aria-hidden />{t("sidebar.folders")}</Button>
+    <div hidden={!sectionExpanded} className="min-h-0 flex-1">
     <DndContext sensors={sensors} collisionDetection={treeCollisionDetection} onDragStart={(event: DragStartEvent) => setDragSource(event.active.data.current?.node as TreeNode ?? null)} onDragOver={dragOver} onDragEnd={finishDrag} onDragCancel={() => finishDrag()}>
     <div
       ref={setRootRef}
@@ -284,7 +300,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
       tabIndex={rows.length === 0 ? 0 : -1}
       onKeyDown={onKeyDown}
       data-drop-target={isRootTarget ? (dropValid ? "valid" : "invalid") : undefined}
-      className={`flex min-h-0 flex-1 flex-col overflow-y-auto px-3 py-2 outline-none transition-colors duration-150 ${
+      className={`flex min-h-0 flex-1 flex-col h-full overflow-y-auto py-2 outline-none transition-colors duration-150 ${
         isRootTarget
           ? (dropValid
               ? "ring-2 ring-inset ring-app-accent bg-app-accent/5"
@@ -297,6 +313,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
           key={node.type === "folder" ? `folder:${node.relPath}` : `note:${node.id}`}
           node={node}
           depth={depth}
+          noteCount={directCounts.get(node.relPath)}
           expanded={node.type === "folder" && effectiveExpanded.has(node.relPath)}
           selected={isSelected(node, selected)}
           tabbable={selectedVisible ? isSelected(node, selected) : node === rows[0].node}
@@ -336,5 +353,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
       {moveSource && <MoveDialog source={moveSource} tree={tree} onMove={(target) => { void moveNode(moveSource, target); setMoveSource(null); }} onClose={() => setMoveSource(null)} />}
     </div>
     </DndContext>
+    </div>
+    </section>
   );
 }

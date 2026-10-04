@@ -43,7 +43,7 @@ describe("TabBar", () => {
     useTabsStore.getState().openSpecial("trash");
     render(<TabBar />);
     const settings = screen.getByRole("tab", { name: "Ayarlar" });
-    const trash = screen.getByRole("tab", { name: "Çöp Kutusu" });
+    const trash = screen.getByRole("tab", { name: "Çöp kutusu" });
     expect(settings.querySelectorAll("svg")).toHaveLength(2);
     expect(trash.querySelectorAll("svg")).toHaveLength(2);
     expect(settings.querySelector(".lucide-settings-2")).toBeInTheDocument();
@@ -55,7 +55,7 @@ describe("TabBar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ayarlar sekmesini kapat" }));
     await waitFor(() => expect(screen.queryByRole("tab", { name: "Ayarlar" })).not.toBeInTheDocument());
     fireEvent(trash, new MouseEvent("auxclick", { bubbles: true, button: 1 }));
-    await waitFor(() => expect(screen.queryByRole("tab", { name: "Çöp Kutusu" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("tab", { name: "Çöp kutusu" })).not.toBeInTheDocument());
   });
 
   it("applies fixed and title-based sizing to every tab", () => {
@@ -106,9 +106,9 @@ describe("TabBar", () => {
     act(() => { dispatchShortcut("prevTab"); });
     expect(screen.getByRole("tab", { name: "Ayarlar" })).toHaveAttribute("aria-selected", "true");
     act(() => { dispatchShortcut("nextTab"); });
-    expect(screen.getByRole("tab", { name: "Çöp Kutusu" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: "Çöp kutusu" })).toHaveAttribute("aria-selected", "true");
     act(() => { dispatchShortcut("closeTab"); });
-    await waitFor(() => expect(screen.queryByRole("tab", { name: "Çöp Kutusu" })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole("tab", { name: "Çöp kutusu" })).not.toBeInTheDocument());
   });
   it("preserves manual strip scrolling while the active document changes", () => {
     const scrollIntoView = vi.fn();

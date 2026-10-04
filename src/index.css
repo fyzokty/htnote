@@ -489,3 +489,22 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 .htnote-text-color-icon::after { content: ""; height: 3px; border-radius: 1px; background: var(--selected-color, var(--app-text)); }
 
 .htnote-visual-editor { --ht-color-gray: var(--app-color-gray);--ht-color-red: var(--app-color-red);--ht-color-orange: var(--app-color-orange);--ht-color-yellow: var(--app-color-yellow);--ht-color-green: var(--app-color-green);--ht-color-teal: var(--app-color-teal);--ht-color-blue: var(--app-color-blue);--ht-color-purple: var(--app-color-purple);--ht-color-pink: var(--app-color-pink); }
+
+.htnote-shortcut-badge { border-radius: var(--app-radius-control); padding: 2px 4px; font-size: 10px; font-family: inherit; white-space: nowrap; background: var(--app-subtle); color: var(--app-muted); }
+.htnote-button-primary .htnote-shortcut-badge { background: color-mix(in srgb, var(--app-accent-text) 12%, transparent); color: var(--app-accent-text); }
+
+.htnote-note-viewer { container-type: inline-size; container-name: note-viewer; }
+@container note-viewer (max-width: 500px) {
+  .htnote-note-header { padding-inline: 8px; gap: 4px; }
+  .htnote-note-header .htnote-button { padding-inline: 6px; gap: 4px; font-size: 11px; }
+  .htnote-note-header [data-testid="export-note"] svg, .htnote-note-header [data-testid="edit-note"] svg { display: none; }
+  
+  .htnote-note-header [data-compact-tags] input { width: 60px; padding-inline: 4px; }
+}
+
+.htnote-sidebar-card { container-type: inline-size; container-name: sidebar; }
+.htnote-sidebar-actions [data-testid="global-search"] { gap: 4px; padding-inline: 6px; }
+@container sidebar (max-width: 230px) {
+  .htnote-sidebar-actions [data-testid="new-folder"] svg, .htnote-sidebar-actions [data-testid="global-search"] svg { display: none; }
+  .htnote-sidebar-actions [data-testid="global-search"] .htnote-shortcut-badge { font-size: 9px; padding-inline: 2px; }
+}

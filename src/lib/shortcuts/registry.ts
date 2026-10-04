@@ -4,6 +4,7 @@ import { getPlatform } from "@/lib/platform";
 export type { Platform };
 
 export type ShortcutId =
+  | "openSettings"
   | "newNote"
   | "newFolder"
   | "rename"
@@ -49,6 +50,7 @@ type ShortcutDefinition = Binding & {
 };
 
 const SHORTCUTS: Record<ShortcutId, ShortcutDefinition> = {
+  openSettings: { codes: ["Comma"], key: ",", modifier: "mod", shift: false, allowInEditable: true, category: "general", bound: false },
   newNote: { codes: ["KeyN"], key: "N", modifier: "mod", shift: false, allowInEditable: true, category: "general", bound: false },
   newFolder: { codes: ["KeyN"], key: "N", modifier: "mod", shift: true, allowInEditable: true, category: "general", bound: false },
   rename: { codes: ["F2"], key: "F2", modifier: "none", shift: false, category: "editing", bound: false },

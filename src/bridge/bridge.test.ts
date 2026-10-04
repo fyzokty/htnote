@@ -38,6 +38,13 @@ describe("note bridge", () => {
     vi.spyOn(window.parent, "postMessage").mockImplementation(messages);
   });
 
+  it("forwards and prevents settings shortcut when the note has focus", () => {
+    const event = new KeyboardEvent("keydown", { key: ",", code: "Comma", ctrlKey: true, bubbles: true, cancelable: true });
+    document.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_SHORTCUT", key: ",", ctrl: true, shift: false, alt: false, meta: false }, "*");
+  });
+
   it("exposes frozen note metadata within the size limit", () => {
     expect(Object.isFrozen((window as unknown as { htnote: object }).htnote)).toBe(true);
     // The dependency-free audio UI is served with the bridge rather than a separate bundle.

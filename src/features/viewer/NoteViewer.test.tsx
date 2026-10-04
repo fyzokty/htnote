@@ -38,6 +38,17 @@ beforeEach(() => {
 });
 
 describe("NoteViewer", () => {
+  it("shows one header row, text export and the edit shortcut badge", () => {
+    mockIPC(() => []);
+    render(<NoteViewer />);
+    expect(screen.getByTestId("note-header")).toHaveClass("flex-nowrap");
+    expect(screen.getByTestId("export-note")).toHaveTextContent("D\u0131\u015fa aktar");
+    expect(screen.getByTestId("edit-note")).toHaveTextContent("Ctrl+E");
+    expect(screen.getByTestId("edit-note")).toHaveClass("htnote-button-primary");
+    act(() => useTabsStore.getState().openSpecial("settings"));
+    expect(screen.queryByTestId("note-status")).not.toBeInTheDocument();
+  });
+
   it("keeps the editing frame laid out and restores interaction on return to view", async () => {
     mockIPC((command) => command === "get_backlinks" || command === "get_broken_links" ? [] : undefined);
     render(<NoteViewer />);
@@ -233,7 +244,7 @@ describe("NoteViewer", () => {
     Object.defineProperty(navigator, "platform", { configurable: true, value: "Linux" });
     try {
       render(<NoteViewer />);
-      fireEvent.click(screen.getByRole("button", { name: "Dışa Aktar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Dışa aktar" }));
       expect(screen.getByRole("menuitem", { name: "Yazdır / PDF Olarak Kaydet" })).toBeEnabled();
       expect(screen.getByRole("menuitem", { name: "Tek dosya HTML" })).toBeEnabled();
       expect(screen.getByRole("menuitem", { name: "ZIP paketi" })).toBeEnabled();
@@ -247,7 +258,7 @@ describe("NoteViewer", () => {
     Object.defineProperty(navigator, "platform", { configurable: true, value: "Win32" });
     try {
       render(<NoteViewer />);
-      fireEvent.click(screen.getByRole("button", { name: "Dışa Aktar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Dışa aktar" }));
       expect(screen.getByRole("menuitem", { name: "PDF" })).toBeEnabled();
     } finally {
       if (platform) Object.defineProperty(navigator, "platform", platform);
@@ -263,7 +274,7 @@ describe("NoteViewer", () => {
       const frame = await screen.findByTitle("Alpha") as HTMLIFrameElement;
       const post = vi.spyOn(frame.contentWindow!, "postMessage");
       window.dispatchEvent(new MessageEvent("message", { source: frame.contentWindow, origin: NOTE_ORIGIN, data: { type: "HTNOTE_READY" } }));
-      fireEvent.click(screen.getByRole("button", { name: "Dışa Aktar" }));
+      fireEvent.click(screen.getByRole("button", { name: "Dışa aktar" }));
       fireEvent.click(screen.getByRole("menuitem", { name: "Yazdır / PDF Olarak Kaydet" }));
       await waitFor(() => expect(post).toHaveBeenCalledWith({ type: "HTNOTE_PRINT" }, NOTE_ORIGIN));
       expect(save).not.toHaveBeenCalled();
@@ -281,7 +292,7 @@ describe("NoteViewer", () => {
     mockIPC((command) => command === "get_backlinks" || command === "get_broken_links" ? [] : command === "update_settings" ? useSettingsStore.getState().settings
       : command === "export_single_html" ? new Promise<{ warnings: string[] }>((resolve) => { finish = resolve; }) : undefined);
     render(<NoteViewer />);
-    fireEvent.click(screen.getByRole("button", { name: "Dışa Aktar" }));
+    fireEvent.click(screen.getByRole("button", { name: "Dışa aktar" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Tek dosya HTML" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Dışa aktarılıyor…" })).toBeDisabled());
     expect(save).toHaveBeenCalledWith(expect.objectContaining({ defaultPath: "Alpha.html" }));

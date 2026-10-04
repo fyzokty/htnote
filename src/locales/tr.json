@@ -5,18 +5,21 @@
   },
   "sidebar": {
     "label": "Kenar çubuğu",
-    "newNote": "+ Not",
+    "newNote": "Yeni not",
     "newFolder": "+ Klasör",
     "search": "Ara",
     "quickFilter": "Hızlı filtre",
     "quickFilterPlaceholder": "Hızlı filtre...",
     "noMatches": "Eşleşme yok",
     "empty": "Henüz not veya klasör yok.",
-    "trash": "Çöp Kutusu",
+    "trash": "Çöp kutusu",
     "settings": "Ayarlar",
     "resize": "Kenar çubuğunu yeniden boyutlandır",
     "hide": "Kenar çubuğunu gizle",
-    "show": "Kenar çubuğunu göster"
+    "show": "Kenar çubuğunu göster",
+    "folders": "KLASÖRLER",
+    "folderAction": "Klasör",
+    "clearFilter": "Filtreyi temizle"
   },
   "titleBar": {
     "label": "Başlık çubuğu",
@@ -30,7 +33,7 @@
   },
   "tree": {
     "label": "Not ağacı",
-    "empty": "Henüz not yok — + Not ile başlayın",
+    "empty": "Henüz not yok — Yeni not ile başlayın",
     "folder": "Klasör: {{name}}",
     "note": "Not: {{name}}",
     "untitledNote": "Adsız Not",
@@ -62,7 +65,9 @@
     "clearFilter": "{{tag}} etiket filtresini kaldır",
     "color": "{{tag}} etiketinin rengi",
     "colors": "Etiket renkleri",
-    "colorsHint": "Renkler aynı etiketi kullanan tüm notlarda geçerlidir."
+    "colorsHint": "Renkler aynı etiketi kullanan tüm notlarda geçerlidir.",
+    "overflow": "{{count}} diğer etiket",
+    "addPill": "+ etiket"
   },
   "tabs": {
     "label": "Sekmeler",
@@ -81,7 +86,7 @@
     "loading": "Not yükleniyor",
     "lastSaved": "Son kaydedilme: {{time}}",
     "favorite": "Favori",
-    "export": "Dışa Aktar",
+    "export": "Dışa aktar",
     "edit": "Düzenle",
     "renameHint": "Yeniden adlandırmak için çift tıklayın",
     "renameLabel": "Not başlığını yeniden adlandır"
@@ -371,7 +376,8 @@
       "editorBold": "Kalın",
       "editorItalic": "İtalik",
       "editorUnderline": "Altı çizili",
-      "editorLink": "Not bağlantısı"
+      "editorLink": "Not bağlantısı",
+      "openSettings": "Ayarları aç"
     }
   },
   "ui": {
@@ -409,5 +415,16 @@
       "lavender": "Lavanta",
       "charcoal": "Kömür"
     }
+  },
+  "status": {
+    "saved": "Diske kaydedildi",
+    "dirty": "Kaydedilmedi",
+    "saving": "Kaydediliyor…",
+    "encoding": "UTF-8",
+    "format": "HTML",
+    "words_one": "{{value}} Kelime",
+    "words_other": "{{value}} Kelime",
+    "characters_one": "{{value}} Karakter",
+    "characters_other": "{{value}} Karakter"
   }
 }
