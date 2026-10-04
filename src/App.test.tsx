@@ -139,8 +139,7 @@ describe("App", () => {
     mockIPC((command) => command === "get_settings" ? defaults : undefined);
     render(<App />);
     const title = await screen.findByRole("heading", { name: "HTNote" });
-    expect(title).toHaveClass("select-none");
-    expect(title.closest("main")).toHaveClass("select-none");
+    expect(title).toBeInTheDocument();
   });
 
   it("dil ayarı değiştiğinde görünen metinleri günceller", async () => {

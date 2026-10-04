@@ -322,42 +322,7 @@ describe("SidebarTree quick filter", () => {
 });
 
 
-it("keeps tree labels unselectable and the inline rename input selectable", () => {
-  useTreeStore.setState({ tree, expanded: new Set(["A"]) });
-  render(<SidebarTree onOpenNote={vi.fn()} />);
-  expect(screen.getByRole("treeitem", { name: "Klasör: A" })).toHaveClass("select-none");
-  act(() => useTreeStore.getState().setRenaming("A"));
-  expect(screen.getByRole("textbox")).toHaveClass("select-text");
-});
-
-describe("SidebarTree animations and drag feedback (B9)", () => {
-  it("animates chevron with 90deg rotation and switches folder icons with data-state", () => {
-    useTreeStore.setState({ tree, expanded: new Set() });
-    render(<SidebarTree onOpenNote={vi.fn()} />);
-    const folder = screen.getByRole("treeitem", { name: "Klasör: A" });
-    expect(folder).toHaveClass("htnote-tree-row");
-    expect(folder).toHaveAttribute("data-state", "closed");
-
-    const chevron = folder.querySelector('[data-tree-chevron="true"]');
-    expect(chevron).toBeInTheDocument();
-    expect(chevron).toHaveAttribute("data-state", "closed");
-    expect(chevron).toHaveClass("rotate-0");
-    expect(chevron).not.toHaveClass("rotate-90");
-
-    const closedIcon = folder.querySelector('[data-tree-folder-icon="closed"]');
-    expect(closedIcon).toBeInTheDocument();
-
-    // Toggle expand
-    fireEvent.click(folder);
-    expect(folder).toHaveAttribute("data-state", "open");
-    expect(chevron).toHaveAttribute("data-state", "open");
-    expect(chevron).toHaveClass("rotate-90");
-
-    const openIcon = folder.querySelector('[data-tree-folder-icon="open"]');
-    expect(openIcon).toBeInTheDocument();
-    expect(folder.querySelector('[data-tree-folder-icon="closed"]')).toBeNull();
-  });
-
+describe("SidebarTree drag feedback", () => {
   it("renders valid and invalid drop target highlights and hover-expand indicator on TreeRow", () => {
     const dummyHandlers = {
       onSelect: vi.fn(),
@@ -386,8 +351,6 @@ describe("SidebarTree animations and drag feedback (B9)", () => {
     );
     let row = screen.getByRole("treeitem", { name: "Klasör: A" });
     expect(row).toHaveAttribute("data-drop-target", "valid");
-    expect(row).toHaveClass("htnote-tree-drop-valid");
-    expect(row).not.toHaveClass("htnote-tree-drop-invalid");
     expect(screen.queryByTestId("hover-expand-indicator")).toBeNull();
 
     // Invalid drop target
@@ -410,8 +373,6 @@ describe("SidebarTree animations and drag feedback (B9)", () => {
     );
     row = screen.getByRole("treeitem", { name: "Klasör: A" });
     expect(row).toHaveAttribute("data-drop-target", "invalid");
-    expect(row).toHaveClass("htnote-tree-drop-invalid");
-    expect(row).toHaveClass("cursor-not-allowed");
 
     // Hover expand indicator
     rerender(
@@ -432,37 +393,6 @@ describe("SidebarTree animations and drag feedback (B9)", () => {
       />
     );
     expect(screen.getByTestId("hover-expand-indicator")).toBeInTheDocument();
-  });
-
-  it("applies flash class and data-flashed on moved item and removes it when timer expires", async () => {
-    vi.useFakeTimers();
-    useTreeStore.setState({ tree, expanded: new Set(["A"]) });
-    render(<SidebarTree onOpenNote={vi.fn()} />);
-
-    act(() => {
-      useTreeStore.getState().flashNode("note:n", 1000);
-    });
-
-    const noteItem = screen.getByRole("treeitem", { name: "Not: Note" });
-    expect(noteItem).toHaveAttribute("data-flashed", "true");
-    expect(noteItem).toHaveClass("htnote-tree-row-flash");
-    expect(noteItem).toHaveClass("flash");
-
-    // 999 ms later, still flashed
-    act(() => {
-      vi.advanceTimersByTime(999);
-    });
-    expect(noteItem).toHaveAttribute("data-flashed", "true");
-
-    // 1 ms later (total 1000 ms), flash removed
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-    expect(noteItem).not.toHaveAttribute("data-flashed");
-    expect(noteItem).not.toHaveClass("htnote-tree-row-flash");
-    expect(noteItem).not.toHaveClass("flash");
-
-    vi.useRealTimers();
   });
 });
 

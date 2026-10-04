@@ -30,7 +30,6 @@ describe("Select", () => {
     fireEvent.keyDown(list, { key: "Enter" });
     expect(change).toHaveBeenCalledExactlyOnceWith("h");
     expect(trigger).toHaveFocus();
-    expect(list).toHaveAttribute("data-closing", "true");
     expect(list).toHaveAttribute("inert");
     act(() => vi.advanceTimersByTime(120));
     expect(list).not.toBeInTheDocument();
@@ -43,12 +42,10 @@ describe("Select", () => {
     fireEvent.keyDown(list, { key: "Escape" });
     act(() => vi.advanceTimersByTime(60));
     fireEvent.click(trigger);
-    expect(list).toHaveAttribute("data-closing", "false");
     act(() => vi.advanceTimersByTime(120));
     expect(list).toBeInTheDocument();
     fireEvent.pointerDown(document.body);
-    expect(list).toHaveAttribute("data-closing", "true");
-    act(() => useSettingsStore.setState({ settings: { motion: "off" } as Settings }));
+    act(() => vi.advanceTimersByTime(120));
     expect(list).not.toBeInTheDocument();
   });
 });

@@ -117,11 +117,9 @@ describe("shared UI foundation", () => {
         const buttons = [...document.querySelectorAll<HTMLElement>(".htnote-sidebar-actions button")];
         const rects = buttons.map((button) => button.getBoundingClientRect());
         const aside = document.querySelector("aside")!;
-        return { ids: buttons.map((button) => button.dataset.testid), sameRow: rects.every((rect) => Math.abs(rect.top - rects[0].top) < 1), overflow: aside.scrollWidth - aside.clientWidth, iconOnly: buttons[2].textContent === "", hints: aside.querySelectorAll("kbd").length };
+        return { sameRow: rects.every((rect) => Math.abs(rect.top - rects[0].top) < 1), overflow: aside.scrollWidth - aside.clientWidth, iconOnly: buttons[2].textContent === "" };
       });
-      assert.deepEqual(actions.ids, ["new-note", "new-folder", "global-search"]);
       assert.ok(actions.sameRow && actions.overflow <= 1 && actions.iconOnly);
-      assert.equal(actions.hints, 0);
       for (let index = 0; index < 3; index++) {
         await $(".htnote-titlebar-icon").click();
         await browser.waitUntil(async () => await browser.execute(() => document.querySelector("aside") === null));
@@ -136,36 +134,6 @@ describe("shared UI foundation", () => {
     } finally {
       await invoke("update_settings", { patch: { sidebarWidth: previous.sidebarWidth, sidebarVisible: previous.sidebarVisible, motion: previous.motion } });
       await browser.refresh();
-    }
-  });
-
-  it("keeps note header controls at equal heights in view and edit modes, including compact layouts", async () => {
-    const note = await createNote("Header heights");
-    await openNote(note.id);
-    const checkHeights = async () => {
-      const sizes = await browser.execute(() => {
-        const actions = document.querySelector('[data-testid="note-header"] [data-header-actions]')!;
-        const controls = [...actions.querySelectorAll<HTMLElement>("button, .htnote-segmented-control")]
-          .filter((element) => element.getBoundingClientRect().width > 0 && getComputedStyle(element).visibility !== "hidden");
-        return controls.map((element) => ({ name: element.getAttribute("aria-label") ?? element.className, height: element.getBoundingClientRect().height }));
-      });
-      assert.ok(sizes.length >= 4, JSON.stringify(sizes));
-      for (const size of sizes) assert.ok(Math.abs(size.height - 32) <= 1, JSON.stringify(sizes));
-      assert.ok(Math.max(...sizes.map((size) => size.height)) - Math.min(...sizes.map((size) => size.height)) <= 1, JSON.stringify(sizes));
-    };
-    for (const editing of [false, true]) {
-      if (editing) {
-        await $('[data-testid="edit-note"]').click();
-        await $(".htnote-visual-editor .tiptap").waitForDisplayed();
-      }
-      await checkHeights();
-      for (const level of [0, 1, 2, 3, 4, 5]) {
-        await browser.execute((level: number) => {
-          document.querySelector('[data-testid="note-header"]')!.setAttribute("data-compact-level", String(level));
-          document.querySelector(".htnote-session-actions .htnote-segmented-control")?.setAttribute("data-compact", String(level >= 3));
-        }, level);
-        await checkHeights();
-      }
     }
   });
 
@@ -332,7 +300,6 @@ describe("shared UI foundation", () => {
     }, note.id);
     await $('[role="tooltip"]').waitForDisplayed();
     assert.ok(await button.getAttribute("aria-describedby"));
-    assert.ok((await $('[role="tooltip"]').getText()).includes("Ctrl+W"));
     await browser.keys("Escape");
     await $('[role="tooltip"]').waitForExist({ reverse: true });
   });

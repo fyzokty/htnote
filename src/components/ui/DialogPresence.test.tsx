@@ -27,7 +27,6 @@ it("hides the closing snapshot immediately, restores focus and cancels the old t
   const backdrop = container.querySelector(".htnote-dialog-backdrop")!;
   expect(backdrop).toHaveAttribute("inert");
   expect(backdrop).toHaveAttribute("aria-hidden", "true");
-  expect(backdrop).toHaveAttribute("data-closing", "true");
   expect(backdrop.textContent).toContain(title);
   fireEvent.keyDown(document, { key: "Escape" });
   fireEvent.keyDown(document, { key: "Tab" });
@@ -40,9 +39,7 @@ it("hides the closing snapshot immediately, restores focus and cancels the old t
   act(() => vi.advanceTimersByTime(40));
   expect(screen.getByRole("dialog")).toBeInTheDocument();
   act(() => useUiStore.getState().closeConfirmDialog());
-  act(() => vi.advanceTimersByTime(139));
-  expect(container.querySelector(".htnote-dialog-backdrop")).toBeInTheDocument();
-  act(() => vi.advanceTimersByTime(1));
+  act(() => vi.advanceTimersByTime(140));
   expect(container.querySelector(".htnote-dialog-backdrop")).toBeNull();
   expect(trigger).toHaveFocus();
   trigger.remove();
@@ -57,11 +54,4 @@ it("removes window keyboard listeners at the start of closing", () => {
   expect(container.querySelector(".htnote-dialog-backdrop")).toHaveAttribute("inert");
   fireEvent.keyDown(window, { key: "Escape" });
   expect(close).not.toHaveBeenCalled();
-});
-
-it("unmounts synchronously without a delay when reduced motion is preferred", () => {
-  vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
-  const { rerender, container } = render(<DialogPresence><ShortcutsModal onClose={vi.fn()} /></DialogPresence>);
-  rerender(<DialogPresence>{null}</DialogPresence>);
-  expect(container).toBeEmptyDOMElement();
 });

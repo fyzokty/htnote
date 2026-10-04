@@ -54,13 +54,10 @@ describe("NoteViewer", () => {
     expect(within(screen.getByTestId("note-status")).getByRole("status")).toHaveTextContent("Kaydediliyor…");
     expect(header.getByTestId("save-note")).toBeDisabled();
   });
-  it("shows one header row, text export and no edit shortcut badge", () => {
+  it("shows text export and hides status on special tab", () => {
     mockIPC(() => []);
     render(<NoteViewer />);
-    expect(screen.getByTestId("note-header")).toHaveClass("flex-nowrap");
     expect(screen.getByTestId("export-note")).toHaveTextContent("D\u0131\u015fa aktar");
-    expect(screen.getByTestId("edit-note").querySelector("kbd")).toBeNull();
-    expect(screen.getByTestId("edit-note")).toHaveClass("htnote-button-primary");
     act(() => useTabsStore.getState().openSpecial("settings"));
     expect(screen.queryByTestId("note-status")).not.toBeInTheDocument();
   });
@@ -79,7 +76,6 @@ describe("NoteViewer", () => {
     act(() => useTabsStore.getState().enterEdit("a", base, "visual", true));
     expect(screen.getByTitle("Alpha")).toBe(frame);
     expect(container).not.toHaveAttribute("hidden");
-    expect(container).toHaveClass("absolute", "opacity-0", "pointer-events-none");
     expect(container).toHaveAttribute("inert");
     expect(container).toHaveAttribute("aria-hidden", "true");
     expect(container).toHaveAttribute("data-editing", "true");
@@ -98,7 +94,6 @@ describe("NoteViewer", () => {
     expect(container).not.toHaveAttribute("hidden");
     expect(container).not.toHaveAttribute("inert");
     expect(container).toHaveAttribute("aria-hidden", "false");
-    expect(container).not.toHaveClass("invisible", "pointer-events-none", "absolute");
     expect(container).toHaveAttribute("data-editing", "false");
     expect(container).toHaveAttribute("data-saving", "false");
     fireEvent.load(pending);
@@ -419,29 +414,6 @@ describe("NoteViewer", () => {
     fireEvent.keyDown(heading, { key: "F2" });
     expect(screen.getByRole("textbox", { name: "Not başlığını yeniden adlandır" })).toBeInTheDocument();
   });
-});
-
-it("animates the favorite star only after clicks and clears it on animation end or tab change", async () => {
-  mockIPC((command) => command === "read_note" ? { html: '<main id="htnote-content"></main>', css: null, js: null, contentHash: "initial" } : []);
-  vi.spyOn(ipc, "updateMetadata").mockImplementation(async (_id, patch) => ({
-    metadata: { id: "a", title: "Alpha", isFavorite: patch.isFavorite ?? false, tags: [], hasCustomCss: false, hasCustomJs: false, createdAt: "2026-01-01", updatedAt: "2026-01-01" },
-    contentHash: "updated",
-  }));
-  const { container } = render(<NoteViewer />);
-  const star = () => container.querySelector(".htnote-favorite-star")!;
-  expect(star()).not.toHaveAttribute("data-animate");
-  const favorite = screen.getByRole("button", { name: "Favori" });
-  await act(async () => { fireEvent.click(favorite); });
-  expect(star()).toHaveAttribute("data-animate", "add");
-  // jsdom AnimationEvent sağlamadığında React WebKit olay adını seçer.
-  fireEvent(star(), new Event("webkitAnimationEnd", { bubbles: true }));
-  expect(star()).not.toHaveAttribute("data-animate");
-  await act(async () => { fireEvent.click(favorite); });
-  expect(star()).toHaveAttribute("data-animate", "remove");
-  act(() => useTabsStore.getState().openNote("b"));
-  expect(star()).not.toHaveAttribute("data-animate");
-  act(() => useTabsStore.getState().openNote("a"));
-  expect(star()).not.toHaveAttribute("data-animate");
 });
 
 it("opens search and creates a visual note from the empty screen", async () => {

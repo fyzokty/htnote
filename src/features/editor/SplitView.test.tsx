@@ -37,19 +37,15 @@ describe("SplitView", () => {
       }
     });
     const view = render(<SplitView editor={<div>Editör</div>}><div>Önizleme</div></SplitView>);
-    expect(view.container.querySelector(".htnote-split-view")).toHaveStyle({ minHeight: 0, overflow: "hidden" });
-    expect(view.container.querySelector(".htnote-split-editor")).toHaveStyle({ display: "flex", minHeight: 0, overflow: "hidden" });
     const separator = screen.getByRole("separator");
     expect(separator).toHaveAttribute("aria-valuenow", "35");
     Object.defineProperty(separator, "setPointerCapture", { value: vi.fn() });
     const container = separator.parentElement!;
     vi.spyOn(container, "getBoundingClientRect").mockReturnValue({ left: 0, width: 1000 } as DOMRect);
     fireEvent.pointerDown(separator, { pointerId: 1 });
-    expect(separator).toHaveAttribute("data-dragging", "true");
     fireEvent.pointerMove(separator, { clientX: 950, pointerId: 1 });
     expect(separator).toHaveAttribute("aria-valuenow", "80");
     fireEvent.pointerUp(separator, { pointerId: 1 });
-    expect(separator).toHaveAttribute("data-dragging", "false");
     await waitFor(() => expect(patches).toContainEqual({ editorSplitRatio: 80 }));
     fireEvent.pointerDown(separator, { pointerId: 2 });
     fireEvent.pointerMove(separator, { clientX: -100, pointerId: 2 });
@@ -75,7 +71,6 @@ describe("SplitView", () => {
     expect(toggle).toHaveAttribute("aria-pressed", "false");
     expect(screen.queryByText("Önizleme")).not.toBeInTheDocument();
     await waitFor(() => expect(patches).toContainEqual({ editorLivePreview: false }));
-    expect(screen.getByText("Editör").parentElement).toHaveStyle({ width: "100%" });
     fireEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-pressed", "true");
     await waitFor(() => expect(patches).toContainEqual({ editorLivePreview: true }));

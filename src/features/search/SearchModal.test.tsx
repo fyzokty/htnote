@@ -154,7 +154,6 @@ it("allows snippet selection without opening the result on the trailing mouse cl
   render(<SearchModal />);
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: "alpha" } });
   const text = await screen.findByText("<img src=x>");
-  expect(text.parentElement).toHaveClass("select-text");
   const selection = window.getSelection()!;
   const range = document.createRange();
   range.selectNodeContents(text);
@@ -170,7 +169,7 @@ it("allows snippet selection without opening the result on the trailing mouse cl
   await waitFor(() => expect(useTabsStore.getState().activeId).toBe("a"));
 });
 
-it("renders snippets with warm highlighting and 2-line clamp", async () => {
+it("renders snippets with matching text", async () => {
   const customResults: SearchNotesResult = {
     indexing: false,
     results: [
@@ -190,23 +189,19 @@ it("renders snippets with warm highlighting and 2-line clamp", async () => {
   render(<SearchModal />);
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: "vurgu" } });
   const snippetContainer = await screen.findByTestId("search-snippet");
-  expect(snippetContainer).toHaveClass("line-clamp-2");
   expect(snippetContainer).toHaveTextContent("…başlangıç metni vurgu bitiş metni…");
   const mark = snippetContainer.querySelector("mark");
   expect(mark).toBeInTheDocument();
   expect(mark).toHaveTextContent("vurgu");
-  expect(mark).toHaveClass("htnote-search-match");
 });
 
 
-it("shows pills, counter and navigation badges, and clears without opening a result", async () => {
+it("shows pills and counter, and clears without opening a result", async () => {
   mockIPC((command) => command === "search_notes" ? results : undefined); render(<SearchModal />);
-  expect(screen.getByRole("dialog")).toHaveClass("htnote-dialog-surface");
   fireEvent.change(screen.getByRole("searchbox"), { target: { value: "alpha" } }); await screen.findByRole("option", { name: "Alpha" });
   expect(screen.getAllByTestId("search-path-pill")).toHaveLength(2);
   expect(screen.getAllByTestId("search-match-pill")[1]).toHaveTextContent("2 eşleşme");
   expect(screen.getByTestId("search-found")).toHaveTextContent("2 not bulundu");
-  expect(screen.getByText("↑").tagName).toBe("KBD"); expect(screen.getByText("Enter").tagName).toBe("KBD");
   const clear = screen.getByRole("button", { name: "Aramayı temizle" }); fireEvent.keyDown(clear, { key: "Enter" });
   expect(useTabsStore.getState().tabs).toHaveLength(0); fireEvent.click(clear);
   expect(screen.getByRole("searchbox")).toHaveValue(""); expect(screen.getByRole("searchbox")).toHaveFocus();

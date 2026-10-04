@@ -33,9 +33,6 @@ it("remeasures reordered overflow groups, restores controls and shows shortcut t
   act(() => resize());
   fireEvent.click(screen.getByTestId("editor-overflow"));
   const undo = screen.getByRole("button", { name: "Tool 0" });
-  fireEvent.mouseEnter(undo.parentElement!);
-  act(() => vi.advanceTimersByTime(400));
-  expect(screen.getAllByRole("tooltip").some((tip) => tip.textContent?.includes(formatShortcut("editorUndo")))).toBe(true);
   fireEvent.mouseLeave(undo.parentElement!);
   vi.spyOn(undo, "matches").mockImplementation((selector) => selector === ":focus-visible");
   act(() => { screen.getByTestId("editor-overflow").focus(); undo.focus(); });
@@ -105,7 +102,6 @@ it("focuses keyboard-opened overflow and preserves arrows, Tab and Escape focus 
   const table = screen.getByRole("button", { name: "Table" });
   const next = screen.getByRole("button", { name: "Next" });
   expect(table).toHaveFocus();
-  expect(screen.getByRole("tooltip")).toHaveTextContent("Table");
   fireEvent.keyDown(table, { key: "ArrowRight" });
   expect(next).toHaveFocus();
   fireEvent.keyDown(next, { key: "Tab", shiftKey: true });

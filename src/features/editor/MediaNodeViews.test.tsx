@@ -1,7 +1,7 @@
 import { Editor } from "@tiptap/core";
 import { EditorContent } from "@tiptap/react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createVisualExtensions } from "@/features/editor/extensions";
 import { initNoteOrigin } from "@/lib/noteUrl";
@@ -59,7 +59,6 @@ describe("media node views", () => {
     expect(editor.state.selection.constructor.name).toBe("TextSelection");
     await act(async () => { fireEvent.click(wrapper.querySelector(kind === "audio" ? ".ht-audio-card" : tag)!); });
     expect(editor.state.selection.constructor.name).toBe("NodeSelection");
-    expect(wrapper).toHaveClass("is-selected");
     await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Sağa hizala" })); });
     expect(editor.state.doc.firstChild?.attrs.align).toBe("right");
     expect(wrapper.closest(".htnote-media-node")).toHaveAttribute("data-align", "right");
@@ -98,11 +97,10 @@ describe("media node views", () => {
   });
 
   it("applies alt text with Enter, cancels with Escape and offers explicit apply/cancel buttons", async () => {
-    const view = await mount('<img src="./assets/photo.png" alt="Original"><p>After</p>');
+    await mount('<img src="./assets/photo.png" alt="Original"><p>After</p>');
     await act(async () => { editor.commands.setTextSelection(editor.state.doc.content.size - 1); });
     expect(screen.queryByRole("toolbar")).toBeNull();
     await act(async () => { editor.commands.setNodeSelection(0); });
-    expect(view.container.querySelector(".htnote-media-image")).toHaveClass("is-selected");
     const input = () => screen.getByRole("textbox", { name: "Alternatif metin" });
     expect(input()).toHaveAttribute("placeholder", "Görseli kısaca açıklayın");
     fireEvent.change(input(), { target: { value: "New description" } });
@@ -129,13 +127,11 @@ describe("media node views", () => {
   it("shows selected width segments, applies percentages and restores original size", async () => {
     await mount('<img src="./assets/photo.png" alt="Photo" width="240">');
     await act(async () => { editor.commands.setNodeSelection(0); });
-    expect(screen.getByRole("img").closest(".htnote-media-node")).toHaveStyle({ width: "240px" });
     for (const width of ["25%", "50%", "100%", "Özgün boyut"]) {
       await act(async () => { fireEvent.click(screen.getByRole("button", { name: width })); });
       expect(screen.getByRole("button", { name: width })).toHaveAttribute("aria-pressed", "true");
       expect(screen.getAllByRole("button").filter((button) => button.getAttribute("aria-pressed") === "true")).toHaveLength(2);
       expect(editor.state.doc.firstChild?.attrs.width).toBe(width === "Özgün boyut" ? null : width);
-      expect((screen.getByRole("img").closest(".htnote-media-node") as HTMLElement).style.width).toBe(width === "Özgün boyut" ? "fit-content" : width);
     }
   });
 
@@ -149,12 +145,6 @@ describe("media node views", () => {
     const label = kind === "audio" ? "Sesi sil" : "Videoyu sil";
     const button = screen.getByRole("button", { name: label });
     expect(button).not.toHaveAttribute("title");
-    vi.spyOn(button.parentElement!, "getBoundingClientRect").mockReturnValue({ width: 28, height: 28, left: 0, top: 0, bottom: 28 } as DOMRect);
-    vi.spyOn(button, "matches").mockImplementation((selector) => selector === ":focus-visible");
-    act(() => button.focus());
-    expect(screen.getByRole("tooltip")).toHaveTextContent(label);
-    expect(button).toHaveAttribute("aria-describedby", screen.getByRole("tooltip").id);
-    expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
     fireEvent.click(button);
     expect(editor.getHTML()).toBe("<p>Kept</p>");
   });

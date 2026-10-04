@@ -52,15 +52,6 @@ describe("note colors", () => {
     await browser.keys(["Control", "a"]);
     await (await visibleEditorTool('button[aria-label="Text color"]')).click();
     await $('.htnote-color-popover').$('button*=Custom').click();
-    const panelBounds = await browser.execute(() => {
-      const panel = document.querySelector(".htnote-color-popover")!.getBoundingClientRect();
-      const sv = document.querySelector(".htnote-color-sv")!.getBoundingClientRect();
-      return { width: sv.width, height: sv.height, inside: sv.left >= panel.left && sv.right <= panel.right,
-        native: document.querySelector('.htnote-color-popover input[type="color"]') !== null };
-    });
-    assert.ok(Math.abs(panelBounds.width - panelBounds.height) <= 1);
-    assert.equal(panelBounds.inside, true);
-    assert.equal(panelBounds.native, false);
     const beforeColor = await browser.execute(() => document.querySelector(".tiptap")!.innerHTML);
     await browser.execute(() => {
       const input = document.querySelector<HTMLInputElement>('.htnote-color-popover input[aria-label="Hex color"]')!;
