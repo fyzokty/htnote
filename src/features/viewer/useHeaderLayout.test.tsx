@@ -27,10 +27,10 @@ it("measures natural widths on resize and restores full metadata when space retu
       <h2 data-testid="note-title"><span data-title-natural data-width={title} /></h2>
       <span data-path-natural data-width="120" />
       <span data-saved-natural data-width="200" />
-      <span data-tag-measure data-width="70" />
+      <div data-compact-tags style={{ columnGap: "4px" }}><span data-tag-measure data-width="70" />
       <span data-tag-measure data-width="100" />
       <span data-tag-add data-width="80" />
-      <span data-tag-overflow-measure data-width="32" />
+      <span data-tag-overflow-measure data-width="32" /></div>
       <output data-testid="layout">{JSON.stringify(layout)}</output>
     </div></div>;
   }
@@ -72,10 +72,10 @@ it("folds tags before action labels, keeps the folded layout stable and restores
         <span data-path-natural data-width="100" />
         <span data-saved-natural data-width="180" />
         <span data-session-status data-width="90" />
-        <span data-tag-measure data-width="70" /><span data-tag-measure data-width="80" />
-        <span data-tag-add data-width="40" /><span data-tag-overflow-measure data-width="32" />
+        <div data-compact-tags style={{ columnGap: "4px" }}><span data-tag-measure data-width="70" /><span data-tag-measure data-width="80" />
+        <span data-tag-add data-width="40" /><span data-tag-overflow-measure data-width="32" /></div>
       </div>
-      <div data-header-actions><span data-action-text data-action-priority="1" data-width="150" style={{ visibility: layout.compactLevel >= 1 ? "hidden" : "visible" }} /></div>
+      <div data-header-actions data-width="400"><span data-action-text data-action-priority="1" data-width="150" style={{ visibility: layout.compactLevel >= 1 ? "hidden" : "visible" }} /></div>
       <output data-testid="layout">{JSON.stringify(layout)}</output>
     </div>;
   }

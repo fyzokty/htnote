@@ -69,6 +69,8 @@ describe("App", () => {
     mockIPC((command) => {
       if (command === "get_settings") return defaults;
       if (command === "update_settings") return { ...defaults, language: "en" };
+      if (command === "get_root_dir") return "C:/Notes";
+      if (command === "app_info") return { version: "0.1.0", platform: "windows" };
       return undefined;
     });
     render(<App />);

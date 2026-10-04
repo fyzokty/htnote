@@ -1,4 +1,5 @@
 import { tagColor, tagColorStyle } from "@/features/tags/tagColors";
+import { displayPath } from "@/lib/displayPath";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
 import { FilePlus2, FolderPlus, NotebookPen, Search, X } from "lucide-react";
@@ -281,7 +282,7 @@ export function AppShell() {
           >
             <div className="flex shrink-0 items-center gap-3 px-4 pt-5 pb-2">
               <span className="rounded-xl bg-app-primary p-2 text-app-accent-text"><NotebookPen className="size-5" aria-hidden /></span>
-              <div className="min-w-0"><h1 className="select-none text-lg font-semibold">{t("common.appName")}</h1>{settings?.rootDir && <p title={settings.rootDir} className="truncate text-xs text-app-muted">{settings.rootDir.replace(/[\\/]+$/, "").split(/[\\/]/).pop()}</p>}</div>
+              <div className="min-w-0"><h1 className="select-none text-lg font-semibold">{t("common.appName")}</h1>{settings?.rootDir && <p title={displayPath(settings.rootDir)} className="truncate text-xs text-app-muted">{displayPath(settings.rootDir).replace(/[\\/]+$/, "").split(/[\\/]/).pop()}</p>}</div>
             </div>
             <div className="shrink-0 space-y-3 p-3">
               <div className="htnote-sidebar-actions grid grid-cols-[minmax(56px,0.7fr)_minmax(0,1.3fr)] gap-2">

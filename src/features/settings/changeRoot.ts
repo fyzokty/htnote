@@ -1,6 +1,7 @@
 import { resolveUnsaved } from "@/features/editor/unsavedGuard";
 import { refreshTrashCount } from "@/features/trash/deleteCoordinator";
 import { ipc } from "@/lib/ipc";
+import { displayPath } from "@/lib/displayPath";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTabsStore } from "@/stores/tabsStore";
 import { useTreeStore } from "@/stores/treeStore";
@@ -10,7 +11,7 @@ export async function changeRootFlow(currentRoot: string): Promise<boolean> {
   const selected = await ipc.pickDirectory(currentRoot);
   if (!selected || selected === currentRoot) return false;
   await ipc.validateRootDir(selected);
-  if (!await useUiStore.getState().confirm("settings.changeRootTitle", "settings.changeRootWarning", { path: selected }, { variant: "primary", labelKey: "ui.confirm" })) return false;
+  if (!await useUiStore.getState().confirm("settings.changeRootTitle", "settings.changeRootWarning", { path: displayPath(selected) }, { variant: "primary", labelKey: "ui.confirm" })) return false;
 
   const ids = useTabsStore.getState().tabs.filter((tab) => !tab.special).map((tab) => tab.noteId);
   const resolution = await resolveUnsaved(ids);

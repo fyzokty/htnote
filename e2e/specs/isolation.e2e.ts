@@ -8,12 +8,22 @@ describe("note isolation", () => {
   it("blocks all seven escape attempts", async () => {
     await waitForApp();
     const hostUrl = await browser.getUrl();
-    assert.equal(new URL(hostUrl).hostname, "tauri.localhost");
+    const expectedHost = new URL(process.platform === "win32" ? "http://tauri.localhost" : "tauri://localhost");
+    const host = new URL(hostUrl);
+    // URL.origin is "null" for the tauri: scheme in Node; compare its
+    // protocol/host explicitly so a different custom origin cannot pass.
+    assert.equal(host.protocol, expectedHost.protocol);
+    assert.equal(host.host, expectedHost.host);
     const note = await $('[data-tree-key="note:3f6c2a9e-8b1d-4c57-9e0a-2d4b7f1c5e88"]');
     await note.waitForDisplayed();
     await note.click();
     const frame = await $('iframe[title="Evil Note"]');
     await frame.waitForExist();
+    const noteOrigin = new URL(await frame.getAttribute("src"));
+    assert.equal(noteOrigin.protocol, "http:");
+    assert.equal(noteOrigin.hostname, "127.0.0.1");
+    assert.ok(noteOrigin.port);
+    assert.notEqual(`${noteOrigin.protocol}//${noteOrigin.host}`, `${host.protocol}//${host.host}`);
     await browser.switchFrame(frame);
     const root = await $("html");
     await browser.waitUntil(async () => await root.getAttribute("data-done") === "true", { timeout: 30000 });
@@ -107,18 +117,24 @@ describe("note isolation", () => {
         assetProbe?: { calls: { command: string; args?: object; code?: string }[]; restore: () => void };
       };
       const original = window.fetch;
+      const api = (window as unknown as {
+        __TAURI_INTERNALS__: { convertFileSrc: (path: string, protocol: string) => string };
+      }).__TAURI_INTERNALS__;
+      // Windows uses http://ipc.localhost; WebKitGTK/WKWebView use
+      // ipc://localhost. Observe the actual platform transport, not a DNS alias.
+      const ipcUrl = new URL(api.convertFileSrc("open_note_asset", "ipc"));
       const calls: { command: string; args?: object; code?: string }[] = [];
       host.assetProbe = { calls, restore: () => { window.fetch = original; delete host.assetProbe; } };
       window.fetch = async (input, init) => {
         const url = new URL(input instanceof Request ? input.url : String(input), location.href);
         const command = decodeURIComponent(url.pathname.slice(1));
-        if (url.hostname !== "ipc.localhost" || (command !== "open_note_asset" && !command.startsWith("plugin:opener|"))) {
+        if (url.protocol !== ipcUrl.protocol || url.host !== ipcUrl.host || (command !== "open_note_asset" && !command.startsWith("plugin:opener|"))) {
           return original.call(window, input, init);
         }
         const args = JSON.parse(String(init?.body)) as object;
         const call: { command: string; args?: object; code?: string } = { command, args };
         calls.push(call);
-        // Genel opener IPC'si regresyonda bile gerÃƒÂ§ek bir program baÃ…Å¸latamaz.
+        // Suppress generic opener IPC even if a regression routes the request there.
         if (command.startsWith("plugin:opener|")) {
           return new Response(JSON.stringify({ code: "UNEXPECTED_OPENER", message: "Unexpected opener IPC" }), {
             headers: { "Content-Type": "application/json", "Tauri-Response": "error" },
@@ -136,7 +152,8 @@ describe("note isolation", () => {
       await browser.execute(() => {
         window.parent.postMessage({ type: "HTNOTE_OPEN_ASSET", relPath: "assets/../outside.pdf" }, "*");
         window.parent.postMessage({ type: "HTNOTE_OPEN_ASSET", relPath: "assets/%2e%2e/outside.pdf" }, "*");
-        // Var olmayan hedef kullanÃ„Â±lÃ„Â±r; testte ÃƒÂ§alÃ„Â±Ã…Å¸tÃ„Â±rÃ„Â±labilecek bir program yoktur.
+        // The nonexistent executable is blocked by the shared extension policy
+        // on every platform; no program can be launched by this fixture.
         window.parent.postMessage({ type: "HTNOTE_OPEN_ASSET", relPath: "assets/isolation-never-exists.exe", noteId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa" }, "*");
       });
       await browser.switchFrame(null);

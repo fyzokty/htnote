@@ -48,8 +48,14 @@ export const config = {
   async before() {
     await browser.setTimeout({ script: 60000 });
     await waitForApp();
-    assert.equal(await browser.execute(() => matchMedia("(prefers-reduced-motion: reduce)").matches), true,
-      "E2E WebView2 must start with --force-prefers-reduced-motion");
+    if (process.platform === "win32") {
+      assert.equal(await browser.execute(() => matchMedia("(prefers-reduced-motion: reduce)").matches), true,
+        "E2E WebView2 must start with --force-prefers-reduced-motion");
+    }
+    // WebKitGTK/WKWebView do not support WebView2's browser argument. Their
+    // desktop motion preference is not reliably configurable by this runner;
+    // skip the assertion there. Animations can still cause timing instability,
+    // so tests must wait for actual readiness rather than fixed delays.
     if (process.env.HTNOTE_E2E_CPU_THROTTLE) {
       const rate = Number(process.env.HTNOTE_E2E_CPU_THROTTLE);
       assert.ok(Number.isFinite(rate) && rate >= 1, "HTNOTE_E2E_CPU_THROTTLE must be >= 1");
@@ -83,7 +89,9 @@ export const config = {
       // tauri-driver and its EdgeDriver/app children inherit this E2E-only setting.
       env: {
         ...process.env,
-        WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `${process.env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS ?? ""} --force-prefers-reduced-motion`.trim(),
+        ...(process.platform === "win32" ? {
+          WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `${process.env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS ?? ""} --force-prefers-reduced-motion`.trim(),
+        } : {}),
         HTNOTE_ROOT_OVERRIDE: root,
         HTNOTE_CONFIG_DIR_OVERRIDE: configDir,
         HTNOTE_EXTERNAL_OPEN_LOG: externalLog,
