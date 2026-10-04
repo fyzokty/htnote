@@ -52,7 +52,11 @@ appearing on disk alone does not mean the editor has finished saving. Conditions
 have bounded timeouts for slower CI runners, without fixed sleeps or test retries.
 
 Settings controls use stable test IDs rather than translated button text; the
-tab sizing flow runs in both Turkish and English. Outside media clicks must leave
+tab sizing flow runs in both Turkish and English. Specs that select translated
+labels pin the language in settings (editing: `tr`, colors: `en`), because the
+default follows the OS locale and CI runs in `en-US`. Right-side media gap clicks
+stay left of a visible overlay scrollbar track, which owns clicks on its strip
+when a smaller window makes the editor scrollable. Outside media clicks must leave
 a gap cursor immediately before or after that media, keep the same position on
 mouseup, and leave its toolbar hidden. The application uses the media NodeView's
 bounds in the capture phase to place left/right clicks before/after that media.
