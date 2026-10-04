@@ -65,17 +65,20 @@
   }));
   record("traversal", results.every(Boolean));
 
-  try {
-    const response = await fetch("http://ipc.localhost/get_settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{}",
-    });
-    const body = await response.text();
-    record("ipcFetch", !response.ok || !body.includes("rootDir"));
-  } catch {
-    record("ipcFetch", true);
-  }
+  const ipcResults = await Promise.all(["http://ipc.localhost/get_settings", "ipc://localhost/get_settings"].map(async (url) => {
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const body = await response.text();
+      return !response.ok || !body.includes("rootDir");
+    } catch {
+      return true;
+    }
+  }));
+  record("ipcFetch", ipcResults.every(Boolean));
 
   document.documentElement.dataset.done = "true";
   document.title = "Isolation complete";

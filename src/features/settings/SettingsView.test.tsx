@@ -72,6 +72,20 @@ describe("SettingsView", () => {
     expect(await screen.findByText("Sürüm 0.1.0")).toBeInTheDocument();
   });
 
+  it("displays a readable root while retaining its original value for copying and IPC", async () => {
+    const root = String.raw`\\?\C:\Users\Ada\HTNote`;
+    vi.mocked(ipc.getRootDir).mockResolvedValue(root);
+    const reveal = vi.spyOn(ipc, "revealInExplorer").mockResolvedValue();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    render(<SettingsView />);
+    await screen.findByText(String.raw`C:\Users\Ada\HTNote`);
+    fireEvent.click(screen.getByRole("button", { name: "Klasörde göster" }));
+    fireEvent.click(screen.getByRole("button", { name: "Depolama yolunu kopyala" }));
+    expect(reveal).toHaveBeenCalledWith(root);
+    expect(writeText).toHaveBeenCalledWith(root);
+  });
+
   it("reveals the configured root folder", async () => {
     const reveal = vi.spyOn(ipc, "revealInExplorer").mockResolvedValue();
     render(<SettingsView />);
@@ -106,6 +120,24 @@ describe("SettingsView", () => {
 });
 
 describe("changeRootFlow", () => {
+  it("formats the selected UNC root only in the confirmation", async () => {
+    const current = String.raw`\\?\C:\Notes`;
+    const selected = String.raw`\\?\UNC\server\share\Notes`;
+    const pick = vi.spyOn(ipc, "pickDirectory").mockResolvedValue(selected);
+    const validate = vi.spyOn(ipc, "validateRootDir").mockResolvedValue();
+    const confirm = vi.spyOn(useUiStore.getState(), "confirm").mockResolvedValue(true);
+    vi.mocked(resolveUnsaved).mockResolvedValue({ resolved: new Set(), cancelled: false });
+    const setRoot = vi.spyOn(ipc, "setRootDir").mockResolvedValue({ ...settings, rootDir: selected });
+    vi.spyOn(useTreeStore.getState(), "refresh").mockResolvedValue();
+    vi.spyOn(ipc, "listTrash").mockResolvedValue([]);
+    expect(await changeRootFlow(current)).toBe(true);
+    expect(pick).toHaveBeenCalledWith(current);
+    expect(validate).toHaveBeenCalledWith(selected);
+    expect(confirm).toHaveBeenCalledWith("settings.changeRootTitle", "settings.changeRootWarning",
+      { path: String.raw`\\server\share\Notes` }, { variant: "primary", labelKey: "ui.confirm" });
+    expect(setRoot).toHaveBeenCalledWith(selected);
+    expect(useSettingsStore.getState().settings?.rootDir).toBe(selected);
+  });
   it("confirms, guards, closes tabs, switches root and refreshes", async () => {
     const order: string[] = [];
     vi.spyOn(ipc, "pickDirectory").mockImplementation(async () => { order.push("pick"); return "C:/New"; });

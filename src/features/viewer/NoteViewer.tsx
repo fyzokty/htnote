@@ -149,7 +149,7 @@ export function NoteViewer() {
                   }}
                   className="inline-block max-w-full cursor-text truncate font-semibold border-b-2 border-transparent py-0.5 outline-none hover:border-app-border focus-visible:ring-2 focus-visible:ring-app-accent rounded-sm"
                 >
-                  <span data-title-natural>{activeNote.title}</span>
+                  <span data-title-natural className="inline-block w-max">{activeNote.title}</span>
                 </h2>
               </Tooltip>
             ) : (

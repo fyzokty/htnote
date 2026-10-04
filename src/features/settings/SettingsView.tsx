@@ -11,6 +11,7 @@ import { SegmentedControl } from "@/components/ui/SegmentedControl";
 import { changeRootFlow } from "@/features/settings/changeRoot";
 import { notifyError } from "@/lib/errors";
 import { ipc } from "@/lib/ipc";
+import { displayPath } from "@/lib/displayPath";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 const repository = "https://github.com/fyzokty/htnote";
@@ -52,7 +53,7 @@ export function SettingsView({ onShowShortcuts }: { onShowShortcuts?: () => void
         <section aria-labelledby="settings-storage" className="htnote-settings-card">
           <div className="htnote-settings-card-header"><span className="htnote-settings-icon"><Folder className="size-5" aria-hidden /></span><div><h3 id="settings-storage" className="text-xl font-semibold">{t("settings.storage")}</h3><p className="text-xs text-app-muted">{t("settings.storageHint")}</p></div></div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="htnote-settings-path"><Folder className="size-4 shrink-0 text-app-muted" aria-hidden /><p className="select-text" aria-label={t("settings.storage")}>{root}</p><IconButton disabled={!root} label={t("settings.copyPath")} onClick={() => void navigator.clipboard.writeText(root).catch(notifyError)}><Copy className="size-4" aria-hidden /></IconButton></div>
+            <div className="htnote-settings-path"><Folder className="size-4 shrink-0 text-app-muted" aria-hidden /><p className="select-text" aria-label={t("settings.storage")}>{displayPath(root)}</p><IconButton disabled={!root} label={t("settings.copyPath")} onClick={() => void navigator.clipboard.writeText(root).catch(notifyError)}><Copy className="size-4" aria-hidden /></IconButton></div>
             <Button type="button" disabled={changing || !root} onClick={() => void changeRoot()} >{t("settings.changeRoot")}</Button>
             <Button type="button" disabled={!root} onClick={() => void ipc.revealInExplorer(root).catch(notifyError)} >{t("settings.showInFolder")}</Button>
           </div>

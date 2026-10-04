@@ -5,7 +5,7 @@ const measurements = { available: 1280, title: 240, path: 100, saved: 220, tags:
   actions: 560, actionSavings: [70, 45, 85, 55, 50] };
 
 describe("fitNoteHeader", () => {
-  it("preserves the note title at 1600px and removes saved text first", () => {
+  it("removes saved text first when the natural content exceeds the budget", () => {
     expect(fitNoteHeader(measurements)).toMatchObject({ title: 240, saved: 0, visibleTags: 2, compactLevel: 0 });
     expect(fitNoteHeader({ ...measurements, available: 1500 })).toMatchObject({ saved: 220, visibleTags: 2, title: 240 });
   });
@@ -33,6 +33,28 @@ describe("fitNoteHeader", () => {
   it("preserves every tag at the exact measured width including all gaps", () => {
     expect(fitNoteHeader({ available: 600, title: 140, path: 120, saved: 0,
       tags: [64, 64], add: 80, overflow: 32, actions: 100 })).toMatchObject({ visibleTags: 2, path: 120, title: 140 });
+  });
+
+  it("keeps saved text with realistic 1600px viewing widths and restores it after narrowing", () => {
+    // 1600px window minus sidebar, cards and header padding: 1282px.
+    const viewing = { available: 1282, title: 355, path: 100, saved: 177.1875,
+      tags: [99.2, 87.5375], add: 80, overflow: 32, actions: 341.8875,
+      actionSavings: [64, 0, 0, 55, 50], gap: 8, tagGap: 4, actionGap: 8 };
+    expect(fitNoteHeader(viewing)).toMatchObject({ saved: viewing.saved, visibleTags: 2, title: 355, compactLevel: 0 });
+    expect(fitNoteHeader({ ...viewing, available: 760 }).saved).toBe(0);
+    expect(fitNoteHeader(viewing).saved).toBe(viewing.saved);
+    // Exact actual sum: 1280.8125px; crossing that boundary hides metadata.
+    expect(fitNoteHeader({ ...viewing, available: 1280.8125 }).saved).toBe(viewing.saved);
+    expect(fitNoteHeader({ ...viewing, available: 1280 }).saved).toBe(0);
+  });
+
+  it("counts only existing groups and respects measured zero or larger tag gaps", () => {
+    expect(fitNoteHeader({ available: 300, title: 120, path: 0, saved: 80,
+      tags: [], add: 0, overflow: 0, actions: 84, gap: 8, actionGap: 8 }).saved).toBe(80);
+    const input = { available: 516, title: 140, path: 0, saved: 100,
+      tags: [64, 64], add: 80, overflow: 32, gap: 8, tagGap: 16 };
+    expect(fitNoteHeader(input).saved).toBe(100);
+    expect(fitNoteHeader({ ...input, available: 484, tagGap: 0 }).saved).toBe(100);
   });
 
 });
