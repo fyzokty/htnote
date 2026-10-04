@@ -1,4 +1,5 @@
 pub mod commands;
+mod system_fonts;
 mod drafts;
 mod external;
 mod export;
@@ -105,6 +106,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::app_info,
+            commands::list_system_fonts,
             commands::get_settings,
             commands::update_settings,
             commands::set_root_dir,

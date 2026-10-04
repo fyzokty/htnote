@@ -973,3 +973,9 @@ pub async fn reveal_path(path: String) -> Result<(), AppError> {
     tauri::async_runtime::spawn_blocking(move || crate::external::reveal_in_dir(std::path::Path::new(&path)))
         .await.map_err(|error| AppError::Internal(error.to_string()))?
 }
+
+#[tauri::command]
+pub async fn list_system_fonts() -> Result<Vec<String>, AppError> {
+    tauri::async_runtime::spawn_blocking(crate::system_fonts::list).await
+        .map_err(|error| AppError::Internal(error.to_string()))?
+}

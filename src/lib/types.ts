@@ -1,3 +1,5 @@
+export type SystemFonts = string[];
+
 export interface AppInfo {
   version: string;
   platform: string;

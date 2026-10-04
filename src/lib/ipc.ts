@@ -1,9 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 
-import type { AppInfo, AssetInfo, BacklinkItem, BrokenLinkItem, ExportPdfResult, ExportSingleHtmlResult, ExportZipResult, NoteData, PreviewDraftPayload, RecoveryDraft, SaveNotePayload, SaveNoteResult, SearchNotesResult, Settings, SettingsPatch, TrashItem, TreeNode, UpdateMetadataPatch, UpdateMetadataResult, WriteDraftPayload } from "@/lib/types";
+import type { SystemFonts, AppInfo, AssetInfo, BacklinkItem, BrokenLinkItem, ExportPdfResult, ExportSingleHtmlResult, ExportZipResult, NoteData, PreviewDraftPayload, RecoveryDraft, SaveNotePayload, SaveNoteResult, SearchNotesResult, Settings, SettingsPatch, TrashItem, TreeNode, UpdateMetadataPatch, UpdateMetadataResult, WriteDraftPayload } from "@/lib/types";
 
 export const ipc = {
+  listSystemFonts(): Promise<SystemFonts> {
+    return invoke<SystemFonts>("list_system_fonts");
+  },
   openExternalUrl(url: string): Promise<void> {
     return invoke<void>("open_external_url", { url });
   },

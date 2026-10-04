@@ -17,7 +17,11 @@ export const GlobalAttributes = Extension.create({
           id: { default: null },
           style: { default: null, parseHTML: (element) => {
             if (element.tagName !== "SPAN") return element.getAttribute("style");
-            const style = element.style.cssText.replace(/(?:^|;)\s*color\s*:[^;]*(?:;|$)/gi, "").trim();
+            const preserved = element.style.cssText;
+            element = element.cloneNode() as HTMLElement;
+            element.style.cssText = preserved;
+            ["color", "font-family", "font-size"].forEach((name) => element.style.removeProperty(name));
+            const style = element.style.cssText;
             return style || null;
           } },
           title: { default: null },

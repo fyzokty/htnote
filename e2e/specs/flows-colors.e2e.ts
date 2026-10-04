@@ -51,12 +51,25 @@ describe("note colors", () => {
     await editor.click();
     await browser.keys(["Control", "a"]);
     await (await visibleEditorTool('button[aria-label="Text color"]')).click();
+    await $('.htnote-color-popover').$('button*=Custom').click();
+    const panelBounds = await browser.execute(() => {
+      const panel = document.querySelector(".htnote-color-popover")!.getBoundingClientRect();
+      const sv = document.querySelector(".htnote-color-sv")!.getBoundingClientRect();
+      return { width: sv.width, height: sv.height, inside: sv.left >= panel.left && sv.right <= panel.right,
+        native: document.querySelector('.htnote-color-popover input[type="color"]') !== null };
+    });
+    assert.ok(Math.abs(panelBounds.width - panelBounds.height) <= 1);
+    assert.equal(panelBounds.inside, true);
+    assert.equal(panelBounds.native, false);
+    const beforeColor = await browser.execute(() => document.querySelector(".tiptap")!.innerHTML);
     await browser.execute(() => {
-      const input = document.querySelector<HTMLInputElement>('.htnote-color-popover input[type="color"]')!;
+      const input = document.querySelector<HTMLInputElement>('.htnote-color-popover input[aria-label="Hex color"]')!;
       Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "#3266bb");
       input.dispatchEvent(new Event("input", { bubbles: true }));
       input.dispatchEvent(new Event("change", { bubbles: true }));
     });
+    assert.equal(await browser.execute(() => document.querySelector(".tiptap")!.innerHTML), beforeColor);
+    await $('.htnote-color-popover').$('button=Apply').click();
     assert.equal(await browser.execute(() => getComputedStyle(document.querySelector(".tiptap h1 span")!).color), "rgb(50, 102, 187)");
     await $('[data-testid="code-mode"]').click();
     // CodeMirror virtualizes off-screen lines; the appearance CSS pushes main below the initial viewport.

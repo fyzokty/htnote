@@ -248,11 +248,19 @@
       "blocks": "Lists and blocks",
       "table": "Table tools",
       "media": "Media",
-      "links": "Links and insertion"
+      "links": "Links and insertion",
+      "text": "Text"
     },
     "undo": "Undo",
     "redo": "Redo",
-    "inlineCode": "Inline code"
+    "inlineCode": "Inline code",
+    "fontFamily": "Font family",
+    "fontSize": "Font size",
+    "fontSizeOptions": "Font size options",
+    "fontDefault": "Default",
+    "fontSearch": "Search fonts",
+    "fontNoResults": "No fonts found",
+    "fontSizeValue": "{{size}} px"
   },
   "errors": {
     "settingsLoad": "Settings could not be loaded.",
@@ -443,7 +451,16 @@
       "sky": "Sky",
       "lavender": "Lavender",
       "charcoal": "Charcoal"
-    }
+    },
+    "saturationBrightness": "Saturation and brightness",
+    "svValue": "Saturation {{s}}%, brightness {{v}}%",
+    "hue": "Hue",
+    "hueValue": "{{h}} degrees",
+    "hex": "Hex color",
+    "preview": "Color preview",
+    "invalidHex": "Enter a valid #rrggbb color.",
+    "recent": "Recent custom colors",
+    "apply": "Apply"
   },
   "status": {
     "saved": "Saved to disk",

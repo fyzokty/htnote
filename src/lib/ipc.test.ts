@@ -224,3 +224,10 @@ describe("external OS operations", () => {
     expect(handler).toHaveBeenCalledWith("reveal_path", { path: "C:/Exports/note.html" });
   });
 });
+
+it("lists typed system fonts via IPC", async () => {
+  const handler = vi.fn(() => ["Arial", "Consolas"]);
+  mockIPC(handler);
+  await expect(ipc.listSystemFonts()).resolves.toEqual(["Arial", "Consolas"]);
+  expect(handler).toHaveBeenCalledWith("list_system_fonts", {});
+});
