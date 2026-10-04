@@ -15,7 +15,8 @@ import { IconButton } from "@/components/ui/IconButton";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { copyFilesSequentially, fileName, mediaFor } from "@/features/editor/fileDrop";
 import { ipc } from "@/lib/ipc";
-import { formatShortcut, getPlatform } from "@/lib/shortcuts/registry";
+import { getPlatform } from "@/lib/platform";
+import { formatShortcut } from "@/lib/shortcuts/registry";
 import { useUiStore } from "@/stores/uiStore";
 
 interface EditorToolbarProps { editor: Editor; noteId?: string; onLinkNote?: () => void }

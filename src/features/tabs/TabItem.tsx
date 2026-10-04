@@ -1,6 +1,6 @@
 import type { MouseEvent, PointerEvent } from "react";
 import { useSortable } from "@dnd-kit/sortable";
-import { Settings2, Trash2, X } from "lucide-react";
+import { FileText, Settings2, Trash2, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -24,7 +24,7 @@ export function TabItem({ noteId, active, special, sizing = "fixed", isDirty = f
   const { t } = useTranslation();
   const noteTitle = useTreeStore((state) => state.findNoteById(noteId)?.title);
   const title = special ? t(`sidebar.${special}`) : noteTitle ?? t("tabs.untitled");
-  const SpecialIcon = special === "settings" ? Settings2 : Trash2;
+  const TabIcon = special === "settings" ? Settings2 : special === "trash" ? Trash2 : FileText;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: noteId, transition: { duration: 150, easing: "ease-out" } });
   const style = {
     transform: transform ? `translate3d(${transform.x}px, 0px, 0)` : undefined,
@@ -52,10 +52,10 @@ export function TabItem({ noteId, active, special, sizing = "fixed", isDirty = f
       onAuxClick={(event) => { if (event.button === 1) { event.preventDefault(); onClose(); } }}
       onContextMenu={onContextMenu}
       onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onActivate(); } }}
-      className={`htnote-tab relative select-none group flex h-full ${sizing === "fixed" ? "w-40" : "w-max min-w-28 max-w-64"} shrink-0 cursor-pointer touch-none items-center gap-2 border-r border-app-border px-3 text-sm ${active ? "border-b-2 border-b-app-accent bg-app-bg text-app-text hover:bg-app-hover" : "bg-app-surface text-app-muted hover:bg-app-subtle"}`}
+      className={`htnote-tab relative select-none group flex ${sizing === "fixed" ? "w-40" : "w-max min-w-28 max-w-64"} shrink-0 cursor-pointer touch-none items-center gap-2 text-sm`}
       style={style}
     >
-      {special && <SpecialIcon className="size-4 shrink-0 text-app-muted" aria-hidden />}
+      <TabIcon className="htnote-tab-icon size-4 shrink-0" aria-hidden />
       <Tooltip label={title} className="min-w-0 flex-1"><span className="block truncate">{title}</span></Tooltip>
       <IconButton size="sm" shortcut={formatShortcut("closeTab")}
         type="button"

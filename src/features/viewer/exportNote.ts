@@ -2,7 +2,7 @@ import { flushEditor, saveTab } from "@/features/editor/saveTab";
 import type { UnsavedDecision } from "@/features/editor/unsavedGuard";
 import { requestPrint } from "@/features/viewer/bridgeHost";
 import { ipc } from "@/lib/ipc";
-import { getPlatform } from "@/lib/shortcuts/registry";
+import { getPlatform } from "@/lib/platform";
 import { useSettingsStore } from "@/stores/settingsStore";
 import { useTabsStore } from "@/stores/tabsStore";
 import { useUiStore } from "@/stores/uiStore";
