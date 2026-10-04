@@ -9,12 +9,13 @@ import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
 import {
   Baseline, Bold, Italic, Underline, Strikethrough, List, ListOrdered, Quote, Code2,
-  Table2, Minus, Link2, Link2Off, Rows3, Columns3, Trash2, ImagePlus, Music, Video, Code, Undo2, Redo2, TextCursorInput,
+  Table2, Minus, Link2, Link2Off, Rows3, Columns3, Trash2, ImagePlus, Music, Video, Code, Undo2, Redo2,
 } from "lucide-react";
 
 import { FontFamilySelector, FontSizeSelector } from "./FontSelectors";
 import { selectedComputedStyle } from "./fonts";
 import { ToolbarGroups } from "./ToolbarGroups";
+import { InsertWidgetMenu } from "./widgets/InsertWidgetMenu";
 import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Tooltip } from "@/components/ui/Tooltip";
@@ -126,7 +127,7 @@ export function EditorToolbar({ editor, noteId = "", onLinkNote }: EditorToolbar
           {action(t("editor.blockquote"), <Quote size={16} />, () => editor.chain().focus().toggleBlockquote().run(), editor.isActive("blockquote"))}
           {action(t("editor.codeBlock"), <Code2 size={16} />, () => editor.chain().focus().toggleCodeBlock().run(), editor.isActive("codeBlock"))}
           {action(t("editor.inlineCode"), <Code size={16} />, () => editor.chain().focus().toggleCode().run(), editor.isActive("code"), !editor.can().toggleCode())}
-          {action(t("editor.textBox.insert"), <TextCursorInput size={16} />, () => editor.chain().focus().insertTextBox().run(), false, false, undefined, "insert-textbox")}
+          <InsertWidgetMenu editor={editor} />
         </div>,
         <div key="3" className="htnote-editor-group" role="group" aria-label={t("editor.groups.table")}>
           {action(t("editor.table"), <Table2 size={16} />, () => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run())}

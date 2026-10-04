@@ -1,6 +1,7 @@
 import { parse } from "parse5";
 import type { DefaultTreeAdapterTypes } from "parse5";
 import type { CSSProperties } from "react";
+import { widgetBaseCss, widgetThemeDeclarations } from "@/features/editor/widgets/widgetTheme";
 
 export const NOTE_BACKGROUNDS = ["sepia", "mint", "rose", "sky", "lavender", "charcoal"] as const;
 export type NoteBackground = "" | typeof NOTE_BACKGROUNDS[number];
@@ -25,7 +26,7 @@ export function noteBackgroundStyle(html: string): CSSProperties {
   return { background: preset ? `var(--app-note-${preset})` : "var(--app-surface)", color: "var(--app-text)" };
 }
 
-// Preset values are read from theme tokens and embedded as fallbacks for portable exports.
+// Preset renkleri tema token'larından alınır ve taşınabilir çıktıya gömülür.
 export function appearanceCss(): string {
   const tokens = getComputedStyle(document.documentElement);
   const text = (mode: "light" | "dark") => {
@@ -36,9 +37,37 @@ export function appearanceCss(): string {
     const value = tokens.getPropertyValue(`--app-note-${preset}-${mode}`).trim();
     return /^#[\da-f]{6}$/i.test(value) ? `--ht-note-${preset}:${value};` : "";
   }).join("");
-  return `:where(html){${colors("light")}${text("light")}}\n@media(prefers-color-scheme:dark){:where(html:not([data-ht-theme])){${colors("dark")}${text("dark")}}}\n:where(html[data-ht-theme="dark"]){${colors("dark")}${text("dark")}}\n` +
+  const palette = (mode: "light" | "dark") => colors(mode) + text(mode) + widgetThemeDeclarations(mode, tokens);
+  return `:where(html){${palette("light")}}\n@media(prefers-color-scheme:dark){:where(html:not([data-ht-theme])){${palette("dark")}}}\n:where(html[data-ht-theme="dark"]){${palette("dark")}}\n` +
     NOTE_BACKGROUNDS.map((preset) => `:where(html:has(body[data-ht-bg="${preset}"])){--ht-note-bg:var(--ht-note-${preset});}\n:where(body[data-ht-bg="${preset}"]){--ht-bg:var(--ht-note-${preset});}`).join("\n") +
-    '\n:where(html:has(body[data-ht-bg])){background:var(--ht-note-bg,var(--ht-bg));}\n:where(body[data-ht-bg]){background:var(--ht-bg);color:var(--ht-text);}';
+    '\n:where(html:has(body[data-ht-bg])){background:var(--ht-note-bg,var(--ht-bg));}\n:where(body[data-ht-bg]){background:var(--ht-bg);color:var(--ht-text);}' + widgetBaseCss +
+    NOTE_BACKGROUNDS.map((preset) => `\n:where([data-htnote-widget][data-htnote-bg="${preset}"]){background:var(--ht-note-${preset});}`).join("");
+}
+
+function hasPresetWidget(html: string): boolean {
+  const tree = parse(html);
+  function visit(node: DefaultTreeAdapterTypes.Node): boolean {
+    if ("tagName" in node && node.attrs.some(({ name }) => name === "data-htnote-widget") &&
+      node.attrs.some(({ name, value }) => name === "data-htnote-bg" && NOTE_BACKGROUNDS.includes(value as typeof NOTE_BACKGROUNDS[number]))) return true;
+    return "childNodes" in node && node.childNodes.some(visit);
+  }
+  return visit(tree);
+}
+
+export function syncAppearanceStyle(html: string): string {
+  const needed = !!readNoteBackground(html) || hasPresetWidget(html);
+  const style = findElement(html, "style", "htnote-appearance")?.sourceCodeLocation;
+  if (!needed && !style) return html;
+  const stylesheet = `<style id="htnote-appearance">${appearanceCss()}</style>`;
+  if (needed && style && html.slice(style.startOffset, style.endOffset) === stylesheet) return html;
+  const updated = style ? html.slice(0, style.startOffset) + html.slice(style.endOffset) : html;
+  if (!needed) return updated;
+  const headStart = findElement(updated, "head")?.sourceCodeLocation?.startTag?.endOffset;
+  if (headStart === undefined) {
+    const bodyStart = findElement(updated, "body")?.sourceCodeLocation?.startOffset ?? 0;
+    return updated.slice(0, bodyStart) + stylesheet + updated.slice(bodyStart);
+  }
+  return updated.slice(0, headStart) + stylesheet + updated.slice(headStart);
 }
 
 export function writeNoteBackground(html: string, value: string): string {
@@ -50,14 +79,5 @@ export function writeNoteBackground(html: string, value: string): string {
   let updated = attr ? html.slice(0, attr.startOffset) + html.slice(attr.endOffset) : html;
   const insertion = startTag.endOffset - 1 - (attr ? attr.endOffset - attr.startOffset : 0);
   if (value) updated = updated.slice(0, insertion) + ` data-ht-bg="${value}"` + updated.slice(insertion);
-  const style = findElement(updated, "style", "htnote-appearance")?.sourceCodeLocation;
-  if (style) updated = updated.slice(0, style.startOffset) + updated.slice(style.endOffset);
-  if (!value) return updated;
-  const headStart = findElement(updated, "head")?.sourceCodeLocation?.startTag?.endOffset;
-  const stylesheet = `<style id="htnote-appearance">${appearanceCss()}</style>`;
-  if (headStart === undefined) {
-    const bodyStart = findElement(updated, "body")!.sourceCodeLocation!.startOffset;
-    return updated.slice(0, bodyStart) + stylesheet + updated.slice(bodyStart);
-  }
-  return updated.slice(0, headStart) + stylesheet + updated.slice(headStart);
+  return syncAppearanceStyle(updated);
 }

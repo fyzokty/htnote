@@ -261,6 +261,10 @@
     "fontSearch": "Search fonts",
     "fontNoResults": "No fonts found",
     "fontSizeValue": "{{size}} px",
+    "widgets": {
+      "insert": "Insert widget",
+      "background": "Widget background"
+    },
     "textBox": {
       "insert": "Text box",
       "title": "Title",
@@ -478,6 +482,9 @@
     "words_other": "{{value}} words",
     "characters_one": "{{value}} character",
     "characters_other": "{{value}} characters"
+  },
+  "widgetTypes": {
+    "textbox": "TEXT BOX"
   },
   "textBox": {
     "copy": "Copy",

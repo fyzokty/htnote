@@ -5,6 +5,29 @@ import { getNoteThemeVars, resolveThemeMode } from "@/lib/theme";
 const keys = ["--ht-bg", "--ht-text", "--ht-accent", "--ht-font", "--ht-muted", "--ht-border", "--ht-code-bg", "--ht-reduced-motion", "--ht-motion-duration", "--ht-motion-easing"];
 
 describe("getNoteThemeVars", () => {
+  it("passes widget tokens and background palettes for the requested mode without altering note accent", () => {
+    const root = document.documentElement;
+    for (const mode of ["light", "dark"] as const) {
+      root.style.setProperty(`--app-widget-accent-${mode}`, `${mode}-widget-accent`);
+      root.style.setProperty(`--app-widget-divider-${mode}`, `${mode}-widget-divider`);
+      root.style.setProperty(`--app-note-mint-${mode}`, `${mode}-mint`);
+    }
+    try {
+      for (const mode of ["light", "dark"] as const) {
+        const vars = getNoteThemeVars(mode);
+        expect(vars["--ht-widget-accent"]).toBe(`${mode}-widget-accent`);
+        expect(vars["--ht-widget-divider"]).toBe(`${mode}-widget-divider`);
+        expect(vars["--ht-note-mint"]).toBe(`${mode}-mint`);
+        expect(vars["--ht-accent"]).not.toBe(vars["--ht-widget-accent"]);
+      }
+    } finally {
+      for (const mode of ["light", "dark"]) {
+        root.style.removeProperty(`--app-widget-accent-${mode}`);
+        root.style.removeProperty(`--app-widget-divider-${mode}`);
+        root.style.removeProperty(`--app-note-mint-${mode}`);
+      }
+    }
+  });
   it("takes the exact note surface and text from the requested app theme", () => {
     const root = document.documentElement;
     root.style.setProperty("--app-surface-dark", "#234567");

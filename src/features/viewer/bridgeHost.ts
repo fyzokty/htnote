@@ -157,7 +157,7 @@ function currentTheme() {
   }
   const audioLabels = Object.fromEntries((["play", "pause", "mute", "unmute", "seek", "title", "error"] as const).map((key) => [key, i18n.t(`audioPlayer.${key}`)]));
   const labels = Object.fromEntries((["copy", "copied", "copyFailed", "reset"] as const).map((key) => [key, i18n.t(`textBox.${key}`)]));
-  return { type: "HTNOTE_THEME", vars, mode, audioLabels, labels };
+  return { type: "HTNOTE_THEME", vars, mode, audioLabels, labels: { ...labels, textboxType: i18n.t("widgetTypes.textbox") } };
 }
 
 function sendTheme(frame: Window) {

@@ -105,14 +105,31 @@
   const boxStyle = document.createElement("style");
   boxStyle.id = "htnote-textbox-base";
   boxStyle.textContent = `
-  :where(.htnote-textbox){position:relative;box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-border);border-radius:12px;color:var(--ht-text);background:var(--ht-bg)}
-  :where(.htnote-textbox-title){font-weight:600;min-height:1lh;margin-bottom:8px;padding-right:12rem;white-space:pre-wrap;overflow-wrap:anywhere}
-  :where(.htnote-textbox-input){display:block;box-sizing:border-box;width:100%;min-height:4.8em;field-sizing:content;resize:vertical;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;color:inherit;background:transparent;border:0;overflow-y:hidden}
-  .htnote-textbox-actions{position:absolute;top:8px;right:8px;display:flex;gap:4px;font:12px/1.4 var(--ht-font,system-ui,sans-serif)}
-  .htnote-textbox-actions button{border:1px solid var(--ht-border);border-radius:8px;padding:4px 8px;color:var(--ht-text);background:var(--ht-bg);cursor:pointer}
-  .htnote-textbox-actions button:hover{background:var(--ht-code-bg)}
-  .htnote-textbox-actions button:disabled{opacity:.45;cursor:default}
-  .htnote-textbox-actions button:focus-visible{outline:2px solid var(--ht-accent);outline-offset:2px}
+  :where(html){--ht-widget-surface:#ffffff;--ht-widget-text:#0d1c2e;--ht-widget-accent:#4648d4;--ht-widget-border:#7b8598;--ht-widget-divider:#e0e3ee;--ht-widget-muted:#464554;--ht-widget-field:#f8f9ff;--ht-widget-hover:#e6eeff;--ht-note-sepia:#faf3e5;--ht-note-mint:#eaf5ee;--ht-note-rose:#faedf1;--ht-note-sky:#edf4fc;--ht-note-lavender:#f2eefb;--ht-note-charcoal:#e9edf2;}
+  @media(prefers-color-scheme:dark){:where(html:not([data-ht-theme])){--ht-widget-surface:#101623;--ht-widget-text:#f1f5f9;--ht-widget-accent:#a5a6ff;--ht-widget-border:#78849b;--ht-widget-divider:#303647;--ht-widget-muted:#a8b6cc;--ht-widget-field:#0d1220;--ht-widget-hover:#222c40;--ht-note-sepia:#302b23;--ht-note-mint:#23352b;--ht-note-rose:#35252d;--ht-note-sky:#243043;--ht-note-lavender:#2e2940;--ht-note-charcoal:#171d25;}}
+  :where(html[data-ht-theme="dark"]){--ht-widget-surface:#101623;--ht-widget-text:#f1f5f9;--ht-widget-accent:#a5a6ff;--ht-widget-border:#78849b;--ht-widget-divider:#303647;--ht-widget-muted:#a8b6cc;--ht-widget-field:#0d1220;--ht-widget-hover:#222c40;--ht-note-sepia:#302b23;--ht-note-mint:#23352b;--ht-note-rose:#35252d;--ht-note-sky:#243043;--ht-note-lavender:#2e2940;--ht-note-charcoal:#171d25;}
+
+:where(.htnote-textbox){position:relative;box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:12px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff)}
+:where(.htnote-textbox-input){box-sizing:border-box;width:100%;padding:8px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff)}
+:where(.htnote-textbox-title){font-weight:700;min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+:where(.htnote-textbox-input){display:block;min-height:4.8em;field-sizing:content;resize:vertical;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-y:hidden}
+:where(.htnote-textbox-input:focus-visible){outline:2px solid var(--ht-widget-accent,#4648d4);outline-offset:2px}
+
+  :where([data-htnote-widget][data-htnote-bg="sepia"]){background:var(--ht-note-sepia);}
+  :where([data-htnote-widget][data-htnote-bg="mint"]){background:var(--ht-note-mint);}
+  :where([data-htnote-widget][data-htnote-bg="rose"]){background:var(--ht-note-rose);}
+  :where([data-htnote-widget][data-htnote-bg="sky"]){background:var(--ht-note-sky);}
+  :where([data-htnote-widget][data-htnote-bg="lavender"]){background:var(--ht-note-lavender);}
+  :where([data-htnote-widget][data-htnote-bg="charcoal"]){background:var(--ht-note-charcoal);}
+  :where(.htnote-widget-header){display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-family:var(--ht-font,system-ui,sans-serif)}
+  :where(.htnote-widget-type){display:inline-flex;align-items:center;gap:6px;min-width:0;color:var(--ht-widget-muted,#464554);font-size:11px;font-weight:700;letter-spacing:.04em}
+  :where(.htnote-widget-type svg){width:14px;height:14px;flex-shrink:0;color:var(--ht-widget-accent,#4648d4)}
+  :where(.htnote-widget-actions){display:flex;flex-shrink:0;gap:4px;font:12px/1.4 var(--ht-font,system-ui,sans-serif)}
+  .htnote-widget-actions button{border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;padding:4px 8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);cursor:pointer}
+  .htnote-widget-actions button:hover{background:var(--ht-widget-hover,#e6eeff)}
+  .htnote-widget-actions button:disabled{opacity:.45;cursor:default}
+  .htnote-widget-actions button:focus-visible{outline:2px solid var(--ht-widget-accent,#4648d4);outline-offset:2px}
+  .htnote-widget-actions button[data-feedback="copied"]{color:var(--ht-widget-accent,#4648d4)}
   .htnote-textbox-print{display:none;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;margin:0}
   @media print{.htnote-textbox-actions,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}.htnote-textbox-title{padding-right:0}.htnote-textbox{break-inside:auto}}
   ${printing ? ".htnote-textbox-actions,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}" : ""}
@@ -120,23 +137,47 @@
   document.head.append(boxStyle);
   const textBoxes = new WeakMap();
   let boxLabels = {};
+  // Tür satırı gelecekteki widget'larda da aynı DOM ve etiket güncellemesini paylaşır.
+  function createWidgetHeader(box, labelKey, iconPaths, actions) {
+    const header = document.createElement("div"), type = document.createElement("span"), label = document.createElement("span");
+    header.className = "htnote-widget-header";
+    header.dataset.htnoteWidgetHeader = "true";
+    type.className = "htnote-widget-type";
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    for (const [name, value] of Object.entries({ viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" })) svg.setAttribute(name, value);
+    iconPaths.forEach((d) => {
+      const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      path.setAttribute("d", d);
+      svg.append(path);
+    });
+    type.append(svg, label);
+    header.append(type, actions);
+    box.prepend(header);
+    return () => {
+      const text = boxLabels[labelKey] || "";
+      if (label.textContent !== text) label.textContent = text;
+    };
+  }
   function enhanceTextBox(box) {
     if (textBoxes.has(box)) return;
     const input = box.querySelector(":scope > textarea.htnote-textbox-input");
     if (!input) return;
     const actions = document.createElement("div");
-    actions.className = "htnote-textbox-actions";
+    actions.className = "htnote-widget-actions htnote-textbox-actions";
     const copy = document.createElement("button"), reset = document.createElement("button");
     copy.type = reset.type = "button";
     copy.dataset.testid = "textbox-copy"; reset.dataset.testid = "textbox-reset";
     actions.append(copy, reset);
+    const updateHeader = createWidgetHeader(box, "textboxType", ["M5 4h14", "M12 4v16", "M8 20h8"], actions);
     const mirror = document.createElement("pre");
     mirror.className = "htnote-textbox-print";
     mirror.setAttribute("aria-hidden", "true");
     let feedback = "copy", timer;
     const update = () => {
+      updateHeader();
       if (copy.textContent !== (boxLabels[feedback] || "")) copy.textContent = boxLabels[feedback] || "";
       if (reset.textContent !== (boxLabels.reset || "")) reset.textContent = boxLabels.reset || "";
+      copy.dataset.feedback = feedback;
       reset.disabled = input.value === input.defaultValue;
       // Aynı metin gözlemci döngüsü oluşturmasın.
       if (mirror.textContent !== input.value) mirror.textContent = input.value;
@@ -176,7 +217,7 @@
     reset.addEventListener("click", () => { input.value = input.defaultValue; update(); });
     input.addEventListener("input", update);
     textBoxes.set(box, { update });
-    box.append(actions, mirror);
+    box.append(mirror);
     update();
   }
   function scanTextBoxes(node) {
@@ -522,7 +563,7 @@
     if (e.source !== window.parent || !e.data || typeof e.data !== "object") return;
     const { type, vars, mode, query, scrollY, token, contentWidth, audioLabels: labels, labels: widgetLabels } = e.data;
     if (type === "HTNOTE_THEME" && widgetLabels && typeof widgetLabels === "object" && !Array.isArray(widgetLabels)) {
-      for (const key of ["copy", "copied", "copyFailed", "reset"]) {
+      for (const key of ["copy", "copied", "copyFailed", "reset", "textboxType"]) {
         if (typeof widgetLabels[key] === "string" && widgetLabels[key].length <= 200) boxLabels[key] = widgetLabels[key];
       }
       document.querySelectorAll('[data-htnote-widget="textbox"]').forEach((box) => textBoxes.get(box)?.update());

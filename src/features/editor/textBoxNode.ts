@@ -16,7 +16,7 @@ export const TextBox = Node.create({
   selectable: true,
   draggable: true,
   addAttributes() {
-    return { title: { default: "" }, content: { default: "" }, html: { default: null } };
+    return { title: { default: "" }, content: { default: "" }, html: { default: null }, background: { default: "" } };
   },
   parseHTML() {
     return [{ tag: "htnote-textbox-node[data-box]", getAttrs: (element) => JSON.parse(element.getAttribute("data-box") ?? "{}") }];
@@ -36,7 +36,7 @@ export const TextBox = Node.create({
   },
   addNodeView() {
     return ReactNodeViewRenderer(TextBoxView, {
-      stopEvent: ({ event }) => event.target instanceof Element && !!event.target.closest("input,textarea"),
+      stopEvent: ({ event }) => event.target instanceof Element && !!event.target.closest("input,textarea,button,.htnote-color-popover"),
       ignoreMutation: () => true,
     });
   },

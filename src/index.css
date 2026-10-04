@@ -32,6 +32,25 @@
   --app-note-charcoal-dark: #171d25;
   --app-note-charcoal: var(--app-note-charcoal-light);
 
+  --app-widget-surface-light: #ffffff;
+  --app-widget-surface-dark: #101623;
+  --app-widget-text-light: #0d1c2e;
+  --app-widget-text-dark: #f1f5f9;
+  --app-widget-accent-light: #4648d4;
+  --app-widget-accent-dark: #a5a6ff;
+  --app-widget-border-light: #7b8598;
+  --app-widget-border-dark: #78849b;
+  --app-widget-divider-light: #e0e3ee;
+  --app-widget-divider-dark: #303647;
+  --app-widget-muted-light: #464554;
+  --app-widget-muted-dark: #a8b6cc;
+  --app-widget-field-light: #f8f9ff;
+  --app-widget-field-dark: #0d1220;
+  --app-widget-hover-light: #e6eeff;
+  --app-widget-hover-dark: #222c40;
+  --app-widget-border: var(--app-widget-border-light);
+  --app-widget-divider: var(--app-widget-divider-light);
+  --app-widget-field: var(--app-widget-field-light);
   --app-bg: #f8f9ff;
   --app-surface-light: #f8f9ff;
   --app-surface-dark: #101623;
@@ -107,6 +126,9 @@
   --app-note-lavender: var(--app-note-lavender-dark);
   --app-note-charcoal: var(--app-note-charcoal-dark);
 
+  --app-widget-border: var(--app-widget-border-dark);
+  --app-widget-divider: var(--app-widget-divider-dark);
+  --app-widget-field: var(--app-widget-field-dark);
   --app-bg: #0d1220;
   --app-surface: var(--app-surface-dark);
   --app-text: var(--app-text-dark);
@@ -714,10 +736,17 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 .htnote-toolbar-measure { position: absolute; visibility: hidden; pointer-events: none; width: max-content; }
 
 /* Metin kutusu alanları atom node içinde yerel form kontrolleridir. */
-.htnote-textbox-editor { position: relative; margin: 16px 0; padding: 12px; border: 1px solid var(--app-border); border-radius: 12px; background: var(--app-card); }
+.htnote-textbox-editor { position: relative; margin: 16px 0; padding: 12px; border: 1px solid var(--app-widget-border); border-radius: 12px; background: var(--app-card); color: var(--app-text); }
 .htnote-textbox-editor.is-selected { outline: 2px solid var(--app-focus); outline-offset: 2px; }
-.htnote-textbox-editor input, .htnote-textbox-editor textarea { display: block; box-sizing: border-box; width: 100%; background: transparent; color: var(--app-text); border: 0; padding: 4px; }
-.htnote-textbox-editor input { font-weight: 600; padding-right: 20px; margin-bottom: 8px; }
+.htnote-textbox-editor input, .htnote-textbox-editor textarea { display: block; box-sizing: border-box; width: 100%; color: var(--app-text); border-radius: 8px; padding: 8px; }
+.htnote-textbox-editor input { font-weight: 700; margin-bottom: 8px; border: 0; background: transparent; }
+.htnote-textbox-editor input:hover { background: var(--app-hover); }
+.htnote-textbox-editor textarea { background: var(--app-widget-field); border: 1px solid var(--app-widget-border); }
 .htnote-textbox-editor textarea { field-sizing: content; min-height: 4.8em; resize: vertical; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; }
-.htnote-textbox-editor input:focus-visible, .htnote-textbox-editor textarea:focus-visible, .htnote-textbox-handle:focus-visible { outline: 2px solid var(--app-focus); border-radius: 4px; }
-.htnote-textbox-handle { position: absolute; top: 12px; right: 12px; width: 16px; height: 20px; cursor: grab; border-radius: 4px; background: radial-gradient(circle, var(--app-muted) 1px, transparent 1.5px) 0 0 / 5px 5px; }
+.htnote-textbox-editor input:focus-visible, .htnote-textbox-editor textarea:focus-visible, .htnote-widget-handle:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+.htnote-widget-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.htnote-widget-type { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--app-muted); font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+.htnote-widget-type > span { display: flex; color: var(--app-accent); }
+.htnote-widget-tools { display: flex; flex-shrink: 0; align-items: center; gap: 8px; }
+.htnote-widget-handle { display: inline-block; width: 16px; height: 20px; cursor: grab; border-radius: 4px; background: radial-gradient(circle, var(--app-muted) 1px, transparent 1.5px) 0 0 / 5px 5px; }
+.htnote-widget-background-swatch { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--app-widget-border); }

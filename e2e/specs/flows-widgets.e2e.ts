@@ -12,7 +12,8 @@ describe("text box widget", () => {
     const note = await createNote("Textbox round trip");
     await openNote(note.id);
     await editNote();
-    await (await visibleEditorTool('[data-testid="insert-textbox"]')).click();
+    await (await visibleEditorTool('[data-testid="insert-widget"]')).click();
+    await $('[data-testid="insert-textbox"]').click();
     const title = await $('[data-testid="textbox-title"]');
     const content = await $('[data-testid="textbox-content"]');
     await title.waitForDisplayed();
@@ -23,8 +24,24 @@ describe("text box widget", () => {
     assert.equal(await browser.execute(() => document.activeElement?.getAttribute("data-testid")), "textbox-content");
     const saved = "Saved first line\n<saved> & last line";
     await content.setValue(saved);
+    await $('.htnote-widget-tools button').click();
+    const mint = await $('.htnote-color-popover button[aria-label="Nane"], .htnote-color-popover button[aria-label="Mint"]');
+    await mint.waitForDisplayed();
+    await mint.click();
     const html = await saveAndView(note.id, (value) => value.includes("Widget title") && value.includes("&lt;saved&gt; &amp; last line"));
-    assert.match(html, /<div class="htnote-textbox" data-htnote-widget="textbox">/);
+    assert.match(html, /<div class="htnote-textbox" data-htnote-widget="textbox" data-htnote-bg="mint">/);
+    const savedDocument = await browser.execute((source) => {
+      const doc = new DOMParser().parseFromString(source, "text/html");
+      return { bodyBackground: doc.body.getAttribute("data-ht-bg"), appearance: doc.getElementById("htnote-appearance")?.textContent };
+    }, html);
+    assert.equal(savedDocument.bodyBackground, null);
+    assert.ok(savedDocument.appearance?.includes("--ht-note-mint:"));
+    const exportedPath = join(root, "widget-export.html");
+    await invoke("export_single_html", { id: note.id, targetPath: exportedPath });
+    const exported = (await waitForFile(exportedPath)).toString();
+    assert.ok(exported.includes('data-htnote-bg="mint"'));
+    assert.ok(exported.includes("--ht-note-mint:"));
+    assert.ok(!exported.includes("/__htnote/bridge.js"));
     assert.match(html, /<textarea class="htnote-textbox-input" spellcheck="false" rows="3">Saved first line\n&lt;saved&gt; &amp; last line<\/textarea>/);
     assert.ok(!html.includes("htnote-textbox-actions"));
     assert.ok(!html.includes("htnote-textbox-node"));
@@ -84,6 +101,9 @@ describe("text box widget", () => {
     await editNote();
     assert.equal(await $('[data-testid="textbox-title"]').getValue(), "Widget title");
     assert.equal(await $('[data-testid="textbox-content"]').getValue(), saved);
+    await $('.htnote-widget-tools button').click();
+    assert.equal(await $('.htnote-color-popover button[aria-label="Nane"], .htnote-color-popover button[aria-label="Mint"]').getAttribute("aria-pressed"), "true");
+    await browser.keys("Escape");
     await $('[data-testid="cancel-edit"]').click();
   });
 });

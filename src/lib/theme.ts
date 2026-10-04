@@ -1,5 +1,7 @@
 import { COLOR_NAMES } from "@/lib/colors";
 import type { Theme } from "@/lib/types";
+import { NOTE_BACKGROUNDS } from "@/features/viewer/noteAppearance";
+import { WIDGET_THEME_TOKENS } from "@/features/editor/widgets/widgetTheme";
 
 export type ThemeMode = "light" | "dark";
 
@@ -43,6 +45,14 @@ export function getNoteThemeVars(mode: ThemeMode): Record<string, string> {
   for (const name of COLOR_NAMES) {
     const value = style.getPropertyValue(`--app-color-${name}`).trim();
     if (value) vars[`--ht-color-${name}`] = value;
+  }
+  for (const name of WIDGET_THEME_TOKENS) {
+    const value = style.getPropertyValue(`--app-widget-${name}-${mode}`).trim();
+    if (value) vars[`--ht-widget-${name}`] = value;
+  }
+  for (const preset of NOTE_BACKGROUNDS) {
+    const value = style.getPropertyValue(`--app-note-${preset}-${mode}`).trim();
+    if (value) vars[`--ht-note-${preset}`] = value;
   }
   for (const token of ["scrollbar", "scrollbar-hover"]) {
     const value = style.getPropertyValue(`--app-${token}-${mode}`).trim();

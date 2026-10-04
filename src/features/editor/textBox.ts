@@ -2,9 +2,10 @@ import { parseFragment } from "parse5";
 import type { DefaultTreeAdapterTypes } from "parse5";
 import type { Editor } from "@tiptap/core";
 import { TextSelection } from "@tiptap/pm/state";
+import { readWidgetBackground, serializeWidgetBackground, WIDGET_BACKGROUND_ATTRIBUTE, type WidgetBackground } from "./widgets/widgetBackground";
 
 type Element = DefaultTreeAdapterTypes.Element;
-export interface TextBoxAttributes { title: string; content: string; html: string | null }
+export interface TextBoxAttributes { title: string; content: string; html: string | null; background?: WidgetBackground }
 
 function exactAttributes(element: Element, expected: Record<string, string>): boolean {
   return element.attrs.length === Object.keys(expected).length &&
@@ -17,8 +18,10 @@ export function readTextBox(html: string): TextBoxAttributes | null {
   const fragment = parseFragment(html, { sourceCodeLocationInfo: true, onParseError: ({ code }) => { if (code !== "control-character-reference") invalid = true; } });
   if (invalid) return null;
   const box = fragment.childNodes[0];
-  if (fragment.childNodes.length !== 1 || !box || !("tagName" in box) || box.tagName !== "div" ||
-    !exactAttributes(box, { class: "htnote-textbox", "data-htnote-widget": "textbox" })) return null;
+  if (fragment.childNodes.length !== 1 || !box || !("tagName" in box) || box.tagName !== "div") return null;
+  const background = readWidgetBackground(box.attrs.find(({ name }) => name === WIDGET_BACKGROUND_ATTRIBUTE)?.value);
+  if (background === null || !exactAttributes(box, { class: "htnote-textbox", "data-htnote-widget": "textbox",
+    ...(background ? { [WIDGET_BACKGROUND_ATTRIBUTE]: background } : {}) })) return null;
   const children = box.childNodes.filter((child) => !("value" in child) || child.value.trim());
   if (children.length !== 2) return null;
   const [title, input] = children;
@@ -35,7 +38,7 @@ export function readTextBox(html: string): TextBoxAttributes | null {
   }
   if (title.childNodes.some((child) => child.nodeName !== "#text") || input.childNodes.some((child) => child.nodeName !== "#text")) return null;
   const text = (element: Element) => element.childNodes.map((child) => "value" in child ? child.value : "").join("");
-  return { title: text(title), content: text(input), html };
+  return { title: text(title), content: text(input), html, background };
 }
 
 export function escapeTextBoxText(value: string): string {
@@ -43,11 +46,11 @@ export function escapeTextBoxText(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\r/g, "&#13;").replace(/^\n/, "&#10;");
 }
 
-export function serializeTextBox({ title, content, html }: TextBoxAttributes): string {
+export function serializeTextBox({ title, content, html, background = "" }: TextBoxAttributes): string {
   const original = html === null ? null : readTextBox(html);
-  if (original && original.title === title && original.content === content) return html!;
+  if (original && original.title === title && original.content === content && original.background === background) return html!;
   // Boş başlık da daima yazılır; biçim tek ve öngörülebilirdir.
-  return `<div class="htnote-textbox" data-htnote-widget="textbox"><div class="htnote-textbox-title">${escapeTextBoxText(title)}</div><textarea class="htnote-textbox-input" spellcheck="false" rows="3">${content.startsWith("\n") ? "\n" : ""}${escapeTextBoxText(content)}</textarea></div>`;
+  return `<div class="htnote-textbox" data-htnote-widget="textbox"${serializeWidgetBackground(background)}><div class="htnote-textbox-title">${escapeTextBoxText(title)}</div><textarea class="htnote-textbox-input" spellcheck="false" rows="3">${content.startsWith("\n") ? "\n" : ""}${escapeTextBoxText(content)}</textarea></div>`;
 }
 
 export function leaveTextBox(editor: Editor, position: number, size: number, direction: -1 | 1): void {

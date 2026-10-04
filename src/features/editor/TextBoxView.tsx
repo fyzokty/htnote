@@ -2,7 +2,9 @@ import { useRef } from "react";
 import { NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
 import { useTranslation } from "react-i18next";
+import { TextCursorInput } from "lucide-react";
 import { leaveTextBox, textBoxBoundary } from "./textBox";
+import { WidgetHeader } from "./widgets/WidgetHeader";
 
 export function TextBoxView({ node, updateAttributes, editor, getPos, selected }: NodeViewProps) {
   const { t } = useTranslation();
@@ -13,10 +15,12 @@ export function TextBoxView({ node, updateAttributes, editor, getPos, selected }
       if (event.shiftKey || event.key.toLowerCase() === "y") editor.commands.redo(); else editor.commands.undo();
     }
   };
-  return <NodeViewWrapper className={`htnote-textbox-editor${selected ? " is-selected" : ""}`} contentEditable={false}>
-    <span className="htnote-textbox-handle" data-drag-handle draggable="true" role="button" tabIndex={0}
-      aria-label={t("editor.textBox.select")} onClick={() => { const position = getPos(); if (position !== undefined) editor.chain().focus().setNodeSelection(position).run(); }}
-      onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); const position = getPos(); if (position !== undefined) editor.chain().focus().setNodeSelection(position).run(); } }} />
+  return <NodeViewWrapper className={`htnote-textbox-editor${selected ? " is-selected" : ""}`} contentEditable={false}
+    style={{ background: node.attrs.background ? `var(--app-note-${node.attrs.background})` : undefined }}>
+    <WidgetHeader icon={<TextCursorInput size={14} />} label={t("widgetTypes.textbox")}
+      background={node.attrs.background} onBackgroundChange={(background) => updateAttributes({ background })}
+      selectLabel={t("editor.textBox.select")}
+      onSelect={() => { const position = getPos(); if (position !== undefined) editor.chain().focus().setNodeSelection(position).run(); }} />
     <input data-testid="textbox-title" aria-label={t("editor.textBox.title")} placeholder={t("editor.textBox.title")}
       value={String(node.attrs.title)} spellCheck={false}
       onChange={(event) => updateAttributes({ title: event.target.value, html: null })}
