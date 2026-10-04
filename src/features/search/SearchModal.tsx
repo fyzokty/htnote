@@ -1,3 +1,4 @@
+import { useDialogActive, useDialogBackdrop } from "@/components/ui/useDialogPresence";
 import { FileText, Search, X, CircleX } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
@@ -21,6 +22,8 @@ function HighlightTitle({ title, query }: { title: string; query: string }) {
 }
 
 export function SearchModal() {
+  const active = useDialogActive();
+  const backdrop = useDialogBackdrop();
   const { t } = useTranslation();
   const closeSearch = useUiStore((state) => state.closeSearch);
   const { query, setQuery, results, indexing, loading, error } = useSearch();
@@ -29,11 +32,12 @@ export function SearchModal() {
   const panel = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    if (!active) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     input.current?.focus();
     input.current?.select();
     return () => previous?.focus();
-  }, []);
+  }, [active]);
 
   async function open(result: SearchResult, background = false) {
     try { await ipc.readNote(result.id); }
@@ -67,8 +71,8 @@ export function SearchModal() {
   }
 
   return (
-    <div role="presentation" className="htnote-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center" onMouseDown={(event) => { if (event.target === event.currentTarget) closeSearch(); }}>
-      <div ref={panel} role="dialog" aria-modal="true" aria-label={t("search.title")} onKeyDown={onKeyDown} className="htnote-dialog-surface htnote-search flex flex-col">
+    <div {...backdrop} role="presentation" className="htnote-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center" onMouseDown={(event) => { if (event.target === event.currentTarget) closeSearch(); }}>
+      <div ref={panel} role="dialog" aria-modal="true" aria-label={t("search.title")} onKeyDown={active ? onKeyDown : undefined} className="htnote-dialog-surface htnote-search flex flex-col">
         <div className="htnote-search-header">
           <Search className="size-4 text-app-accent" aria-hidden />
           <h2 className="flex-1 text-sm font-semibold">{t("search.title")}</h2>

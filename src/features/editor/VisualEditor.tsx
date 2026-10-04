@@ -1,3 +1,4 @@
+import { DialogPresence } from "@/components/ui/DialogPresence";
 import type { CSSProperties } from "react";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
@@ -206,7 +207,7 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
             }
           }} />
       </div>
-      {pickerOpen && <NotePicker currentNoteId={noteId} onSelect={selectNote} onClose={() => setPickerOpen(false)} />}
+      <DialogPresence>{pickerOpen && <NotePicker currentNoteId={noteId} onSelect={selectNote} onClose={() => setPickerOpen(false)} />}</DialogPresence>
     </section>
   );
 });

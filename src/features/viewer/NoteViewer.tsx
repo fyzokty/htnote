@@ -1,3 +1,4 @@
+import { useReducedMotion } from "@/components/ui/useDialogPresence";
 import { FileText } from "lucide-react";
 import { useHeaderLayout } from "./useHeaderLayout";
 import { NoteStatusBar } from "./NoteStatusBar";
@@ -89,6 +90,9 @@ export function NoteViewer() {
   const tree = useTreeStore((state) => state.tree);
   const openIds = tabs.filter((tab) => !tab.special).map((tab) => tab.noteId);
   const [cache, setCache] = useState(() => ({ tabs, activeId, mounted: nextMounted([], activeId, openIds) }));
+  const reducedMotion = useReducedMotion();
+  const [favoriteAnimation, setFavoriteAnimation] = useState<{ noteId: string; kind: "add" | "remove"; sequence: number } | null>(null);
+  if (favoriteAnimation && favoriteAnimation.noteId !== activeId) setFavoriteAnimation(null);
   const [now, setNow] = useState(() => Date.now());
   const [exportMenu, setExportMenu] = useState<{ x: number; y: number; trigger: HTMLElement } | null>(null);
   const exportBusy = useUiStore((state) => state.exportBusy);
@@ -161,7 +165,12 @@ export function NoteViewer() {
           </div>
           <div data-header-actions className="flex shrink-0 items-center gap-1">
             {activeNote && <NoteAppearancePicker key={activeNote.id} noteId={activeNote.id} html={activeTab?.doc.draft?.html ?? activeTab?.doc.base?.html ?? ""} disabled={activeTab?.doc.saving || !!activeTab?.doc.externalConflict || activeTab?.doc.removedOnDisk} />}
-            <IconButton type="button" disabled={!activeNote} onClick={() => { if (activeNote) void toggleFavorite(activeNote.id, !activeNote.isFavorite); }} label={t("viewer.favorite")} aria-pressed={activeNote?.isFavorite ?? false} className={`rounded p-2 ${activeNote?.isFavorite ? "text-app-accent" : "text-app-muted"}`}><Star className="size-4" fill={activeNote?.isFavorite ? "currentColor" : "none"} aria-hidden /></IconButton>
+            <IconButton type="button" disabled={!activeNote} onClick={() => {
+              if (!activeNote) return;
+              if (!reducedMotion) setFavoriteAnimation((previous) => ({ noteId: activeNote.id, kind: activeNote.isFavorite ? "remove" : "add", sequence: (previous?.sequence ?? 0) + 1 }));
+              void toggleFavorite(activeNote.id, !activeNote.isFavorite);
+            }} label={t("viewer.favorite")} aria-pressed={activeNote?.isFavorite ?? false} className={`rounded ${activeNote?.isFavorite ? "text-app-accent" : "text-app-muted"}`}><Star key={favoriteAnimation?.sequence ?? 0} className="size-4 htnote-favorite-star" data-animate={favoriteAnimation?.kind}
+              onAnimationEnd={() => setFavoriteAnimation(null)} fill={activeNote?.isFavorite ? "currentColor" : "none"} aria-hidden /></IconButton>
             <Tooltip label={t("viewer.export")}><Button type="button" data-testid="export-note" disabled={!activeNote || exportBusy} aria-label={exportBusy ? t("export.exporting") : t("viewer.export")} onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setExportMenu({ x: rect.left, y: rect.bottom, trigger: event.currentTarget }); }} className="text-app-muted"><Download className="size-4" aria-hidden /><span data-action-text data-action-priority="1">{t("viewer.export")}</span></Button></Tooltip>
             {exportMenu && activeNote && <ContextMenu x={exportMenu.x} y={exportMenu.y} trigger={exportMenu.trigger} onClose={() => setExportMenu(null)} items={[
               { id: "pdf", label: t(pdfMode() === "print" ? "export.printPdf" : "export.pdf"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "pdf") },

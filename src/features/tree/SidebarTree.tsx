@@ -1,3 +1,4 @@
+import { DialogPresence } from "@/components/ui/DialogPresence";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ComponentProps, KeyboardEvent } from "react";
@@ -367,7 +368,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
         </div>
       )}
       {menu && <ContextMenu items={menuItems} x={menu.x} y={menu.y} trigger={menu.trigger} onClose={() => setMenu(null)} />}
-      {moveSource && <MoveDialog source={moveSource} tree={tree} onMove={(target) => { void moveNode(moveSource, target); setMoveSource(null); }} onClose={() => setMoveSource(null)} />}
+      <DialogPresence>{moveSource && <MoveDialog source={moveSource} tree={tree} onMove={(target) => { void moveNode(moveSource, target); setMoveSource(null); }} onClose={() => setMoveSource(null)} />}</DialogPresence>
     </TreeDropRoot>
     {createPortal(
       <DragOverlay dropAnimation={null} adjustScale={false} style={{ width: "max-content" }}>

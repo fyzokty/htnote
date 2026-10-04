@@ -151,3 +151,46 @@ describe("AppShell sidebar resizing", () => {
     expect(screen.getByRole("complementary", { name: "Kenar çubuğu" })).toHaveStyle({ width: "320px" });
   });
 });
+
+it("persists compact width last after two pointer presses, including stale drag events", async () => {
+  resetSettingsQueueForTests();
+  resetTabsStoreForTests();
+  useUiStore.setState({ unsavedDialog: null, toasts: [], sidebarVisible: true });
+  useTreeStore.setState({ tree: [], load: async () => {} });
+  useSettingsStore.setState({ settings: { ...baseSettings }, status: "ready" });
+  const updateSettings = vi.spyOn(useSettingsStore.getState(), "update");
+  const patches: SettingsPatch[] = [];
+  let persisted = { ...baseSettings };
+  mockIPC((command, args) => {
+    if (command === "update_settings") {
+      const patch = (args as { patch: SettingsPatch }).patch;
+      patches.push(patch);
+      persisted = { ...persisted, ...patch };
+      return persisted;
+    }
+    if (command === "list_drafts") return [];
+    return undefined;
+  });
+  render(<AppShell />);
+  const separator = screen.getByRole("separator");
+  const aside = screen.getByRole("complementary", { name: "Kenar çubuğu" });
+  fireEvent.pointerDown(separator, { pointerId: 1, detail: 1, clientX: 260 });
+  fireEvent.pointerMove(separator, { pointerId: 1, clientX: 320 });
+  await act(async () => { fireEvent.pointerUp(separator, { pointerId: 1 }); });
+  await act(async () => {
+    fireEvent.pointerDown(separator, { pointerId: 1, detail: 2, clientX: 320 });
+    fireEvent.pointerMove(separator, { pointerId: 1, clientX: 400 });
+    fireEvent.pointerUp(separator, { pointerId: 1 });
+  });
+  expect(aside).toHaveStyle({ width: "200px" });
+  expect(updateSettings).toHaveBeenLastCalledWith({ sidebarWidth: 200 });
+  expect(patches[patches.length - 1]).toEqual({ sidebarWidth: 200 });
+  // Yerel PointerEvent detail=0 üreten tarayıcılar dblclick ile aynı sonucu alır.
+  await act(async () => {
+    fireEvent.pointerDown(separator, { pointerId: 2, detail: 0, clientX: 200 });
+    fireEvent.pointerUp(separator, { pointerId: 2 });
+    fireEvent.doubleClick(separator);
+  });
+  expect(updateSettings).toHaveBeenLastCalledWith({ sidebarWidth: 200 });
+  expect(aside).toHaveStyle({ width: "200px" });
+});
