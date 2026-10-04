@@ -32,6 +32,7 @@
     "close": "Kapat"
   },
   "tree": {
+    "collapseAll": "Tüm klasörleri daralt",
     "label": "Not ağacı",
     "empty": "Henüz not yok — Yeni not ile başlayın",
     "folder": "Klasör: {{name}}",

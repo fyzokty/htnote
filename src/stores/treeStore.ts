@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { filterTree } from "@/features/tree/filterTree";
 import { ipc } from "@/lib/ipc";
 import type { FlatNote, NoteNode, TreeNode, TreeSelection } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -25,6 +26,7 @@ interface TreeState {
   load: () => Promise<void>;
   refresh: () => Promise<void>;
   toggle: (relPath: string) => void;
+  collapseAll: () => void;
   select: (selection: TreeSelection | null) => void;
   revealNote: (id: string) => void;
   findNoteById: (id: string) => NoteNode | null;
@@ -104,6 +106,20 @@ export const useTreeStore = create<TreeState>((set, get) => ({
     const expanded = new Set(get().expanded);
     for (let index = 1; index < parts.length; index++) expanded.add(parts.slice(0, index).join("/"));
     set({ expanded, selected: { kind: "folder", relPath } });
+    persist(expanded);
+  },
+  collapseAll() {
+    const state = get();
+    const filtering = !!state.filterQuery.trim() || !!state.filterTag;
+    const autoExpanded = filtering ? filterTree(state.tree, state.filterQuery, { tag: state.filterTag ?? undefined }).autoExpanded : new Set<string>();
+    let selected = state.selected;
+    walk(state.tree, (node, parents) => {
+      if (parents.length && (node.type === "folder" ? state.selected?.kind === "folder" && state.selected.relPath === node.relPath : state.selected?.kind === "note" && state.selected.id === node.id)) {
+        selected = { kind: "folder", relPath: parents[0] };
+      }
+    });
+    const expanded = new Set<string>();
+    set({ expanded, filterExpandedOverride: new Set(autoExpanded), selected });
     persist(expanded);
   },
   movePathPrefix(oldPath, newPath) {

@@ -49,7 +49,7 @@ describe("AppShell sidebar resizing", () => {
     useTreeStore.setState({ tree: [{ type: "note", id: "layout", title: "Layout", relPath: "Layout", isFavorite: false, tags: ["tag"], updatedAt: "" }] });
     render(<AppShell />);
     const heading = screen.getByTestId("folders-toggle");
-    const folders = heading.parentElement!;
+    const folders = heading.closest("section")!;
     const tags = screen.getByTestId("tags-toggle").parentElement!;
     const footer = screen.getByTestId("trash").parentElement!;
     fireEvent.click(heading);

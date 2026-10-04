@@ -313,12 +313,8 @@
   :where(button[aria-pressed="true"], button[aria-selected="true"]) { background: var(--app-active); }
 
   :where(input, textarea, select):not(:disabled):hover { border-color: var(--app-muted); }
-  :where(*, .cm-scroller) { scrollbar-width: thin; scrollbar-color: var(--app-scrollbar) transparent; }
-  :where(*, .cm-scroller):hover { scrollbar-color: var(--app-scrollbar-hover) transparent; }
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: var(--app-scrollbar); border: 2px solid transparent; border-radius: 999px; background-clip: padding-box; }
-  ::-webkit-scrollbar-thumb:hover { background-color: var(--app-scrollbar-hover); }
+  :where(*, .cm-scroller) { scrollbar-width: none; }
+  ::-webkit-scrollbar { display: none; width: 0; height: 0; }
 }
 
 @layer components {
@@ -344,10 +340,12 @@
   .htnote-editor-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; min-height: 3rem; flex-shrink: 0; padding: 0.375rem 0.75rem; border-bottom: 1px solid var(--app-border); background: var(--app-surface); color: var(--app-text); }
   .htnote-editor-bar .htnote-button-sm { min-height: 2rem; }
   .htnote-session-actions, .htnote-code-actions { display: flex; align-items: center; gap: 0.375rem; margin-left: auto; }
-  .htnote-segmented-control { display: inline-flex; align-items: center; gap: 0.125rem; padding: 0.125rem; border: 1px solid var(--app-border); border-radius: 0.5rem; background: var(--app-subtle); }
+  .htnote-segmented-control { position: relative; isolation: isolate; display: inline-flex; align-items: center; gap: 0.125rem; padding: 0.125rem; border: 1px solid var(--app-border); border-radius: 0.5rem; background: var(--app-subtle); }
   .htnote-segmented-control .htnote-button-sm { min-height: 1.75rem; }
-  .htnote-segmented-control .htnote-button[aria-pressed="true"] { background: var(--app-surface); color: var(--app-accent); box-shadow: 0 1px 3px var(--app-shadow); }
-  .htnote-segmented-control .htnote-button[aria-pressed="true"]:not(:disabled):hover { background: var(--app-hover); }
+  .htnote-segmented-control .htnote-button[aria-pressed="true"] { background: transparent; color: var(--app-accent); box-shadow: none; }
+  .htnote-segmented-control .htnote-button[aria-pressed="true"]:not(:disabled):hover { background: transparent; }
+  .htnote-segmented-control .htnote-tooltip-anchor { position: static; z-index: 1; }
+  .htnote-segment-indicator { position: absolute; left: 0; pointer-events: none; border-radius: var(--app-radius-control); background: var(--app-surface); box-shadow: 0 1px 3px var(--app-shadow); }
   .htnote-editor-unsaved { display: inline-flex; align-items: center; gap: 0.375rem; padding-inline: 0.375rem; color: var(--app-muted); font-size: 0.75rem; white-space: nowrap; }
   .htnote-editor-unsaved > span { width: 0.375rem; height: 0.375rem; border-radius: 50%; background: var(--app-warning); }
   .htnote-editor-spinner { animation: htnote-editor-spin 800ms linear infinite; }
@@ -651,3 +649,19 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 
 /* Liste sınırları, sabit başlık ve alt bilgiden kalan alana göre hesaplanır. */
 .htnote-sidebar-sections { container-type: size; }
+/* İki liste, başlıklar ve ağaç için ayrılan alanı birlikte paylaşır. */
+.htnote-sidebar-list { max-height: min(12rem, max(0px, calc((100cqh - 11rem) / 2))); }
+
+/* Tutamaklar yalnız ana belgenin kaydırma kapları üzerine çizilir. */
+.htnote-overlay-scrollbar { position: fixed; z-index: 150; pointer-events: none; opacity: 0; transition: opacity 180ms ease-out; }
+.htnote-overlay-scrollbar[data-visible="true"] { opacity: 0.65; }
+.htnote-overlay-thumb { position: absolute; border-radius: var(--app-radius-pill); background: var(--app-scrollbar); pointer-events: auto; touch-action: none; cursor: default; }
+.htnote-overlay-scrollbar[data-axis="y"] .htnote-overlay-thumb { width: 5px; right: 1px; }
+.htnote-overlay-scrollbar[data-axis="x"] .htnote-overlay-thumb { height: 5px; bottom: 1px; }
+.htnote-overlay-scrollbar:hover .htnote-overlay-thumb { background: var(--app-scrollbar-hover); }
+.htnote-overlay-scrollbar[data-axis="y"]:hover .htnote-overlay-thumb { width: 8px; }
+.htnote-overlay-scrollbar[data-axis="x"]:hover .htnote-overlay-thumb { height: 8px; }
+.htnote-overlay-scrollbar:not([data-visible="true"]) .htnote-overlay-thumb { pointer-events: none; }
+:root[data-reduced-motion="true"] .htnote-overlay-scrollbar,
+:root[data-reduced-motion="true"] .htnote-segment-indicator { transition: none !important; }
+.htnote-note-header [data-header-actions] .htnote-segment-indicator { clip-path: inset(1px round var(--app-radius-control)); }

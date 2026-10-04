@@ -465,3 +465,26 @@ describe("SidebarTree animations and drag feedback (B9)", () => {
     vi.useRealTimers();
   });
 });
+
+it("collapses all folders without hiding the section and restores selection focus", () => {
+  useTreeStore.setState({ tree: [...tree, { type: "folder", name: "B", relPath: "B", children: [{ ...note, id: "other", relPath: "B/Other", title: "Other" }] }], expanded: new Set(["A", "B"]), selected: { kind: "note", id: "n" } });
+  render(<SidebarTree onOpenNote={vi.fn()} />);
+  const button = screen.getByTestId("collapse-all-folders");
+  expect(button).toBeEnabled();
+  fireEvent.click(button);
+  expect(screen.getByRole("tree")).toBeInTheDocument();
+  expect(screen.queryByRole("treeitem", { name: "Not: Note" })).not.toBeInTheDocument();
+  expect(screen.getByRole("treeitem", { name: "Klasör: A" })).toHaveFocus();
+  expect(button).toBeDisabled();
+  fireEvent.click(screen.getByTestId("folders-toggle"));
+  expect(screen.queryByTestId("collapse-all-folders")).not.toBeInTheDocument();
+});
+
+it("allows collapse all for automatically expanded filter matches", () => {
+  useTreeStore.setState({ filterQuery: "Note" });
+  render(<SidebarTree onOpenNote={vi.fn()} />);
+  expect(screen.getByTestId("collapse-all-folders")).toBeEnabled();
+  fireEvent.click(screen.getByTestId("collapse-all-folders"));
+  expect(screen.queryByRole("treeitem", { name: "Not: Note" })).not.toBeInTheDocument();
+  expect(screen.getByTestId("collapse-all-folders")).toBeDisabled();
+});

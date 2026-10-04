@@ -36,3 +36,19 @@ describe("SegmentedControl", () => {
     expect(third).toHaveFocus();
   });
 });
+
+it("measures the selected button and enables transitions only after the first placement", () => {
+  const left = vi.spyOn(HTMLElement.prototype, "offsetLeft", "get").mockImplementation(function(this: HTMLElement) { return this.getAttribute("aria-label") === "Third" ? 104 : 2; });
+  const width = vi.spyOn(HTMLElement.prototype, "offsetWidth", "get").mockImplementation(function(this: HTMLElement) { return this.getAttribute("aria-label") === "Third" ? 72 : 48; });
+  try {
+    const { container, rerender } = render(<SegmentedControl label="Mode" value="first" options={options} onChange={vi.fn()} />);
+    const pill = container.querySelector<HTMLElement>(".htnote-segment-indicator")!;
+    expect(pill.style.transform).toBe("translateX(2px)");
+    expect(pill.style.width).toBe("48px");
+    expect(pill.style.transition).toBe("none");
+    rerender(<SegmentedControl label="Mode" value="third" options={options} onChange={vi.fn()} />);
+    expect(pill.style.transform).toBe("translateX(104px)");
+    expect(pill.style.width).toBe("72px");
+    expect(pill.style.transition).toContain("200ms");
+  } finally { left.mockRestore(); width.mockRestore(); }
+});

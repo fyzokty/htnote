@@ -14,6 +14,24 @@ describe("shared UI foundation", () => {
     await restore?.();
   });
 
+  it("uses overlay scrollbars without taking width from the overflowing tree", async () => {
+    for (let index = 0; index < 45; index++) {
+      await invoke("create_folder", { parentRelPath: "", name: `Overlay ${index}` });
+    }
+    await browser.refresh();
+    await $('[role="tree"]').waitForDisplayed();
+    const measurement = await browser.execute(() => {
+      const element = document.querySelector<HTMLElement>('[role="tree"]')!;
+      const style = getComputedStyle(element);
+      return { client: element.clientWidth, offset: element.offsetWidth, border: parseFloat(style.borderLeftWidth) + parseFloat(style.borderRightWidth), height: element.clientHeight, content: element.scrollHeight, userAgent: navigator.userAgent };
+    });
+    console.info(`Overlay tree measurement: ${JSON.stringify(measurement)}`);
+    assert.ok(measurement.content > measurement.height);
+    assert.equal(measurement.client, measurement.offset - measurement.border);
+    await $('[role="tree"]').moveTo();
+    await browser.waitUntil(async () => await browser.execute(() => [...document.querySelectorAll<HTMLElement>('.htnote-overlay-scrollbar[data-axis="y"][data-visible="true"]')].some((track) => track.style.display === "block")));
+  });
+
   it("keeps the footer and tags anchored when folders collapse at minimum size", async () => {
     const size = await browser.getWindowSize();
     const previous = await invoke<{ sidebarWidth: number; sidebarVisible: boolean; motion: string }>("get_settings");
@@ -32,7 +50,7 @@ describe("shared UI foundation", () => {
         const trash = document.querySelector<HTMLElement>('[data-testid="trash"]')!;
         const footer = trash.parentElement!;
         const tags = document.querySelector<HTMLElement>('[data-testid="tags-toggle"]')!.parentElement!;
-        const folders = document.querySelector<HTMLElement>('[data-testid="folders-toggle"]')!.parentElement!;
+        const folders = document.querySelector<HTMLElement>('[data-testid="folders-toggle"]')!.closest("section")!;
         const rect = aside.getBoundingClientRect();
         return { bottom: rect.bottom, width: rect.width, trashBottom: trash.getBoundingClientRect().bottom,
           footerBottom: footer.getBoundingClientRect().bottom, footerTop: footer.getBoundingClientRect().top,
@@ -220,7 +238,7 @@ describe("shared UI foundation", () => {
       assert.equal(state.headingSelection, "none");
       assert.equal(state.rowSelection, "none");
       assert.equal(state.inputSelection, "text");
-      assert.equal(state.scrollbar, "thin");
+      assert.equal(state.scrollbar, "none");
       await withNoteFrame(note.id, async () => {
         await browser.waitUntil(async () => await $("html").getAttribute("data-ht-theme") === mode);
         assert.equal(await browser.execute(() => getComputedStyle(document.documentElement).scrollbarWidth), "thin");
@@ -246,7 +264,7 @@ describe("shared UI foundation", () => {
       selection: getComputedStyle(document.querySelector(".cm-content")!).userSelect,
       scrollbar: getComputedStyle(document.querySelector(".cm-scroller")!).scrollbarWidth,
     }));
-    assert.deepEqual(editor, { selection: "text", scrollbar: "thin" });
+    assert.deepEqual(editor, { selection: "text", scrollbar: "none" });
   });
 
   it("shows the close tooltip on keyboard focus and dismisses it with Escape", async () => {
