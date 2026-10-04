@@ -15,6 +15,8 @@ pub mod links;
 pub mod state;
 mod watcher;
 mod trash;
+#[cfg(any(all(windows, debug_assertions), test))]
+mod webview_debug_args;
 
 use tauri::Manager;
 
@@ -25,7 +27,21 @@ pub fn app_version() -> &'static str {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let context = tauri::generate_context!();
+    #[cfg(all(windows, debug_assertions))]
+    let browser_arguments = webview_debug_args::BrowserArguments::new(
+        &std::env::var("WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS").unwrap_or_default(),
+    );
+    #[cfg(all(windows, debug_assertions))]
+    let context = {
+        let mut context = context;
+        browser_arguments.apply_to_config(context.config_mut());
+        context
+    };
+    let builder = tauri::Builder::default();
+    #[cfg(all(windows, debug_assertions))]
+    let builder = builder.manage(browser_arguments);
+    builder
         .plugin(tauri_plugin_opener::Builder::new().open_js_links_on_click(false).build())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -100,7 +116,7 @@ pub fn run() {
             commands::delete_permanently,
             commands::empty_trash
         ])
-        .run(tauri::generate_context!())
+        .run(context)
         .expect("error while running tauri application");
 }
 
