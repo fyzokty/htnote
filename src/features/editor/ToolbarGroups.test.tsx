@@ -11,8 +11,8 @@ it("remeasures reordered overflow groups, restores controls and shows shortcut t
   let width = 1138;
   let resize = () => {};
   vi.stubGlobal("ResizeObserver", class {
-    constructor(callback: () => void) { resize = callback; }
-    observe() {}
+    constructor(private callback: () => void) {}
+    observe(element: HTMLElement) { if (element.classList.contains("htnote-toolbar-groups")) resize = this.callback; }
     disconnect() {}
   });
   vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(() => width);
@@ -37,6 +37,7 @@ it("remeasures reordered overflow groups, restores controls and shows shortcut t
   act(() => vi.advanceTimersByTime(400));
   expect(screen.getAllByRole("tooltip").some((tip) => tip.textContent?.includes(formatShortcut("editorUndo")))).toBe(true);
   fireEvent.mouseLeave(undo.parentElement!);
+  vi.spyOn(undo, "matches").mockImplementation((selector) => selector === ":focus-visible");
   act(() => undo.focus());
   expect(undo).toHaveAttribute("aria-describedby");
   fireEvent.keyDown(undo, { key: "Escape" });
@@ -44,4 +45,72 @@ it("remeasures reordered overflow groups, restores controls and shows shortcut t
   width = 1138;
   act(() => resize());
   expect(screen.queryByTestId("editor-overflow")).not.toBeInTheDocument();
+});
+
+it("leaves no tooltip after pointer overflow toggles, outside close or group relocation", async () => {
+  vi.useFakeTimers();
+  let width = 60;
+  let resize = () => {};
+  vi.stubGlobal("ResizeObserver", class {
+    constructor(private callback: () => void) {}
+    observe(element: HTMLElement) { if (element.classList.contains("htnote-toolbar-groups")) resize = this.callback; }
+    disconnect() {}
+  });
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(() => width);
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ width: 100, height: 32, left: 0, top: 0, bottom: 32 } as DOMRect);
+  const { unmount } = render(<ToolbarGroups groups={[
+    <IconButton key="table" label="Table"><svg /></IconButton>,
+    <IconButton key="next" label="Next"><svg /></IconButton>,
+  ]} />);
+  const trigger = screen.getByTestId("editor-overflow");
+  fireEvent.click(trigger, { detail: 1 });
+  const table = screen.getByRole("button", { name: "Table" });
+  expect(table).not.toHaveFocus();
+  act(() => vi.advanceTimersByTime(500));
+  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  fireEvent.mouseEnter(table);
+  act(() => vi.advanceTimersByTime(400));
+  expect(screen.getByRole("tooltip")).toBeInTheDocument();
+  await act(async () => fireEvent.click(trigger, { detail: 1 }));
+  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  fireEvent.click(trigger, { detail: 1 });
+  fireEvent.mouseEnter(table);
+  act(() => vi.advanceTimersByTime(400));
+  await act(async () => fireEvent.pointerDown(document.body));
+  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  fireEvent.click(trigger, { detail: 1 });
+  fireEvent.mouseEnter(table);
+  act(() => vi.advanceTimersByTime(400));
+  width = 500;
+  act(() => resize());
+  expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  expect(screen.queryByTestId("editor-overflow")).not.toBeInTheDocument();
+  unmount();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+it("focuses keyboard-opened overflow and preserves arrows, Tab and Escape focus return", () => {
+  vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(60);
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ width: 100, height: 32, left: 0, top: 0, bottom: 32 } as DOMRect);
+  const matches = HTMLElement.prototype.matches;
+  vi.spyOn(HTMLElement.prototype, "matches").mockImplementation(function (this: HTMLElement, selector) {
+    return selector === ":focus-visible" || matches.call(this, selector);
+  });
+  render(<ToolbarGroups groups={[
+    <IconButton key="table" label="Table"><svg /></IconButton>,
+    <IconButton key="next" label="Next"><svg /></IconButton>,
+  ]} />);
+  const trigger = screen.getByTestId("editor-overflow");
+  fireEvent.click(trigger, { detail: 0 });
+  const table = screen.getByRole("button", { name: "Table" });
+  const next = screen.getByRole("button", { name: "Next" });
+  expect(table).toHaveFocus();
+  expect(screen.getByRole("tooltip")).toHaveTextContent("Table");
+  fireEvent.keyDown(table, { key: "ArrowRight" });
+  expect(next).toHaveFocus();
+  fireEvent.keyDown(next, { key: "Tab", shiftKey: true });
+  expect(table).toHaveFocus();
+  fireEvent.keyDown(table, { key: "Escape" });
+  expect(trigger).toHaveFocus();
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 });

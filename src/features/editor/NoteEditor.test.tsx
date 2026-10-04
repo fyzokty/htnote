@@ -47,6 +47,7 @@ describe("NoteEditor", () => {
   });
 
   it("disables visual mode with a hover tooltip when the content region is missing", () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ width: 28, height: 28, left: 0, top: 0, bottom: 28 } as DOMRect);
     const doc = enterEdit(createDocState(), { html: "<html></html>", css: null, js: null, contentHash: "one" }, "visual", false);
     render(<Editing noteId="a" doc={doc} session={session()} />);
     expect(screen.getByRole("button", { name: "Görsel" })).toBeDisabled();
@@ -97,7 +98,9 @@ describe("NoteEditor", () => {
     expect(save).toBeEnabled();
     expect(cancel).toBeEnabled();
     expect(save).toHaveAttribute("aria-busy", "false");
-    fireEvent.focus(save);
+    vi.spyOn(save.parentElement!, "getBoundingClientRect").mockReturnValue({ width: 28, height: 28, left: 0, top: 0, bottom: 28 } as DOMRect);
+    vi.spyOn(save, "matches").mockImplementation((selector) => selector === ":focus-visible");
+    act(() => save.focus());
     expect(screen.getByRole("tooltip")).toHaveTextContent(formatShortcut("save"));
   });
 

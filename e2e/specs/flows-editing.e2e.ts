@@ -177,4 +177,40 @@ describe("editing flows", () => {
     await $('[data-testid="discard-changes"]').click();
     await browser.waitUntil(async () => !await $(`[data-note-id="${note.id}"]`).isExisting());
   });
+
+  it("clears overflow tooltips after closing a narrow visual toolbar", async () => {
+    const size = await browser.getWindowSize();
+    const settings = await invoke<{ editorLivePreview: boolean; sidebarVisible: boolean }>("get_settings");
+    try {
+      await browser.setWindowSize(900, 600);
+      await invoke("update_settings", { patch: { editorLivePreview: true, sidebarVisible: true } });
+      await browser.refresh();
+      const note = await createNote("Overflow tooltip");
+      await openNote(note.id);
+      await editNote();
+      const overflow = await $('[data-testid="editor-overflow"]');
+      await overflow.waitForDisplayed();
+      await overflow.click();
+      await $('.htnote-toolbar-overflow[data-open="true"]').waitForDisplayed();
+      const table = await $('.htnote-toolbar-overflow button[aria-label="Tablo ekle"]');
+      await table.waitForDisplayed();
+      await pointerMoveTo(await table.$("svg"));
+      await $('[role="tooltip"]').waitForDisplayed();
+      assert.equal(await $('[role="tooltip"]').getText(), "Tablo ekle");
+      // Outside pointerdown closes the panel, including a hovered tooltip whose
+      // anchor can become inert without receiving mouseleave or blur.
+      await $('.htnote-visual-editor .tiptap').click();
+      await browser.waitUntil(async () => await overflow.getAttribute("aria-expanded") === "false");
+      await browser.waitUntil(async () => await browser.execute(() => document.querySelectorAll('[role="tooltip"]').length) === 0);
+      await overflow.click();
+      await overflow.click();
+      await pointerMoveTo(await $('.htnote-visual-editor .tiptap'));
+      // Include the hover delay to detect a pending timer resurrecting a tip.
+      await browser.executeAsync((done) => setTimeout(done, 450));
+      assert.equal(await browser.execute(() => document.querySelectorAll('[role="tooltip"]').length), 0);
+    } finally {
+      await browser.setWindowSize(size.width, size.height);
+      await invoke("update_settings", { patch: { editorLivePreview: settings.editorLivePreview, sidebarVisible: settings.sidebarVisible } });
+    }
+  });
 });
