@@ -278,7 +278,7 @@ describe("visual media previews", () => {
     assert.equal(compact, true);
     await clickMediaGap(".tiptap img[alt='Preview']");
     await $(".tiptap img[alt='Preview']").click();
-    await $(".htnote-media-image .htnote-media-toolbar").waitForDisplayed();
+    await $(".htnote-media-floating .htnote-media-toolbar").waitForDisplayed();
     await clickMediaGap(".tiptap img[alt='Preview']");
     await clickMediaGap(".tiptap img[alt='SVG preview']");
     await clickMediaGap(".tiptap .ht-audio-card");
@@ -287,7 +287,7 @@ describe("visual media previews", () => {
       await clickMediaGap(selector, "left");
     }
     await $(".tiptap img[alt='Preview']").click();
-    await $(".htnote-media-image .htnote-media-toolbar").waitForDisplayed();
+    await $(".htnote-media-floating .htnote-media-toolbar").waitForDisplayed();
     const themeWasDark = await browser.execute(() => document.documentElement.classList.contains("dark"));
     const directory = resolve("e2e", ".artifacts");
     await mkdir(directory, { recursive: true });
@@ -296,9 +296,9 @@ describe("visual media previews", () => {
       for (const theme of ["light", "dark"]) {
         await browser.execute((dark) => document.documentElement.classList.toggle("dark", dark), theme === "dark");
         const layout = await browser.execute(() => {
-          const toolbar = document.querySelector<HTMLElement>(".htnote-media-image .htnote-media-toolbar")!;
+          const toolbar = document.querySelector<HTMLElement>(".htnote-media-floating")!;
           const image = document.querySelector<HTMLElement>(".tiptap img")!;
-          const editor = document.querySelector<HTMLElement>(".htnote-visual-editor .tiptap")!;
+          const editor = document.querySelector<HTMLElement>(".htnote-visual-scroll")!;
           const toolbarRect = toolbar.getBoundingClientRect();
           const imageRect = image.getBoundingClientRect();
           const style = getComputedStyle(toolbar);
@@ -311,7 +311,7 @@ describe("visual media previews", () => {
             background: style.backgroundColor,
             color: style.color,
             expectedColor,
-            aboveImage: toolbarRect.bottom <= imageRect.top,
+            aboveImage: toolbarRect.bottom <= imageRect.top || toolbarRect.top >= imageRect.bottom,
             withinEditor: toolbarRect.top >= editor.getBoundingClientRect().top,
             outline: getComputedStyle(image).outlineWidth,
           };
@@ -329,13 +329,13 @@ describe("visual media previews", () => {
     } finally {
       await browser.execute((dark) => document.documentElement.classList.toggle("dark", dark), themeWasDark);
     }
-    await $('.htnote-media-image .htnote-media-toolbar button[aria-label="Ortala"], .htnote-media-image .htnote-media-toolbar button[aria-label="Align center"]').click();
+    await $('.htnote-media-floating .htnote-media-toolbar button[aria-label="Ortala"], .htnote-media-floating .htnote-media-toolbar button[aria-label="Align center"]').click();
     assert.equal(await $(".htnote-media-node").getAttribute("data-align"), "center");
     await clickMediaGap(".tiptap img[alt='Preview']", "left");
     await clickMediaGap(".tiptap img[alt='Preview']", "right");
     await $(".tiptap img[alt='Preview']").click();
-    await $(".htnote-media-image .htnote-media-toolbar").waitForDisplayed();
-    await $('.htnote-media-image .htnote-media-toolbar button[aria-label="Sağa hizala"], .htnote-media-image .htnote-media-toolbar button[aria-label="Align right"]').click();
+    await $(".htnote-media-floating .htnote-media-toolbar").waitForDisplayed();
+    await $('.htnote-media-floating .htnote-media-toolbar button[aria-label="Sağa hizala"], .htnote-media-floating .htnote-media-toolbar button[aria-label="Align right"]').click();
     assert.equal(await $(".htnote-media-node").getAttribute("data-align"), "right");
     await clickMediaGap(".tiptap img[alt='Preview']", "left");
     await saveShortcut();

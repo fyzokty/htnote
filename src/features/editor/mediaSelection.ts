@@ -2,6 +2,7 @@ import { Extension } from "@tiptap/core";
 import { GapCursor } from "@tiptap/pm/gapcursor";
 import { NodeSelection, Plugin, Selection } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
+import { mediaToolbarOwners } from "./mediaToolbarPosition";
 
 type MediaClickBounds = Pick<DOMRect, "left" | "right" | "top" | "bottom">;
 
@@ -30,11 +31,13 @@ export function selectMediaGap(view: EditorView, event: MouseEvent, debug?: Medi
     if (debug) debug.decision = !view.editable ? "not-editable" : "not-left-button";
     return false;
   }
-  // Hit-test targets can differ between WebView2 versions. Preserve toolbar
-  // interactions using their actual bounds, including overhanging toolbars.
+  // Portal menülerinin sınırları yalnızca ait oldukları editör için kullanılır.
   const containsPoint = (rect: DOMRect) => event.clientX >= rect.left && event.clientX <= rect.right
     && event.clientY >= rect.top && event.clientY <= rect.bottom;
-  for (const toolbar of view.dom.querySelectorAll(".htnote-media-toolbar")) {
+  const toolbars = new Set([...view.dom.querySelectorAll(".htnote-media-toolbar"), ...document.querySelectorAll(".htnote-media-floating")]);
+  for (const toolbar of toolbars) {
+    if (!view.dom.contains(toolbar) && mediaToolbarOwners.get(toolbar) !== view.dom) continue;
+    if (toolbar.closest('[inert], [aria-hidden="true"]')) continue;
     if (containsPoint(toolbar.getBoundingClientRect())) {
       if (debug) debug.decision = "inside-toolbar";
       return false;

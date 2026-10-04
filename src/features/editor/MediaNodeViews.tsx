@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { AlignCenter, AlignLeft, AlignRight, Check, Trash2, X } from "lucide-react";
 import { NodeViewWrapper } from "@tiptap/react";
@@ -10,22 +10,9 @@ import { IconButton } from "@/components/ui/IconButton";
 import { AudioPlayer } from "@/components/ui/AudioPlayer";
 import { resolveMediaSrc } from "@/features/editor/mediaSrc";
 
-type Source = Record<string, string>;
+import { FloatingMediaToolbar } from "./FloatingMediaToolbar";
 
-function useToolbarSpace({ node, selected }: NodeViewProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  useLayoutEffect(() => {
-    const wrapper = ref.current;
-    const toolbar = wrapper?.querySelector<HTMLElement>(".htnote-media-toolbar");
-    if (!wrapper || !selected || !toolbar) return;
-    const measure = () => { wrapper.style.paddingTop = `${toolbar.getBoundingClientRect().height + 8}px`; };
-    measure();
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
-    observer?.observe(toolbar);
-    return () => { observer?.disconnect(); wrapper.style.paddingTop = ""; };
-  }, [node, selected]);
-  return ref;
-}
+type Source = Record<string, string>;
 
 function noteIdFrom(props: NodeViewProps): string {
   return (props.extension.options as { noteId: string }).noteId;
@@ -105,11 +92,11 @@ function ImageToolbar(props: NodeViewProps) {
 
 export function ImageView(props: NodeViewProps) {
   const { node, selected } = props;
-  const ref = useToolbarSpace(props);
+  const ref = useRef<HTMLDivElement>(null);
   return (
     <NodeViewWrapper ref={ref} className={`htnote-media htnote-media-image${selected ? " is-selected" : ""}`} contentEditable={false}
       onClick={(event: MouseEvent<HTMLElement>) => selectMedia(props, event)}>
-      {selected && <ImageToolbar {...props} />}
+      <FloatingMediaToolbar anchor={ref} selected={selected} align={node.attrs.align ?? "left"}><ImageToolbar {...props} /></FloatingMediaToolbar>
       <img className="htnote-media-preview" src={resolveMediaSrc(noteIdFrom(props), node.attrs.src ?? "")} alt={node.attrs.alt ?? ""}
         title={node.attrs.title ?? undefined} style={{ width: node.attrs.width ? "100%" : undefined }} draggable={false} />
     </NodeViewWrapper>
@@ -119,7 +106,7 @@ export function ImageView(props: NodeViewProps) {
 function PlaybackView(props: NodeViewProps & { kind: "audio" | "video" }) {
   const { t } = useTranslation();
   const { node, selected, kind, deleteNode } = props;
-  const ref = useToolbarSpace(props);
+  const ref = useRef<HTMLDivElement>(null);
   const src = resolveMediaSrc(noteIdFrom(props), node.attrs.src ?? "") || undefined;
   const sources = (node.attrs.sources as Source[]).map((source) => ({
     ...source, src: resolveMediaSrc(noteIdFrom(props), source.src ?? ""),
@@ -138,11 +125,11 @@ function PlaybackView(props: NodeViewProps & { kind: "audio" | "video" }) {
         style={{ width: node.attrs.width ? "100%" : undefined }}>
         {sources.map((source, index) => <source key={index} {...source} />)}
       </video>}
-      {selected && <div className="htnote-media-toolbar" role="toolbar" aria-label={t(`editor.${kind}.toolbar`)} contentEditable={false}>
+      <FloatingMediaToolbar anchor={ref} selected={selected} align={node.attrs.align ?? "left"}><div className="htnote-media-toolbar" role="toolbar" aria-label={t(`editor.${kind}.toolbar`)} contentEditable={false}>
         <span>{t(`editor.${kind}.label`)}</span>
         <LayoutTools {...props} />
         <DeleteMedia kind={kind} deleteNode={deleteNode} />
-      </div>}
+      </div></FloatingMediaToolbar>
     </NodeViewWrapper>
   );
 }
