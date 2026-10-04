@@ -1,5 +1,5 @@
-/** Remove infrequent groups first, retaining the original order of visible controls. */
-export function fitToolbarGroups(available: number, widths: readonly number[], trigger = 28, gap = 6, priority: readonly number[] = [3, 4, 5, 2, 0, 1, 6]) {
+/** Grupları sondan gizler; kalan araçların sırasını korur. */
+export function fitToolbarGroups(available: number, widths: readonly number[], trigger = 28, gap = 6, priority: readonly number[] = widths.map((_, index) => index).reverse()) {
   const visible = widths.map((_, index) => index);
   const used = () => visible.reduce((sum, index) => sum + widths[index], 0)
     + Math.max(0, visible.length - 1) * gap + (visible.length < widths.length ? trigger + (visible.length ? gap : 0) : 0);

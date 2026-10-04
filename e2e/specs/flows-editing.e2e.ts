@@ -12,6 +12,31 @@ describe("editing flows", () => {
   beforeEach(async () => { ({ root, restore } = await useTempRoot()); });
   afterEach(async () => { await restore?.(); });
 
+  it("lists system fonts and preserves a 24px selected text size after save and reopen", async () => {
+    const fonts = await invoke<string[]>("list_system_fonts");
+    assert.ok(fonts.length > 0);
+    const note = await createNote("Font round trip");
+    await openNote(note.id);
+    await editNote();
+    await typeInVisualEditor("Font sample");
+    await $(".tiptap").click();
+    await browser.keys(["Control", "a"]);
+    await (await visibleEditorTool('[data-testid="editor-font-family"]')).click();
+    await $('.htnote-font-popover [data-font-family]').waitForDisplayed();
+    await $('.htnote-font-popover [data-font-family]').click();
+    const size = await visibleEditorTool('[data-testid="editor-font-size"]');
+    await size.setValue("24");
+    await browser.keys("Enter");
+    const saved = await saveAndView(note.id, (html) => html.includes("font-size: 24px"));
+    assert.match(saved, /font-size: 24px/);
+    assert.match(saved, /font-family:/);
+    await withNoteFrame(note.id, async () => {
+      assert.equal(await browser.execute(() => getComputedStyle(document.querySelector("#htnote-content span")!).fontSize), "24px");
+    });
+    await editNote();
+    assert.equal(await browser.execute(() => getComputedStyle(document.querySelector(".tiptap span")!).fontSize), "24px");
+  });
+
   it("matches compact semantic paragraph spacing and empty line height in the viewer", async () => {
     const note = await createNote("Paragraph spacing");
     await openNote(note.id);

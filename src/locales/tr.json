@@ -248,11 +248,19 @@
       "blocks": "Listeler ve bloklar",
       "table": "Tablo araçları",
       "media": "Medya",
-      "links": "Bağlantılar ve ekleme"
+      "links": "Bağlantılar ve ekleme",
+      "text": "Metin"
     },
     "undo": "Geri al",
     "redo": "Yinele",
-    "inlineCode": "Satır içi kod"
+    "inlineCode": "Satır içi kod",
+    "fontFamily": "Font ailesi",
+    "fontSize": "Font boyutu",
+    "fontSizeOptions": "Font boyutu seçenekleri",
+    "fontDefault": "Varsayılan",
+    "fontSearch": "Font ara",
+    "fontNoResults": "Font bulunamadı",
+    "fontSizeValue": "{{size}} px"
   },
   "errors": {
     "settingsLoad": "Ayarlar yüklenemedi.",
@@ -443,7 +451,16 @@
       "sky": "Gök",
       "lavender": "Lavanta",
       "charcoal": "Kömür"
-    }
+    },
+    "saturationBrightness": "Doygunluk ve parlaklık",
+    "svValue": "Doygunluk %{{s}}, parlaklık %{{v}}",
+    "hue": "Ton",
+    "hueValue": "{{h}} derece",
+    "hex": "Hex renk",
+    "preview": "Renk önizlemesi",
+    "invalidHex": "Geçerli bir #rrggbb rengi girin.",
+    "recent": "Son özel renkler",
+    "apply": "Uygula"
   },
   "status": {
     "saved": "Diske kaydedildi",

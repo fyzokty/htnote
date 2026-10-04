@@ -37,9 +37,9 @@ export function ToolbarGroups({ groups }: { groups: ReactNode[] }) {
   const close = () => { setOpen(false); trigger.current?.focus(); };
   useEffect(() => {
     if (!open) return;
-    if (focusOnOpen.current) panel.current?.querySelector<HTMLElement>("button:not(:disabled), select")?.focus();
+    if (focusOnOpen.current) panel.current?.querySelector<HTMLElement>("button:not(:disabled), select, input")?.focus();
     const outside = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node) && !(event.target as HTMLElement).closest?.(".htnote-color-popover, .htnote-tooltip")) setOpen(false);
+      if (!root.current?.contains(event.target as Node) && !(event.target as HTMLElement).closest?.(".htnote-color-popover, .htnote-font-popover, .htnote-tooltip")) setOpen(false);
     };
     document.addEventListener("pointerdown", outside);
     return () => document.removeEventListener("pointerdown", outside);
@@ -54,9 +54,9 @@ export function ToolbarGroups({ groups }: { groups: ReactNode[] }) {
       inert={!open || !hasOverflow} className="htnote-toolbar-overflow" data-open={open && hasOverflow}
       onKeyDown={(event) => {
         if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); }
-        if (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "Tab"].includes(event.key) && (event.target as HTMLElement).tagName !== "SELECT") {
+        if (event.key === "Tab" || (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(event.key) && !["SELECT", "INPUT"].includes((event.target as HTMLElement).tagName))) {
           event.preventDefault();
-          const controls = [...event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled), select")];
+          const controls = [...event.currentTarget.querySelectorAll<HTMLElement>("button:not(:disabled), select, input")];
           const backward = event.shiftKey || event.key === "ArrowLeft" || event.key === "ArrowUp";
           controls[(controls.indexOf(document.activeElement as HTMLElement) + (backward ? controls.length - 1 : 1)) % controls.length]?.focus();
         }

@@ -20,9 +20,26 @@ afterEach(() => {
 });
 
 describe("EditorToolbar", () => {
+  it("shows rounded computed sizes for paragraphs and headings, with an unavailable fallback", () => {
+    editor = new Editor({ extensions: createVisualExtensions(""), content: '<p style="font-size: 16px">Text</p><h1 style="font-size: 31.6px">Title</h1>' });
+    editor.commands.setTextSelection(1);
+    render(<EditorToolbar editor={editor} />);
+    const input = screen.getByTestId("editor-font-size");
+    expect(input).toHaveValue("");
+    expect(input).toHaveAttribute("placeholder", "16");
+    act(() => { editor.commands.setTextSelection(7); });
+    expect(input).toHaveAttribute("placeholder", "32");
+    act(() => { editor.commands.setFontSize("24px"); });
+    expect(input).toHaveValue("24");
+    const domAtPos = vi.spyOn(editor.view, "domAtPos").mockImplementation(() => { throw new Error("Unavailable"); });
+    act(() => { editor.commands.unsetFontSize(); });
+    expect(input).toHaveValue("");
+    expect(input).toHaveAttribute("placeholder", "—");
+    domAtPos.mockRestore();
+  });
   it("moves overflowing groups to keyboard-accessible tools and restores them on resize", () => {
-    let width = 400;
-    const widths = [132, 141, 141, 209, 107, 177, 73];
+    let width = 600;
+    const widths = [73, 320, 177, 177, 209, 107, 141];
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockImplementation(() => width);
     let resize: (() => void) | undefined;
     vi.stubGlobal("ResizeObserver", class {
@@ -50,22 +67,26 @@ describe("EditorToolbar", () => {
       fireEvent.keyDown(document.activeElement!, { key: "Escape" });
       expect(trigger).toHaveFocus();
       expect(trigger).toHaveAttribute("aria-expanded", "false");
-      width = 1138;
+      width = 1600;
       act(() => resize?.());
       expect(screen.queryByTestId("editor-overflow")).toBeNull();
       expect(screen.getByRole("button", { name: "Madde listesi" })).toHaveAttribute("aria-pressed", "true");
     } finally { vi.unstubAllGlobals(); vi.restoreAllMocks(); }
   });
   it("applies custom text color to the preserved selection and resets it", async () => {
-    editor = new Editor({ extensions: createVisualExtensions(""), content: "<p>Text</p>" });
+    editor = new Editor({ extensions: createVisualExtensions(""), content: '<p style="color: rgb(50, 102, 187)">Text</p>' });
     editor.commands.setTextSelection({ from: 1, to: 5 });
     render(<EditorToolbar editor={editor} />);
     fireEvent.click(screen.getByRole("button", { name: "Yazı rengi" }));
-    await act(async () => fireEvent.change(screen.getByLabelText("Özel renk"), { target: { value: "#123456" } }));
+    fireEvent.click(screen.getByRole("button", { name: "Özel renk" }));
+    expect(screen.getByLabelText("Hex renk")).toHaveValue("#3266bb");
+    fireEvent.change(screen.getByLabelText("Hex renk"), { target: { value: "#123456" } });
+    expect(editor.getHTML()).not.toContain("rgb(18, 52, 86)");
+    await act(async () => fireEvent.click(screen.getByRole("button", { name: "Uygula" })));
     expect(editor.getHTML()).toContain('style="color: rgb(18, 52, 86);"');
     fireEvent.click(screen.getByRole("button", { name: "Yazı rengi" }));
     await act(async () => fireEvent.click(screen.getByRole("button", { name: "Varsayılan (renk yok)" })));
-    expect(editor.getHTML()).not.toContain("color:");
+    expect(editor.getHTML()).not.toContain("rgb(18, 52, 86)");
   });
 
   it.each([
@@ -196,4 +217,39 @@ describe("EditorToolbar", () => {
     fireEvent.click(screen.getByRole("button", { name: "Satırı sil" }));
     expect(editor.getHTML().match(/<tr>/g)).toHaveLength(3);
   });
+});
+
+it("orders history, text, marks, blocks, table, media and links", () => {
+  editor = new Editor({ extensions: createVisualExtensions(""), content: "<p>Text</p>" });
+  render(<EditorToolbar editor={editor} />);
+  const groups = [...document.querySelectorAll('.htnote-toolbar-groups > [data-toolbar-group] > [role="group"]')];
+  expect(groups.map((group) => group.getAttribute("aria-label"))).toEqual(["Geçmiş", "Metin", "Metin biçimi", "Listeler ve bloklar", "Tablo araçları", "Medya", "Bağlantılar ve ekleme"]);
+  const blocks = groups[3].querySelectorAll("button");
+  expect([...blocks].slice(-2).map((button) => button.getAttribute("aria-label"))).toEqual(["Kod bloğu", "Satır içi kod"]);
+  expect(groups[2]).toContainElement(screen.getByRole("button", { name: "Yazı rengi" }));
+});
+it("applies and removes font family and size to the captured text selection", async () => {
+  editor = new Editor({ extensions: createVisualExtensions(""), content: "<p>Text tail</p>" });
+  editor.commands.setTextSelection({ from: 1, to: 5 });
+  render(<EditorToolbar editor={editor} />);
+  fireEvent.click(screen.getByTestId("editor-font-family"));
+  const family = await screen.findByRole("button", { name: "Arial" });
+  act(() => { editor.commands.setTextSelection(8); });
+  fireEvent.click(family);
+  expect(editor.getHTML()).toContain('font-family: &quot;Arial&quot;, sans-serif;');
+  expect(editor.getHTML()).toContain('>Text</span> tail');
+  fireEvent.click(screen.getByTestId("editor-font-size-options"));
+  fireEvent.click(screen.getByRole("button", { name: "24 px" }));
+  expect(editor.getHTML()).toContain("font-size: 24px");
+  fireEvent.click(screen.getByTestId("editor-font-family"));
+  fireEvent.click(within(screen.getByRole("dialog", { name: "Font ailesi" })).getByRole("button", { name: "Varsayılan" }));
+  expect(editor.getHTML()).not.toContain("font-family:");
+  fireEvent.click(screen.getByTestId("editor-font-size-options"));
+  fireEvent.click(within(screen.getByRole("dialog", { name: "Font boyutu" })).getByRole("button", { name: "Varsayılan" }));
+  expect(editor.getHTML()).not.toContain("font-size:");
+  const input = screen.getByTestId("editor-font-size");
+  fireEvent.focus(input);
+  fireEvent.change(input, { target: { value: "120" } });
+  fireEvent.keyDown(input, { key: "Enter" });
+  expect(editor.getHTML()).toContain("font-size: 96px");
 });
