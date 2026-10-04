@@ -20,6 +20,8 @@ mod snap_layouts;
 #[cfg(any(all(windows, debug_assertions), test))]
 mod webview_debug_args;
 
+mod splash;
+
 use tauri::Manager;
 
 /// Uygulama sÃ¼rÃ¼mÃ¼; tek kaynak `Cargo.toml`'dur.
@@ -44,11 +46,27 @@ pub fn run() {
     #[cfg(all(windows, debug_assertions))]
     let builder = builder.manage(browser_arguments);
     builder
+        .on_page_load({
+            let shown = std::sync::atomic::AtomicBool::new(false);
+            move |webview, payload| {
+                if webview.label() == "main"
+                    && payload.event() == tauri::webview::PageLoadEvent::Finished
+                    && !shown.swap(true, std::sync::atomic::Ordering::Relaxed)
+                {
+                    if let Some(window) = webview.app_handle().get_webview_window("main") {
+                        splash::show_if_hidden(&window);
+                    }
+                }
+            }
+        })
         .plugin(tauri_plugin_opener::Builder::new().open_js_links_on_click(false).build())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             let config_dir = settings::config_dir_override().unwrap_or(app.path().app_config_dir()?);
             let settings = settings::load_settings(&config_dir)?;
+            if let Some(window) = app.get_webview_window("main") {
+                splash::prepare(window, &settings.theme);
+            }
             let documents = dirs::document_dir()
                 .or_else(dirs::home_dir)
                 .ok_or_else(|| error::AppError::Internal("No documents or home directory".into()))?;

@@ -5,7 +5,8 @@ import { AppShell } from "@/app/AppShell";
 import { Toaster } from "@/components/ui/Toaster";
 import { useThemeMode } from "@/hooks/useThemeMode";
 import i18n from "@/i18n";
-import { resolveLanguage } from "@/i18n/language";
+import { resolveLanguage, writeCachedLanguage } from "@/i18n/language";
+import { hideSplash } from "@/lib/splash";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 function App() {
@@ -20,14 +21,22 @@ function App() {
   }, [load]);
 
   useEffect(() => {
-    void i18n.changeLanguage(resolveLanguage(language, navigator.language));
+    const resolved = resolveLanguage(language, navigator.language);
+    void i18n.changeLanguage(resolved);
+    writeCachedLanguage(resolved);
   }, [language]);
+
+  useEffect(() => {
+    if (status === "ready" || status === "error") hideSplash();
+  }, [status]);
+
+  if (status === "idle" || status === "loading") return null;
 
   return (
     <>
       {status !== "ready" ? (
         <main className="flex h-screen items-center justify-center bg-app-bg text-app-text">
-          {status === "error" ? t("errors.settingsLoad") : t("common.loading")}
+          {t("errors.settingsLoad")}
         </main>
       ) : <AppShell />}
       <Toaster />

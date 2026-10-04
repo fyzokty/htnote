@@ -1,0 +1,66 @@
+@import "@fontsource-variable/plus-jakarta-sans/wght.css";
+
+.htnote-splash-screen {
+  --htnote-splash-start: #eeedff;
+  --htnote-splash-end: #eaf6f0;
+  --htnote-splash-text: #0d1c2e;
+  --htnote-splash-muted: #464554;
+  --htnote-splash-track: #e1e0ff;
+  --htnote-splash-accent: #4648d4;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  user-select: none;
+  font-family: "Plus Jakarta Sans Variable", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  color: var(--htnote-splash-text);
+  background:
+    radial-gradient(circle at 10% 15%, #4648d408, transparent 40%),
+    radial-gradient(circle at 90% 85%, #10b98108, transparent 40%),
+    linear-gradient(135deg, var(--htnote-splash-start), var(--htnote-splash-end));
+  opacity: 1;
+  transition: opacity 180ms ease-out;
+}
+
+html.dark .htnote-splash-screen {
+  --htnote-splash-start: #17162e;
+  --htnote-splash-end: #0d2023;
+  --htnote-splash-text: #f1f5f9;
+  --htnote-splash-muted: #a8b6cc;
+  --htnote-splash-track: #27274a;
+  --htnote-splash-accent: #a5a6ff;
+}
+
+.htnote-splash-screen[data-state="hidden"] { opacity: 0; pointer-events: none; }
+.htnote-splash-content { display: flex; flex-direction: column; align-items: center; padding: 48px 40px; text-align: center; }
+.htnote-splash-logo {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 96px;
+  margin-bottom: 24px;
+  border: 1px solid transparent;
+  border-radius: 18px;
+  background: #18324a;
+  box-shadow: 0 12px 28px -6px #18324a59, 0 4px 12px #0000000f;
+}
+html.dark .htnote-splash-logo { border-color: #303647; box-shadow: 0 20px 40px -15px #00000099; }
+.htnote-splash-wordmark { margin: 0 0 8px; font-size: 40px; line-height: 48px; font-weight: 700; letter-spacing: -0.03em; }
+.htnote-splash-tagline { margin: 0 0 32px; color: var(--htnote-splash-muted); font-size: 14px; line-height: 22px; }
+.htnote-splash-progress { position: relative; width: 160px; height: 4px; margin-bottom: 12px; overflow: hidden; border-radius: 9999px; background: var(--htnote-splash-track); }
+.htnote-splash-segment { position: absolute; inset-block: 0; left: 30%; width: 40%; border-radius: inherit; background: var(--htnote-splash-accent); animation: htnote-splash-progress 1.5s cubic-bezier(0.65, 0, 0.35, 1) infinite; }
+.htnote-splash-status { margin: 0; color: var(--htnote-splash-muted); font-size: 12px; line-height: 18px; }
+@keyframes htnote-splash-progress {
+  0% { left: -35%; width: 35%; }
+  50% { left: 30%; width: 45%; }
+  100% { left: 100%; width: 30%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .htnote-splash-segment { animation: none; }
+  .htnote-splash-screen { transition: none; }
+}
