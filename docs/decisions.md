@@ -17,7 +17,7 @@
 |---|---|
 | Masaüstü | Tauri v2 (Rust) |
 | Frontend | React 19 + TypeScript (strict) + Vite |
-| Stil | Tailwind CSS v4 (`dark` class stratejisi), `lucide-react` ikonlar |
+| Stil | Tailwind CSS v4 (`dark` class stratejisi), `lucide-react` ikonlar, paketlenmiş değişken Plus Jakarta Sans (latin + latin-ext) |
 | State | **Zustand** |
 | Görsel editör | TipTap (güncel kararlı major) |
 | Kod editörü | CodeMirror 6 (`lang-html`, `lang-css`, `lang-javascript`) |
@@ -273,3 +273,8 @@
 - **Karar:** URL, asset açma ve klasörde gösterme işlemleri yalnızca Rust `external` modülünden geçer. Ön yüz tipli IPC sarmalayıcıları kullanır; doğrudan opener capability izinleri verilmez. Rust da yalnızca açık `http://`, `https://` ve `mailto:` URL şemalarını kabul eder.
 - **Kural:** Yalnızca debug derlemelerinde dolu `HTNOTE_EXTERNAL_OPEN_LOG` dosya yolu, gerçek açılış yerine `{ "kind": "url"|"path"|"reveal", "target": "…" }` JSONL kaydı üretir. Yazma hatası OS açılışına geri düşmez. Release derlemelerinde bu kayıt yolu derlenmez ve ortam değişkeni etkisizdir.
 - **Sonuç:** E2E, doküman ekran görüntüleri ve smoke başlatıcıları geçici kayıt yolu sağlar. E2E kayıtları `e2e/logs/external-open.jsonl` konumuna kopyalanır; kayıt doğrulaması uygulamanın sürücü ortamını devraldığını kanıtlar. D08 iframe sandbox/origin/ACL sınırları korunur; yeni komutlar da not ve taslak çerçevelerinden reddedilir.
+
+## D29 — Canlı Kartlar arayüz dili ve özel başlık çubuğu
+- **Karar:** Canlı Kartlar arayüz dili kökteki `DESIGN.md` belgesinde tanımlanır; UI ile çelişirse görsel tasarımda `DESIGN.md` esas alınır. Sistem başlık çubuğu yerine özel başlık çubuğu kullanılır.
+- **Kural:** Windows'ta pencere düğmeleri sağ üstte, sekmeler başlık çubuğundadır. Plus Jakarta Sans değişken fontu Türkçe karakterler dahil uygulamayla paketlenir; font CDN'i kullanılmaz.
+- **Sonuç:** Renk, tipografi, yüzey ve kart düzeni ortak token'larla uygulanır. Özel başlık çubuğunun davranış ve uygulama ayrıntıları R2'de netleştirilir; mevcut güvenlik ve not görünümü sınırları korunur.
