@@ -224,3 +224,28 @@ describe("treeStore", () => {
     vi.useRealTimers();
   });
 });
+
+it("collapses persisted folders and selects the top ancestor of a hidden selection", async () => {
+  useSettingsStore.setState({ settings, status: "ready" });
+  const update = vi.spyOn(useSettingsStore.getState(), "update").mockResolvedValue(settings);
+  mockIPC((command) => command === "get_note_tree" ? tree : undefined);
+  await useTreeStore.getState().load();
+  vi.useFakeTimers();
+  useTreeStore.setState({ expanded: new Set(["A", "A/B"]), selected: { kind: "note", id: "n" } });
+  useTreeStore.getState().collapseAll();
+  expect(useTreeStore.getState().expanded.size).toBe(0);
+  expect(useTreeStore.getState().selected).toEqual({ kind: "folder", relPath: "A" });
+  await vi.advanceTimersByTimeAsync(500);
+  expect(update).toHaveBeenCalledWith({ expandedFolders: [] });
+  update.mockRestore();
+  vi.useRealTimers();
+});
+
+it("overrides automatic filter expansion without reopening manually toggled folders", () => {
+  useTreeStore.setState({ tree, filterQuery: "Başlık", expanded: new Set(["A"]), filterExpandedOverride: new Set(["A/B"]) });
+  useTreeStore.getState().collapseAll();
+  expect([...useTreeStore.getState().filterExpandedOverride]).toEqual(expect.arrayContaining(["A", "A/B"]));
+  expect(useTreeStore.getState().expanded.size).toBe(0);
+  useTreeStore.getState().setFilterQuery("");
+  expect(useTreeStore.getState().filterExpandedOverride.size).toBe(0);
+});

@@ -12,6 +12,29 @@ describe("organize and search flows", () => {
   beforeEach(async () => { ({ root, restore } = await useTempRoot()); });
   afterEach(async () => { await restore?.(); });
 
+  it("collapses two open folders while keeping their section visible", async () => {
+    const folders = [];
+    for (const name of ["Collapse A", "Collapse B"]) {
+      const folder = await invoke<{ relPath: string }>("create_folder", { parentRelPath: "", name });
+      const note = await invoke<{ id: string }>("create_note", { parentRelPath: folder.relPath, title: `${name} child` });
+      folders.push({ ...folder, id: note.id });
+    }
+    await browser.refresh();
+    for (const folder of folders) {
+      const row = await $(`[data-tree-key="folder:${folder.relPath}"]`);
+      await row.waitForDisplayed();
+      if (await row.getAttribute("aria-expanded") !== "true") await row.click();
+      await (await waitForTreeItem(folder.id)).waitForDisplayed();
+    }
+    await $('[data-testid="collapse-all-folders"]').click();
+    for (const folder of folders) {
+      await browser.waitUntil(async () => !await $(`[data-tree-key="note:${folder.id}"]`).isDisplayed());
+      assert.equal(await $(`[data-tree-key="folder:${folder.relPath}"]`).getAttribute("aria-expanded"), "false");
+    }
+    assert.equal(await $('[role="tree"]').isDisplayed(), true);
+    assert.equal(await $('[data-testid="collapse-all-folders"]').isEnabled(), false);
+  });
+
   it("shows a drag card and moves a note into a folder and back to root", async () => {
     const folder = await invoke<{ relPath: string }>("create_folder", { parentRelPath: "", name: "Destination" });
     const note = await createNote("Drag me");

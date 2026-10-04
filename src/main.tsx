@@ -8,6 +8,7 @@ import { applyThemeClass, readCachedThemeMode } from "@/lib/theme";
 import { ipc } from "@/lib/ipc";
 import { initNoteOrigin } from "@/lib/noteUrl";
 import { installContextMenuGuard } from "@/lib/contextMenuGuard";
+import { OverlayScrollbars } from "@/components/ui/OverlayScrollbars";
 import "@fontsource-variable/plus-jakarta-sans/wght.css";
 import "@/index.css";
 
@@ -19,7 +20,7 @@ void ipc.getNoteOrigin().then((origin) => {
   initNoteOrigin(origin);
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
-      <ErrorBoundary><App /></ErrorBoundary>
+      <ErrorBoundary><OverlayScrollbars /><App /></ErrorBoundary>
     </React.StrictMode>,
   );
 });

@@ -5,9 +5,10 @@ import { createPortal } from "react-dom";
 import type { ComponentProps, KeyboardEvent, ReactNode } from "react";
 import { DndContext, DragOverlay, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import type { CollisionDetection, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
-import { ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
+import { ChevronsDownUp, ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { IconButton } from "@/components/ui/IconButton";
 import { Button } from "@/components/ui/Button";
 import { ContextMenu } from "@/components/ui/ContextMenu";
 import { toggleFavorite } from "@/features/favorites/favorites";
@@ -20,7 +21,7 @@ import { deleteTreeItem } from "@/features/trash/deleteCoordinator";
 import { canDrop } from "@/features/tree/canDrop";
 import { preferTreeRow } from "@/features/tree/preferTreeRow";
 import { useHoverExpand } from "@/features/tree/useHoverExpand";
-import { animatedFolderChange } from "./treeMotion";
+import { animateBulkCollapse, animatedFolderChange } from "./treeMotion";
 import { nextVisibleNode, visibleNodes } from "@/features/tree/treeNavigation";
 import { useTreeActions } from "@/features/tree/useTreeActions";
 import { canExportPdf, exportNote, pdfMode } from "@/features/viewer/exportNote";
@@ -171,6 +172,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const selected = useTreeStore((state) => state.selected);
   const exportBusy = useUiStore((state) => state.exportBusy);
   const select = useTreeStore((state) => state.select);
+  const collapseAll = useTreeStore((state) => state.collapseAll);
   const toggle = useTreeStore((state) => state.toggle);
   const renamingRelPath = useTreeStore((state) => state.renamingRelPath);
   const setRenaming = useTreeStore((state) => state.setRenaming);
@@ -182,6 +184,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const [dropPath, setDropPath] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
   const [requestedAnimation, setRequestedAnimation] = useState<string | null>(null);
+  const [bulkRequested, setBulkRequested] = useState(false);
   const toggleAnimated = useCallback((path: string) => {
     setRequestedAnimation(path);
     toggle(path);
@@ -209,13 +212,16 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     }
     return paths;
   }, [expanded, filtered, filterExpandedOverride, filterQuery, filterTag]);
-  const [expansionState, setExpansionState] = useState({ previous: effectiveExpanded, tree, animatedPath: null as string | null });
+  const [expansionState, setExpansionState] = useState({ previous: effectiveExpanded, tree, animatedPath: null as string | null, bulk: false });
   let animatedPath = expansionState.animatedPath;
+  let bulk = expansionState.bulk;
   if (expansionState.previous !== effectiveExpanded || expansionState.tree !== tree) {
     const changedPath = animatedFolderChange(expansionState.previous, effectiveExpanded, !!filterQuery.trim() || !!filterTag, expansionState.tree !== tree);
     animatedPath = changedPath === requestedAnimation ? changedPath : null;
+    bulk = animateBulkCollapse(expansionState.previous, effectiveExpanded, bulkRequested, expansionState.tree !== tree);
+    setBulkRequested(false);
     setRequestedAnimation(null);
-    setExpansionState({ previous: effectiveExpanded, tree, animatedPath });
+    setExpansionState({ previous: effectiveExpanded, tree, animatedPath, bulk });
   }
   const rows = visibleNodes(visibleTree, effectiveExpanded);
   const visiblePaths = new Set(rows.map(({ node }) => node.relPath));
@@ -355,7 +361,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
             : flashedKey === `note:${node.id}` || flashedKey === node.id || flashedKey === node.relPath}
           isHoverExpanding={hoveringPath === node.relPath}
         >
-          {node.type === "folder" && <Collapsible group id={`tree-group:${node.relPath}`} open={effectiveExpanded.has(node.relPath)} animate={animatedPath === node.relPath}>
+          {node.type === "folder" && <Collapsible group id={`tree-group:${node.relPath}`} open={effectiveExpanded.has(node.relPath)} animate={bulk || animatedPath === node.relPath}>
             {() => renderNodes(node.children, depth + 1)}
           </Collapsible>}
         </TreeRow>
@@ -366,7 +372,16 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
 
   return (
     <section className="flex min-h-0 flex-1 flex-col px-3 py-2" aria-label={t("sidebar.folders")}>
-    <Button data-testid="folders-toggle" variant="ghost" size="sm" aria-expanded={sectionExpanded} onClick={() => setSectionExpanded(!sectionExpanded)} className="flex w-full shrink-0 justify-start items-center gap-2 rounded px-2 py-1 text-left text-[11px] font-bold uppercase tracking-wider hover:bg-app-subtle"><ChevronRight className={`size-4 shrink-0 transition-transform duration-150 ${sectionExpanded ? "rotate-90" : ""}`} aria-hidden /><Folder className="size-4" aria-hidden />{t("sidebar.folders")}</Button>
+    <div className="flex shrink-0 items-center">
+    <Button data-testid="folders-toggle" variant="ghost" size="sm" aria-expanded={sectionExpanded} onClick={() => setSectionExpanded(!sectionExpanded)} className="flex min-w-0 flex-1 shrink-0 justify-start items-center gap-2 rounded px-2 py-1 text-left text-[11px] font-bold uppercase tracking-wider hover:bg-app-subtle"><ChevronRight className={`size-4 shrink-0 transition-transform duration-150 ${sectionExpanded ? "rotate-90" : ""}`} aria-hidden /><Folder className="size-4" aria-hidden />{t("sidebar.folders")}</Button>
+    {sectionExpanded && <IconButton size="sm" label={t("tree.collapseAll")} data-testid="collapse-all-folders" disabled={effectiveExpanded.size === 0} onClick={() => {
+      setBulkRequested(true);
+      collapseAll();
+      const selection = useTreeStore.getState().selected;
+      pendingFocusKey.current = selection?.kind === "folder" ? `folder:${selection.relPath}` : null;
+      if (!pendingFocusKey.current) rootRef.current?.focus();
+    }}><ChevronsDownUp className="size-4" aria-hidden /></IconButton>}
+    </div>
     <Collapsible open={sectionExpanded} className="min-h-0 flex-1">
     <DndContext sensors={sensors} collisionDetection={treeCollisionDetection} onDragStart={(event: DragStartEvent) => setDragSource(event.active.data.current?.node as TreeNode ?? null)} onDragOver={dragOver} onDragEnd={finishDrag} onDragCancel={() => finishDrag()}>
     <TreeDropRoot
