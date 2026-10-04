@@ -1,12 +1,11 @@
 import { tagColor, tagColorStyle } from "@/features/tags/tagColors";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { PointerEvent } from "react";
-import { FilePlus2, FolderPlus, Menu, NotebookPen, Search, Settings2, Trash2 } from "lucide-react";
+import { FilePlus2, FolderPlus, NotebookPen, Search, Settings2, Trash2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 
 import { Tooltip } from "@/components/ui/Tooltip";
-import { IconButton } from "@/components/ui/IconButton";
 import { Button } from "@/components/ui/Button";
 import { installUnsavedWindowGuard } from "@/app/unsavedWindowGuard";
 import { UnsavedChangesDialog } from "@/components/ui/UnsavedChangesDialog";
@@ -27,7 +26,7 @@ import { SidebarTree } from "@/features/tree/SidebarTree";
 import { FavoritesSection } from "@/features/favorites/FavoritesSection";
 import { TagsSection } from "@/features/tags/TagsSection";
 import { handleQuickFilterKeyDown } from "@/features/tree/filterTree";
-import { TabBar } from "@/features/tabs/TabBar";
+import { TitleBar } from "@/features/titlebar/TitleBar";
 import { NoteViewer } from "@/features/viewer/NoteViewer";
 import { installBridgeHost } from "@/features/viewer/bridgeHost";
 import { startFsChangeSync } from "@/features/tree/fsChangeSync";
@@ -255,87 +254,82 @@ export function AppShell() {
   }
 
   return (
-    <main className="htnote-shell select-none flex h-screen min-h-0 w-full overflow-hidden bg-app-bg text-app-text">
-      {isResizing && (
-        <div
-          className="fixed inset-0 z-50 cursor-col-resize select-none"
-          onPointerMove={resize}
-          onPointerUp={finishResize}
-          onPointerCancel={finishResize}
-        />
-      )}
-      <UnsavedChangesDialog />
-      <ConfirmDialog />
-      {searchOpen && <SearchModal />}
-      {shortcutsOpen && <ShortcutsModal onClose={closeShortcuts} />}
-      {!unsavedDialog && <RecoveryDialog candidates={recoveryCandidates} onRecover={(id) => void recoverDraft(id)} onIgnore={(id) => void ignoreDraft(id)} />}
-      {sidebarVisible && (
-        <aside
-          ref={sidebarRef}
-          className="htnote-sidebar-card relative flex h-full min-h-0 shrink-0 flex-col"
-          style={{ width: sidebarWidth }}
-          aria-label={t("sidebar.label")}
-        >
-          <div className="flex h-10 shrink-0 items-center gap-2 border-b border-app-border px-4">
-            <NotebookPen className="size-5 text-app-accent" aria-hidden />
-            <h1 className="select-none text-lg font-semibold">{t("common.appName")}</h1>
-          </div>
-          <div className="shrink-0 space-y-3 p-3">
-            <div className="flex gap-1">
-              <Tooltip label={t("sidebar.newNote")} shortcut={formatShortcut("newNote")} className="flex-1"><Button type="button" data-testid="new-note" onClick={() => void createNote()} variant="primary" size="sm" className="min-w-0 flex-1 px-2 text-xs">
-                <FilePlus2 className="size-4 shrink-0" aria-hidden /> {t("sidebar.newNote")}
-              </Button></Tooltip>
-              <Tooltip label={t("sidebar.newFolder")} shortcut={formatShortcut("newFolder")} className="flex-1"><Button type="button" data-testid="new-folder" onClick={() => void createFolder()} size="sm" className="min-w-0 flex-1 px-2 text-xs">
-                <FolderPlus className="size-4 shrink-0" aria-hidden /> {t("sidebar.newFolder")}
-              </Button></Tooltip>
-              <Tooltip label={t("sidebar.search")} shortcut={formatShortcut("globalSearch")} className="flex-1"><Button type="button" data-testid="global-search" onClick={openSearch} size="sm" className="min-w-0 flex-1 px-2 text-xs">
-                <Search className="size-4 shrink-0" aria-hidden /> {t("sidebar.search")}
-              </Button></Tooltip>
-            </div>
-            <div className="flex items-center gap-1">
-              <input type="search" aria-label={t("sidebar.quickFilter")} placeholder={t("sidebar.quickFilterPlaceholder")} value={filterQuery} onChange={(event) => setFilterQuery(event.target.value)} onKeyDown={(event) => handleQuickFilterKeyDown(event, () => setFilterQuery(""))} className="min-w-0 flex-1 rounded-md border border-app-border bg-app-bg px-3 py-2 text-sm outline-none focus:border-app-accent" />
-              {filterTag && <Button style={tagColorStyle(tagColor(tagColors, filterTag))} type="button" onClick={() => setFilterTag(null)} aria-label={t("tags.clearFilter", { tag: filterTag })} className={`max-w-24 shrink-0 truncate rounded bg-app-subtle px-2 py-1 text-xs ${tagColor(tagColors, filterTag) ? "htnote-colored-tag" : ""}`}>{filterTag} ×</Button>}
-            </div>
-          </div>
-          <FavoritesSection onOpenNote={openNote} />
-          <SidebarTree onOpenNote={openNote} />
-          <TagsSection />
-          <div className="shrink-0 border-t border-app-border p-2">
-            <Button type="button" data-testid="trash" onClick={() => useTabsStore.getState().toggleSpecial("trash")} aria-pressed={trashOpen} variant="ghost" className="w-full justify-start gap-3">
-              <Trash2 className="size-4" aria-hidden /> {t("sidebar.trash")} <span className="ml-auto">{trashCount}</span>
-            </Button>
-            <Button type="button" data-testid="settings" onClick={() => useTabsStore.getState().toggleSpecial("settings")} aria-pressed={settingsOpen} variant="ghost" className="w-full justify-start gap-3">
-              <Settings2 className="size-4" aria-hidden /> {t("sidebar.settings")}
-            </Button>
-          </div>
+    <div className="htnote-app flex h-screen min-h-0 w-full flex-col overflow-hidden bg-app-bg text-app-text">
+      <TitleBar />
+      <main className="htnote-shell select-none flex min-h-0 w-full flex-1 overflow-hidden">
+        {isResizing && (
           <div
-            role="separator"
-            aria-label={t("sidebar.resize")}
-            aria-orientation="vertical"
-            aria-valuemin={200}
-            aria-valuemax={480}
-            aria-valuenow={sidebarWidth}
-            onPointerDown={startResize}
+            className="fixed inset-0 z-50 cursor-col-resize select-none"
             onPointerMove={resize}
             onPointerUp={finishResize}
             onPointerCancel={finishResize}
-            className="absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize touch-none hover:bg-app-accent/30"
           />
-        </aside>
-      )}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="htnote-shell-tabs flex h-10 shrink-0 items-center gap-3 border-b border-app-border bg-app-surface px-3">
-          <IconButton type="button" onClick={toggleSidebar} shortcut={formatShortcut("toggleSidebar")} label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")} className="text-app-muted">
-            <Menu className="size-5" aria-hidden />
-          </IconButton>
-          <TabBar />
-        </header>
+        )}
+        <UnsavedChangesDialog />
+        <ConfirmDialog />
+        {searchOpen && <SearchModal />}
+        {shortcutsOpen && <ShortcutsModal onClose={closeShortcuts} />}
+        {!unsavedDialog && <RecoveryDialog candidates={recoveryCandidates} onRecover={(id) => void recoverDraft(id)} onIgnore={(id) => void ignoreDraft(id)} />}
+        {sidebarVisible && (
+          <aside
+            ref={sidebarRef}
+            className="htnote-sidebar-card relative flex h-full min-h-0 shrink-0 flex-col"
+            style={{ width: sidebarWidth }}
+            aria-label={t("sidebar.label")}
+          >
+            <div className="flex h-10 shrink-0 items-center gap-2 border-b border-app-border px-4">
+              <NotebookPen className="size-5 text-app-accent" aria-hidden />
+              <h1 className="select-none text-lg font-semibold">{t("common.appName")}</h1>
+            </div>
+            <div className="shrink-0 space-y-3 p-3">
+              <div className="flex gap-1">
+                <Tooltip label={t("sidebar.newNote")} shortcut={formatShortcut("newNote")} className="flex-1"><Button type="button" data-testid="new-note" onClick={() => void createNote()} variant="primary" size="sm" className="min-w-0 flex-1 px-2 text-xs">
+                  <FilePlus2 className="size-4 shrink-0" aria-hidden /> {t("sidebar.newNote")}
+                </Button></Tooltip>
+                <Tooltip label={t("sidebar.newFolder")} shortcut={formatShortcut("newFolder")} className="flex-1"><Button type="button" data-testid="new-folder" onClick={() => void createFolder()} size="sm" className="min-w-0 flex-1 px-2 text-xs">
+                  <FolderPlus className="size-4 shrink-0" aria-hidden /> {t("sidebar.newFolder")}
+                </Button></Tooltip>
+                <Tooltip label={t("sidebar.search")} shortcut={formatShortcut("globalSearch")} className="flex-1"><Button type="button" data-testid="global-search" onClick={openSearch} size="sm" className="min-w-0 flex-1 px-2 text-xs">
+                  <Search className="size-4 shrink-0" aria-hidden /> {t("sidebar.search")}
+                </Button></Tooltip>
+              </div>
+              <div className="flex items-center gap-1">
+                <input type="search" aria-label={t("sidebar.quickFilter")} placeholder={t("sidebar.quickFilterPlaceholder")} value={filterQuery} onChange={(event) => setFilterQuery(event.target.value)} onKeyDown={(event) => handleQuickFilterKeyDown(event, () => setFilterQuery(""))} className="min-w-0 flex-1 rounded-md border border-app-border bg-app-bg px-3 py-2 text-sm outline-none focus:border-app-accent" />
+                {filterTag && <Button style={tagColorStyle(tagColor(tagColors, filterTag))} type="button" onClick={() => setFilterTag(null)} aria-label={t("tags.clearFilter", { tag: filterTag })} className={`max-w-24 shrink-0 truncate rounded bg-app-subtle px-2 py-1 text-xs ${tagColor(tagColors, filterTag) ? "htnote-colored-tag" : ""}`}>{filterTag} ×</Button>}
+              </div>
+            </div>
+            <FavoritesSection onOpenNote={openNote} />
+            <SidebarTree onOpenNote={openNote} />
+            <TagsSection />
+            <div className="shrink-0 border-t border-app-border p-2">
+              <Button type="button" data-testid="trash" onClick={() => useTabsStore.getState().toggleSpecial("trash")} aria-pressed={trashOpen} variant="ghost" className="w-full justify-start gap-3">
+                <Trash2 className="size-4" aria-hidden /> {t("sidebar.trash")} <span className="ml-auto">{trashCount}</span>
+              </Button>
+              <Button type="button" data-testid="settings" onClick={() => useTabsStore.getState().toggleSpecial("settings")} aria-pressed={settingsOpen} variant="ghost" className="w-full justify-start gap-3">
+                <Settings2 className="size-4" aria-hidden /> {t("sidebar.settings")}
+              </Button>
+            </div>
+            <div
+              role="separator"
+              aria-label={t("sidebar.resize")}
+              aria-orientation="vertical"
+              aria-valuemin={200}
+              aria-valuemax={480}
+              aria-valuenow={sidebarWidth}
+              onPointerDown={startResize}
+              onPointerMove={resize}
+              onPointerUp={finishResize}
+              onPointerCancel={finishResize}
+              className="absolute inset-y-0 -right-1 z-10 w-2 cursor-col-resize touch-none hover:bg-app-accent/30"
+            />
+          </aside>
+        )}
         <section className="htnote-workspace-card flex min-h-0 min-w-0 flex-1 overflow-hidden" aria-label={t("viewer.workspace")}>
           {settingsOpen && <SettingsView onShowShortcuts={openShortcuts} />}
           {trashOpen && <TrashView />}
           <div hidden={settingsOpen || trashOpen} className="h-full min-h-0 w-full"><NoteViewer /></div>
         </section>
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }

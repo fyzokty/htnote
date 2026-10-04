@@ -1,4 +1,5 @@
-import { allowShortcutInEditable, getPlatform, listShortcuts, matchShortcut, setShortcutBound } from "@/lib/shortcuts/registry";
+import { getPlatform } from "@/lib/platform";
+import { allowShortcutInEditable, listShortcuts, matchShortcut, setShortcutBound } from "@/lib/shortcuts/registry";
 import type { KeyInput, ShortcutId } from "@/lib/shortcuts/registry";
 
 type Handler = () => void;

@@ -18,6 +18,16 @@
     "hide": "Hide sidebar",
     "show": "Show sidebar"
   },
+  "titleBar": {
+    "label": "Title bar",
+    "search": "Search…",
+    "searchLabel": "Search all notes",
+    "windowControls": "Window controls",
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "restore": "Restore down",
+    "close": "Close"
+  },
   "tree": {
     "label": "Note tree",
     "empty": "No notes yet — start with + Note",

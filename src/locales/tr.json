@@ -18,6 +18,16 @@
     "hide": "Kenar çubuğunu gizle",
     "show": "Kenar çubuğunu göster"
   },
+  "titleBar": {
+    "label": "Başlık çubuğu",
+    "search": "Ara…",
+    "searchLabel": "Tüm notlarda ara",
+    "windowControls": "Pencere denetimleri",
+    "minimize": "Simge durumuna küçült",
+    "maximize": "Ekranı kapla",
+    "restore": "Önceki boyuta getir",
+    "close": "Kapat"
+  },
   "tree": {
     "label": "Not ağacı",
     "empty": "Henüz not yok — + Not ile başlayın",

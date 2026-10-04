@@ -1,3 +1,8 @@
+import type { Platform } from "@/lib/platform";
+import { getPlatform } from "@/lib/platform";
+
+export type { Platform };
+
 export type ShortcutId =
   | "newNote"
   | "newFolder"
@@ -17,8 +22,6 @@ export type ShortcutId =
   | "editorLink";
 
 export type ShortcutCategory = "general" | "tabs" | "editing" | "editor";
-
-export type Platform = "mac" | "windows" | "linux";
 
 export interface KeyInput {
   key: string;
@@ -70,12 +73,6 @@ export function listShortcuts(): readonly (ShortcutDefinition & { id: ShortcutId
 
 export function setShortcutBound(id: ShortcutId, bound: boolean): void {
   SHORTCUTS[id].bound = bound;
-}
-
-export function getPlatform(): Platform {
-  if (typeof navigator !== "undefined" && /Mac/i.test(navigator.platform)) return "mac";
-  if (typeof navigator !== "undefined" && /Linux/i.test(navigator.platform)) return "linux";
-  return "windows";
 }
 
 export function allowShortcutInEditable(id: ShortcutId): boolean {

@@ -31,11 +31,11 @@ describe("TabBar", () => {
     const dot = tab.querySelector('[data-testid="tab-dirty"]');
     expect(dot).not.toHaveClass("hidden");
     expect(dot).toHaveClass("size-4", "group-hover:hidden", "group-focus-within:hidden");
-    expect(tab.querySelector("svg")).toHaveClass("size-4", "hidden", "group-hover:block", "group-focus-within:block");
+    expect(tab.querySelector(".htnote-tab-close svg")).toHaveClass("size-4", "hidden", "group-hover:block", "group-focus-within:block");
     expect(screen.getByRole("button", { name: "Alpha sekmesini kapat" })).toHaveClass("htnote-tab-close");
     act(() => useTabsStore.getState().updateDraft("a", { html: "old" }));
     expect(dot).toHaveClass("hidden");
-    expect(tab.querySelector("svg")).not.toHaveClass("hidden");
+    expect(tab.querySelector(".htnote-tab-close svg")).not.toHaveClass("hidden");
   });
 
   it("renders special titles and icons, without the note reveal action", async () => {

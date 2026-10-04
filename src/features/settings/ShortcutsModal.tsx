@@ -2,7 +2,8 @@ import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { IconButton } from "@/components/ui/IconButton";
-import { formatShortcut, getPlatform, listShortcuts } from "@/lib/shortcuts/registry";
+import { getPlatform } from "@/lib/platform";
+import { formatShortcut, listShortcuts } from "@/lib/shortcuts/registry";
 import type { ShortcutCategory } from "@/lib/shortcuts/registry";
 
 const categories: readonly ShortcutCategory[] = ["general", "tabs", "editing", "editor"];

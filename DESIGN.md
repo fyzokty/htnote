@@ -1,6 +1,6 @@
 # HTNote — Canlı Kartlar tasarım dili
 
-Bu belge HTNote arayüzünün görsel spesifikasyonudur. Arayüzle çeliştiğinde bu belge esas alınır; davranış, veri modeli ve güvenlik sınırları mimari karar kaydına tabidir. Renklerin uygulamadaki tek kaynağı `src/index.css` içindeki `--app-*` token'larıdır. Özel başlık çubuğu ve aşağıda tanımlanan bileşen düzenleri sonraki uygulama adımları için hedeftir; ilk temel aşamasında mevcut bileşen düzenleri korunur.
+Bu belge HTNote arayüzünün görsel spesifikasyonudur. Arayüzle çeliştiğinde bu belge esas alınır; davranış, veri modeli ve güvenlik sınırları mimari karar kaydına tabidir. Renklerin uygulamadaki tek kaynağı `src/index.css` içindeki `--app-*` token'larıdır.
 
 ## 1. Kimlik ve ilkeler
 
@@ -36,6 +36,9 @@ Not içeriği kabuğun parçası değildir. Kullanıcının HTML/CSS'i, içeriğ
 | `--app-danger` | `#ba1a1a` | Tehlike |
 | `--app-danger-hover` | `#93000a` | Tehlike hover |
 | `--app-danger-text` | `#ffffff` | Tehlike düğme metni |
+| `--app-caption-close-hover` | `#c42b1c` | Pencere Kapat düğmesi hover |
+| `--app-caption-close-active` | `#b0271a` | Pencere Kapat düğmesi basılı |
+| `--app-caption-close-text` | `#ffffff` | Kapat hover/basılı glifi |
 | `--app-focus` | `#4648d4` | Odak halkası |
 | `--app-backdrop` | `#00000080` | Modal örtüsü; pencere gradyanı değildir |
 | `--app-shadow` | `#00000026` | Mevcut bileşen gölge rengi |
@@ -73,6 +76,7 @@ Tema mevcut `.dark` sınıf stratejisiyle seçilir. Açık/koyu not yüzeyi ve m
 | `--app-danger` | `#fb929e` | Tehlike |
 | `--app-danger-hover` | `#ffb3bc` | Tehlike hover |
 | `--app-danger-text` | `#4a0010` | Tehlike düğme metni |
+| `--app-caption-close-hover`, `--app-caption-close-active`, `--app-caption-close-text` | açık temayla aynı | Windows 11 Kapat düğmesi iki temada da aynıdır |
 | `--app-focus` | `#a5a6ff` | Odak halkası |
 | `--app-backdrop` | `#00000099` | Modal örtüsü |
 | `--app-shadow` | `#00000040` | Mevcut bileşen gölge rengi |
@@ -138,6 +142,8 @@ Bu ölçek kabuğa aittir; kullanıcı notunun display başlığı uygulama tara
 | `--app-radius-control` | 8px | Düğme, alan, ağaç satırı |
 | `--app-radius-card` | 16px | Ana kartlar; iç kartlar 12–16px |
 | `--app-radius-pill` | 9999px | Etiket, kısayol ve durum pill'leri |
+| `--app-titlebar-height` | 48px | Özel başlık çubuğu ve pencere düğmesi yüksekliği |
+| `--app-caption-button-width` | 46px | Pencere düğmesi genişliği |
 | `--app-shadow-card` (açık) | `0 10px 25px -4px #4755690f, 0 4px 10px -2px #6366f10a` | Hafif kart ayrımı |
 | `--app-shadow-card` (koyu) | `0 10px 25px -4px #00000040, 0 4px 10px -2px #00000026` | Hafif kart ayrımı |
 
@@ -145,24 +151,24 @@ Gölge görsel hiyerarşiyi destekler; kalın veya renkli glow kullanılmaz. Cam
 
 ## 5. Yerleşim
 
-Ölçüler 4/8px ızgaraya oturur. Hedef özel başlık çubuğu 48px, alt durum çubuğu 32px yüksekliğindedir. Kenar çubuğu varsayılan 260px; mevcut 200–480px yeniden boyutlandırma aralığı korunur. Kart iç boşlukları 16–20px, yoğun araç satırlarında 8–12px; ana kartların kenarlara uzaklığı ve aralarındaki boşluk 8px olur. Not başlık satırı en az 64px yüksekliğinde, gerektiğinde erişilebilir satırlara sarılır.
+Ölçüler 4/8px ızgaraya oturur. Özel başlık çubuğu 48px, alt durum çubuğu 32px yüksekliğindedir. Kenar çubuğu varsayılan 260px; mevcut 200–480px yeniden boyutlandırma aralığı korunur. Kart iç boşlukları 16–20px, yoğun araç satırlarında 8–12px; ana kartların kenarlara uzaklığı ve aralarındaki boşluk 8px olur. Not başlık satırı en az 64px yüksekliğinde, gerektiğinde erişilebilir satırlara sarılır.
 
-İlk temel aşamasında mevcut 40px sekme şeridi çalışma kartının dışında kalır; kenar çubuğunun mevcut iç başlığı korunur. Özel başlık çubuğuna taşıma ayrı bir adımdır. Çalışma alanı, not başlık satırı, içerik ve mevcut durum çubuğunu tek yuvarlak kartta taşır. Kenar çubuğu kartı kendi iç kaydırma alanlarını korur; tutamak kartlar arasındaki boşlukta erişilebilir kalır. Kenar çubuğu gizlenince çalışma alanı boşluğu doldurur, saklanan genişlik geri açılışta korunur.
+Başlık çubuğu pencerenin tam genişliğindedir ve zemin gradyanı üzerinde durur; kenar çubuğu kartı ile çalışma kartı onun altından başlar. Kenar çubuğunun iç başlığı (HTNote kimliği) korunur. Çalışma alanı, not başlık satırı, içerik ve mevcut durum çubuğunu tek yuvarlak kartta taşır. Kenar çubuğu kartı kendi iç kaydırma alanlarını korur; tutamak kartlar arasındaki boşlukta erişilebilir kalır. Kenar çubuğu gizlenince çalışma alanı boşluğu doldurur, saklanan genişlik geri açılışta korunur.
 
 Minimum pencere **900×600**'dür. Bu ölçüde kart boşluğu korunur; çalışma alanı `min-width: 0` ve `min-height: 0` ile kalan alanı kullanır. Uzun sekmeler yatay kayar, uzun başlıklar kısalır ve tam ad tooltip/erişilebilir adla sunulur. Araçlar içerik üzerine taşmaz; dar alanlarda satır sarma veya mevcut taşma menüsü kullanılır. Not, ağaç, ayarlar ve arama sonuçları kendi alanlarında kayar; pencere bütünü kaydırılmaz. Kod/önizleme bölücüsü mevcut sınırları korur; kenar çubuğunu gizleme ve önizlemeyi kapatma daha fazla alan sağlar.
 
 ## 6. Bileşenler
 
-- **Başlık çubuğu, sekmeler ve pencere düğmeleri:** Sistem başlık çubuğu yerine özel çubuk kullanılır. Windows'ta küçült/büyüt veya geri yükle/kapat sağ üsttedir. Sekmeler başlık çubuğundadır; seçili sekme kart/pill yüzeyiyle ayrılır. Sekme kapatma ve bağlam menüsü korunur. Sürükleme alanı etkileşimli düğmelerle çakışmaz; native pencere davranışının ayrıntıları özel başlık çubuğu adımında kesinleşir.
+- **Başlık çubuğu, sekmeler ve pencere düğmeleri:** Sistem başlık çubuğu yerine 48px özel çubuk kullanılır. Soldan sağa: kenar çubuğu aç/kapa, sekmeler ve “+” yeni sekme, sürüklenebilir boş alan, “Ara…” kutusu (tam metin arama diyaloğunu açar, `globalSearch` ipucunu gösterir) ve pencere düğmeleri. Seçili sekme 32px yüksek kart/pill yüzeyiyle (`--app-card`, ince sınır, kart gölgesi) ayrılır; sekme kapatma, sürükle-bırak sıralama ve bağlam menüsü korunur. Windows ve Linux'ta Küçült, Ekranı kapla/Önceki boyuta getir ve Kapat düğmeleri 46px genişlikte, çubuk yüksekliğinde ve sağ üst köşeye yaslıdır; nötr hover `--app-hover`, Kapat hover'ı `--app-caption-close-hover` (#c42b1c) üzerinde beyaz glif kullanır. macOS'ta sistemin trafik ışıkları korunur, solda onlara yer bırakılır. Pencere etkin değilken çubuk metni ve glifler `--app-muted` ile soluklaşır. Yalnızca boş alanlar sürükleme alanıdır; sekmeler, düğmeler ve arama kutusu pencereyi taşımaz, boş alana çift tıklama büyütür/geri alır.
 - **Kenar çubuğu:** Üstte HTNote kimliği, birincil indigo “Yeni not” düğmesi ve Ctrl+N rozeti; altında ikincil klasör ve arama düğmeleri. Hızlı filtre korunur. FAVORİLER/KLASÖRLER/ETİKETLER bölüm etiketleri küçük ve düzenlidir. Ağaç satırlarında girinti, açma oku, ikon, ad ve mevcut eylemler; seçili satırda `--app-selected` kullanılır. Etiket satırında dokuz renk paletinden nokta, etiket adı ve sağda sayaç vardır. Alt menüde Çöp Kutusu ve Ayarlar bulunur; mevcut işlevler korunur.
 - **Not başlık satırı:** Solda klasör/not breadcrumb'ı ve son kaydedilme zamanı; yanında etiket pill'leri. Sağda favori yıldızı, “Dışa aktar” menüsü ve birincil “Düzenle” + Ctrl+E. Uzun içerik, eylemleri ekran dışına itmez. Not başlığı yeniden adlandırma, etiket düzenleme ve tüm dışa aktarma seçenekleri korunur.
 - **Düzenleme oturumu:** Başlık düzeninde “Kaydedilmedi” uyarı pill'i, Görsel | Kod segmentli kontrolü, “İptal” ve birincil “Kaydet” + Ctrl+S bulunur. Okuma eylemleriyle gereksiz kalabalık oluşturulmaz. Kayıt, iptal, taslak kurtarma ve dış değişiklik akışları aynı kalır.
 - **Yüzen biçimlendirme araç çubuğu:** Görsel editör içinde 12px köşeli küçük yüzey; paragraf, metin biçimi, liste, alıntı, kod, tablo, medya, bağlantı ve renk araçları mevcut işlevleriyle sürer. İçerik kayarken erişilebilir kalır; not HTML'ine kaydedilmez. Araç grupları ince ayırıcılarla ayrılır.
 - **Kod modu:** index.html, style.css ve script.js dosya sekmeleri monospace etiketler ve semantik dosya renkleri kullanır. Yanındaki canlı önizleme kartı ayrı başlık ve mevcut kontrollerle sunulur; bölücü sürükleme davranışı korunur. Önizleme sandbox'lı not iframe'i olarak kalır.
-- **Arama diyaloğu:** Ortalanmış 12–16px köşeli kart, en fazla 800px ve pencere kenarlarından en az 16px boşluk. Başlık, büyük arama alanı, kaydırılabilir sonuçlar ve klavye ipuçları. Seçili sonuç indigo seçili yüzey, başlık, yol ve snippet taşır; eşleşmeler belirginleştirilir. Ctrl+K hedef ipucu olarak kullanılır; kısayol değişikliği merkezi registry ve bridge ile birlikte ilgili adımda yapılır. R1 mevcut kısayolu değiştirmez.
+- **Arama diyaloğu:** Ortalanmış 12–16px köşeli kart, en fazla 800px ve pencere kenarlarından en az 16px boşluk. Başlık, büyük arama alanı, kaydırılabilir sonuçlar ve klavye ipuçları. Seçili sonuç indigo seçili yüzey, başlık, yol ve snippet taşır; eşleşmeler belirginleştirilir. Tam metin arama kısayol ipucu `Ctrl+Shift+F`'dir (`globalSearch`); `Ctrl+K` editörde bağlantı kısayoludur ve arama için kullanılmaz.
 - **Ayarlar kartları:** Depolama, Görünüm ve Hakkında grupları, 12–16px köşeli opak kartlarda. Etiket ve açıklama solda, kontrol sağda; dar alanda alt satıra geçer. Mevcut seçenekler, sürüm bilgisi ve bağlantılar korunur; sürüm ayrı bir rozet haline getirilmez.
 - **Durum çubuğu:** Kartın altında solda “Diske kaydedildi” / “Kaydedilmedi”, UTF-8 ve HTML; sağda kelime ve karakter sayısı. Küçük metin, ince üst ayırıcı; durum yalnız renk ile anlatılmaz.
-- **Kısayol rozeti (`kbd`):** 4px iç boşluk, 8px veya pill köşe; nötr düğmede ikincil yüzey, birincil düğmede kontrastı koruyan vurgu yüzeyi. Windows biçimi Ctrl+N, Ctrl+K, Ctrl+E, Ctrl+S, Ctrl+,; macOS'ta platforma göre ⌘ gösterilir. İpucu gerçek registry eylemiyle eşleşir.
+- **Kısayol rozeti (`kbd`):** 4px iç boşluk, 8px veya pill köşe; nötr düğmede ikincil yüzey, birincil düğmede kontrastı koruyan vurgu yüzeyi. Windows biçimi Ctrl+N, Ctrl+Shift+F, Ctrl+E, Ctrl+S; macOS'ta platforma göre ⌘ gösterilir. Metin her zaman merkezi kısayol registry'sinden üretilir. İpucu gerçek registry eylemiyle eşleşir.
 - **Bağlam menüsü:** Opak kart, 8–12px köşe, hafif gölge; ikon, etiket ve varsa kısayol. Silme gibi tehlikeli eylemler semantik tehlike rengi kullanır. Sekme, ağaç, etiket ve not menüleri korunur.
 - **Diyalog:** Modal örtüsü üzerinde opak kart; anlamlı başlık, açıklama ve hizalı eylemler. Başlangıç odağı, odak tuzağı, Escape ve tetikleyiciye odak iadesi korunur. Kaydet/Kaydetme/İptal ayrı ve açık eylemlerdir.
 - **Toast:** Kabuk üzerinde içerik ve eylemleri kapatmayacak konumda küçük opak kart. Başarı/uyarı/tehlike ikon ve metinle belirtilir; erişilebilir canlı bölge ve mevcut kapanma davranışı korunur.
@@ -191,6 +197,6 @@ Kullanıcının kendi not içeriğindeki benzer ifadeler veya tablolar bu yasağ
 
 Normal metinlerde en az 4.5:1, büyük metinlerde en az 3:1 WCAG AA kontrast hedeflenir. Ana/ikincil metin, semantik metin, etiket adları, birincil ve tehlike düğme metinleri normal, hover ve active yüzeylerine karşı kontrol edilir. Kart sınırları dekoratiftir; kontrol veya odak için tek gösterge olarak kullanılmaz. İşlevsel sınırlar, ikonlar ve odak göstergeleri komşu yüzeye karşı en az 3:1 olmalıdır. Renk, kayıt durumu veya seçim için tek sinyal değildir.
 
-Tam klavye gezinmesi: Tab/Shift+Tab eylemler arasında, ok tuşları ağaç/sekme/menü/segmentli kontrol içinde, Enter/Space etkinleştirme ve Escape kapatma. Hedef odak sırası özel başlık çubuğu ve sekmeler → kenar çubuğu oluşturma/arama/filtre → favoriler/ağaç/etiketler/alt menü → not başlığı ve eylemleri → editör veya iframe içeriği → durum çubuğunda varsa etkileşimli öğeler. Pasif durum metinleri Tab durağı değildir. Görsel konum ile DOM sırası tutarlı kalır.
+Tam klavye gezinmesi: Tab/Shift+Tab eylemler arasında, ok tuşları ağaç/sekme/menü/segmentli kontrol içinde, Enter/Space etkinleştirme ve Escape kapatma. Odak sırası özel başlık çubuğu ve sekmeler → kenar çubuğu oluşturma/arama/filtre → favoriler/ağaç/etiketler/alt menü → not başlığı ve eylemleri → editör veya iframe içeriği → durum çubuğunda varsa etkileşimli öğeler. Pasif durum metinleri Tab durağı değildir. Görsel konum ile DOM sırası tutarlı kalır.
 
 Diyalog açıldığında odak diyaloğa taşınır, kapanınca tetikleyiciye döner. Arama sonuçları listbox/option, ağaç tree/treeitem, sekmeler tablist/tab ilişkilerini korur. Gizlenen kenar çubuğu odak sırasından çıkar. Etiket noktası ve dekoratif ikonlar yardımcı teknolojilere gereksiz tekrar üretmez; ikon eylemleri açıklayıcı ad taşır. Zoom, uzun çeviriler ve minimum pencere boyutu eylemleri erişilemez hale getirmez.

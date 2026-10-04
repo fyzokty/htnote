@@ -75,10 +75,11 @@ export function TabBar() {
   }
 
   return (
-    <div className="flex h-full min-w-0 flex-1 items-center">
+    // Sekmeler ve düğmeler sürükleme alanı değildir; yalnızca aralarındaki boşluk pencereyi taşır.
+    <div data-tauri-drag-region className="htnote-tabbar flex h-full min-w-0 items-center">
       <DndContext modifiers={[restrictToTabStrip]} sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
         <SortableContext items={tabs.map((tab) => tab.noteId)} strategy={horizontalListSortingStrategy}>
-          <div ref={scrollArea} role="tablist" aria-label={t("tabs.label")} className="htnote-tab-strip isolate flex h-full min-w-0 flex-1 overflow-x-auto overflow-y-hidden">
+          <div ref={scrollArea} role="tablist" aria-label={t("tabs.label")} className="htnote-tab-strip isolate flex h-full min-w-0 items-center gap-1 overflow-x-auto overflow-y-hidden">
             {tabs.map((tab) => (
                 <TabItem
                   key={tab.noteId}
@@ -95,7 +96,7 @@ export function TabBar() {
           </div>
         </SortableContext>
       </DndContext>
-      <IconButton type="button" onClick={newNote} label={t("tabs.newNote")} className="mx-1 text-app-muted">
+      <IconButton type="button" onClick={newNote} label={t("tabs.newNote")} className="htnote-tab-new mx-1 text-app-muted">
         <Plus className="size-4" aria-hidden />
       </IconButton>
       {menu && <ContextMenu x={menu.x} y={menu.y} trigger={menu.trigger} onClose={() => setMenu(null)} items={[

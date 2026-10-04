@@ -65,6 +65,13 @@
   --app-radius-control: 8px;
   --app-radius-card: 16px;
   --app-radius-pill: 9999px;
+  /* Rust snap_layouts.rs içindeki TITLEBAR_HEIGHT ve CAPTION_BUTTON_WIDTH ile aynı tutulur. */
+  --app-titlebar-height: 48px;
+  --app-caption-button-width: 46px;
+  /* Windows 11 Kapat düğmesi iki temada da aynı kırmızı ve beyaz glifi kullanır. */
+  --app-caption-close-hover: #c42b1c;
+  --app-caption-close-active: #b0271a;
+  --app-caption-close-text: #ffffff;
   --app-code-html: #c2410c;
   --app-code-css: #2563eb;
   --app-code-js: #a16207;
@@ -161,9 +168,35 @@
   --color-app-shadow: var(--app-shadow);
 }
 
-.htnote-shell { padding: 8px; gap: 8px; background: var(--app-window-gradient); }
+.htnote-app { background: var(--app-window-gradient); }
+.htnote-shell { padding: 0 8px 8px; gap: 8px; }
 .htnote-sidebar-card, .htnote-workspace-card { border: 1px solid var(--app-card-border); border-radius: var(--app-radius-card); background: var(--app-card); box-shadow: var(--app-shadow-card); }
-.htnote-shell-tabs { margin-bottom: 8px; }
+
+/* Özel başlık çubuğu (D29): sekmeler, arama kutusu ve Windows 11 pencere düğmeleri. */
+.htnote-titlebar { display: flex; flex-shrink: 0; align-items: center; gap: 4px; height: var(--app-titlebar-height); min-width: 0; padding-left: 8px; color: var(--app-text); user-select: none; }
+.htnote-titlebar[data-platform="mac"] { padding-right: 8px; }
+.htnote-titlebar-traffic-lights { width: 72px; height: 100%; flex-shrink: 0; }
+.htnote-titlebar-spacer { flex: 1 1 0; min-width: 24px; height: 100%; }
+.htnote-tabbar { flex: 0 1 auto; }
+.htnote-tab { height: 32px; padding: 0 4px 0 12px; border: 1px solid transparent; border-radius: var(--app-radius-pill); color: var(--app-muted); outline-offset: -3px; }
+.htnote-tab .htnote-tab-icon { color: var(--app-muted); }
+.htnote-tab[aria-selected="true"] { border-color: var(--app-card-border); background: var(--app-card); color: var(--app-text); box-shadow: var(--app-shadow-card); }
+.htnote-tab[aria-selected="true"] .htnote-tab-icon { color: var(--app-accent); }
+.htnote-tab[aria-selected="true"]:hover { background: var(--app-card); border-color: var(--app-border); }
+.htnote-tab .htnote-tab-close { width: 1.5rem; height: 1.5rem; min-height: 1.5rem; border-radius: var(--app-radius-pill); }
+.htnote-titlebar-search { display: flex; flex: 0 1 240px; min-width: 120px; height: 32px; align-items: center; gap: 8px; margin-right: 8px; padding: 0 4px 0 12px; border: 1px solid var(--app-border); border-radius: var(--app-radius-control); background: var(--app-card); color: var(--app-muted); font-size: 0.8125rem; }
+.htnote-titlebar-search:not(:disabled):hover { background: var(--app-card); border-color: var(--app-muted); }
+.htnote-titlebar-search kbd { flex-shrink: 0; padding: 2px 6px; border-radius: 6px; background: var(--app-subtle); color: var(--app-muted); font-size: 0.6875rem; font-weight: 500; line-height: 1rem; }
+.htnote-caption-buttons { display: flex; align-self: stretch; flex-shrink: 0; }
+.htnote-caption-buttons .htnote-tooltip-anchor { height: 100%; }
+.htnote-caption-button.htnote-icon-button { width: var(--app-caption-button-width); height: 100%; min-height: 0; border: 0; border-radius: 0; background: transparent; color: var(--app-text); outline-offset: -2px; }
+.htnote-caption-button.htnote-icon-button:not(:disabled):hover, .htnote-caption-button[data-overlay-state="hover"] { background: var(--app-hover); }
+.htnote-caption-button.htnote-icon-button:not(:disabled):active, .htnote-caption-button[data-overlay-state="pressed"] { background: var(--app-active); box-shadow: none; }
+.htnote-caption-close.htnote-icon-button:not(:disabled):hover { background: var(--app-caption-close-hover); color: var(--app-caption-close-text); }
+.htnote-caption-close.htnote-icon-button:not(:disabled):active { background: var(--app-caption-close-active); color: var(--app-caption-close-text); }
+/* Pencere etkin değilken Windows gibi başlık metni ve glifler soluklaşır; hover yine tam renktir. */
+.htnote-titlebar[data-window-focused="false"] :is(.htnote-tab, .htnote-tab[aria-selected="true"], .htnote-titlebar-icon, .htnote-tab-new, .htnote-caption-button:not(:hover)) { color: var(--app-muted); }
+.htnote-titlebar[data-window-focused="false"] .htnote-tab[aria-selected="true"] .htnote-tab-icon { color: var(--app-muted); }
 
 /* Opaque by default, including WebViews without backdrop filtering. */
 @supports (backdrop-filter: blur(12px)) {
@@ -422,8 +455,6 @@
 :where(select):not(:disabled):hover { background-color: var(--app-hover); }
 .htnote-split-view [role="separator"]:hover { box-shadow: inset 0 0 0 3px var(--app-accent); }
 
-.htnote-tab { outline-offset: -3px; }
-.htnote-tab .htnote-tab-close { width: 1.75rem; height: 1.75rem; min-height: 1.75rem; }
 .htnote-tab-strip::-webkit-scrollbar { height: 4px; }
 .htnote-tab-strip::-webkit-scrollbar-thumb { border-width: 1px; }
 

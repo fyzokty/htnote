@@ -37,3 +37,15 @@ export function onFileDrop(handler: (event: FileDropEvent) => void): Promise<Unl
       paths: "paths" in payload ? payload.paths : [] });
   });
 }
+
+/** Rust `snap_layouts::MAXIMIZE_STATE_EVENT` ile aynı olmalıdır. */
+export const MAXIMIZE_STATE_EVENT = "titlebar:maximize-state";
+
+/** Windows'ta yerel Snap Layouts katmanı "Ekranı kapla" düğmesinin fare durumunu bildirir. */
+export type MaximizeOverlayState = "idle" | "hover" | "pressed";
+
+export function onMaximizeOverlayState(handler: (state: MaximizeOverlayState) => void): Promise<UnlistenFn> {
+  return listen<MaximizeOverlayState>(MAXIMIZE_STATE_EVENT, ({ payload }) => {
+    if (payload === "idle" || payload === "hover" || payload === "pressed") handler(payload);
+  });
+}

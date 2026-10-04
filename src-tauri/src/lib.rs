@@ -15,6 +15,8 @@ pub mod links;
 pub mod state;
 mod watcher;
 mod trash;
+#[cfg(any(windows, test))]
+mod snap_layouts;
 #[cfg(any(all(windows, debug_assertions), test))]
 mod webview_debug_args;
 
@@ -72,6 +74,12 @@ pub fn run() {
             search::start_build(&managed);
             if let Err(error) = watcher::start_for_app(&managed, app.handle().clone()) {
                 eprintln!("File watcher startup failed: {error}");
+            }
+            #[cfg(windows)]
+            if let Some(window) = app.get_webview_window("main") {
+                if let Err(error) = snap_layouts::install(&window) {
+                    eprintln!("Snap Layouts overlay unavailable: {error}");
+                }
             }
             Ok(())
         })
@@ -180,6 +188,39 @@ mod tests {
         assert_eq!(directives.get("script-src"), Some(&"'self'"));
         assert!(!csp.contains("'unsafe-eval'"));
         assert!(!csp.contains("script-src 'self' 'unsafe-inline'"));
+    }
+
+    /// Özel başlık çubuğu yalnızca gereken pencere izinlerini alır; macOS trafik ışıklarını korur.
+    #[test]
+    fn custom_title_bar_uses_narrow_window_permissions() {
+        let capability: serde_json::Value = serde_json::from_str(include_str!("../capabilities/main.json")).unwrap();
+        let mut window_permissions: Vec<_> = capability["permissions"].as_array().unwrap().iter()
+            .filter_map(|permission| permission.as_str())
+            .filter(|identifier| identifier.starts_with("core:window:"))
+            .collect();
+        window_permissions.sort_unstable();
+        assert_eq!(window_permissions, [
+            "core:window:allow-close",
+            "core:window:allow-destroy",
+            "core:window:allow-minimize",
+            "core:window:allow-start-dragging",
+            "core:window:allow-toggle-maximize",
+        ]);
+
+        let conf: serde_json::Value = serde_json::from_str(include_str!("../tauri.conf.json")).unwrap();
+        let main = &conf["app"]["windows"][0];
+        assert_eq!(main["label"], "main");
+        assert_eq!(main["decorations"], false);
+        assert_eq!(main["shadow"], true);
+        assert_eq!((main["minWidth"].as_u64(), main["minHeight"].as_u64()), (Some(900), Some(600)));
+
+        let mac: serde_json::Value = serde_json::from_str(include_str!("../tauri.macos.conf.json")).unwrap();
+        let mac_main = &mac["app"]["windows"][0];
+        assert_eq!(mac_main["label"], "main");
+        assert_eq!(mac_main["decorations"], true);
+        assert_eq!(mac_main["titleBarStyle"], "Overlay");
+        assert_eq!(mac_main["hiddenTitle"], true);
+        assert_eq!((mac_main["minWidth"].as_u64(), mac_main["minHeight"].as_u64()), (Some(900), Some(600)));
     }
 
     #[test]
