@@ -29,6 +29,22 @@ the run. The two overrides are compiled only in debug builds.
 Run `npm run test:e2e`. This builds the debug executable without an installer,
 then runs all specs. The E2E suite is separate from `verify:test`.
 
+On Windows, debug builds explicitly pass non-empty
+`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` to every WebView2 environment, including
+`main` and the hidden `pdf-export-*` windows. The merged arguments are computed
+once at startup and shared by configured and dynamically created windows.
+wry's explicit browser arguments can override the environment
+variable, preventing EdgeDriver's `--remote-debugging-port=0` and
+`--enable-automation` from reaching WebView2 and causing `DevToolsActivePort`
+session failures. The debug override preserves wry 0.57's disabled features and
+autoplay default, appends the driver arguments, and merges repeated
+`--disable-features=` / `--enable-features=` values into one switch each so
+Chromium does not discard earlier values. Window configuration and capabilities
+are preserved; PDF windows still have no capability permissions. WebView2 requires
+identical `AdditionalBrowserArguments` for environments sharing a user data
+folder; otherwise creating the PDF environment fails with `0x8007139F`.
+Empty variables, release builds and other platforms keep their existing behavior.
+
 Each session and test returns to the main frame and waits for the loaded React
 shell and Tauri IPC before executing host commands. The save shortcut also waits
 for the editor's save acknowledgement before another shortcut is sent; a file

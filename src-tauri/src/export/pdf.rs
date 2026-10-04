@@ -102,7 +102,15 @@ impl PdfRunner for WindowsRunner {
         let (sender, receiver) = mpsc::channel();
         let url = tauri::Url::parse(url).map_err(|error| AppError::Internal(error.to_string()))?;
         let label = format!("pdf-export-{}", uuid::Uuid::new_v4());
-        let window = tauri::WebviewWindowBuilder::new(&self.0, &label, tauri::WebviewUrl::External(url))
+        let builder = tauri::WebviewWindowBuilder::new(&self.0, &label, tauri::WebviewUrl::External(url));
+        // WebView2 environments sharing a user data folder must use identical
+        // browser arguments, including this hidden, unprivileged PDF window.
+        #[cfg(debug_assertions)]
+        let builder = {
+            use tauri::Manager;
+            self.0.state::<crate::webview_debug_args::BrowserArguments>().apply_to_window(builder)
+        };
+        let window = builder
             .visible(false)
             .focused(false)
             .skip_taskbar(true)
