@@ -1,5 +1,7 @@
 # HTNote — Canlı Kartlar tasarım dili
 
+- Kontrol listesi: ortak ikonlu tür başlığı, varsayılan onay kutulu madde editörü; görüntülemede ince indigo ilerleme çubuğu, sessiz sayaç, geçici işaretleme ve ortak sıfırlama/kopyalama eylemleri; iç ayırıcılar widget divider token’ını kullanır.
+
 Bu belge HTNote arayüzünün görsel spesifikasyonudur. Arayüzle çeliştiğinde bu belge esas alınır; davranış, veri modeli ve güvenlik sınırları mimari karar kaydına tabidir. Renklerin uygulamadaki tek kaynağı `src/index.css` içindeki `--app-*` token'larıdır.
 
 ## 1. Kimlik ve ilkeler

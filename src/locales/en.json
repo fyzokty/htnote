@@ -270,6 +270,15 @@
       "title": "Title",
       "content": "Text box content",
       "select": "Select text box"
+    },
+    "checklist": {
+      "insert": "Checklist",
+      "title": "Title",
+      "select": "Select checklist",
+      "checked": "Default state of item {{index}}",
+      "item": "Item {{index}}",
+      "remove": "Delete item {{index}}",
+      "add": "Add item"
     }
   },
   "errors": {
@@ -484,12 +493,18 @@
     "characters_other": "{{value}} characters"
   },
   "widgetTypes": {
-    "textbox": "TEXT BOX"
+    "textbox": "TEXT BOX",
+    "checklist": "CHECKLIST"
   },
   "textBox": {
     "copy": "Copy",
     "copied": "Copied",
     "copyFailed": "Copy failed",
     "reset": "Reset to default"
+  },
+  "checklist": {
+    "reset": "Reset",
+    "copyRemaining": "Copy remaining",
+    "progress": "Completion progress"
   }
 }

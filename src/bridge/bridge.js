@@ -121,18 +121,30 @@
   :where([data-htnote-widget][data-htnote-bg="sky"]){background:var(--ht-note-sky);}
   :where([data-htnote-widget][data-htnote-bg="lavender"]){background:var(--ht-note-lavender);}
   :where([data-htnote-widget][data-htnote-bg="charcoal"]){background:var(--ht-note-charcoal);}
-  :where(.htnote-widget-header){display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;font-family:var(--ht-font,system-ui,sans-serif)}
+  :where(.htnote-widget-header){display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;font-family:var(--ht-font,system-ui,sans-serif)}
   :where(.htnote-widget-type){display:inline-flex;align-items:center;gap:6px;min-width:0;color:var(--ht-widget-muted,#464554);font-size:11px;font-weight:700;letter-spacing:.04em}
   :where(.htnote-widget-type svg){width:14px;height:14px;flex-shrink:0;color:var(--ht-widget-accent,#4648d4)}
-  :where(.htnote-widget-actions){display:flex;flex-shrink:0;gap:4px;font:12px/1.4 var(--ht-font,system-ui,sans-serif)}
+  :where(.htnote-widget-actions){display:flex;flex-shrink:0;flex-wrap:wrap;gap:4px;font:12px/1.4 var(--ht-font,system-ui,sans-serif)}
   .htnote-widget-actions button{border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;padding:4px 8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);cursor:pointer}
   .htnote-widget-actions button:hover{background:var(--ht-widget-hover,#e6eeff)}
   .htnote-widget-actions button:disabled{opacity:.45;cursor:default}
   .htnote-widget-actions button:focus-visible{outline:2px solid var(--ht-widget-accent,#4648d4);outline-offset:2px}
   .htnote-widget-actions button[data-feedback="copied"]{color:var(--ht-widget-accent,#4648d4)}
+:where(.htnote-checklist){box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border);border-radius:12px;color:var(--ht-widget-text);background:var(--ht-widget-surface)}
+:where(.htnote-checklist-title){font-weight:700;min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+:where(.htnote-checklist-items){list-style:none;margin:0;padding:0}
+:where(.htnote-checklist-items li){padding:10px 0;border-top:1px solid var(--ht-widget-divider);overflow-wrap:anywhere}
+:where(.htnote-checklist-items label){cursor:pointer}
+:where(.htnote-checklist-items input){appearance:auto;width:16px;height:16px;vertical-align:middle;accent-color:var(--ht-widget-accent)}
+:where(.htnote-checklist-items input:focus-visible){outline:2px solid var(--ht-widget-accent);outline-offset:2px}
+  :where(.htnote-checklist-summary){padding:8px 0 14px;border-top:1px solid var(--ht-widget-divider);color:var(--ht-widget-accent);font-size:12px}
+  :where(.htnote-checklist-summary > span){display:block;text-align:right;margin-bottom:6px}
+  :where(.htnote-checklist-progress){height:5px;border:1px solid var(--ht-widget-border);border-radius:8px;background:var(--ht-widget-field);overflow:hidden}
+  :where(.htnote-checklist-progress > div){height:100%;background:var(--ht-widget-accent)}
+  :where(.htnote-checklist-done){color:var(--ht-widget-muted);text-decoration:line-through}
   .htnote-textbox-print{display:none;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;margin:0}
-  @media print{.htnote-textbox-actions,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}.htnote-textbox-title{padding-right:0}.htnote-textbox{break-inside:auto}}
-  ${printing ? ".htnote-textbox-actions,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}" : ""}
+  @media print{.htnote-widget-actions,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}.htnote-textbox-title{padding-right:0}.htnote-textbox{break-inside:auto}}
+  ${printing ? ".htnote-widget-actions,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}" : ""}
   `;
   document.head.append(boxStyle);
   const textBoxes = new WeakMap();
@@ -158,6 +170,54 @@
       if (label.textContent !== text) label.textContent = text;
     };
   }
+  // Tüm widget'lar aynı panoyu, yerel yedeği ve odak/seçim korumasını kullanır.
+  async function copyWidgetText(value, sourceInput) {
+    const active = document.activeElement;
+    const activeRange = active && typeof active.selectionStart === "number" ? [active.selectionStart, active.selectionEnd, active.selectionDirection] : null;
+    const selection = window.getSelection();
+    const ranges = selection ? Array.from({ length: selection.rangeCount }, (_, index) => selection.getRangeAt(index).cloneRange()) : [];
+    const scroll = { x: window.scrollX, y: window.scrollY };
+    try { await navigator.clipboard.writeText(value); return true; } catch { /* Yerel kopyalama yedeğine geç. */ }
+    const input = sourceInput || document.createElement("textarea");
+    if (!sourceInput) {
+      input.value = value;
+      input.setAttribute("aria-hidden", "true");
+      input.style.cssText = "position:fixed;opacity:0;pointer-events:none;top:0;left:0";
+      document.body.append(input);
+    }
+    const start = input.selectionStart, end = input.selectionEnd, direction = input.selectionDirection;
+    const top = input.scrollTop, left = input.scrollLeft;
+    let copied = false;
+    try { input.focus({ preventScroll: true }); input.select(); copied = document.execCommand("copy"); }
+    catch { copied = false; }
+    finally {
+      input.setSelectionRange(start, end, direction);
+      if (!sourceInput) input.remove();
+      active?.focus?.({ preventScroll: true });
+      if (activeRange) active.setSelectionRange(...activeRange);
+      if (selection) { selection.removeAllRanges(); ranges.forEach((range) => selection.addRange(range)); }
+      input.scrollTop = top; input.scrollLeft = left;
+      if (window.scrollX !== scroll.x || window.scrollY !== scroll.y) window.scrollTo(scroll.x, scroll.y);
+    }
+    return copied;
+  }
+  function bindWidgetCopy(button, labelKey, getValue, sourceInput) {
+    let feedback = labelKey, timer;
+    const update = () => {
+      const label = boxLabels[feedback] || "";
+      if (button.textContent !== label) button.textContent = label;
+      button.dataset.feedback = feedback;
+    };
+    button.setAttribute("aria-live", "polite");
+    button.addEventListener("mousedown", (event) => event.preventDefault());
+    button.addEventListener("click", async () => {
+      const copied = await copyWidgetText(getValue(), sourceInput);
+      feedback = copied ? "copied" : "copyFailed";
+      clearTimeout(timer); update();
+      timer = setTimeout(() => { feedback = labelKey; update(); }, 1500);
+    });
+    return update;
+  }
   function enhanceTextBox(box) {
     if (textBoxes.has(box)) return;
     const input = box.querySelector(":scope > textarea.htnote-textbox-input");
@@ -172,12 +232,11 @@
     const mirror = document.createElement("pre");
     mirror.className = "htnote-textbox-print";
     mirror.setAttribute("aria-hidden", "true");
-    let feedback = "copy", timer;
+    const updateCopy = bindWidgetCopy(copy, "copy", () => input.value, input);
     const update = () => {
       updateHeader();
-      if (copy.textContent !== (boxLabels[feedback] || "")) copy.textContent = boxLabels[feedback] || "";
+      updateCopy();
       if (reset.textContent !== (boxLabels.reset || "")) reset.textContent = boxLabels.reset || "";
-      copy.dataset.feedback = feedback;
       reset.disabled = input.value === input.defaultValue;
       // Aynı metin gözlemci döngüsü oluşturmasın.
       if (mirror.textContent !== input.value) mirror.textContent = input.value;
@@ -186,52 +245,75 @@
         input.style.height = `${Math.max(input.scrollHeight, 3 * (parseFloat(getComputedStyle(input).lineHeight) || 21))}px`;
       }
     };
-    copy.setAttribute("aria-live", "polite");
-    copy.addEventListener("mousedown", (event) => event.preventDefault());
-    copy.addEventListener("click", async () => {
-      const value = input.value;
-      const active = document.activeElement;
-      const start = input.selectionStart, end = input.selectionEnd, direction = input.selectionDirection;
-      const activeRange = active && typeof active.selectionStart === "number" ? [active.selectionStart, active.selectionEnd, active.selectionDirection] : null;
-      const selection = window.getSelection();
-      const ranges = selection ? Array.from({ length: selection.rangeCount }, (_, index) => selection.getRangeAt(index).cloneRange()) : [];
-      const scroll = { x: window.scrollX, y: window.scrollY, t: input.scrollTop, l: input.scrollLeft };
-      let copied = false;
-      try { await navigator.clipboard.writeText(value); copied = true; } catch { /* İzin politikası engellerse yerel belge içindeki seçimi kopyala. */ }
-      if (!copied) {
-        try { input.focus({ preventScroll: true }); input.select(); copied = document.execCommand("copy"); }
-        catch { copied = false; }
-        finally {
-          input.setSelectionRange(start, end, direction);
-          active?.focus?.({ preventScroll: true });
-          if (activeRange) active.setSelectionRange(...activeRange);
-          if (selection) { selection.removeAllRanges(); ranges.forEach((range) => selection.addRange(range)); }
-          input.scrollTop = scroll.t; input.scrollLeft = scroll.l;
-          if (window.scrollX !== scroll.x || window.scrollY !== scroll.y) window.scrollTo(scroll.x, scroll.y);
-        }
-      }
-      feedback = copied ? "copied" : "copyFailed";
-      clearTimeout(timer); update();
-      timer = setTimeout(() => { feedback = "copy"; update(); }, 1500);
-    });
     reset.addEventListener("click", () => { input.value = input.defaultValue; update(); });
     input.addEventListener("input", update);
     textBoxes.set(box, { update });
     box.append(mirror);
     update();
   }
-  function scanTextBoxes(node) {
-    if (node.nodeType !== 1) return;
-    if (node.matches('[data-htnote-widget="textbox"]')) enhanceTextBox(node);
-    node.querySelectorAll('[data-htnote-widget="textbox"]').forEach(enhanceTextBox);
+  const checklists = new WeakMap();
+  function enhanceChecklist(box) {
+    if (checklists.has(box)) return;
+    const list = box.querySelector(":scope > ul.htnote-checklist-items");
+    if (!list) return;
+    const actions = document.createElement("div");
+    actions.className = "htnote-widget-actions";
+    const reset = document.createElement("button"), copy = document.createElement("button");
+    reset.type = copy.type = "button";
+    reset.dataset.testid = "checklist-reset"; copy.dataset.testid = "checklist-copy";
+    actions.append(reset, copy);
+    const updateHeader = createWidgetHeader(box, "checklistType", ["m3 5 2 2 4-4", "M13 6h8", "m3 12 2 2 4-4", "M13 13h8", "M5 20h.01", "M13 20h8"], actions);
+    const summary = document.createElement("div"), counter = document.createElement("span"), progress = document.createElement("div"), fill = document.createElement("div");
+    summary.className = "htnote-checklist-summary";
+    counter.dataset.testid = "checklist-counter";
+    progress.className = "htnote-checklist-progress";
+    progress.setAttribute("role", "progressbar");
+    progress.setAttribute("aria-valuemin", "0");
+    progress.append(fill); summary.append(counter, progress); list.before(summary);
+    const inputs = () => Array.from(list.querySelectorAll('li > label > input[type="checkbox"]'));
+    const updateCopy = bindWidgetCopy(copy, "copyRemaining", () => inputs().filter((input) => !input.checked).map((input) => input.parentElement.textContent.replace(/^ /, "")).join("\n"));
+    const update = () => {
+      updateHeader();
+      const rows = inputs(), count = rows.filter((input) => input.checked).length;
+      const value = `${count} / ${rows.length}`;
+      if (counter.textContent !== value) counter.textContent = value;
+      progress.setAttribute("aria-valuemax", String(rows.length));
+      progress.setAttribute("aria-valuenow", String(count));
+      progress.setAttribute("aria-label", boxLabels.checklistProgress || "");
+      fill.style.width = `${rows.length ? count / rows.length * 100 : 0}%`;
+      rows.forEach((input) => {
+        // Yalnız geçici durum sınıfı değişir; checked özniteliğine dokunulmaz.
+        input.parentElement.classList.toggle("htnote-checklist-done", input.checked);
+      });
+      reset.disabled = rows.every((input) => input.checked === input.defaultChecked);
+      if (reset.textContent !== (boxLabels.checklistReset || "")) reset.textContent = boxLabels.checklistReset || "";
+      updateCopy();
+    };
+    reset.addEventListener("click", () => { inputs().forEach((input) => { input.checked = input.defaultChecked; }); update(); });
+    list.addEventListener("change", update);
+    checklists.set(box, { update });
+    update();
   }
-  scanTextBoxes(root);
+  function scanWidgets(node) {
+    if (node.nodeType !== 1) return;
+    for (const [kind, enhance] of [["textbox", enhanceTextBox], ["checklist", enhanceChecklist]]) {
+      const selector = `[data-htnote-widget="${kind}"]`;
+      if (node.matches(selector)) enhance(node);
+      node.querySelectorAll(selector).forEach(enhance);
+    }
+  }
+  function updateWidgets() {
+    document.querySelectorAll('[data-htnote-widget]').forEach((box) => {
+      textBoxes.get(box)?.update(); checklists.get(box)?.update();
+    });
+  }
+  scanWidgets(root);
   new MutationObserver((records) => records.forEach((record) => {
-    record.addedNodes.forEach(scanTextBoxes);
-    const box = record.target.nodeType === 1 ? record.target.closest('[data-htnote-widget="textbox"]') : null;
-    if (box) { enhanceTextBox(box); textBoxes.get(box)?.update(); }
-  })).observe(root, { childList: true, subtree: true });
-  window.addEventListener("beforeprint", () => document.querySelectorAll('[data-htnote-widget="textbox"]').forEach((box) => textBoxes.get(box)?.update()));
+    record.addedNodes.forEach(scanWidgets);
+    const box = record.target.nodeType === 1 ? record.target.closest('[data-htnote-widget]') : record.target.parentElement?.closest('[data-htnote-widget]');
+    if (box) { scanWidgets(box); textBoxes.get(box)?.update(); checklists.get(box)?.update(); }
+  })).observe(root, { childList: true, subtree: true, characterData: true });
+  window.addEventListener("beforeprint", updateWidgets);
   const audioPlayers = new WeakMap();
   let audioLabels = {};
   const audioTime = (value) => {
@@ -563,10 +645,10 @@
     if (e.source !== window.parent || !e.data || typeof e.data !== "object") return;
     const { type, vars, mode, query, scrollY, token, contentWidth, audioLabels: labels, labels: widgetLabels } = e.data;
     if (type === "HTNOTE_THEME" && widgetLabels && typeof widgetLabels === "object" && !Array.isArray(widgetLabels)) {
-      for (const key of ["copy", "copied", "copyFailed", "reset", "textboxType"]) {
+      for (const key of ["copy", "copied", "copyFailed", "reset", "textboxType", "checklistType", "checklistReset", "copyRemaining", "checklistProgress"]) {
         if (typeof widgetLabels[key] === "string" && widgetLabels[key].length <= 200) boxLabels[key] = widgetLabels[key];
       }
-      document.querySelectorAll('[data-htnote-widget="textbox"]').forEach((box) => textBoxes.get(box)?.update());
+      updateWidgets();
     }
     if (type === "HTNOTE_THEME" && labels && typeof labels === "object") {
       for (const key of ["play", "pause", "mute", "unmute", "seek", "title", "error"]) {

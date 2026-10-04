@@ -8,6 +8,87 @@ describe("text box widget", () => {
   before(async () => { ({ root, restore } = await useTempRoot()); });
   after(async () => { await restore(); });
 
+  it("saves checklist defaults, copies remaining items, resets and discards viewer checks on refresh", async () => {
+    const note = await createNote("Checklist round trip");
+    await openNote(note.id);
+    await editNote();
+    await (await visibleEditorTool('[data-testid="insert-widget"]')).click();
+    await $('[data-testid="insert-checklist"]').click();
+    const title = await $('[data-testid="checklist-title"]');
+    await title.waitForDisplayed();
+    await title.setValue("Release checklist");
+    await browser.keys("Enter");
+    assert.equal(await browser.execute(() => document.activeElement?.getAttribute("data-testid")), "checklist-item");
+    await $('[data-testid="checklist-item"]').setValue("First <&> item");
+    await $('.htnote-checklist-editor-row input[type="checkbox"]').click();
+    await $('[data-testid="checklist-item"]').click();
+    await browser.keys("End");
+    await browser.keys("Enter");
+    await browser.waitUntil(async () => (await $$('[data-testid="checklist-item"]')).length === 2);
+    await (await $$('[data-testid="checklist-item"]'))[1].setValue("Second remaining");
+    await browser.keys("Enter");
+    await browser.waitUntil(async () => (await $$('[data-testid="checklist-item"]')).length === 3);
+    await (await $$('[data-testid="checklist-item"]'))[2].setValue("Third remaining");
+    await $('.htnote-widget-tools button').click();
+    await $('.htnote-color-popover button[aria-label="Nane"], .htnote-color-popover button[aria-label="Mint"]').click();
+    const html = await saveAndView(note.id, (value) => value.includes("Release checklist") && value.includes("First &lt;&amp;&gt; item"));
+    assert.match(html, /<div class="htnote-checklist" data-htnote-widget="checklist" data-htnote-bg="mint">/);
+    assert.match(html, /<input type="checkbox" checked> First &lt;&amp;&gt; item/);
+    assert.ok(!html.includes("htnote-checklist-node"));
+    assert.ok(!html.includes("checklist-reset"));
+    const exportedPath = join(root, "checklist-export.html");
+    await invoke("export_single_html", { id: note.id, targetPath: exportedPath });
+    const exported = (await waitForFile(exportedPath)).toString();
+    assert.ok(exported.includes('<input type="checkbox" checked>'));
+    assert.ok(exported.includes("Third remaining"));
+    assert.ok(!exported.includes("/__htnote/bridge.js"));
+    await withNoteFrame(note.id, async () => {
+      const reset = await $('[data-testid="checklist-reset"]');
+      await reset.waitForExist();
+      const inputs = await $('.htnote-checklist-items').$$('input');
+      assert.equal(await inputs[0].isSelected(), true);
+      assert.equal(await reset.isEnabled(), false);
+      assert.equal(await $('[data-testid="checklist-counter"]').getText(), "1 / 3");
+      await inputs[1].click();
+      assert.equal(await $('[role="progressbar"]').getAttribute("aria-valuenow"), "2");
+      assert.equal(await reset.isEnabled(), true);
+      const copy = await $('[data-testid="checklist-copy"]');
+      await browser.waitUntil(async () => (await copy.getText()).length > 0);
+      await copy.click();
+      await browser.waitUntil(async () => /Kopyalandı|Copied/.test(await copy.getText()));
+      // Gerçek sistem panosunu yerel bir alana yapıştırarak kalan metni doğrula.
+      await browser.execute(() => {
+        const field = document.createElement("textarea"); field.id = "checklist-clipboard-probe"; document.body.append(field);
+      });
+      const probe = await $('#checklist-clipboard-probe');
+      await probe.click(); await browser.keys(["Control", "v"]);
+      await browser.waitUntil(async () => await probe.getValue() === "Third remaining");
+      await browser.execute(() => document.getElementById("checklist-clipboard-probe")?.remove());
+      await reset.click();
+      assert.equal(await inputs[0].isSelected(), true);
+      assert.equal(await inputs[1].isSelected(), false);
+      assert.equal(await reset.isEnabled(), false);
+      await inputs[0].click();
+      await inputs[2].click();
+    });
+    assert.equal((await invoke<{ html: string }>("read_note", { id: note.id })).html, html);
+    assert.equal((await waitForFile(join(root, note.relPath, "index.html"))).toString(), html);
+    await browser.refresh(); await openNote(note.id);
+    await withNoteFrame(note.id, async () => {
+      const inputs = await $('.htnote-checklist-items').$$('input');
+      assert.equal(await inputs[0].isSelected(), true);
+      assert.equal(await inputs[1].isSelected(), false);
+      assert.equal(await inputs[2].isSelected(), false);
+      assert.equal(await $('[data-testid="checklist-counter"]').getText(), "1 / 3");
+    });
+    await editNote();
+    assert.equal(await $('[data-testid="checklist-title"]').getValue(), "Release checklist");
+    const fields = await $$('[data-testid="checklist-item"]');
+    assert.equal(await fields[0].getValue(), "First <&> item");
+    assert.equal(await fields[2].getValue(), "Third remaining");
+    await $('[data-testid="cancel-edit"]').click();
+  });
+
   it("saves the editable atom, copies actual live text in WebView2, resets and discards viewer changes", async () => {
     const note = await createNote("Textbox round trip");
     await openNote(note.id);

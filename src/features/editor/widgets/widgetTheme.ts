@@ -15,4 +15,11 @@ export const widgetBaseCss = `
 :where(.htnote-textbox-input){box-sizing:border-box;width:100%;padding:8px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff)}
 :where(.htnote-textbox-input){display:block;min-height:4.8em;field-sizing:content;resize:vertical;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-y:hidden}
 :where(.htnote-textbox-input:focus-visible){outline:2px solid var(--ht-widget-accent,#4648d4);outline-offset:2px}
+:where(.htnote-checklist){box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border);border-radius:12px;color:var(--ht-widget-text);background:var(--ht-widget-surface)}
+:where(.htnote-checklist-title){font-weight:700;min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+:where(.htnote-checklist-items){list-style:none;margin:0;padding:0}
+:where(.htnote-checklist-items li){padding:10px 0;border-top:1px solid var(--ht-widget-divider);overflow-wrap:anywhere}
+:where(.htnote-checklist-items label){cursor:pointer}
+:where(.htnote-checklist-items input){appearance:auto;width:16px;height:16px;vertical-align:middle;accent-color:var(--ht-widget-accent)}
+:where(.htnote-checklist-items input:focus-visible){outline:2px solid var(--ht-widget-accent);outline-offset:2px}
 `;

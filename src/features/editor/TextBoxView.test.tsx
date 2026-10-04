@@ -66,6 +66,8 @@ describe("TextBoxView", () => {
       expect(editor.state.selection.$from.parent.type.name).toBe("paragraph");
       fireEvent.click(screen.getByTestId("insert-widget"));
       fireEvent.keyDown(screen.getByTestId("insert-textbox"), { key: "ArrowDown" });
+      expect(screen.getByTestId("insert-checklist")).toHaveFocus();
+      fireEvent.keyDown(screen.getByTestId("insert-checklist"), { key: "ArrowUp" });
       expect(screen.getByTestId("insert-textbox")).toHaveFocus();
       fireEvent.keyDown(screen.getByTestId("insert-textbox"), { key: "Enter" });
       expect(editor.state.doc.content.content.filter((node) => node.type.name === "textBox")).toHaveLength(2);

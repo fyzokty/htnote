@@ -1,5 +1,6 @@
 import { parseFragment } from "parse5";
 import type { DefaultTreeAdapterTypes } from "parse5";
+import { readChecklist } from "./checklist";
 import { readTextBox } from "./textBox";
 
 type Node = DefaultTreeAdapterTypes.ChildNode;
@@ -55,7 +56,7 @@ function isSupportedTree(node: Node): boolean {
   return node.childNodes.every(isSupportedTree);
 }
 
-export type ClassifiedBlock = { kind: "rich" | "raw" | "textBox"; html: string };
+export type ClassifiedBlock = { kind: "rich" | "raw" | "textBox" | "checklist"; html: string };
 
 export function classifyTopLevel(innerHtml: string): ClassifiedBlock[] {
   const fragment = parseFragment(innerHtml, { sourceCodeLocationInfo: true });
@@ -75,7 +76,7 @@ export function classifyTopLevel(innerHtml: string): ClassifiedBlock[] {
     addRaw(innerHtml.slice(cursor, location.startOffset));
     const html = innerHtml.slice(location.startOffset, location.endOffset);
     if (html.trim()) {
-      blocks.push({ kind: readTextBox(html) ? "textBox" : isElement(node) && isSupportedTree(node) ? "rich" : "raw", html });
+      blocks.push({ kind: readTextBox(html) ? "textBox" : readChecklist(html) ? "checklist" : isElement(node) && isSupportedTree(node) ? "rich" : "raw", html });
     }
     cursor = location.endOffset;
   }
