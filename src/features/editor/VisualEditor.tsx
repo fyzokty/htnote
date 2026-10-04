@@ -46,6 +46,7 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
   const [pickerOpen, setPickerOpen] = useState(false);
   const selection = useRef<{ from: number; to: number } | null>(null);
   const editorRef = useRef<ReturnType<typeof useEditor>>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const openPicker = () => {
     const current = editorRef.current;
     if (!current) return;
@@ -131,6 +132,21 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
   });
   editorRef.current = editor;
 
+  useEffect(() => {
+    const scroll = scrollRef.current;
+    const toolbar = scroll?.querySelector<HTMLElement>(".htnote-editor-toolbar");
+    if (!scroll || !toolbar) return;
+    // Keep native scrollIntoView below the sticky card, also when its inline
+    // link controls increase its height.
+    const measure = () => {
+      scroll.style.scrollPaddingTop = `${(parseFloat(getComputedStyle(toolbar).top) || 0) + toolbar.getBoundingClientRect().height + 8}px`;
+    };
+    measure();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(toolbar);
+    return () => observer?.disconnect();
+  }, [editor, visualAvailable]);
+
   const selectNote = (note: FlatNote) => {
     if (!editor || !selection.current) return;
     const { from, to } = selection.current;
@@ -177,8 +193,8 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
   if (!visualAvailable || !editor) return null;
   return (
     <section className="htnote-visual-editor" data-content-width={contentWidth}>
-      <EditorToolbar editor={editor} noteId={noteId} onLinkNote={openPicker} />
-      <div className="htnote-visual-scroll" style={surfaceStyle}>
+      <div ref={scrollRef} className="htnote-visual-scroll" style={surfaceStyle}>
+        <EditorToolbar editor={editor} noteId={noteId} onLinkNote={openPicker} />
         <EditorContent editor={editor} className="htnote-visual-content" aria-label={t("editor.content")}
           onMouseDownCapture={(event) => {
             if (event.button !== 0 || event.target !== editor.view.dom && event.target !== event.currentTarget) return;

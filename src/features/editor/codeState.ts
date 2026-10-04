@@ -1,6 +1,7 @@
 import { EditorState, Compartment } from "@codemirror/state";
 import type { Extension } from "@codemirror/state";
-import { indentUnit } from "@codemirror/language";
+import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
+import { tags } from "@lezer/highlight";
 import { EditorView } from "@codemirror/view";
 import { html } from "@codemirror/lang-html";
 import { css } from "@codemirror/lang-css";
@@ -25,6 +26,8 @@ export function codeTheme(mode: ThemeMode): Extension {
     ".cm-gutters": { backgroundColor: "var(--app-subtle)", color: "var(--app-muted)", borderRight: "1px solid var(--app-border)" },
     ".cm-activeLine": { backgroundColor: "var(--app-subtle)" },
     ".cm-activeLineGutter": { backgroundColor: "var(--app-subtle)" },
+    ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--app-accent)" },
+    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: "color-mix(in srgb, var(--app-accent) 24%, transparent)" },
   }, { dark: mode === "dark" });
 }
 
@@ -32,7 +35,12 @@ export function createCodeState(tab: CodeTab, doc: string, theme: Compartment, m
   const language = tab === "html" ? html() : tab === "css" ? css() : javascript();
   return EditorState.create({
     doc,
-    extensions: [basicSetup, EditorView.lineWrapping, EditorState.tabSize.of(2), indentUnit.of("  "), language, theme.of(codeTheme(mode)), ...extraExtensions],
+    extensions: [basicSetup, syntaxHighlighting(HighlightStyle.define([
+      { tag: [tags.tagName, tags.keyword], color: "var(--app-code-html)" },
+      { tag: [tags.attributeName, tags.propertyName], color: "var(--app-code-css)" },
+      { tag: [tags.string, tags.number, tags.bool], color: "var(--app-code-js)" },
+      { tag: tags.comment, color: "var(--app-muted)", fontStyle: "italic" },
+    ])), EditorView.lineWrapping, EditorState.tabSize.of(2), indentUnit.of("  "), language, theme.of(codeTheme(mode)), ...extraExtensions],
   });
 }
 

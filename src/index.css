@@ -213,7 +213,7 @@
 .htnote-code-host .cm-editor { height: 100%; }
 .htnote-code-host .cm-scroller { overflow: auto; }
 .htnote-visual-scroll { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: auto; }
-.htnote-visual-content { display: flex; flex-direction: column; flex: 1 0 auto; min-height: 100%; }
+.htnote-visual-content { display: flex; flex-direction: column; flex: 1 0 auto; min-height: calc(100% - 80px); }
 .htnote-drop-target { outline: 2px dashed var(--app-accent) !important; outline-offset: -3px; }
 .htnote-editor-link { display: flex; flex-wrap: wrap; align-items: center; gap: 0.375rem; flex-basis: 100%; }
 .htnote-editor-link input { min-width: 0; padding: 0.375rem 0.5rem; border: 1px solid var(--app-border); border-radius: 0.375rem; background: var(--app-surface); color: var(--app-text); }
@@ -338,7 +338,7 @@
   .htnote-editor-unsaved > span { width: 0.375rem; height: 0.375rem; border-radius: 50%; background: var(--app-warning); }
   .htnote-editor-spinner { animation: htnote-editor-spin 800ms linear infinite; }
   .htnote-editor-toolbar, .htnote-code-bar { position: sticky; top: 0; z-index: 20; }
-  .htnote-editor-group { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 0.125rem; max-width: 100%; }
+  .htnote-editor-group { display: inline-flex; flex-wrap: nowrap; align-items: center; gap: 0.125rem; max-width: 100%; }
   .htnote-editor-group + .htnote-editor-group { border-inline-start: 1px solid var(--app-border); padding-inline-start: 0.375rem; }
   .htnote-format-button.htnote-button-sm { width: 2rem; height: 2rem; }
   .htnote-format-button > span { display: inline-flex; }
@@ -453,7 +453,7 @@
 
 :where(input, textarea, select):not(:disabled):hover { border-color: var(--app-muted); }
 :where(select):not(:disabled):hover { background-color: var(--app-hover); }
-.htnote-split-view [role="separator"]:hover { box-shadow: inset 0 0 0 3px var(--app-accent); }
+.htnote-split-view [role="separator"]:focus-visible { outline: 2px solid var(--app-focus); outline-offset: -2px; }
 
 .htnote-tab-strip::-webkit-scrollbar { height: 4px; }
 .htnote-tab-strip::-webkit-scrollbar-thumb { border-width: 1px; }
@@ -497,7 +497,6 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 @container note-viewer (max-width: 500px) {
   .htnote-note-header { padding-inline: 8px; gap: 4px; }
   .htnote-note-header .htnote-button { padding-inline: 6px; gap: 4px; font-size: 11px; }
-  .htnote-note-header [data-testid="export-note"] svg, .htnote-note-header [data-testid="edit-note"] svg { display: none; }
   
   .htnote-note-header [data-compact-tags] input { width: 60px; padding-inline: 4px; }
 }
@@ -508,3 +507,60 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
   .htnote-sidebar-actions [data-testid="new-folder"] svg, .htnote-sidebar-actions [data-testid="global-search"] svg { display: none; }
   .htnote-sidebar-actions [data-testid="global-search"] .htnote-shortcut-badge { font-size: 9px; padding-inline: 2px; }
 }
+
+/* Editing sessions share the note header; controls fold after its metadata. */
+.htnote-note-header { white-space: nowrap; }
+.htnote-session-actions { flex: 0 0 auto; margin-left: 4px; }
+.htnote-editor-unsaved { flex-shrink: 0; border: 1px solid color-mix(in srgb, var(--app-warning) 35%, transparent); border-radius: var(--app-radius-pill); padding: 4px 8px; color: var(--app-warning); background: color-mix(in srgb, var(--app-warning) 10%, var(--app-card)); }
+.htnote-segmented-control[data-compact="true"] [data-action-text] { position: absolute; visibility: hidden; pointer-events: none; white-space: nowrap; width: max-content; }
+
+/* The toolbar floats inside the note's own scrolling surface. */
+.htnote-visual-scroll { position: relative; }
+.htnote-editor-toolbar { position: sticky; top: 16px; z-index: 20; width: calc(100% - 48px); margin: 24px auto 0; padding: 6px; min-height: 48px; border: 1px solid var(--app-card-border); border-radius: 12px; background: var(--app-card); box-shadow: var(--app-shadow-card); }
+.htnote-visual-editor[data-content-width="narrow"] .htnote-editor-toolbar { max-width: 1152px; }
+.htnote-visual-editor[data-content-width="comfortable"] .htnote-editor-toolbar { max-width: 1152px; }
+.htnote-visual-editor[data-content-width="wide"] .htnote-editor-toolbar { max-width: 1152px; }
+.htnote-toolbar-groups { display: flex; flex: 1; align-items: center; gap: 6px; min-width: 0; }
+.htnote-toolbar-group-slot { flex: 0 0 auto; width: max-content; border-inline-start: 1px solid var(--app-border); padding-inline-start: 6px; }
+.htnote-toolbar-group-slot:first-child { border-inline-start-color: transparent; }
+.htnote-toolbar-overflow { position: absolute; top: calc(100% + 8px); right: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 12px; max-width: calc(100vw - 32px); max-height: min(360px, 60vh); overflow: auto; visibility: hidden; pointer-events: none; border: 1px solid var(--app-border); border-radius: 12px; background: var(--app-card); box-shadow: var(--app-shadow-card); }
+.htnote-toolbar-overflow[data-open="true"] { visibility: visible; pointer-events: auto; }
+.htnote-toolbar-overflow .htnote-toolbar-group-slot { border-inline-start-color: transparent; padding-inline-start: 6px; }
+.htnote-editor-link { padding: 4px; }
+.htnote-block-select { transition: border-color 150ms ease-out, background-color 150ms ease-out; }
+.htnote-block-select:hover { background: var(--app-hover); }
+.htnote-block-select:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 2px; }
+.htnote-visual-editor .tiptap { caret-color: var(--app-accent); }
+.htnote-visual-editor .tiptap ::selection, .htnote-visual-editor .tiptap::selection { background: color-mix(in srgb, var(--app-accent) 24%, transparent); }
+
+.htnote-split-view { padding: 8px; background: var(--app-subtle); }
+.htnote-code-editor, .htnote-preview-card { border: 1px solid var(--app-card-border); border-radius: 12px; background: var(--app-card); box-shadow: var(--app-shadow-card); }
+.htnote-code-bar { flex-wrap: nowrap; padding: 6px 8px; border-color: var(--app-card-border); background: var(--app-card); }
+.htnote-code-tabs { min-width: 0; overflow-x: auto; padding-bottom: 4px; }
+.htnote-code-tab { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; }
+.htnote-code-tab::after { bottom: -4px; }
+.htnote-code-actions { flex-shrink: 0; }
+.htnote-preview-toggle-label { display: none; }
+.htnote-preview-toggle { padding-inline: 8px; }
+.htnote-preview-card { display: flex; flex-direction: column; min-width: 0; min-height: 0; height: 100%; overflow: hidden; }
+.htnote-preview-header { display: flex; flex-shrink: 0; align-items: center; gap: 8px; min-height: 48px; padding: 8px 12px; border-bottom: 1px solid var(--app-card-border); color: var(--app-text); font-size: 12px; }
+.htnote-preview-dot { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: var(--app-success); }
+.htnote-split-divider { width: 8px; }
+.htnote-split-divider::before { left: 3px; }
+@media (prefers-reduced-motion: reduce) { .htnote-block-select { transition: none; } }
+
+
+.htnote-tag-panel { position: fixed; z-index: 60; max-width: calc(100vw - 16px); }
+
+
+.htnote-note-header [data-compact-tags] > [aria-hidden][inert] { position: fixed; left: 0; top: 0; }
+
+.htnote-note-header[data-compact-level="1"] [data-action-priority="1"] { position: absolute; visibility: hidden; pointer-events: none; white-space: nowrap; width: max-content; }
+
+.htnote-note-header[data-compact-level="2"] [data-action-priority="1"], .htnote-note-header[data-compact-level="2"] [data-action-priority="2"] { position: absolute; visibility: hidden; pointer-events: none; white-space: nowrap; width: max-content; }
+
+.htnote-note-header[data-compact-level="3"] [data-action-priority="1"], .htnote-note-header[data-compact-level="3"] [data-action-priority="2"], .htnote-note-header[data-compact-level="3"] [data-action-priority="3"] { position: absolute; visibility: hidden; pointer-events: none; white-space: nowrap; width: max-content; }
+
+.htnote-note-header[data-compact-level="4"] [data-action-priority="1"], .htnote-note-header[data-compact-level="4"] [data-action-priority="2"], .htnote-note-header[data-compact-level="4"] [data-action-priority="3"], .htnote-note-header[data-compact-level="4"] [data-action-priority="4"] { position: absolute; visibility: hidden; pointer-events: none; white-space: nowrap; width: max-content; }
+
+.htnote-note-header[data-compact-level="5"] [data-action-priority="1"], .htnote-note-header[data-compact-level="5"] [data-action-priority="2"], .htnote-note-header[data-compact-level="5"] [data-action-priority="3"], .htnote-note-header[data-compact-level="5"] [data-action-priority="4"], .htnote-note-header[data-compact-level="5"] [data-action-priority="5"] { position: absolute; visibility: hidden; pointer-events: none; white-space: nowrap; width: max-content; }

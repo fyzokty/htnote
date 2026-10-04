@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { saveStatus } from "@/features/editor/saveStatus";
 import type { DocState } from "@/features/editor/docState";
 import { ipc } from "@/lib/ipc";
 import { countNoteText, type NoteCounts } from "./noteCounts";
@@ -61,7 +62,7 @@ export function NoteStatusBar({ id, doc, updatedAt }: { id: string; doc: DocStat
       }
     };
   }, [id, html]);
-  const state = doc.saving ? "saving" : doc.dirty ? "dirty" : "saved";
+  const state = saveStatus(doc);
   const counts = result?.id === id ? result.counts : null;
   const number = new Intl.NumberFormat(i18n.language);
   return <footer data-testid="note-status" className="flex h-7 shrink-0 items-center justify-between gap-3 border-t border-app-card-border px-4 text-xs text-app-muted">

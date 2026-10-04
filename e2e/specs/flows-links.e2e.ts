@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 
-import { createNote, editNote, flatten, invoke, openNote, saveAndView, tree, useTempRoot, withNoteFrame } from "../helpers/flows";
+import { visibleEditorTool, createNote, editNote, flatten, invoke, openNote, saveAndView, tree, useTempRoot, withNoteFrame } from "../helpers/flows";
 import type { NoteNode } from "../helpers/flows";
 
 describe("internal link flows", () => {
@@ -14,7 +14,7 @@ describe("internal link flows", () => {
     await browser.refresh();
     await openNote(a.id);
     await editNote();
-    await $('[data-testid="link-note"]').click();
+    await (await visibleEditorTool('[data-testid="link-note"]')).click();
     const picker = await $('[role="dialog"] [role="listbox"]');
     await picker.waitForDisplayed();
     const option = await picker.$(`[role="option"][aria-label="${b.title}"]`);

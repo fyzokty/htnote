@@ -10,6 +10,17 @@ export interface NoteNode { type: "note"; id: string; title: string; relPath: st
 interface FolderNode { type: "folder"; relPath: string; children: TreeNode[] }
 export type TreeNode = NoteNode | FolderNode;
 
+export async function visibleEditorTool(selector: string) {
+  const tool = await $(selector);
+  if (!(await tool.isDisplayed())) {
+    const overflow = await $('[data-testid="editor-overflow"]');
+    await overflow.waitForDisplayed();
+    if (await overflow.getAttribute("aria-expanded") !== "true") await overflow.click();
+  }
+  await tool.waitForDisplayed();
+  return tool;
+}
+
 export async function invoke<T>(command: string, args: object = {}): Promise<T> {
   await waitForApp();
   const result = await browser.executeAsync((name, payload, done) => {

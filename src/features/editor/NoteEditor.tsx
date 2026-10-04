@@ -1,12 +1,5 @@
 import { noteBackgroundStyle } from "@/features/viewer/noteAppearance";
 import { useTranslation } from "react-i18next";
-import { Code2, LoaderCircle, PenLine, Save } from "lucide-react";
-
-import { Button } from "@/components/ui/Button";
-import { SegmentedControl } from "@/components/ui/SegmentedControl";
-import { Tooltip } from "@/components/ui/Tooltip";
-import { formatShortcut } from "@/lib/shortcuts/registry";
-
 import { CodeEditor } from "@/features/editor/CodeEditor";
 import { ExternalChangeBanner } from "@/features/editor/ExternalChangeBanner";
 import { extractContent } from "@/features/editor/contentRegion";
@@ -30,25 +23,6 @@ export function NoteEditor({ noteId, doc, session }: Props) {
   const parts = extractContent(draft.html);
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="htnote-editor-bar htnote-session-bar" role="toolbar" aria-label={t("editor.session.toolbar")}>
-        <SegmentedControl label={t("editor.session.mode")} value={doc.mode === "visual" ? "visual" : "code"}
-          onChange={session.switchMode} options={[
-            { value: "visual", label: t("editor.session.visual"), icon: <PenLine size={16} aria-hidden="true" />, disabled: !parts.ok,
-              tooltip: !parts.ok ? t("editor.session.visualUnavailable") : undefined, testId: "visual-mode" },
-            { value: "code", label: t("editor.session.code"), icon: <Code2 size={16} aria-hidden="true" />, testId: "code-mode" },
-          ]} />
-        {doc.dirty && <span className="htnote-editor-unsaved" role="status"><span aria-hidden="true" />{t("editor.session.unsaved")}</span>}
-        <div className="htnote-session-actions">
-          <Tooltip label={t("editor.session.cancel")}><Button size="sm" variant="ghost" disabled={doc.saving} onClick={session.cancel}>{t("editor.session.cancel")}</Button></Tooltip>
-          <Tooltip label={t("editor.session.save")} shortcut={formatShortcut("save")}>
-            <Button size="sm" variant="primary" data-testid="save-note" disabled={doc.saving} aria-busy={doc.saving}
-              onClick={() => { void session.save(false); }}>
-              {doc.saving ? <LoaderCircle size={16} aria-hidden="true" className="htnote-editor-spinner" /> : <Save size={16} aria-hidden="true" />}
-              {t(doc.saving ? "editor.session.saving" : "editor.session.save")}
-            </Button>
-          </Tooltip>
-        </div>
-      </div>
       <ExternalChangeBanner noteId={noteId} doc={doc} />
       {!parts.ok && <div role="status" className="border-b border-app-border px-4 py-2 text-sm text-app-muted">{t("editor.session.visualUnavailable")}</div>}
       <div className="min-h-0 flex-1 overflow-hidden">

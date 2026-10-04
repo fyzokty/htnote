@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next";
 import { IconButton } from "@/components/ui/IconButton";
 import { Button } from "@/components/ui/Button";
 import { Tooltip } from "@/components/ui/Tooltip";
+import { EditSessionHeader, EditSessionStatus } from "@/features/editor/EditSessionHeader";
 import { NoteEditor } from "@/features/editor/NoteEditor";
 import { ContextMenu } from "@/components/ui/ContextMenu";
 import { useEditSession } from "@/features/editor/useEditSession";
@@ -94,6 +95,7 @@ export function NoteViewer() {
   const activeNote = activeId ? findNote(tree, activeId) : null;
   const isRenaming = Boolean(activeNote && renamingId === activeNote.id);
   const activeTab = tabs.find((tab) => tab.noteId === activeId);
+  const editing = !!activeTab && activeTab.doc.mode !== "view";
   const tagSuggestions = deriveTags(tree);
 
   useShortcut("rename", () => {
@@ -113,12 +115,12 @@ export function NoteViewer() {
 
   const headerRef = useRef<HTMLDivElement>(null);
   const saved = activeNote ? relativeSaved(activeNote.updatedAt, i18n.language, now) : "";
-  const headerLayout = useHeaderLayout(headerRef, `${activeNote?.id}:${activeNote?.title}:${activeNote?.relPath}:${activeNote?.tags.join(",")}:${saved}:${i18n.language}:${isRenaming}`, activeNote?.tags.length ?? 0);
+  const headerLayout = useHeaderLayout(headerRef, `${activeNote?.id}:${activeNote?.title}:${activeNote?.relPath}:${activeNote?.tags.join(",")}:${saved}:${i18n.language}:${isRenaming}:${editing}:${activeTab?.doc.saving}:${activeTab?.doc.dirty}`, activeNote?.tags.length ?? 0);
   return (
     <div className="htnote-note-viewer flex h-full min-h-0 w-full flex-col text-left">
       {(activeNote || activeTab?.doc.removedOnDisk) && (
-        <div data-testid="note-header" className="htnote-note-header flex min-h-16 shrink-0 flex-nowrap items-center justify-between gap-2 border-b border-app-card-border bg-app-card px-4 py-2">
-          <div ref={headerRef} className="flex min-w-0 flex-1 items-center gap-2 overflow-visible whitespace-nowrap">
+        <div data-testid="note-header" data-compact-level={headerLayout.compactLevel} className="htnote-note-header flex min-h-16 shrink-0 flex-nowrap items-center justify-between gap-2 border-b border-app-card-border bg-app-card px-4 py-2">
+          <div ref={headerRef} data-header-content className="flex min-w-0 flex-1 items-center gap-2 overflow-visible whitespace-nowrap">
             {activeNote && activeNote.relPath.split(/[\\/]/).length > 1 && <span title={activeNote.relPath.split(/[\\/]/).slice(0, -1).join(" / ")} style={{ width: headerLayout.pathWidth }} className="htnote-note-path min-w-0 shrink-0 truncate text-xs text-app-muted"><span data-path-natural className="inline-block w-max">{activeNote.relPath.split(/[\\/]/).slice(0, -1).join(" / ")} /</span></span>}
             {isRenaming && activeNote ? (
               <InlineRename
@@ -132,9 +134,10 @@ export function NoteViewer() {
                 onCancel={() => setRenamingId(null)}
               />
             ) : activeNote ? (
-              <Tooltip label={`${activeNote.title} — ${t("viewer.renameHint")}`} className="min-w-0 shrink truncate">
+              <Tooltip label={`${activeNote.title} — ${t("viewer.renameHint")}`} className="htnote-note-title min-w-0 shrink-0 truncate">
                 <h2
                   tabIndex={0}
+                  style={{ width: headerLayout.titleWidth }}
                   data-testid="note-title"
                   onDoubleClick={() => setRenamingId(activeNote.id)}
                   onKeyDown={(event) => {
@@ -145,25 +148,27 @@ export function NoteViewer() {
                   }}
                   className="inline-block max-w-full cursor-text truncate font-semibold border-b-2 border-transparent py-0.5 outline-none hover:border-app-border focus-visible:ring-2 focus-visible:ring-app-accent rounded-sm"
                 >
-                  {activeNote.title}
+                  <span data-title-natural>{activeNote.title}</span>
                 </h2>
               </Tooltip>
             ) : (
               <h2 className="truncate font-semibold border-b-2 border-transparent py-0.5">{activeTab?.doc.removedTitle ?? t("tabs.untitled")}</h2>
             )}
-            {saved && <span title={t("viewer.lastSaved", { time: saved })} style={{ width: headerLayout.savedWidth }} className="htnote-note-saved min-w-0 shrink-0 truncate text-xs text-app-muted"><span data-saved-natural className="inline-flex w-max items-center gap-1"><span>•</span><Clock3 className="size-3 shrink-0" aria-hidden /><span className="truncate">{t("viewer.lastSaved", { time: saved })}</span></span></span>}
-            {activeNote && <TagInput compact visibleTagCount={headerLayout.visibleTags} key={activeNote.id} tags={activeNote.tags} suggestions={tagSuggestions} onChange={(tags) => void setNoteTags(activeNote.id, tags)} />}
+            {saved && <span title={t("viewer.lastSaved", { time: saved })} style={{ width: headerLayout.savedWidth, position: headerLayout.savedWidth === 0 ? "absolute" : undefined, visibility: headerLayout.savedWidth === 0 ? "hidden" : undefined }} className="htnote-note-saved min-w-0 shrink-0 truncate text-xs text-app-muted"><span data-saved-natural className="inline-flex w-max items-center gap-1"><span>•</span><Clock3 className="size-3 shrink-0" aria-hidden /><span className="truncate">{t("viewer.lastSaved", { time: saved })}</span></span></span>}
+            {editing && activeTab && <EditSessionStatus doc={activeTab.doc} />}
+            {activeNote && <TagInput compact portalPanels visibleTagCount={headerLayout.visibleTags} key={activeNote.id} tags={activeNote.tags} suggestions={tagSuggestions} onChange={(tags) => void setNoteTags(activeNote.id, tags)} />}
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div data-header-actions className="flex shrink-0 items-center gap-1">
             {activeNote && <NoteAppearancePicker key={activeNote.id} noteId={activeNote.id} html={activeTab?.doc.draft?.html ?? activeTab?.doc.base?.html ?? ""} disabled={activeTab?.doc.saving || !!activeTab?.doc.externalConflict || activeTab?.doc.removedOnDisk} />}
             <IconButton type="button" disabled={!activeNote} onClick={() => { if (activeNote) void toggleFavorite(activeNote.id, !activeNote.isFavorite); }} label={t("viewer.favorite")} aria-pressed={activeNote?.isFavorite ?? false} className={`rounded p-2 ${activeNote?.isFavorite ? "text-app-accent" : "text-app-muted"}`}><Star className="size-4" fill={activeNote?.isFavorite ? "currentColor" : "none"} aria-hidden /></IconButton>
-            <Button type="button" data-testid="export-note" disabled={!activeNote || exportBusy} aria-label={exportBusy ? t("export.exporting") : t("viewer.export")} onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setExportMenu({ x: rect.left, y: rect.bottom, trigger: event.currentTarget }); }} className="text-app-muted"><Download className="size-4" aria-hidden />{t("viewer.export")}</Button>
+            <Tooltip label={t("viewer.export")}><Button type="button" data-testid="export-note" disabled={!activeNote || exportBusy} aria-label={exportBusy ? t("export.exporting") : t("viewer.export")} onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setExportMenu({ x: rect.left, y: rect.bottom, trigger: event.currentTarget }); }} className="text-app-muted"><Download className="size-4" aria-hidden /><span data-action-text data-action-priority="1">{t("viewer.export")}</span></Button></Tooltip>
             {exportMenu && activeNote && <ContextMenu x={exportMenu.x} y={exportMenu.y} trigger={exportMenu.trigger} onClose={() => setExportMenu(null)} items={[
               { id: "pdf", label: t(pdfMode() === "print" ? "export.printPdf" : "export.pdf"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "pdf") },
               { id: "html", label: t("export.html"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "html") },
               { id: "zip", label: t("export.zip"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "zip") },
             ]} />}
-            {tabs.find((tab) => tab.noteId === activeId)?.doc.mode === "view" && <Button type="button" variant="primary" data-testid="edit-note" onClick={() => { void session.toggleEdit(); }} ><Pencil className="size-4" aria-hidden />{t("viewer.edit")}<kbd className="htnote-shortcut-badge">{formatShortcut("toggleEdit")}</kbd></Button>}
+            {tabs.find((tab) => tab.noteId === activeId)?.doc.mode === "view" && <Tooltip label={t("viewer.edit")} shortcut={formatShortcut("toggleEdit")}><Button type="button" variant="primary" data-testid="edit-note" aria-label={t("viewer.edit")} onClick={() => { void session.toggleEdit(); }} ><Pencil className="size-4" aria-hidden /><span data-action-text data-action-priority="5">{t("viewer.edit")}</span><kbd data-action-text data-action-priority="4" className="htnote-shortcut-badge">{formatShortcut("toggleEdit")}</kbd></Button></Tooltip>}
+            {editing && activeTab && <EditSessionHeader doc={activeTab.doc} session={session} compact={headerLayout.compactLevel >= 3} />}
           </div>
         </div>
       )}

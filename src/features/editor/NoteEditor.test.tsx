@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { enterEdit, createDocState } from "@/features/editor/docState";
+import { EditSessionHeader, EditSessionStatus } from "./EditSessionHeader";
 import { NoteEditor } from "@/features/editor/NoteEditor";
 import type { VisualEditorHandle } from "@/features/editor/VisualEditor";
 import type { useEditSession } from "@/features/editor/useEditSession";
@@ -22,14 +23,21 @@ function session() {
   } as unknown as ReturnType<typeof useEditSession>;
 }
 
+function Editing({ noteId, doc, session: actions }: ComponentProps<typeof NoteEditor>) {
+  return <><div data-testid="note-header"><EditSessionStatus doc={doc} /><EditSessionHeader doc={doc} session={actions} /></div><NoteEditor noteId={noteId} doc={doc} session={actions} /></>;
+}
+
 describe("NoteEditor", () => {
   it("connects toolbar controls and mode selector", () => {
     const actions = session();
     const doc = enterEdit(createDocState(), { html: '<main id="htnote-content"><p>A</p></main>', css: null, js: null, contentHash: "one" });
-    render(<NoteEditor noteId="a" doc={doc} session={actions} />);
+    render(<Editing noteId="a" doc={doc} session={actions} />);
     expect(screen.getByText("Visual content")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
     expect(actions.save).toHaveBeenCalledWith(false);
+    expect(screen.getByTestId("note-header")).toContainElement(screen.getByTestId("save-note"));
+    expect(screen.getByTestId("save-note").querySelector("kbd")).toHaveTextContent(formatShortcut("save"));
+    expect(document.querySelector(".htnote-session-bar")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "İptal" }));
     expect(actions.cancel).toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Kod" }));
@@ -40,7 +48,7 @@ describe("NoteEditor", () => {
 
   it("disables visual mode with a hover tooltip when the content region is missing", () => {
     const doc = enterEdit(createDocState(), { html: "<html></html>", css: null, js: null, contentHash: "one" }, "visual", false);
-    render(<NoteEditor noteId="a" doc={doc} session={session()} />);
+    render(<Editing noteId="a" doc={doc} session={session()} />);
     expect(screen.getByRole("button", { name: "Görsel" })).toBeDisabled();
     vi.useFakeTimers();
     try {
@@ -55,14 +63,14 @@ describe("NoteEditor", () => {
   it("switches both modes with the segmented control keyboard navigation", () => {
     const actions = session();
     const doc = enterEdit(createDocState(), { html: '<main id="htnote-content"><p>A</p></main>', css: null, js: null, contentHash: "one" });
-    const { rerender } = render(<NoteEditor noteId="a" doc={doc} session={actions} />);
+    const { rerender } = render(<Editing noteId="a" doc={doc} session={actions} />);
     const group = screen.getByRole("group", { name: "Düzenleme modu" });
     const visual = within(group).getByRole("button", { name: "Görsel" });
     const code = within(group).getByRole("button", { name: "Kod" });
     fireEvent.keyDown(visual, { key: "ArrowRight" });
     expect(code).toHaveFocus();
     expect(actions.switchMode).toHaveBeenLastCalledWith("code");
-    rerender(<NoteEditor noteId="a" doc={{ ...doc, mode: "code" }} session={actions} />);
+    rerender(<Editing noteId="a" doc={{ ...doc, mode: "code" }} session={actions} />);
     expect(code).toHaveAttribute("aria-pressed", "true");
     expect(visual).toHaveAttribute("aria-pressed", "false");
     fireEvent.keyDown(code, { key: "ArrowLeft" });
@@ -73,7 +81,7 @@ describe("NoteEditor", () => {
   it("disables session actions and announces saving, then enables them again", () => {
     const actions = session();
     const doc = enterEdit(createDocState(), { html: '<main id="htnote-content"></main>', css: null, js: null, contentHash: "one" });
-    const { rerender } = render(<NoteEditor noteId="a" doc={{ ...doc, saving: true }} session={actions} />);
+    const { rerender } = render(<Editing noteId="a" doc={{ ...doc, saving: true }} session={actions} />);
     const save = screen.getByTestId("save-note");
     expect(save).toBeDisabled();
     expect(save).toHaveAttribute("aria-busy", "true");
@@ -85,7 +93,7 @@ describe("NoteEditor", () => {
     fireEvent.click(cancel);
     expect(actions.save).not.toHaveBeenCalled();
     expect(actions.cancel).not.toHaveBeenCalled();
-    rerender(<NoteEditor noteId="a" doc={doc} session={actions} />);
+    rerender(<Editing noteId="a" doc={doc} session={actions} />);
     expect(save).toBeEnabled();
     expect(cancel).toBeEnabled();
     expect(save).toHaveAttribute("aria-busy", "false");
@@ -96,21 +104,21 @@ describe("NoteEditor", () => {
   it("shows the unsaved status only while dirty", () => {
     const doc = enterEdit(createDocState(), { html: '<main id="htnote-content"></main>', css: null, js: null, contentHash: "one" });
     const actions = session();
-    const { rerender } = render(<NoteEditor noteId="a" doc={{ ...doc, dirty: true }} session={actions} />);
+    const { rerender } = render(<Editing noteId="a" doc={{ ...doc, dirty: true }} session={actions} />);
     expect(screen.getByRole("status")).toHaveTextContent("Kaydedilmedi");
-    rerender(<NoteEditor noteId="a" doc={doc} session={actions} />);
+    rerender(<Editing noteId="a" doc={doc} session={actions} />);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("applies mode transition container and data-mode attribute on mode changes", () => {
     const actions = session();
     const doc = enterEdit(createDocState(), { html: '<main id="htnote-content"><p>A</p></main>', css: null, js: null, contentHash: "one" });
-    const { rerender, container } = render(<NoteEditor noteId="a" doc={doc} session={actions} />);
+    const { rerender, container } = render(<Editing noteId="a" doc={doc} session={actions} />);
     const visualWrapper = container.querySelector('[data-mode="visual"]');
     expect(visualWrapper).toBeInTheDocument();
     expect(visualWrapper).toHaveClass("htnote-mode-transition");
 
-    rerender(<NoteEditor noteId="a" doc={{ ...doc, mode: "code" }} session={actions} />);
+    rerender(<Editing noteId="a" doc={{ ...doc, mode: "code" }} session={actions} />);
     const codeWrapper = container.querySelector('[data-mode="code"]');
     expect(codeWrapper).toBeInTheDocument();
     expect(codeWrapper).toHaveClass("htnote-mode-transition");

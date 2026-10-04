@@ -57,7 +57,9 @@ const mediaClickDiagnostics: object[] = [];
 
 async function clickMediaGap(selector: string, side: "left" | "right" = "right") {
   const origin = await $(selector);
-  await origin.scrollIntoView();
+  // WDIO uses wheel deltas against the window viewport, ignoring the nested
+  // scroller's sticky toolbar clearance. Keep the tested row below the card.
+  await origin.scrollIntoView({ block: "center", inline: "nearest" });
   await waitForPointerStable(origin);
   const point = await browser.execute((selector, side) => {
     const surface = document.querySelector<HTMLElement>(".tiptap")! as HTMLElement & { editor: Editor };
@@ -109,8 +111,12 @@ async function clickMediaGap(selector: string, side: "left" | "right" = "right")
       viewport: { width: window.innerWidth, height: window.innerHeight, devicePixelRatio: window.devicePixelRatio },
       scroll: { x: window.scrollX, y: window.scrollY }, activeElement: describe(document.activeElement),
       editor: layout(surface), mediaNode: layout(preview?.closest(".htnote-media-node") ?? null),
+      toolbar: layout(document.querySelector(".htnote-editor-toolbar")),
+      scrollSurface: layout(document.querySelector(".htnote-visual-scroll")),
+      scrollTop: document.querySelector(".htnote-visual-scroll")?.scrollTop,
       preview: layout(preview), wrapper: layout(preview?.closest(".htnote-media-preview") ?? null),
       elementFromPoint: describe(document.elementFromPoint(point.x, point.y)),
+      hitsEditor: document.elementFromPoint(point.x, point.y) === surface,
       posAtCoords, posAtCoordsError,
       domSelection: selection ? {
         anchorNode: node(selection.anchorNode), anchorOffset: selection.anchorOffset,
@@ -130,6 +136,7 @@ async function clickMediaGap(selector: string, side: "left" | "right" = "right")
   const message = (text: string) => `${text}\nMedia click diagnostics: ${JSON.stringify(diagnostics)}`;
   try {
     assert.ok(side === "right" ? point.x > point.edge : point.x < point.edge, message("Click must be outside the media preview"));
+    assert.equal(diagnostics.before.hitsEditor, true, message("Media gap must be exposed below the sticky toolbar"));
     assert.equal(point.boundaries.length, 2, message("Clicked media must have two boundaries"));
     await pointerClickAt(origin, point.x, point.y, {
       afterDown: async () => {
@@ -238,6 +245,30 @@ describe("visual media previews", () => {
       assert.equal(media.controlsList, "nodownload");
       assert.equal(media.time, 0);
     }
+
+    const toolbarLayout = await browser.execute(() => {
+      const scroll = document.querySelector<HTMLElement>(".htnote-visual-scroll")!;
+      const toolbar = document.querySelector<HTMLElement>(".htnote-editor-toolbar")!;
+      const editor = document.querySelector<HTMLElement>(".tiptap")!;
+      scroll.scrollTop = 0;
+      const initial = { toolbar: toolbar.getBoundingClientRect().toJSON(), editor: editor.getBoundingClientRect().toJSON() };
+      scroll.scrollTop = 120;
+      const sticky = toolbar.getBoundingClientRect();
+      const surface = editor.getBoundingClientRect();
+      const hit = document.elementFromPoint(surface.right - 8, sticky.bottom + 8);
+      const result = { initial, scrollTop: scroll.scrollTop, sticky: sticky.toJSON(),
+        scroll: scroll.getBoundingClientRect().toJSON(), scrolledEditor: surface.toJSON(),
+        hitBelowCard: hit === editor, clearance: parseFloat(getComputedStyle(scroll).scrollPaddingTop) };
+      scroll.scrollTop = 0;
+      return result;
+    });
+    console.info("Media sticky toolbar layout:", JSON.stringify(toolbarLayout));
+    assert.ok(toolbarLayout.initial.toolbar.bottom <= toolbarLayout.initial.editor.top, "Unscrolled toolbar must precede the editor");
+    assert.ok(toolbarLayout.scrollTop > 0);
+    assert.ok(Math.abs(toolbarLayout.sticky.top - toolbarLayout.scroll.top - 16) <= 1, "Toolbar must stick inside the scroll surface");
+    assert.ok(toolbarLayout.scrolledEditor.top < toolbarLayout.sticky.bottom, "Content must scroll under the sticky toolbar");
+    assert.equal(toolbarLayout.hitBelowCard, true, "Toolbar must not intercept clicks below its visible card");
+    assert.ok(toolbarLayout.clearance >= toolbarLayout.sticky.height + 16);
 
     const compact = await browser.execute(() => {
       const editor = document.querySelector<HTMLElement>(".tiptap")!;

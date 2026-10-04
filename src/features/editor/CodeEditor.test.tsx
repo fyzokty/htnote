@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { CodeEditor } from "@/features/editor/CodeEditor";
 import { fileName, getDropHandler, kindFromPath } from "@/features/editor/fileDrop";
+import { formatShortcut } from "@/lib/shortcuts/registry";
 import { ipc } from "@/lib/ipc";
 import type { Settings } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
@@ -18,14 +19,14 @@ describe("CodeEditor formatting and layout", () => {
     const editor = EditorView.findFromDOM(container.querySelector(".cm-editor") as HTMLElement)!;
     const button = screen.getByRole("button", { name: "Belgeyi biçimlendir" });
     fireEvent.focus(button);
-    expect(screen.getByRole("tooltip")).toHaveTextContent("Shift+Alt+F");
+    expect(screen.getByRole("tooltip")).toHaveTextContent(formatShortcut("formatDocument"));
     fireEvent.click(button);
     expect(onChange).toHaveBeenCalledExactlyOnceWith({ html: "<div>\n  <p>A</p>\n  <p>B</p>\n</div>" });
     fireEvent.keyDown(editor.contentDOM, { key: "z", code: "KeyZ", ctrlKey: true });
     expect(editor.state.doc.toString()).toBe("<div><p>A</p><p>B</p></div>");
     fireEvent.keyDown(editor.contentDOM, { key: "f", code: "KeyF", keyCode: 70, shiftKey: true, altKey: true });
     expect(editor.state.doc.toString()).toBe("<div>\n  <p>A</p>\n  <p>B</p>\n</div>");
-    for (const name of ["CSS", "JS"]) {
+    for (const name of ["style.css", "script.js"]) {
       fireEvent.click(screen.getByRole("tab", { name }));
       expect(button).toBeDisabled();
       const before = editor.state.doc.toString();
@@ -84,13 +85,15 @@ describe("CodeEditor tabs", () => {
     render(<CodeEditor html="<p>HTML</p>" css="body {}" js="const x = 1;" onChange={vi.fn()} />);
     const tablist = screen.getByRole("tablist", { name: "Kod sekmeleri" });
     const tabs = within(tablist).getAllByRole("tab");
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["index.html", "style.css", "script.js"]);
+    expect(tabs.map((tab) => tab.querySelector(".htnote-code-dot")?.className)).toEqual(["htnote-code-dot htnote-code-dot-html", "htnote-code-dot htnote-code-dot-css", "htnote-code-dot htnote-code-dot-js"]);
     expect(tabs.map((tab) => tab.getAttribute("aria-selected"))).toEqual(["true", "false", "false"]);
     expect(tabs.map((tab) => tab.tabIndex)).toEqual([0, -1, -1]);
-    expect(screen.getByRole("tabpanel", { name: "HTML" }).id).toBe(tabs[0].getAttribute("aria-controls"));
+    expect(screen.getByRole("tabpanel", { name: "index.html" }).id).toBe(tabs[0].getAttribute("aria-controls"));
     fireEvent.click(tabs[1]);
     expect(tabs.map((tab) => tab.getAttribute("aria-selected"))).toEqual(["false", "true", "false"]);
     expect(tabs.map((tab) => tab.tabIndex)).toEqual([-1, 0, -1]);
-    expect(screen.getByRole("tabpanel", { name: "CSS" })).toHaveTextContent("body {}");
+    expect(screen.getByRole("tabpanel", { name: "style.css" })).toHaveTextContent("body {}");
   });
 
   it("navigates with arrows, wraps, and supports Home and End without moving focus into CodeMirror", () => {
@@ -102,7 +105,7 @@ describe("CodeEditor tabs", () => {
       expect(tabs[to]).toHaveAttribute("aria-selected", "true");
       expect(tabs.filter((tab) => tab.getAttribute("aria-selected") === "true")).toHaveLength(1);
     }
-    expect(screen.getByRole("tabpanel", { name: "JS" })).toHaveTextContent("const x = 1;");
+    expect(screen.getByRole("tabpanel", { name: "script.js" })).toHaveTextContent("const x = 1;");
   });
 
   it("preserves edits and undo history when switching tabs", () => {
@@ -111,9 +114,9 @@ describe("CodeEditor tabs", () => {
     const editor = EditorView.findFromDOM(container.querySelector(".cm-editor") as HTMLElement)!;
     act(() => editor.dispatch({ changes: { from: editor.state.doc.length, insert: "<!--changed-->" } }));
     expect(onChange).toHaveBeenLastCalledWith({ html: "<p>HTML</p><!--changed-->" });
-    fireEvent.click(screen.getByRole("tab", { name: "CSS" }));
+    fireEvent.click(screen.getByRole("tab", { name: "style.css" }));
     expect(editor.state.doc.toString()).toBe("body {}");
-    fireEvent.click(screen.getByRole("tab", { name: "HTML" }));
+    fireEvent.click(screen.getByRole("tab", { name: "index.html" }));
     expect(editor.state.doc.toString()).toBe("<p>HTML</p><!--changed-->");
     fireEvent.keyDown(editor.contentDOM, { key: "z", code: "KeyZ", ctrlKey: true });
     expect(editor.state.doc.toString()).toBe("<p>HTML</p>");

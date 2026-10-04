@@ -1,9 +1,28 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { TagInput } from "@/features/tags/TagInput";
 
 describe("TagInput", () => {
+  it("keeps folded tags and suggestions outside the scrolling header without losing their actions", () => {
+    const onChange = vi.fn();
+    const { container } = render(<TagInput compact portalPanels visibleTagCount={0} tags={["one", "two"]}
+      suggestions={[{ tag: "three", count: 1 }]} onChange={onChange} />);
+    fireEvent.click(screen.getByRole("button", { name: "2 di\u011fer etiket" }));
+    const remove = screen.getByRole("button", { name: /two etiketini/ });
+    expect(container).not.toContainElement(remove);
+    expect(document.body).toContainElement(remove);
+    fireEvent.click(remove);
+    expect(onChange).toHaveBeenCalledWith(["one"]);
+    const input = screen.getByRole("textbox");
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: "thr" } });
+    const list = screen.getByRole("listbox");
+    expect(container).not.toContainElement(list);
+    fireEvent.mouseDown(within(list).getByRole("button"));
+    fireEvent.click(within(list).getByRole("button"));
+    expect(onChange).toHaveBeenLastCalledWith(["one", "two", "three"]);
+  });
   it("shows every compact tag until measured layout requests folding", () => {
     render(<TagInput compact tags={["one", "two"]} suggestions={[]} onChange={vi.fn()} />);
     expect(screen.getByRole("button", { name: /one etiketini/ })).toBeInTheDocument();

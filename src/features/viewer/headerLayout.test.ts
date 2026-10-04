@@ -1,24 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { fitNoteHeader } from "./headerLayout";
 
-const measurements = { available: 800, title: 180, path: 120, saved: 200, tags: [70, 100], add: 80, overflow: 32 };
+const measurements = { available: 1280, title: 240, path: 100, saved: 220, tags: [70, 100], add: 80, overflow: 32,
+  actions: 560, actionSavings: [70, 45, 85, 55, 50] };
 
 describe("fitNoteHeader", () => {
-  it("shows full content when it fits, including tags of different widths", () => {
-    expect(fitNoteHeader(measurements)).toEqual({ path: 120, saved: 200, visibleTags: 2 });
+  it("preserves the note title at 1600px and removes saved text first", () => {
+    expect(fitNoteHeader(measurements)).toMatchObject({ title: 240, saved: 0, visibleTags: 2, compactLevel: 0 });
+    expect(fitNoteHeader({ ...measurements, available: 1500 })).toMatchObject({ saved: 220, visibleTags: 2, title: 240 });
   });
-  it("shortens only the folder path for a small shortage", () => {
-    expect(fitNoteHeader({ ...measurements, available: 750 })).toEqual({ path: 88, saved: 200, visibleTags: 2 });
+  it("folds tags before secondary action labels and never leaves a one-letter saved text", () => {
+    expect(fitNoteHeader({ ...measurements, available: 1050 })).toMatchObject({ saved: 0, visibleTags: 0, compactLevel: 0, title: 240 });
   });
-  it("shortens saved time only after the folder path", () => {
-    expect(fitNoteHeader({ ...measurements, available: 650 })).toEqual({ path: 24, saved: 164, visibleTags: 2 });
+  it("folds export, cancel, modes, save shortcut and save label in that order", () => {
+    for (const [available, compactLevel] of [[950, 1], [880, 2], [830, 3], [760, 4], [700, 5]]) {
+      expect(fitNoteHeader({ ...measurements, available })).toMatchObject({ title: 240, saved: 0, visibleTags: 0, compactLevel });
+    }
+    expect(fitNoteHeader({ ...measurements, available: 600 })).toMatchObject({ title: 181, compactLevel: 5 });
   });
-  it("folds tags last and reserves space for the overflow button", () => {
-    expect(fitNoteHeader({ ...measurements, available: 470 })).toEqual({ path: 24, saved: 36, visibleTags: 1 });
-    expect(fitNoteHeader({ ...measurements, available: 350 })).toEqual({ path: 24, saved: 36, visibleTags: 0 });
+  it("uses the same priorities in viewing mode and restores content when widened", () => {
+    const view = { ...measurements, actions: 260, actionSavings: [70, 0, 0, 55, 50] };
+    expect(fitNoteHeader({ ...view, available: 850 })).toMatchObject({ title: 240, saved: 0, compactLevel: 0 });
+    expect(fitNoteHeader({ ...view, available: 1400 })).toMatchObject({ title: 240, saved: 220, visibleTags: 2, compactLevel: 0 });
   });
-  it("restores all content when widened and handles missing metadata", () => {
-    expect(fitNoteHeader({ ...measurements, available: 900 }).visibleTags).toBe(2);
-    expect(fitNoteHeader({ ...measurements, available: 400, path: 0, saved: 0, tags: [] })).toEqual({ path: 0, saved: 0, visibleTags: 0 });
+  it("handles absent metadata and short titles without reserving unnecessary space", () => {
+    expect(fitNoteHeader({ available: 400, title: 100, path: 0, saved: 0, tags: [], add: 80, overflow: 32 })).toEqual({ title: 100, path: 0, saved: 0, visibleTags: 0, compactLevel: 0 });
   });
 });

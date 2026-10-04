@@ -152,16 +152,19 @@
       "label": "Kod editörü",
       "formatDocument": "Belgeyi biçimlendir",
       "tabs": "Kod sekmeleri",
-      "html": "HTML",
-      "css": "CSS",
-      "js": "JS"
+      "html": "index.html",
+      "css": "style.css",
+      "js": "script.js"
     },
     "split": {
       "label": "Bölünmüş görünüm",
+      "loadError": "Önizleme yüklenemedi.",
+      "retry": "Yeniden dene",
       "livePreview": "Canlı önizleme",
       "resize": "Bölmeyi yeniden boyutlandır",
       "preview": "Önizleme"
     },
+    "overflow": "Diğer biçimlendirme araçları",
     "toolbar": "Biçimlendirme araç çubuğu",
     "content": "Not içeriği",
     "placeholder": "Yazmaya başlayın…",
@@ -376,6 +379,10 @@
       "editorBold": "Kalın",
       "editorItalic": "İtalik",
       "editorUnderline": "Altı çizili",
+      "editorUndo": "Geri al",
+      "editorRedo": "Yinele",
+      "editorStrike": "Üstü çizili",
+      "formatDocument": "Belgeyi biçimlendir",
       "editorLink": "Not bağlantısı",
       "openSettings": "Ayarları aç"
     }
