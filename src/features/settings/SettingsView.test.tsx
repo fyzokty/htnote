@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { resolveUnsaved } from "@/features/editor/unsavedGuard";
@@ -15,7 +15,7 @@ import { SettingsView } from "./SettingsView";
 vi.mock("@/features/editor/unsavedGuard", () => ({ resolveUnsaved: vi.fn() }));
 
 const settings: Settings = {
-  rootDir: "C:/Old", lastExportDir: null, theme: "system", language: null,
+  rootDir: "C:/Old", lastExportDir: null, theme: "system", motion: "system", language: null,
   sidebarWidth: 260, sidebarVisible: true, tabSizing: "fixed", contentWidth: "comfortable", editorSplitRatio: 50, editorLivePreview: true,
   backlinksExpanded: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: true,
 };
@@ -31,6 +31,18 @@ beforeEach(() => {
 });
 
 describe("SettingsView", () => {
+  it("changes animations through the segmented control", async () => {
+    const update = vi.spyOn(ipc, "updateSettings").mockImplementation(async (patch) => ({ ...settings, ...patch }));
+    render(<SettingsView />);
+    const group = screen.getByRole("group", { name: "Animasyonlar" });
+    expect(group).toHaveClass("htnote-segmented-control");
+    expect(within(group).getByRole("button", { name: "Sistem" })).toHaveAttribute("aria-pressed", "true");
+    for (const [label, motion] of [["Açık", "on"], ["Kapalı", "off"], ["Sistem", "system"]]) {
+      fireEvent.click(within(group).getByRole("button", { name: label }));
+      await waitFor(() => expect(update).toHaveBeenLastCalledWith({ motion }));
+    }
+  });
+
   it("changes tab sizing through the shared segmented control, including keyboard selection", async () => {
     const update = vi.spyOn(ipc, "updateSettings").mockImplementation(async (patch) => ({ ...settings, ...patch }));
     render(<SettingsView />);

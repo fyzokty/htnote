@@ -9,7 +9,7 @@ import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 beforeEach(() => {
   resetTabsStoreForTests();
   useSettingsStore.setState({ settings: {
-    rootDir: null, lastExportDir: null, theme: "system", language: null, sidebarWidth: 260, sidebarVisible: true, tabSizing: "fixed",
+    rootDir: null, lastExportDir: null, theme: "system", motion: "system", language: null, sidebarWidth: 260, sidebarVisible: true, tabSizing: "fixed",
     contentWidth: "comfortable", editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true,
     openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false,
   }, status: "ready" });

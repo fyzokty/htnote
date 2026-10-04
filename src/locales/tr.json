@@ -332,6 +332,9 @@
     "chooseFirst": "Kaydetmeden önce dış değişiklik için bir seçim yapın."
   },
   "settings": {
+    "motion": "Animasyonlar",
+    "motionHint": "Sistem, işletim sisteminin animasyon efektleri ayarını izler.",
+    "motionOptions": {"system": "Sistem", "on": "Açık", "off": "Kapalı"},
     "theme": "Tema",
     "system": "Sistem",
     "light": "Açık",

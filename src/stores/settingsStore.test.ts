@@ -6,7 +6,7 @@ import { resetSettingsQueueForTests, useSettingsStore } from "@/stores/settingsS
 
 const defaults: Settings = {
   rootDir: null, lastExportDir: null,
-  theme: "system",
+  theme: "system", motion: "system",
   language: null,
   sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true,
   sidebarVisible: true, tabSizing: "fixed",

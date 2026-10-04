@@ -1,7 +1,8 @@
+import { Collapsible } from "@/components/ui/Collapsible";
 import { DialogPresence } from "@/components/ui/DialogPresence";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { ComponentProps, KeyboardEvent } from "react";
+import type { ComponentProps, KeyboardEvent, ReactNode } from "react";
 import { DndContext, DragOverlay, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import type { CollisionDetection, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
@@ -19,6 +20,7 @@ import { deleteTreeItem } from "@/features/trash/deleteCoordinator";
 import { canDrop } from "@/features/tree/canDrop";
 import { preferTreeRow } from "@/features/tree/preferTreeRow";
 import { useHoverExpand } from "@/features/tree/useHoverExpand";
+import { animatedFolderChange } from "./treeMotion";
 import { nextVisibleNode, visibleNodes } from "@/features/tree/treeNavigation";
 import { useTreeActions } from "@/features/tree/useTreeActions";
 import { canExportPdf, exportNote, pdfMode } from "@/features/viewer/exportNote";
@@ -45,25 +47,29 @@ interface RowProps {
   dropValid: boolean;
   filterQuery: string;
   isFlashed?: boolean;
+  active?: boolean;
   isHoverExpanding?: boolean;
+  children?: ReactNode;
 }
 
 const treeCollisionDetection: CollisionDetection = (args) => preferTreeRow(pointerWithin(args));
 
-export const TreeRow = memo(function TreeRow({ node, depth, noteCount, expanded, selected, tabbable, onSelect, onMenu, renaming, onRename, onCancelRename, dragSource, dropPath, dropValid, filterQuery, isFlashed, isHoverExpanding }: RowProps) {
+export const TreeRow = memo(function TreeRow({ node, depth, noteCount, expanded, selected, tabbable, onSelect, onMenu, renaming, onRename, onCancelRename, dragSource, dropPath, dropValid, filterQuery, isFlashed, isHoverExpanding, children, active = true }: RowProps) {
   const { t } = useTranslation();
   const isFolder = node.type === "folder";
-  const drag = useDraggable({ id: `drag:${node.relPath}`, data: { node }, disabled: renaming });
-  const drop = useDroppable({ id: `drop:${node.type}:${node.relPath}`, data: { path: node.relPath, type: node.type } });
+  const drag = useDraggable({ id: `drag:${node.relPath}`, data: { node }, disabled: renaming || !active });
+  const drop = useDroppable({ id: `drop:${node.type}:${node.relPath}`, data: { path: node.relPath, type: node.type }, disabled: !active });
   const setNodeRef = (element: HTMLElement | null) => { drag.setNodeRef(element); drop.setNodeRef(element); };
   const isTarget = dropPath === node.relPath && dragSource !== null;
   const label = isFolder ? node.name : node.title;
   const range = filterQuery ? matchRange(label, filterQuery) : null;
   return (
+    <div>
     <div
       ref={setNodeRef}
-      onPointerDown={(event) => drag.listeners?.onPointerDown?.(event)}
+      onPointerDown={(event) => { event.stopPropagation(); drag.listeners?.onPointerDown?.(event); }}
       role="treeitem"
+      aria-owns={isFolder && expanded ? `tree-group:${node.relPath}` : undefined}
       aria-level={depth + 1}
       aria-expanded={isFolder ? expanded : undefined}
       aria-selected={selected}
@@ -74,7 +80,7 @@ export const TreeRow = memo(function TreeRow({ node, depth, noteCount, expanded,
       data-flashed={isFlashed ? "true" : undefined}
       data-drop-target={isTarget ? (dropValid ? "valid" : "invalid") : undefined}
       data-dragging={drag.isDragging ? "true" : undefined}
-      onClick={(event) => { event.currentTarget.focus(); onSelect(node); }}
+      onClick={(event) => { event.stopPropagation(); event.currentTarget.focus(); onSelect(node); }}
       onContextMenu={(event) => { event.preventDefault(); event.stopPropagation(); onMenu(node, event.clientX, event.clientY, event.currentTarget); }}
       onKeyDown={(event) => {
         if (event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey)) {
@@ -133,6 +139,8 @@ export const TreeRow = memo(function TreeRow({ node, depth, noteCount, expanded,
         />
       )}
     </div>
+    {children}
+    </div>
   );
 });
 
@@ -173,7 +181,12 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const [dragSource, setDragSource] = useState<TreeNode | null>(null);
   const [dropPath, setDropPath] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-  const { hover, clear, hoveringPath } = useHoverExpand(toggle);
+  const [requestedAnimation, setRequestedAnimation] = useState<string | null>(null);
+  const toggleAnimated = useCallback((path: string) => {
+    setRequestedAnimation(path);
+    toggle(path);
+  }, [toggle]);
+  const { hover, clear, hoveringPath } = useHoverExpand(toggleAnimated);
   const rootRef = useRef<HTMLDivElement>(null);
   const pendingFocusKey = useRef<string | null>(null);
   const filtered = useMemo(() => filterTree(tree, filterQuery, { tag: filterTag ?? undefined }), [tree, filterQuery, filterTag]);
@@ -196,7 +209,16 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     }
     return paths;
   }, [expanded, filtered, filterExpandedOverride, filterQuery, filterTag]);
+  const [expansionState, setExpansionState] = useState({ previous: effectiveExpanded, tree, animatedPath: null as string | null });
+  let animatedPath = expansionState.animatedPath;
+  if (expansionState.previous !== effectiveExpanded || expansionState.tree !== tree) {
+    const changedPath = animatedFolderChange(expansionState.previous, effectiveExpanded, !!filterQuery.trim() || !!filterTag, expansionState.tree !== tree);
+    animatedPath = changedPath === requestedAnimation ? changedPath : null;
+    setRequestedAnimation(null);
+    setExpansionState({ previous: effectiveExpanded, tree, animatedPath });
+  }
   const rows = visibleNodes(visibleTree, effectiveExpanded);
+  const visiblePaths = new Set(rows.map(({ node }) => node.relPath));
   const selectedVisible = rows.some(({ node }) => isSelected(node, selected));
   const dropValid = dragSource !== null && dropPath !== null && canDrop(dragSource, dropPath, tree);
 
@@ -246,12 +268,12 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     if (node.type === "folder") {
       pendingFocusKey.current = `folder:${node.relPath}`;
       select({ kind: "folder", relPath: node.relPath });
-      toggle(node.relPath);
+      toggleAnimated(node.relPath);
     } else {
       select({ kind: "note", id: node.id });
       onOpenNote(node.id);
     }
-  }, [select, toggle, onOpenNote]);
+  }, [select, toggleAnimated, onOpenNote]);
 
   function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
     if ((event.target as HTMLElement).closest("input, [role=menu]")) return;
@@ -278,7 +300,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     pendingFocusKey.current = next.node.type === "folder" ? `folder:${next.node.relPath}` : `note:${next.node.id}`;
     if (next.expansion && next.node.type === "folder") {
       select({ kind: "folder", relPath: next.node.relPath });
-      toggle(next.node.relPath);
+      toggleAnimated(next.node.relPath);
       return;
     }
     select(next.node.type === "folder" ? { kind: "folder", relPath: next.node.relPath } : { kind: "note", id: next.node.id });
@@ -304,12 +326,48 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     { id: "trash", danger: true, label: t("tree.trash"), onSelect: () => void deleteTreeItem(menu.node) },
   ] : [];
 
+  function renderNodes(nodes: TreeNode[], depth = 0): ReactNode {
+    return nodes.map((node) => renderRow(node, depth));
+  }
+
+  function renderRow(node: TreeNode, depth: number): ReactNode {
+    return (
+        <TreeRow
+          key={node.type === "folder" ? `folder:${node.relPath}` : `note:${node.id}`}
+          node={node}
+          depth={depth}
+          noteCount={directCounts.get(node.relPath)}
+          expanded={node.type === "folder" && effectiveExpanded.has(node.relPath)}
+          selected={isSelected(node, selected)}
+          active={visiblePaths.has(node.relPath)}
+          tabbable={visiblePaths.has(node.relPath) && (selectedVisible ? isSelected(node, selected) : node === rows[0]?.node)}
+          onSelect={choose}
+          onMenu={openMenu}
+          renaming={renamingRelPath === node.relPath}
+          onRename={(item, name) => void renameNode(item, name)}
+          onCancelRename={() => setRenaming(null)}
+          dragSource={dragSource}
+          dropPath={dropPath}
+          dropValid={dropValid}
+          filterQuery={filterQuery}
+          isFlashed={node.type === "folder"
+            ? flashedKey === `folder:${node.relPath}` || flashedKey === node.relPath
+            : flashedKey === `note:${node.id}` || flashedKey === node.id || flashedKey === node.relPath}
+          isHoverExpanding={hoveringPath === node.relPath}
+        >
+          {node.type === "folder" && <Collapsible group id={`tree-group:${node.relPath}`} open={effectiveExpanded.has(node.relPath)} animate={animatedPath === node.relPath}>
+            {() => renderNodes(node.children, depth + 1)}
+          </Collapsible>}
+        </TreeRow>
+    );
+  }
+
   const isRootTarget = dragSource !== null && dropPath === "";
 
   return (
-    <section className={`flex min-h-0 flex-col px-3 py-2 ${sectionExpanded ? "flex-1" : "shrink-0"}`} aria-label={t("sidebar.folders")}>
-    <Button variant="ghost" size="sm" aria-expanded={sectionExpanded} onClick={() => setSectionExpanded(!sectionExpanded)} className="flex w-full justify-start items-center gap-2 rounded px-2 py-1 text-left text-[11px] font-bold uppercase tracking-wider hover:bg-app-subtle"><ChevronRight className={`size-4 ${sectionExpanded ? "rotate-90" : ""}`} aria-hidden /><Folder className="size-4" aria-hidden />{t("sidebar.folders")}</Button>
-    <div hidden={!sectionExpanded} className="min-h-0 flex-1">
+    <section className="flex min-h-0 flex-1 flex-col px-3 py-2" aria-label={t("sidebar.folders")}>
+    <Button data-testid="folders-toggle" variant="ghost" size="sm" aria-expanded={sectionExpanded} onClick={() => setSectionExpanded(!sectionExpanded)} className="flex w-full shrink-0 justify-start items-center gap-2 rounded px-2 py-1 text-left text-[11px] font-bold uppercase tracking-wider hover:bg-app-subtle"><ChevronRight className={`size-4 shrink-0 transition-transform duration-150 ${sectionExpanded ? "rotate-90" : ""}`} aria-hidden /><Folder className="size-4" aria-hidden />{t("sidebar.folders")}</Button>
+    <Collapsible open={sectionExpanded} className="min-h-0 flex-1">
     <DndContext sensors={sensors} collisionDetection={treeCollisionDetection} onDragStart={(event: DragStartEvent) => setDragSource(event.active.data.current?.node as TreeNode ?? null)} onDragOver={dragOver} onDragEnd={finishDrag} onDragCancel={() => finishDrag()}>
     <TreeDropRoot
       ref={rootRef}
@@ -326,32 +384,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
           : ""
       }`}
     >
-      {visibleTree.length === 0 ? <p className="py-4 text-center text-sm text-app-muted">{t(filterQuery.trim() || filterTag ? "sidebar.noMatches" : "tree.empty")}</p> : rows.map(({ node, depth }) => (
-        <TreeRow
-          key={node.type === "folder" ? `folder:${node.relPath}` : `note:${node.id}`}
-          node={node}
-          depth={depth}
-          noteCount={directCounts.get(node.relPath)}
-          expanded={node.type === "folder" && effectiveExpanded.has(node.relPath)}
-          selected={isSelected(node, selected)}
-          tabbable={selectedVisible ? isSelected(node, selected) : node === rows[0].node}
-          onSelect={choose}
-          onMenu={openMenu}
-          renaming={renamingRelPath === node.relPath}
-          onRename={(item, name) => void renameNode(item, name)}
-          onCancelRename={() => setRenaming(null)}
-          dragSource={dragSource}
-          dropPath={dropPath}
-          dropValid={dropValid}
-          filterQuery={filterQuery}
-          isFlashed={
-            node.type === "folder"
-              ? flashedKey === `folder:${node.relPath}` || flashedKey === node.relPath
-              : flashedKey === `note:${node.id}` || flashedKey === node.id || flashedKey === node.relPath
-          }
-          isHoverExpanding={hoveringPath === node.relPath}
-        />
-      ))}
+      {visibleTree.length === 0 ? <p className="py-4 text-center text-sm text-app-muted">{t(filterQuery.trim() || filterTag ? "sidebar.noMatches" : "tree.empty")}</p> : renderNodes(visibleTree)}
       {dragSource && (
         <div
           data-testid="root-drop-zone"
@@ -384,7 +417,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
       document.body,
     )}
     </DndContext>
-    </div>
+    </Collapsible>
     </section>
   );
 }

@@ -66,6 +66,11 @@ export function SettingsView({ onShowShortcuts }: { onShowShortcuts?: () => void
               options={(["system", "light", "dark"] as const).map((value) => ({ value, label: t(`settings.${value}`), disabled: !settings, icon: value === "system" ? <Monitor className="size-4" aria-hidden /> : value === "light" ? <Sun className="size-4" aria-hidden /> : <Moon className="size-4" aria-hidden /> }))}
               onChange={(theme) => void update({ theme }).catch(notifyError)} />
           </div>
+          <div className="htnote-settings-row"><div><span>{t("settings.motion")}</span><p className="text-xs text-app-muted">{t("settings.motionHint")}</p></div>
+            <SegmentedControl label={t("settings.motion")} value={settings?.motion ?? "system"}
+              options={(["system", "on", "off"] as const).map((value) => ({ value, label: t(`settings.motionOptions.${value}`), disabled: !settings }))}
+              onChange={(motion) => void update({ motion }).catch(notifyError)} />
+          </div>
           <label className="htnote-settings-row"><span><span id="settings-language-label">{t("settings.language")}</span><span className="block text-xs text-app-muted">{t("settings.languageHint")}</span></span>
             <select aria-labelledby="settings-language-label" disabled={!settings} value={settings?.language ?? "system"} onChange={(event) => void update({ language: event.target.value === "system" ? null : event.target.value as "tr" | "en" }).catch(notifyError)} className="rounded border border-app-border bg-app-bg px-3 py-2">
               <option value="system">{t("settings.system")}</option>

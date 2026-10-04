@@ -8,7 +8,7 @@ import type { Settings } from "@/lib/types";
 import { useSettingsStore } from "@/stores/settingsStore";
 
 const settings: Settings = {
-  rootDir: null, lastExportDir: null, theme: "system", language: null, sidebarWidth: 260,
+  rootDir: null, lastExportDir: null, theme: "system", motion: "system", language: null, sidebarWidth: 260,
   sidebarVisible: true, tabSizing: "fixed", contentWidth: "comfortable", editorSplitRatio: 35, editorLivePreview: true, backlinksExpanded: true,
   openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false,
 };

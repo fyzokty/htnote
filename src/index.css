@@ -272,7 +272,7 @@
 .htnote-media-floating[data-closing="true"] { pointer-events: none; animation: htnote-media-close 120ms ease-in forwards; }
 @keyframes htnote-media-open { from { opacity: 0; transform: translateY(4px) scale(.97); } to { opacity: 1; transform: none; } }
 @keyframes htnote-media-close { to { opacity: 0; transform: translateY(3px) scale(.98); } }
-@media (prefers-reduced-motion: reduce) { .htnote-media-floating, .htnote-media-floating[data-closing="true"] { animation: none; } }
+:root[data-reduced-motion="true"] .htnote-media-floating, :root[data-reduced-motion="true"] .htnote-media-floating[data-closing="true"] { animation: none; }
 .htnote-media-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; max-width: 24rem; padding: 0.375rem; color: var(--app-text); font-size: 0.8rem; line-height: 1.3; }
 .htnote-media-toolbar button:not(.htnote-button) { display: inline-flex; align-items: center; justify-content: center; min-height: 1.9rem; padding: 0.3rem 0.5rem; border-radius: 0.3rem; color: var(--app-text); background: var(--app-subtle); cursor: pointer; }
 .htnote-media-toolbar button:not(:disabled):hover { box-shadow: inset 0 0 0 1px var(--app-accent); }
@@ -393,17 +393,6 @@
 }
 
 /* Ağaç animasyonları ve sürükle-bırak geri bildirimleri (B9) */
-@keyframes htnote-tree-row-enter {
-  0% {
-    opacity: 0;
-    transform: translateY(-2px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 @keyframes htnote-tree-flash {
   0% {
     background-color: color-mix(in srgb, var(--app-accent) 35%, transparent);
@@ -428,7 +417,6 @@
   position: relative;
   border-left: 3px solid transparent;
   transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, opacity 150ms ease-out, box-shadow 150ms ease-out;
-  animation: htnote-tree-row-enter 160ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .htnote-tree-row-flash {
@@ -455,9 +443,7 @@
   animation: htnote-hover-expand-progress 700ms linear forwards;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
-}
+:root[data-reduced-motion="true"], :root[data-reduced-motion="true"] *, :root[data-reduced-motion="true"] *::before, :root[data-reduced-motion="true"] *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 
 /* Utility resets such as outline-none must not hide keyboard focus. */
 :where(button, input, textarea, select, [tabindex], [contenteditable="true"]):focus-visible {
@@ -488,7 +474,7 @@
 .ht-audio-time { flex-shrink: 0; color: var(--app-muted); font-size: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ht-audio-error { position: absolute; top: 100%; left: 0; font-size: 11px; color: var(--app-danger); }
 @keyframes ht-audio-pulse { from { transform: scaleY(0.75); } to { transform: scaleY(1); } }
-@media (prefers-reduced-motion: reduce) { .ht-audio-card *, .ht-audio-card { animation: none !important; transition: none !important; } }
+:root[data-reduced-motion="true"] .ht-audio-card *, :root[data-reduced-motion="true"] .ht-audio-card { animation: none !important; transition: none !important; }
 
 .htnote-color-popover { position: fixed; z-index: 150; width: 14rem; padding: 0.75rem; border: 1px solid var(--app-border); border-radius: 0.65rem; background: var(--app-surface); color: var(--app-text); box-shadow: 0 8px 24px var(--app-shadow); }
 .htnote-color-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.25rem; margin-top: 0.5rem; }
@@ -561,7 +547,7 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 .htnote-preview-dot { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; background: var(--app-success); }
 .htnote-split-divider { width: 8px; }
 .htnote-split-divider::before { left: 3px; }
-@media (prefers-reduced-motion: reduce) { .htnote-block-select { transition: none; } }
+:root[data-reduced-motion="true"] .htnote-block-select { transition: none; }
 
 
 .htnote-tag-panel { position: fixed; z-index: 60; max-width: calc(100vw - 16px); }
@@ -648,3 +634,20 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 @keyframes htnote-dialog-fade-out { from { opacity: 1; } to { opacity: 0; } }
 @keyframes htnote-dialog-open { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: scale(1); } }
 @keyframes htnote-dialog-close { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.96); } }
+
+/* Bölümler ve ağaç grupları aynı yükseklik geçişini paylaşır. */
+.htnote-collapse { display: grid; grid-template-rows: 0fr; opacity: 0; min-height: 0; }
+.htnote-collapse[data-open="true"] { grid-template-rows: 1fr; opacity: 1; }
+.htnote-collapse[data-animate="true"] { transition: grid-template-rows 140ms cubic-bezier(0.16, 1, 0.3, 1), opacity 140ms cubic-bezier(0.16, 1, 0.3, 1); }
+.htnote-collapse[data-animate="true"][data-open="true"] { transition-duration: 180ms; }
+.htnote-collapse[data-open="false"] { pointer-events: none; }
+.htnote-collapse-inner { min-height: 0; overflow: hidden; }
+:root[data-reduced-motion="true"] .htnote-collapse { transition: none; }
+[role="treeitem"]:focus-visible { outline: 2px solid var(--app-focus); outline-offset: -2px; }
+
+@starting-style {
+  .htnote-collapse[role="group"][data-animate="true"][data-open="true"] { grid-template-rows: 0fr; opacity: 0; }
+}
+
+/* Liste sınırları, sabit başlık ve alt bilgiden kalan alana göre hesaplanır. */
+.htnote-sidebar-sections { container-type: size; }
