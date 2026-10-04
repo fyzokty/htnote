@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Commit mesajı: `tür(kapsam): Türkçe açıklama.` (tür: feat, fix, chore…), ör. `fix(editor): kayıt sırasında bekleyen görsel değişikliğin kaybolmasını önle.`
 - Branch adı: `NNNN-tür(kapsam)-kisa-slug` (ör. `0150-fix(e2e)-harici-acmalari-engelle`), ardından PR ve merge.
-- `/orch` ve `.ai/` artık kullanılmıyor; `docs/development.md` ve `tasks/README.md` içindeki orch atıfları eskidir.
+- `/orch` ve `.ai/` artık kullanılmıyor; yerel `tasks/README.md` içindeki orch atıfları eskidir.
 - `tasks/` gitignore'dadır (yerel planlama, ajan brief'leri, `tasks/design/` tasarım referansları).
 
 ## Komutlar

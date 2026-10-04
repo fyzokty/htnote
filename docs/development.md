@@ -31,4 +31,6 @@ Depoyu klonlayıp kökte `npm ci` çalıştırın. Geliştirme penceresini `npm 
 
 Windows geliştirme ve E2E için birincil platformdur. Kodun diğer platformlarda derlenebilir kalması gerekir; platforma özgü işlevleri koşullu derleyin. CI doğrulamasından sonra `package.json`, Cargo ve Tauri sürümlerini eşitleyip `npm run version:check` çalıştırın. `v*` etiketiyle tetiklenen [release iş akışı](../.github/workflows/release.yml) Windows, macOS ve Linux paketlerini **taslak** GitHub sürümüne ekler; yayımlama ayrı inceleme gerektirir.
 
-Orchestrator ile çalışırken `.ai/context/project.md` ve `.ai/context/conventions.md` kurallarını, katman değişikliklerinde `.ai/context/architecture.md` dosyasını okuyun; `/orch` iş akışının görevlendirme ve doğrulama adımlarını izleyin. Commit mesajı İngilizce küçük harfli tür/kapsam ve büyük harfle başlayan Türkçe açıklama kullanır: `feat(notes): Not bağlantıları eklendi.`
+## Katkı kuralları
+
+Mimari kararların yetkili kaynağı [karar kaydıdır](decisions.md); arayüz dili (renk, tipografi, bileşenler) kökteki [`DESIGN.md`](../DESIGN.md) içindedir. Her değişiklik `NNNN-tür(kapsam)-kisa-aciklama` biçimli bir dalda yapılır (ör. `0150-fix(e2e)-harici-acmalari-engelle`), `verify:*` ve gerekiyorsa `test:e2e` yerelde geçtikten sonra PR ile birleştirilir. Commit mesajı İngilizce küçük harfli tür/kapsam ve Türkçe açıklama kullanır: `fix(editor): Kayıt sırasında bekleyen görsel değişikliğin kaybolması önlendi.`
