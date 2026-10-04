@@ -20,6 +20,7 @@ Depoyu klonlayıp kökte `npm ci` çalıştırın. Geliştirme penceresini `npm 
 | `npm run version:check` | Paket ve uygulama sürümlerini karşılaştırır |
 | `npm run docs:screenshots` | Fixture kökünde belgeler için ekran görüntüleri |
 | `npm run tauri build` | Platform kurulum paketleri |
+| `npm run build:windows` | Windows kurulum paketlerini (.exe, .msi) ve özetlerini üretir |
 
 ## Kod düzeni ve testler
 
@@ -29,7 +30,7 @@ Depoyu klonlayıp kökte `npm ci` çalıştırın. Geliştirme penceresini `npm 
 
 ## Platform ve sürüm akışı
 
-Windows geliştirme ve E2E için birincil platformdur. Kodun diğer platformlarda derlenebilir kalması gerekir; platforma özgü işlevleri koşullu derleyin. CI doğrulamasından sonra `package.json`, Cargo ve Tauri sürümlerini eşitleyip `npm run version:check` çalıştırın. `v*` etiketiyle tetiklenen [release iş akışı](../.github/workflows/release.yml) Windows, macOS ve Linux paketlerini **taslak** GitHub sürümüne ekler; yayımlama ayrı inceleme gerektirir.
+Windows geliştirme ve E2E için birincil platformdur. Kodun diğer platformlarda derlenebilir kalması gerekir; platforma özgü işlevleri koşullu derleyin. CI doğrulamasından sonra `package.json`, Cargo ve Tauri sürümlerini eşitleyip `npm run version:check` çalıştırın. Üretilen Windows paketleri imzasızdır, SmartScreen uyarısı beklenir; NSIS kullanıcı kapsamında (`currentUser`) kurar, WebView2 yoksa bootstrapper indirir. `v*` etiketiyle tetiklenen [release iş akışı](../.github/workflows/release.yml) Windows, macOS ve Linux paketlerini **taslak** GitHub sürümüne ekler; yayımlama ayrı inceleme gerektirir.
 
 ## Katkı kuralları
 
