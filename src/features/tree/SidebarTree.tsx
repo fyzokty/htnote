@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent } from "react";
-import { DndContext, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
+import { createPortal } from "react-dom";
+import type { ComponentProps, KeyboardEvent } from "react";
+import { DndContext, DragOverlay, PointerSensor, pointerWithin, useDraggable, useDroppable, useSensor, useSensors } from "@dnd-kit/core";
 import type { CollisionDetection, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { ChevronRight, FileText, Folder, FolderOpen } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -10,6 +11,7 @@ import { ContextMenu } from "@/components/ui/ContextMenu";
 import { toggleFavorite } from "@/features/favorites/favorites";
 import type { ContextMenuItem } from "@/components/ui/ContextMenu";
 import { filterTree, matchRange } from "@/features/tree/filterTree";
+import { TreeDragPreview } from "@/features/tree/TreeDragPreview";
 import { InlineRename } from "@/features/tree/InlineRename";
 import { MoveDialog } from "@/features/tree/MoveDialog";
 import { deleteTreeItem } from "@/features/trash/deleteCoordinator";
@@ -139,6 +141,16 @@ function isSelected(node: TreeNode, selected: TreeSelection | null) {
     : selected?.kind === "note" && selected.id === node.id;
 }
 
+// Kök bırakma hedefi, satır hedefleri gibi DndContext içinde kaydedilmelidir.
+function TreeDropRoot({ ref, ...props }: ComponentProps<"div">) {
+  const { setNodeRef } = useDroppable({ id: "drop:root", data: { path: "", type: "root" } });
+  return <div {...props} ref={(element) => {
+    setNodeRef(element);
+    if (typeof ref === "function") ref(element);
+    else if (ref) ref.current = element;
+  }} />;
+}
+
 export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }) {
   const { t } = useTranslation();
   const [sectionExpanded, setSectionExpanded] = useState(true);
@@ -160,10 +172,8 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const [dragSource, setDragSource] = useState<TreeNode | null>(null);
   const [dropPath, setDropPath] = useState<string | null>(null);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
-  const rootDrop = useDroppable({ id: "drop:root", data: { path: "", type: "root" } });
   const { hover, clear, hoveringPath } = useHoverExpand(toggle);
   const rootRef = useRef<HTMLDivElement>(null);
-  const setRootRef = (element: HTMLDivElement | null) => { rootRef.current = element; rootDrop.setNodeRef(element); };
   const pendingFocusKey = useRef<string | null>(null);
   const filtered = useMemo(() => filterTree(tree, filterQuery, { tag: filterTag ?? undefined }), [tree, filterQuery, filterTag]);
   const directCounts = useMemo(() => {
@@ -188,6 +198,13 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
   const rows = visibleNodes(visibleTree, effectiveExpanded);
   const selectedVisible = rows.some(({ node }) => isSelected(node, selected));
   const dropValid = dragSource !== null && dropPath !== null && canDrop(dragSource, dropPath, tree);
+
+  useEffect(() => {
+    if (!dragSource) return;
+    const previousCursor = document.body.style.cursor;
+    document.body.style.cursor = "grabbing";
+    return () => { document.body.style.cursor = previousCursor; };
+  }, [dragSource]);
 
   useEffect(() => {
     const path = dropPath;
@@ -293,8 +310,8 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
     <Button variant="ghost" size="sm" aria-expanded={sectionExpanded} onClick={() => setSectionExpanded(!sectionExpanded)} className="flex w-full justify-start items-center gap-2 rounded px-2 py-1 text-left text-[11px] font-bold uppercase tracking-wider hover:bg-app-subtle"><ChevronRight className={`size-4 ${sectionExpanded ? "rotate-90" : ""}`} aria-hidden /><Folder className="size-4" aria-hidden />{t("sidebar.folders")}</Button>
     <div hidden={!sectionExpanded} className="min-h-0 flex-1">
     <DndContext sensors={sensors} collisionDetection={treeCollisionDetection} onDragStart={(event: DragStartEvent) => setDragSource(event.active.data.current?.node as TreeNode ?? null)} onDragOver={dragOver} onDragEnd={finishDrag} onDragCancel={() => finishDrag()}>
-    <div
-      ref={setRootRef}
+    <TreeDropRoot
+      ref={rootRef}
       role="tree"
       aria-label={t("tree.label")}
       tabIndex={rows.length === 0 ? 0 : -1}
@@ -351,7 +368,20 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
       )}
       {menu && <ContextMenu items={menuItems} x={menu.x} y={menu.y} trigger={menu.trigger} onClose={() => setMenu(null)} />}
       {moveSource && <MoveDialog source={moveSource} tree={tree} onMove={(target) => { void moveNode(moveSource, target); setMoveSource(null); }} onClose={() => setMoveSource(null)} />}
-    </div>
+    </TreeDropRoot>
+    {createPortal(
+      <DragOverlay dropAnimation={null} adjustScale={false} style={{ width: "max-content" }}>
+        {dragSource && <TreeDragPreview
+          node={dragSource}
+          expanded={effectiveExpanded.has(dragSource.relPath)}
+          noteCount={directCounts.get(dragSource.relPath)}
+          hasDropTarget={dropPath !== null}
+          dropValid={dropValid}
+          targetName={dropPath === "" ? t("tree.root") : dropPath?.split("/").slice(-1)[0] ?? null}
+        />}
+      </DragOverlay>,
+      document.body,
+    )}
     </DndContext>
     </div>
     </section>
