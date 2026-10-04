@@ -22,7 +22,7 @@ use crate::index::scan::{self, IndexedNote};
 use crate::notes::html::sync_head;
 use crate::notes::model::write_metadata_atomic;
 use crate::notes::naming::sanitize_name;
-use crate::state::AppState;
+use crate::state::{AppState, IndexReady};
 
 #[derive(Default, Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -193,7 +193,53 @@ fn apply_batch(root: &Path, index: &RwLock<NoteIndex>, affected: Affected) -> Re
     Ok(payload)
 }
 
+// Bir olay partisini indekse uygular; hata veya panikte tam taramayla toparlanır.
+fn handle_events(root: &Path, index: &RwLock<NoteIndex>, events: &[Event], emit: &impl Fn(FsChangePayload)) {
+    let handled = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let known: HashSet<_> = index.read().map_err(|error| AppError::Internal(error.to_string()))?
+            .by_id.values().map(|note| root.join(&note.rel_path)).collect();
+        let affected = classify_events(root, events, &known);
+        let payload = apply_batch(root, index, affected)?;
+        if !payload.is_empty() { emit(payload); }
+        Ok::<(), AppError>(())
+    }));
+    match handled {
+        Ok(Ok(())) => (),
+        Ok(Err(error)) => {
+            eprintln!("File watcher batch failed: {error}");
+            thread::sleep(Duration::from_millis(100));
+            if let Ok(payload) = apply_batch(root, index,
+                Affected { needs_full_scan: true, ..Default::default() }) {
+                if !payload.is_empty() { emit(payload); }
+            } else {
+                eprintln!("File watcher recovery scan failed");
+            }
+        }
+        Err(_) => eprintln!("File watcher batch panicked"),
+    }
+}
+
 enum Message { Events(DebounceEventResult), Stop }
+
+/// İlk tarama bitene kadar gelen olayları biriktirir. İzleme taramadan önce kurulduğu için
+/// tarama sırasında oluşan değişiklikler kaybolmaz; indeks dolunca tek parti olarak uygulanır.
+/// `None`, durdurma isteği veya kanalın kapanması anlamına gelir.
+fn collect_until_ready(receiver: &mpsc::Receiver<Message>, ready: &IndexReady) -> Option<Vec<Event>> {
+    let mut pending = Vec::new();
+    while !ready.is_ready() {
+        match receiver.recv_timeout(Duration::from_millis(50)) {
+            Ok(Message::Stop) | Err(mpsc::RecvTimeoutError::Disconnected) => return None,
+            Ok(Message::Events(Ok(events))) => pending.extend(events.into_iter().map(|item| item.event)),
+            Ok(Message::Events(Err(errors))) => {
+                // Kaçırılmış olay olabilir; hazır olunca tam taramaya düşülür.
+                eprintln!("File watcher errors before initial scan: {errors:?}");
+                pending.push(Event::new(EventKind::Other));
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) => (),
+        }
+    }
+    Some(pending)
+}
 
 pub struct WatcherManager {
     sender: mpsc::Sender<Message>,
@@ -201,7 +247,7 @@ pub struct WatcherManager {
 }
 
 impl WatcherManager {
-    fn start(root: PathBuf, index: Arc<RwLock<NoteIndex>>,
+    fn start(root: PathBuf, index: Arc<RwLock<NoteIndex>>, index_ready: Arc<IndexReady>,
         emit: impl Fn(FsChangePayload) + Send + 'static) -> Self {
         #[cfg(not(windows))]
         let original_root = root.clone();
@@ -235,6 +281,14 @@ impl WatcherManager {
                         } else {
                             if let Some(ready) = ready_sender.take() { let _ = ready.send(()); }
                             retries = 0;
+                            let Some(pending) = collect_until_ready(&receiver, &index_ready) else { return };
+                            if !pending.is_empty() {
+                                #[cfg(not(windows))]
+                                let mut pending = pending;
+                                #[cfg(not(windows))]
+                                normalize_event_paths(&mut pending, &original_root, &root);
+                                handle_events(&root, &index, &pending, &emit);
+                            }
                             loop {
                                 match receiver.recv() {
                                     Ok(Message::Stop) | Err(_) => return,
@@ -262,28 +316,7 @@ impl WatcherManager {
                                             normalize_event_paths(&mut events, &original_root, &root);
                                             watch_error
                                         };
-                                        let handled = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                                            let known: HashSet<_> = index.read().map_err(|error| AppError::Internal(error.to_string()))?
-                                                .by_id.values().map(|note| root.join(&note.rel_path)).collect();
-                                            let affected = classify_events(&root, &events, &known);
-                                            let payload = apply_batch(&root, &index, affected)?;
-                                            if !payload.is_empty() { emit(payload); }
-                                            Ok::<(), AppError>(())
-                                        }));
-                                        match handled {
-                                            Ok(Ok(())) => (),
-                                            Ok(Err(error)) => {
-                                                eprintln!("File watcher batch failed: {error}");
-                                                thread::sleep(Duration::from_millis(100));
-                                                if let Ok(payload) = apply_batch(&root, &index,
-                                                    Affected { needs_full_scan: true, ..Default::default() }) {
-                                                    if !payload.is_empty() { emit(payload); }
-                                                } else {
-                                                    eprintln!("File watcher recovery scan failed");
-                                                }
-                                            }
-                                            Err(_) => eprintln!("File watcher batch panicked"),
-                                        }
+                                        handle_events(&root, &index, &events, &emit);
                                         #[cfg(not(windows))]
                                         if let Some(errors) = watch_error {
                                             eprintln!("File watcher errors: {errors:?}");
@@ -337,7 +370,7 @@ pub fn start_for_app(state: &AppState, app: tauri::AppHandle) -> Result<(), AppE
     let search_index = Arc::clone(&state.search_index);
     let link_index = Arc::clone(&state.link_index);
     let note_index = Arc::clone(&state.note_index);
-    let manager = WatcherManager::start(root, index, move |payload| {
+    let manager = WatcherManager::start(root, index, Arc::clone(&state.index_ready), move |payload| {
         for attempt in 0..3 {
             match crate::search::reindex_notes(&note_index, &search_index, &link_index,
                 &payload.changed_note_ids, &payload.removed_note_ids) {
@@ -369,6 +402,52 @@ mod tests {
     }
 
     fn structural() -> Affected { Affected { structural: true, ..Default::default() } }
+
+    fn ready_gate() -> Arc<IndexReady> { Arc::new(IndexReady::new(true)) }
+
+    #[test]
+    fn events_during_initial_scan_are_queued_and_applied_after_ready() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap();
+        let (_, first) = create_note_in(&root, "", Some("First")).unwrap();
+        let index = Arc::new(RwLock::new(NoteIndex::new(root.clone())));
+        let gate = Arc::new(IndexReady::new(false));
+        let (sender, receiver) = mpsc::channel();
+        // Başlangıç sırası: izleyici kurulur, sonra tarama yapılır, en son indeks hazır işaretlenir.
+        let watcher = WatcherManager::start(root.clone(), Arc::clone(&index), Arc::clone(&gate),
+            move |payload| { let _ = sender.send(payload); });
+        #[cfg(target_os = "macos")]
+        thread::sleep(Duration::from_secs(1));
+        let initial = scan::scan(&root).unwrap();
+        let (_, second) = create_note_in(&root, "", Some("Second")).unwrap();
+        // Hazır olmadan olay uygulanmaz; boş indeks üzerinde tam tarama yarışı oluşmaz.
+        assert!(receiver.recv_timeout(Duration::from_millis(800)).is_err());
+        assert!(index.read().unwrap().by_id.is_empty());
+        index.write().unwrap().replace_all(initial);
+        gate.mark_ready();
+        let deadline = Instant::now() + Duration::from_secs(if cfg!(target_os = "macos") { 15 } else { 5 });
+        loop {
+            let remaining = deadline.saturating_duration_since(Instant::now());
+            let payload = receiver.recv_timeout(remaining).expect("queued event was lost");
+            if payload.changed_note_ids.contains(&second.metadata.id) { break; }
+        }
+        let locked = index.read().unwrap();
+        assert_eq!(locked.rel_path(first.metadata.id), Some("First"));
+        assert_eq!(locked.rel_path(second.metadata.id), Some("Second"));
+        drop(locked);
+        drop(watcher);
+    }
+
+    #[test]
+    fn gated_watcher_stops_without_waiting_for_ready() {
+        let temp = tempfile::tempdir().unwrap();
+        let index = Arc::new(RwLock::new(NoteIndex::new(temp.path().to_path_buf())));
+        let watcher = WatcherManager::start(temp.path().to_path_buf(), index,
+            Arc::new(IndexReady::new(false)), |_| {});
+        let started = Instant::now();
+        drop(watcher);
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
 
     #[test]
     fn classifies_paths_and_rename_pairs() {
@@ -534,7 +613,7 @@ mod tests {
         let worker_index = Arc::clone(&index);
         let worker_search = Arc::clone(&search);
         let (sender, receiver) = mpsc::channel();
-        let watcher = WatcherManager::start(root.clone(), Arc::clone(&index), move |payload| {
+        let watcher = WatcherManager::start(root.clone(), Arc::clone(&index), ready_gate(), move |payload| {
             crate::search::reindex_notes(&worker_index, &worker_search, &links,
                 &payload.changed_note_ids, &payload.removed_note_ids).unwrap();
             let _ = sender.send(payload);
@@ -634,7 +713,7 @@ mod tests {
         let (sender, receiver) = mpsc::channel();
         let old_sender = sender.clone();
         let mut watcher = Some(WatcherManager::start(first.path().to_path_buf(), Arc::clone(&index),
-            move |payload| { let _ = old_sender.send(payload); }));
+            ready_gate(), move |payload| { let _ = old_sender.send(payload); }));
 
         // Ayar değişikliğindeki sıra: eski izleyiciyi durdur, indeksi değiştir, yenisini başlat.
         drop(watcher.take());
@@ -644,7 +723,7 @@ mod tests {
             locked.replace_all(scan::scan(second.path()).unwrap());
         }
         watcher = Some(WatcherManager::start(second.path().to_path_buf(), Arc::clone(&index),
-            move |payload| { let _ = sender.send(payload); }));
+            ready_gate(), move |payload| { let _ = sender.send(payload); }));
 
         let (_, old_note) = create_note_in(first.path(), "", Some("Old")).unwrap();
         assert!(receiver.recv_timeout(Duration::from_millis(600)).is_err());
@@ -669,7 +748,7 @@ mod tests {
         let root = temp.path().to_path_buf();
         let index = Arc::new(RwLock::new(NoteIndex::new(root.clone())));
         let (sender, receiver) = mpsc::channel();
-        let watcher = WatcherManager::start(root.clone(), Arc::clone(&index), move |payload| { let _ = sender.send(payload); });
+        let watcher = WatcherManager::start(root.clone(), Arc::clone(&index), ready_gate(), move |payload| { let _ = sender.send(payload); });
         let (_, note) = create_note_in(&root, "", Some("Original")).unwrap();
         let deadline = Instant::now() + Duration::from_secs(if cfg!(target_os = "macos") { 15 } else { 5 });
         let wait_for = |check: &dyn Fn(&NoteIndex) -> bool| {
@@ -722,7 +801,7 @@ mod tests {
         initial.replace_all(scan::scan(&root).unwrap());
         let index = Arc::new(RwLock::new(initial));
         let (sender, receiver) = mpsc::channel();
-        let watcher = WatcherManager::start(root.clone(), index, move |payload| { let _ = sender.send(payload); });
+        let watcher = WatcherManager::start(root.clone(), index, ready_gate(), move |payload| { let _ = sender.send(payload); });
         let assets = root.join("Bulk/assets");
         fs::create_dir_all(&assets).unwrap();
         for number in 0..200 {

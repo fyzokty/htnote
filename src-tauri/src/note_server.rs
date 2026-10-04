@@ -7,9 +7,9 @@ use tiny_http::{Header, Request, Response, Server};
 use crate::error::AppError;
 use crate::index::note_index::NoteIndex;
 use crate::protocol::{self, Served};
-use crate::state::PreviewDrafts;
+use crate::state::{IndexReady, PreviewDrafts};
 
-pub fn start(note_index: Arc<RwLock<NoteIndex>>, preview_drafts: PreviewDrafts) -> Result<String, AppError> {
+pub fn start(note_index: Arc<RwLock<NoteIndex>>, preview_drafts: PreviewDrafts, index_ready: Arc<IndexReady>) -> Result<String, AppError> {
     let server = Arc::new(Server::http("127.0.0.1:0")
         .map_err(|error| AppError::Internal(error.to_string()))?);
     let port = server.server_addr().to_ip()
@@ -19,17 +19,18 @@ pub fn start(note_index: Arc<RwLock<NoteIndex>>, preview_drafts: PreviewDrafts) 
         let server = Arc::clone(&server);
         let index = Arc::clone(&note_index);
         let drafts = Arc::clone(&preview_drafts);
+        let ready = Arc::clone(&index_ready);
         let host = host.clone();
         thread::Builder::new().name("htnote-note-http".into()).spawn(move || {
             for request in server.incoming_requests() {
-                respond(request, &host, &index, &drafts);
+                respond(request, &host, &index, &drafts, &ready);
             }
         }).map_err(|error| AppError::Internal(error.to_string()))?;
     }
     Ok(format!("http://{host}"))
 }
 
-fn respond(request: Request, host: &str, index: &Arc<RwLock<NoteIndex>>, drafts: &PreviewDrafts) {
+fn respond(request: Request, host: &str, index: &Arc<RwLock<NoteIndex>>, drafts: &PreviewDrafts, ready: &IndexReady) {
     // DNS yeniden bağlama için Host tam olarak dinlenen adresle eşleşmelidir.
     let valid_host = request.headers().iter()
         .filter(|header| header.field.equiv("Host"))
@@ -41,6 +42,8 @@ fn respond(request: Request, host: &str, index: &Arc<RwLock<NoteIndex>>, drafts:
         let path = request.url().split('?').next().unwrap_or("");
         let range = request.headers().iter().find(|header| header.field.equiv("Range"))
             .map(|header| header.value.as_str());
+        // İlk tarama sürerken not kimliği henüz indekste olmayabilir; 404 yerine taramayı bekle.
+        ready.wait();
         protocol::handle(request.method().as_str(), path, range, index, drafts)
     };
     let mut response = Response::from_data(served.body)
@@ -73,6 +76,34 @@ mod tests {
     }
 
     #[test]
+    fn note_request_during_initial_scan_waits_instead_of_404() {
+        let root = tempfile::tempdir().unwrap();
+        let dir = root.path().join("Note");
+        std::fs::create_dir(&dir).unwrap();
+        let metadata = NoteMetadata::new("Note");
+        write_metadata_atomic(&dir.join("metadata.json"), &metadata).unwrap();
+        std::fs::write(dir.join("index.html"), "<head></head><body>ready</body>").unwrap();
+        let index = Arc::new(RwLock::new(NoteIndex::new(root.path().to_path_buf())));
+        let ready = Arc::new(IndexReady::new(false));
+        let drafts: PreviewDrafts = Arc::new(std::sync::Mutex::new(Default::default()));
+        let origin = start(Arc::clone(&index), drafts, Arc::clone(&ready)).unwrap();
+        let host = origin.strip_prefix("http://").unwrap().to_owned();
+        // Sahte Host yine beklemeden reddedilir.
+        assert_eq!(request(&origin, "evil.localhost", "GET", &format!("/{}/", metadata.id), None).0, 403);
+        let path = format!("/{}/", metadata.id);
+        let pending = {
+            let origin = origin.clone();
+            std::thread::spawn(move || request(&origin, &host, "GET", &path, None))
+        };
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        index.write().unwrap().refresh_readonly().unwrap();
+        ready.mark_ready();
+        let (status, body) = pending.join().unwrap();
+        assert_eq!(status, 200);
+        assert!(body.contains("ready"));
+    }
+
+    #[test]
     fn serves_index_range_and_rejects_unsafe_requests() {
         let root = tempfile::tempdir().unwrap();
         let dir = root.path().join("Note");
@@ -91,7 +122,7 @@ mod tests {
             rev: 1, html: "<head></head><body>preview</body>".into(),
             css: "body { color: red }".into(), js: "window.preview = true".into(),
         });
-        let origin = start(Arc::new(RwLock::new(index)), drafts).unwrap();
+        let origin = start(Arc::new(RwLock::new(index)), drafts, Arc::new(IndexReady::new(true))).unwrap();
         let host = origin.strip_prefix("http://").unwrap();
         let id = metadata.id;
         let (status, body) = request(&origin, host, "GET", &format!("/{id}/"), None);

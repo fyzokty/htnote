@@ -24,7 +24,7 @@ mod splash;
 
 use tauri::Manager;
 
-/// Uygulama sÃ¼rÃ¼mÃ¼; tek kaynak `Cargo.toml`'dur.
+/// Uygulama sürümü; tek kaynak `Cargo.toml`'dur.
 pub fn app_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
@@ -79,20 +79,22 @@ pub fn run() {
             let drafts_dir = app.path().app_data_dir()?.join("drafts");
             std::fs::create_dir_all(&drafts_dir)?;
             let state = state::AppState::with_drafts_dir(config_dir, drafts_dir, settings, root_dir.clone());
+            // Onboarding yalnızca kökün üst düzeyini okur; örnek notlar taramadan önce yazılmalıdır.
             if let Err(error) = onboarding::run(&state) {
                 eprintln!("Onboarding failed: {error}");
             }
-            if let Err(error) = initial_scan(&state) {
-                eprintln!("Initial note scan failed: {error}");
-            }
-            let origin = note_server::start(state.note_index.clone(), state.preview_drafts.clone())?;
+            let origin = note_server::start(state.note_index.clone(), state.preview_drafts.clone(), state.index_ready.clone())?;
             *state.note_origin.write().map_err(|error| error::AppError::Internal(error.to_string()))? = origin;
+            // Arama, ilk tarama ve dizin oluşturma bitene kadar "indeksleniyor" yanıtı verir.
+            state.search_indexing.store(true, std::sync::atomic::Ordering::Release);
             app.manage(state);
-            let managed = app.state::<state::AppState>();
-            search::start_build(&managed);
-            if let Err(error) = watcher::start_for_app(&managed, app.handle().clone()) {
-                eprintln!("File watcher startup failed: {error}");
-            }
+            // Olay döngüsü setup dönene kadar başlamaz; büyük köklerde ilk pencere boyaması
+            // gecikmesin diye tarama arka planda yapılır.
+            let handle = app.handle().clone();
+            std::thread::Builder::new().name("htnote-initial-scan".into()).spawn(move || {
+                let state = handle.state::<state::AppState>();
+                run_startup_indexing(&state, |state| watcher::start_for_app(state, handle.clone()));
+            })?;
             #[cfg(windows)]
             if let Some(window) = app.get_webview_window("main") {
                 if let Err(error) = snap_layouts::install(&window) {
@@ -146,9 +148,33 @@ pub fn run() {
         .expect("error while running tauri application");
 }
 
+/// Başlangıç dizinlemesi (arka plan iş parçacığında çalışır). Sıra:
+/// 1. Watcher kurulur; ilk tarama bitene kadar olayları uygulamadan biriktirir.
+/// 2. Kök taranır ve indeks doldurulur.
+/// 3. Arama/link indeksi kurulmaya başlar.
+/// 4. İndeks hazır işaretlenir; bekleyen komutlar, not sunucusu ve watcher serbest kalır.
+///
+/// İzleme taramadan önce kurulduğu için tarama sırasında olan değişiklikler kaybolmaz;
+/// watcher bunları dolu indekse karşı uygular, eski tarama sonucu yeni olayların üzerine yazılmaz.
+fn run_startup_indexing(state: &state::AppState, start_watcher: impl FnOnce(&state::AppState) -> Result<(), error::AppError>) {
+    let _ready = state::MarkReadyOnDrop(&state.index_ready);
+    if let Err(error) = start_watcher(state) {
+        eprintln!("File watcher startup failed: {error}");
+    }
+    if let Err(error) = initial_scan(state) {
+        // Önceki davranış korunur: indeks boş kalır, uygulama yine açılır.
+        eprintln!("Initial note scan failed: {error}");
+    }
+    search::start_build(state);
+}
+
 fn initial_scan(state: &state::AppState) -> Result<(), error::AppError> {
-    let root = state.root_dir.read().map_err(|error| error::AppError::Internal(error.to_string()))?;
+    // Tarama sırasında kilit tutulmaz; senkron komutlar (ör. get_root_dir) ana iş parçacığını bloklamamalı.
+    let root = state.root_dir.read().map_err(|error| error::AppError::Internal(error.to_string()))?.clone();
     let result = index::scan::scan(&root)?;
+    let live_root = state.root_dir.read().map_err(|error| error::AppError::Internal(error.to_string()))?;
+    // Kök değiştirme hazır olmadan reddedilir; yine de eski kökün sonucu yeni kökün yerine yazılmaz.
+    if *live_root != root { return Ok(()); }
     state.note_index.write().map_err(|error| error::AppError::Internal(error.to_string()))?.replace_all(result);
     Ok(())
 }
@@ -158,33 +184,33 @@ mod tests {
     use super::*;
     use crate::notes::model::{write_metadata_atomic, NoteMetadata};
 
-    /// `tauri.conf.json` ile `Cargo.toml` sÃ¼rÃ¼mleri ayrÄ±ÅŸÄ±rsa paketler yanlÄ±ÅŸ sÃ¼rÃ¼mle Ã§Ä±kar.
+    /// `tauri.conf.json` ile `Cargo.toml` sürümleri ayrışırsa paketler yanlış sürümle çıkar.
     #[test]
     fn tauri_conf_version_matches_cargo_version() {
         let conf: serde_json::Value =
-            serde_json::from_str(include_str!("../tauri.conf.json")).expect("geÃ§erli JSON");
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("geçerli JSON");
         if conf["version"] == "../package.json" {
             let package: serde_json::Value =
-                serde_json::from_str(include_str!("../../package.json")).expect("geÃ§erli package JSON");
+                serde_json::from_str(include_str!("../../package.json")).expect("geçerli package JSON");
             assert_eq!(package["version"].as_str(), Some(app_version()));
         } else {
             assert_eq!(conf["version"].as_str(), Some(app_version()));
         }
     }
 
-    /// Not origin'i capability kapsamÄ±na girmemeli; iframe ve IPC kaynaklarÄ± aÃ§Ä±kÃ§a sÄ±nÄ±rlanmalÄ±.
+    /// Not origin'i capability kapsamına girmemeli; iframe ve IPC kaynakları açıkça sınırlanmalı.
     #[test]
     fn main_capability_and_csp_are_isolated() {
         let capability: serde_json::Value =
-            serde_json::from_str(include_str!("../capabilities/main.json")).expect("geÃ§erli capability JSON");
+            serde_json::from_str(include_str!("../capabilities/main.json")).expect("geçerli capability JSON");
         let conf: serde_json::Value =
-            serde_json::from_str(include_str!("../tauri.conf.json")).expect("geÃ§erli Tauri JSON");
+            serde_json::from_str(include_str!("../tauri.conf.json")).expect("geçerli Tauri JSON");
 
         assert!(capability.get("remote").is_none());
         assert_eq!(capability["windows"], serde_json::json!(["main"]));
         let permissions = capability["permissions"].as_array().expect("izin listesi");
         for permission in permissions {
-            let identifier = permission.as_str().or_else(|| permission["identifier"].as_str()).expect("izin kimliÄŸi");
+            let identifier = permission.as_str().or_else(|| permission["identifier"].as_str()).expect("izin kimliği");
             assert!(!identifier.contains('*'), "joker izin: {identifier}");
             assert!(!identifier.starts_with("opener:"), "direct opener permission: {identifier}");
         }
@@ -193,7 +219,7 @@ mod tests {
             .filter(|identifier| identifier.starts_with("dialog:")).collect();
         assert_eq!(dialog_permissions, ["dialog:allow-open", "dialog:allow-save"]);
 
-        let csp = conf["app"]["security"]["csp"].as_str().expect("Ã¼retim CSP");
+        let csp = conf["app"]["security"]["csp"].as_str().expect("üretim CSP");
         let directives: std::collections::HashMap<_, _> = csp
             .split(';')
             .map(|directive| {
@@ -249,15 +275,70 @@ mod tests {
         assert!(capability.get("remote").is_none());
     }
 
-    #[test]
-    fn startup_populates_note_index() {
-        let root = tempfile::tempdir().unwrap();
-        let note = root.path().join("Not");
-        std::fs::create_dir(&note).unwrap();
+    fn startup_state(root: &std::path::Path) -> (state::AppState, uuid::Uuid) {
+        let note = root.join("Not");
+        std::fs::create_dir_all(&note).unwrap();
         let metadata = NoteMetadata::new("Not");
         write_metadata_atomic(&note.join("metadata.json"), &metadata).unwrap();
-        let state = state::AppState::new(root.path().to_path_buf(), settings::Settings::default(), root.path().to_path_buf());
-        initial_scan(&state).unwrap();
-        assert_eq!(state.note_index.read().unwrap().rel_path(metadata.id), Some("Not"));
+        // Üretim kurucusu: indeks başlangıç dizinlemesi bitene kadar hazır değildir.
+        let state = state::AppState::with_drafts_dir(root.join(".config"), root.join(".drafts"),
+            settings::Settings::default(), root.to_path_buf());
+        (state, metadata.id)
+    }
+
+    #[test]
+    fn startup_indexing_starts_watcher_before_scan_and_marks_ready_last() {
+        let root = tempfile::tempdir().unwrap();
+        let (state, id) = startup_state(root.path());
+        assert!(!state.index_ready.is_ready());
+        let mut seen_by_watcher = None;
+        run_startup_indexing(&state, |state| {
+            seen_by_watcher = Some((state.index_ready.is_ready(), state.note_index.read().unwrap().by_id.len()));
+            Ok(())
+        });
+        // Watcher boş ve hazır olmayan indeksle kurulur; olaylarını taramadan sonra uygular.
+        assert_eq!(seen_by_watcher, Some((false, 0)));
+        assert!(state.index_ready.is_ready());
+        assert_eq!(state.note_index.read().unwrap().rel_path(id), Some("Not"));
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while state.search_indexing.load(std::sync::atomic::Ordering::Acquire) {
+            assert!(std::time::Instant::now() < deadline, "search build timeout");
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        assert_eq!(state.search_index.read().unwrap().search("Not", 10)[0].id, id);
+    }
+
+    #[test]
+    fn waiting_consumers_see_a_populated_index_once_ready() {
+        let root = tempfile::tempdir().unwrap();
+        let (state, id) = startup_state(root.path());
+        std::thread::scope(|scope| {
+            let waiter = scope.spawn(|| {
+                let waited = state.index_ready.wait();
+                (waited, state.note_index.read().unwrap().rel_path(id).map(str::to_owned))
+            });
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            run_startup_indexing(&state, |_| Ok(()));
+            assert_eq!(waiter.join().unwrap(), (true, Some("Not".to_owned())));
+        });
+        assert!(!state.index_ready.wait());
+    }
+
+    #[test]
+    fn startup_indexing_marks_ready_even_after_failures() {
+        let root = tempfile::tempdir().unwrap();
+        let (state, id) = startup_state(root.path());
+        run_startup_indexing(&state, |_| Err(error::AppError::Internal("watcher failed".into())));
+        assert!(state.index_ready.is_ready());
+        assert_eq!(state.note_index.read().unwrap().rel_path(id), Some("Not"));
+
+        let (panicking, _) = startup_state(&root.path().join("second"));
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            run_startup_indexing(&panicking, |_| panic!("watcher panicked"));
+        }));
+        assert!(result.is_err());
+        // Bekleyen komutlar asılı kalmaz; indeks önceki hata davranışındaki gibi boş kalır.
+        assert!(panicking.index_ready.is_ready());
+        assert!(panicking.note_index.read().unwrap().by_id.is_empty());
     }
 }

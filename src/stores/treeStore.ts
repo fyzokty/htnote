@@ -7,6 +7,8 @@ import { useSettingsStore } from "@/stores/settingsStore";
 interface TreeState {
   tree: TreeNode[];
   loading: boolean;
+  /** İlk ağaç yüklemesinin durumu; açılış ekranı "idle" iken kalır. */
+  status: "idle" | "ready" | "error";
   selected: TreeSelection | null;
   expanded: Set<string>;
   filterQuery: string;
@@ -75,6 +77,7 @@ function reconcile(tree: TreeNode[], expanded: Set<string>, selected: TreeSelect
 export const useTreeStore = create<TreeState>((set, get) => ({
   tree: [],
   loading: false,
+  status: "idle",
   selected: null,
   expanded: new Set<string>(),
   filterQuery: "",
@@ -122,9 +125,9 @@ export const useTreeStore = create<TreeState>((set, get) => ({
           ? seedExpansion(saved, current.expanded, current.folders)
           : current.expanded;
         loaded = true;
-        set({ tree, expanded, selected: current.selected, loading: false });
+        set({ tree, expanded, selected: current.selected, loading: false, status: "ready" });
       } catch (error) {
-        set({ loading: false });
+        set({ loading: false, status: get().status === "ready" ? "ready" : "error" });
         throw error;
       }
     })().finally(() => { inFlight = null; });
@@ -150,10 +153,10 @@ export const useTreeStore = create<TreeState>((set, get) => ({
           ? seedExpansion(saved, current.expanded, current.folders)
           : current.expanded;
         loaded = true;
-        set({ tree, expanded, selected: current.selected, loading: false });
+        set({ tree, expanded, selected: current.selected, loading: false, status: "ready" });
         if (before.size !== expanded.size && seeded) persist(expanded);
       } catch (error) {
-        set({ loading: false });
+        set({ loading: false, status: get().status === "ready" ? "ready" : "error" });
         throw error;
       }
     })().finally(() => { inFlight = null; });
@@ -228,5 +231,5 @@ export function resetTreeStoreForTests() {
   loaded = false;
   inFlight = null;
   pendingRefresh = null;
-  useTreeStore.setState({ tree: [], loading: false, selected: null, expanded: new Set<string>(), filterQuery: "", filterTag: null, filterExpandedOverride: new Set<string>(), renamingRelPath: null, flashedKey: null });
+  useTreeStore.setState({ tree: [], loading: false, status: "idle", selected: null, expanded: new Set<string>(), filterQuery: "", filterTag: null, filterExpandedOverride: new Set<string>(), renamingRelPath: null, flashedKey: null });
 }

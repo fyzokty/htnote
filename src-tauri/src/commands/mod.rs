@@ -82,6 +82,11 @@ fn switch_root(state: &AppState, app: &tauri::AppHandle, settings: &mut Settings
 
 fn switch_root_with_watcher(state: &AppState, settings: &mut Settings, updated: Settings, root: PathBuf,
     mut start_watcher: impl FnMut(&AppState) -> Result<(), AppError>) -> Result<(), AppError> {
+    // Bu komut senkron olduğundan bekleyemez; başlangıç taraması ve watcher'ı ile yarışmamak için reddeder.
+    // Açılış ekranı ağaç hazır olana kadar arayüzü örttüğünden normal akışta buraya gelinmez.
+    if !state.index_ready.is_ready() {
+        return Err(AppError::Internal("Note index is still loading".into()));
+    }
     let result = scan::scan(&root)?;
     let mut live_root = state.root_dir.write().map_err(|error| AppError::Internal(error.to_string()))?;
     let mut live_index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
@@ -118,9 +123,30 @@ pub fn get_note_origin(state: State<'_, AppState>) -> Result<String, AppError> {
     Ok(state.note_origin.read().map_err(|error| AppError::Internal(error.to_string()))?.clone())
 }
 
+/// İlk tarama bitene kadar bekler; beklemek gerektiyse `true` döner. Bekleme ana iş parçacığını
+/// tutmamak için engelleyici havuzda yapılır.
+async fn wait_for_index(app: &tauri::AppHandle) -> Result<bool, AppError> {
+    let ready = std::sync::Arc::clone(&app.state::<AppState>().index_ready);
+    if ready.is_ready() { return Ok(false); }
+    tauri::async_runtime::spawn_blocking(move || ready.wait())
+        .await.map_err(|error| AppError::Internal(error.to_string()))
+}
+
 #[tauri::command]
 pub async fn get_note_tree(app: tauri::AppHandle) -> Result<Vec<TreeNode>, AppError> {
-    scan_and_replace(&app.state::<AppState>()).await
+    let waited = wait_for_index(&app).await?;
+    note_tree_after_ready(&app.state::<AppState>(), waited).await
+}
+
+/// İlk taramayı bekleyen çağrı, istekten sonra başlamış bir taramayı yinelemez: başlangıç taraması
+/// istekten önce başlamış olsa bile arada olan değişiklikleri watcher indekse uygular ve `fs-change` gönderir.
+pub async fn note_tree_after_ready(state: &AppState, waited_for_initial_scan: bool) -> Result<Vec<TreeNode>, AppError> {
+    if waited_for_initial_scan {
+        let index = state.note_index.read().map_err(|error| AppError::Internal(error.to_string()))?;
+        // Boş indeks başarısız bir ilk taramadan gelebilir; boş kökte yeniden tarama zaten ucuzdur.
+        if !index.tree.is_empty() { return Ok(index.tree.clone()); }
+    }
+    scan_and_replace(state).await
 }
 
 #[tauri::command]
@@ -161,6 +187,7 @@ pub fn get_broken_links(state: State<'_, AppState>, id: uuid::Uuid) -> Result<Ve
 
 #[tauri::command]
 pub async fn read_note(app: tauri::AppHandle, id: uuid::Uuid) -> Result<NoteData, AppError> {
+    wait_for_index(&app).await?;
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
         let dir = resolve_note_dir(&state, id)?;
@@ -174,6 +201,7 @@ pub async fn export_single_html(app: tauri::AppHandle, id: uuid::Uuid, target_pa
     if !target.is_absolute() {
         return Err(AppError::InvalidName("Export target must be absolute".into()));
     }
+    wait_for_index(&app).await?;
     tauri::async_runtime::spawn_blocking(move || {
         let dir = resolve_note_dir(&app.state::<AppState>(), id)?;
         let built = single_html::build_single_html(&dir)?;
@@ -188,6 +216,7 @@ pub async fn export_zip(app: tauri::AppHandle, id: uuid::Uuid, target_path: Stri
     if !target.is_absolute() {
         return Err(AppError::InvalidName("Export target must be absolute".into()));
     }
+    wait_for_index(&app).await?;
     tauri::async_runtime::spawn_blocking(move || {
         let dir = resolve_note_dir(&app.state::<AppState>(), id)?;
         zip::export_zip_to(&dir, &target)?;
@@ -201,12 +230,14 @@ pub async fn export_pdf(app: tauri::AppHandle, id: uuid::Uuid, target_path: Stri
     if !target.is_absolute() {
         return Err(AppError::InvalidName("Export target must be absolute".into()));
     }
+    wait_for_index(&app).await?;
     tauri::async_runtime::spawn_blocking(move || pdf::export(app, id, &target))
         .await.map_err(|error| AppError::Internal(error.to_string()))?
 }
 
 #[tauri::command]
 pub async fn save_note(app: tauri::AppHandle, id: uuid::Uuid, payload: SaveNoteInput) -> Result<SaveNoteOutput, AppError> {
+    wait_for_index(&app).await?;
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
         save_note_in_state(&state, id, payload, |dir, input| save::save_note_dir(dir, input, chrono::Utc::now()))
@@ -215,6 +246,7 @@ pub async fn save_note(app: tauri::AppHandle, id: uuid::Uuid, payload: SaveNoteI
 
 #[tauri::command]
 pub async fn update_metadata(app: tauri::AppHandle, id: uuid::Uuid, patch: MetadataPatch) -> Result<MetadataUpdateResult, AppError> {
+    wait_for_index(&app).await?;
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
         update_metadata_in_state(&state, id, patch)
@@ -236,6 +268,7 @@ fn update_metadata_in_state(state: &AppState, id: uuid::Uuid, patch: MetadataPat
 
 #[tauri::command]
 pub async fn copy_asset(app: tauri::AppHandle, note_id: uuid::Uuid, source_path: String) -> Result<AssetInfo, AppError> {
+    wait_for_index(&app).await?;
     tauri::async_runtime::spawn_blocking(move || {
         let dir = resolve_note_dir(&app.state::<AppState>(), note_id)?;
         asset::copy_asset(&dir, std::path::Path::new(&source_path))
@@ -244,6 +277,7 @@ pub async fn copy_asset(app: tauri::AppHandle, note_id: uuid::Uuid, source_path:
 
 #[tauri::command]
 pub async fn open_note_asset(app: tauri::AppHandle, note_id: uuid::Uuid, rel_path: String) -> Result<(), AppError> {
+    wait_for_index(&app).await?;
     tauri::async_runtime::spawn_blocking(move || {
         let dir = resolve_note_dir(&app.state::<AppState>(), note_id)?;
         asset::open_asset(&dir, &rel_path, |path| {
@@ -254,6 +288,7 @@ pub async fn open_note_asset(app: tauri::AppHandle, note_id: uuid::Uuid, rel_pat
 
 #[tauri::command]
 pub async fn save_asset_bytes(app: tauri::AppHandle, note_id: uuid::Uuid, suggested_name: String, bytes: Vec<u8>) -> Result<AssetInfo, AppError> {
+    wait_for_index(&app).await?;
     tauri::async_runtime::spawn_blocking(move || {
         let dir = resolve_note_dir(&app.state::<AppState>(), note_id)?;
         asset::save_asset_bytes(&dir, &suggested_name, &bytes)
@@ -342,6 +377,7 @@ pub fn clear_preview_draft(state: State<'_, AppState>, id: uuid::Uuid) -> Result
 
 #[tauri::command]
 pub async fn create_note(app: tauri::AppHandle, parent_rel_path: String, title: Option<String>) -> Result<TreeNode, AppError> {
+    wait_for_index(&app).await?;
     let state = app.state::<AppState>();
     let root = state.root_dir.read().map_err(|error| AppError::Internal(error.to_string()))?.clone();
     let (node, indexed) = tauri::async_runtime::spawn_blocking(move || {
@@ -363,6 +399,7 @@ pub async fn create_folder(app: tauri::AppHandle, parent_rel_path: String, name:
 
 #[tauri::command]
 pub async fn rename_note(app: tauri::AppHandle, id: uuid::Uuid, new_title: String) -> Result<TreeNode, AppError> {
+    wait_for_index(&app).await?;
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
         let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
@@ -377,6 +414,7 @@ pub async fn rename_note(app: tauri::AppHandle, id: uuid::Uuid, new_title: Strin
 
 #[tauri::command]
 pub async fn rename_folder(app: tauri::AppHandle, rel_path: String, new_name: String) -> Result<TreeNode, AppError> {
+    wait_for_index(&app).await?;
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
         let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
@@ -390,6 +428,7 @@ pub async fn rename_folder(app: tauri::AppHandle, rel_path: String, new_name: St
 
 #[tauri::command]
 pub async fn move_item(app: tauri::AppHandle, rel_path: String, target_folder_rel_path: String) -> Result<String, AppError> {
+    wait_for_index(&app).await?;
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
         let mut index = state.note_index.write().map_err(|error| AppError::Internal(error.to_string()))?;
@@ -456,6 +495,7 @@ fn reindex_all(state: &AppState) -> Result<(), AppError> {
 
 #[tauri::command]
 pub async fn delete_item(app: tauri::AppHandle, rel_path: String) -> Result<TrashItem, AppError> {
+    wait_for_index(&app).await?;
     tauri::async_runtime::spawn_blocking(move || {
         delete_item_in_state(&app.state::<AppState>(), &rel_path)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
@@ -480,6 +520,7 @@ pub async fn list_trash(app: tauri::AppHandle) -> Result<Vec<TrashItem>, AppErro
 
 #[tauri::command]
 pub async fn restore_from_trash(app: tauri::AppHandle, trash_id: String) -> Result<String, AppError> {
+    wait_for_index(&app).await?;
     tauri::async_runtime::spawn_blocking(move || {
         restore_from_trash_in_state(&app.state::<AppState>(), &trash_id)
     }).await.map_err(|error| AppError::Internal(error.to_string()))?
@@ -770,6 +811,50 @@ mod tests {
         assert!(tauri::async_runtime::block_on(scan_and_replace(&state)).unwrap().is_empty());
         assert!(state.note_index.read().unwrap().resolve(metadata.id).is_none());
         assert!(state.search_index.read().unwrap().search("Not", 10).is_empty());
+    }
+
+    #[test]
+    fn tree_request_that_waited_for_initial_scan_reuses_index_tree() {
+        let root = tempfile::tempdir().unwrap();
+        let (_, first) = create_note_in(root.path(), "", Some("First")).unwrap();
+        let state = AppState::new(root.path().to_path_buf(), Settings::default(), root.path().to_path_buf());
+        state.note_index.write().unwrap().replace_all(scan::scan(root.path()).unwrap());
+        // Sonradan eklenen notu watcher bildirir; bekleyen ilk istek ikinci tam taramayı yapmaz.
+        let (_, second) = create_note_in(root.path(), "", Some("Second")).unwrap();
+        let waited = tauri::async_runtime::block_on(note_tree_after_ready(&state, true)).unwrap();
+        assert!(matches!(&waited[..], [TreeNode::Note { id, .. }] if *id == first.metadata.id));
+        let fresh = tauri::async_runtime::block_on(note_tree_after_ready(&state, false)).unwrap();
+        assert_eq!(fresh.len(), 2);
+        assert_eq!(state.note_index.read().unwrap().rel_path(second.metadata.id), Some("Second"));
+    }
+
+    #[test]
+    fn tree_request_after_failed_initial_scan_rescans() {
+        let root = tempfile::tempdir().unwrap();
+        let (_, note) = create_note_in(root.path(), "", Some("Late")).unwrap();
+        let state = AppState::new(root.path().to_path_buf(), Settings::default(), root.path().to_path_buf());
+        let tree = tauri::async_runtime::block_on(note_tree_after_ready(&state, true)).unwrap();
+        assert!(matches!(&tree[..], [TreeNode::Note { id, .. }] if *id == note.metadata.id));
+    }
+
+    #[test]
+    fn root_switch_is_rejected_until_initial_scan_is_ready() {
+        let old = tempfile::tempdir().unwrap();
+        let new = tempfile::tempdir().unwrap();
+        let state = AppState::with_drafts_dir(old.path().to_path_buf(), old.path().join("drafts"),
+            Settings::default(), old.path().to_path_buf());
+        let mut settings = Settings::default();
+        let mut started = false;
+        let result = switch_root_with_watcher(&state, &mut settings, Settings::default(), new.path().to_path_buf(), |_| {
+            started = true;
+            Ok(())
+        });
+        assert!(matches!(result, Err(AppError::Internal(_))));
+        assert!(!started);
+        assert_eq!(*state.root_dir.read().unwrap(), old.path());
+        state.index_ready.mark_ready();
+        switch_root_with_watcher(&state, &mut settings, Settings::default(), new.path().to_path_buf(), |_| Ok(())).unwrap();
+        assert_eq!(*state.root_dir.read().unwrap(), new.path());
     }
 
     #[test]
