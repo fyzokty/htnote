@@ -18,7 +18,9 @@ describe("CodeEditor formatting and layout", () => {
     const { container } = render(<CodeEditor html="<div><p>A</p><p>B</p></div>" css="p {}" js="run()" onChange={onChange} />);
     const editor = EditorView.findFromDOM(container.querySelector(".cm-editor") as HTMLElement)!;
     const button = screen.getByRole("button", { name: "Belgeyi biçimlendir" });
-    fireEvent.focus(button);
+    vi.spyOn(button.parentElement!, "getBoundingClientRect").mockReturnValue({ width: 28, height: 28, left: 0, top: 0, bottom: 28 } as DOMRect);
+    vi.spyOn(button, "matches").mockImplementation((selector) => selector === ":focus-visible");
+    act(() => button.focus());
     expect(screen.getByRole("tooltip")).toHaveTextContent(formatShortcut("formatDocument"));
     fireEvent.click(button);
     expect(onChange).toHaveBeenCalledExactlyOnceWith({ html: "<div>\n  <p>A</p>\n  <p>B</p>\n</div>" });

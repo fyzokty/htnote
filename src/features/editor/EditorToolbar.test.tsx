@@ -88,6 +88,7 @@ describe("EditorToolbar", () => {
   });
 
   it("shows every action tooltip when hovering its SVG icon, including disabled actions", () => {
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ width: 28, height: 28, left: 0, top: 0, bottom: 28 } as DOMRect);
     editor = new Editor({ extensions: createVisualExtensions(""), content: "<p>Text</p>" });
     render(<EditorToolbar editor={editor} onLinkNote={vi.fn()} />);
     const toolbar = screen.getByRole("toolbar");

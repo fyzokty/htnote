@@ -1,5 +1,5 @@
 import { createRef } from "react";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { Button } from "./Button";
@@ -34,7 +34,9 @@ it("IconButton supplies a label and keyboard tooltip without a native title", ()
   const button = screen.getByRole("button", { name: "Save" });
   expect(button).toHaveClass("htnote-icon-button", "htnote-button-ghost");
   expect(button).not.toHaveAttribute("title");
-  fireEvent.focus(button);
+  vi.spyOn(button.parentElement!, "getBoundingClientRect").mockReturnValue({ width: 28, height: 28, left: 0, top: 0, bottom: 28 } as DOMRect);
+  vi.spyOn(button, "matches").mockImplementation((selector) => selector === ":focus-visible");
+  act(() => button.focus());
   const tooltip = screen.getByRole("tooltip");
   expect(tooltip).toHaveTextContent("SaveCtrl+S");
   expect(button).toHaveAttribute("aria-describedby", tooltip.id);

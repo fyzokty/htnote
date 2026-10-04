@@ -10,6 +10,18 @@ interface Props {
   className?: string;
 }
 
+function isVisible(anchor: HTMLElement | null): anchor is HTMLElement {
+  if (!anchor?.isConnected || anchor.closest('[inert], [aria-hidden="true"], [hidden]')) return false;
+  const rect = anchor.getBoundingClientRect();
+  const style = getComputedStyle(anchor);
+  return rect.width > 0 && rect.height > 0 && style.visibility !== "hidden" && style.visibility !== "collapse";
+}
+
+function hasKeyboardFocus(anchor: HTMLElement | null) {
+  const focused = document.activeElement;
+  return focused instanceof HTMLElement && anchor?.contains(focused) && focused.matches(":focus-visible");
+}
+
 export function Tooltip({ label, shortcut, children, className = "" }: Props) {
   const { t } = useTranslation();
   const id = useId();
@@ -37,8 +49,14 @@ export function Tooltip({ label, shortcut, children, className = "" }: Props) {
   }, []);
   useLayoutEffect(() => {
     if (!open) return;
+    const dismiss = () => {
+      if (timer.current !== null) clearTimeout(timer.current);
+      timer.current = null;
+      setOpen(false);
+    };
     const place = () => {
-      const rect = anchor.current?.getBoundingClientRect();
+      if (!isVisible(anchor.current)) { dismiss(); return; }
+      const rect = anchor.current.getBoundingClientRect();
       const box = tip.current?.getBoundingClientRect();
       if (!rect || !box) return;
       const margin = 8;
@@ -50,9 +68,22 @@ export function Tooltip({ label, shortcut, children, className = "" }: Props) {
       });
     };
     place();
+    // Bir ata gizlendiğinde (özellikle inert taşma paneli) blur gelmeyebilir.
+    // Tooltip ayrı bir body portalında olduğu için DOM'dan kopma da izlenir.
+    const mutations = new MutationObserver(() => {
+      if (!isVisible(anchor.current)) dismiss();
+    });
+    mutations.observe(document, { childList: true, subtree: true });
+    for (let element: HTMLElement | null = anchor.current; element; element = element.parentElement) {
+      mutations.observe(element, { attributes: true, attributeFilter: ["inert", "aria-hidden", "hidden", "class", "style"] });
+    }
+    const resize = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(place);
+    if (anchor.current) resize?.observe(anchor.current);
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
     return () => {
+      mutations.disconnect();
+      resize?.disconnect();
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
     };
@@ -61,9 +92,10 @@ export function Tooltip({ label, shortcut, children, className = "" }: Props) {
   const describedBy = [children.props["aria-describedby"], open ? id : undefined].filter(Boolean).join(" ") || undefined;
   return <>
     <span ref={anchor} className={`htnote-tooltip-anchor ${className}`}
-      onMouseEnter={() => { clearTimer(); timer.current = setTimeout(() => { timer.current = null; setOpen(true); }, 400); }}
-      onMouseLeave={() => { clearTimer(); if (!anchor.current?.contains(document.activeElement)) setOpen(false); }}
-      onFocus={() => { clearTimer(); setOpen(true); }} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }}
+      onMouseEnter={() => { clearTimer(); timer.current = setTimeout(() => { timer.current = null; if (isVisible(anchor.current)) setOpen(true); }, 400); }}
+      onMouseLeave={() => { clearTimer(); if (!hasKeyboardFocus(anchor.current)) setOpen(false); }}
+      onFocus={() => { clearTimer(); if (hasKeyboardFocus(anchor.current) && isVisible(anchor.current)) setOpen(true); }}
+      onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) close(); }}
       onPointerDown={close}>
       {cloneElement(children, { "aria-describedby": describedBy })}
     </span>

@@ -148,7 +148,9 @@ describe("TabBar", () => {
     });
     expect(screen.getByRole("tab", { name: "Renamed" })).toHaveAttribute("aria-label", "Renamed");
     const close = screen.getByRole("button", { name: "Renamed sekmesini kapat" });
-    fireEvent.focus(close);
+    vi.spyOn(close.parentElement!, "getBoundingClientRect").mockReturnValue({ width: 28, height: 28, left: 0, top: 0, bottom: 28 } as DOMRect);
+    vi.spyOn(close, "matches").mockImplementation((selector) => selector === ":focus-visible");
+    act(() => close.focus());
     expect(screen.getByRole("tooltip")).toHaveTextContent("Renamed sekmesini kapatCtrl+W");
     expect(close).toHaveAttribute("aria-describedby", screen.getByRole("tooltip").id);
   });

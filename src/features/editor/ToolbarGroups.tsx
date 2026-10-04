@@ -9,6 +9,7 @@ export function ToolbarGroups({ groups }: { groups: ReactNode[] }) {
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDivElement>(null);
+  const focusOnOpen = useRef(false);
   const id = useId();
   const [visible, setVisible] = useState(groups.map((_, index) => index));
   const [open, setOpen] = useState(false);
@@ -36,7 +37,7 @@ export function ToolbarGroups({ groups }: { groups: ReactNode[] }) {
   const close = () => { setOpen(false); trigger.current?.focus(); };
   useEffect(() => {
     if (!open) return;
-    panel.current?.querySelector<HTMLElement>("button:not(:disabled), select")?.focus();
+    if (focusOnOpen.current) panel.current?.querySelector<HTMLElement>("button:not(:disabled), select")?.focus();
     const outside = (event: PointerEvent) => {
       if (!root.current?.contains(event.target as Node) && !(event.target as HTMLElement).closest?.(".htnote-color-popover, .htnote-tooltip")) setOpen(false);
     };
@@ -48,7 +49,7 @@ export function ToolbarGroups({ groups }: { groups: ReactNode[] }) {
     {visible.map((index) => <div className="htnote-toolbar-group-slot" data-toolbar-group={index} key={index}>{groups[index]}</div>)}
     {hasOverflow && <IconButton ref={trigger} size="sm" data-testid="editor-overflow" label={t("editor.overflow")}
       aria-haspopup="dialog" aria-expanded={open} aria-controls={id} onMouseDown={(event) => event.preventDefault()}
-      onClick={() => setOpen(!open)}><MoreHorizontal size={16} aria-hidden="true" /></IconButton>}
+      onClick={(event) => { focusOnOpen.current = event.detail === 0; setOpen(!open); }}><MoreHorizontal size={16} aria-hidden="true" /></IconButton>}
     <div id={id} ref={panel} role="dialog" aria-label={t("editor.overflow")} aria-hidden={!open || !hasOverflow}
       inert={!open || !hasOverflow} className="htnote-toolbar-overflow" data-open={open && hasOverflow}
       onKeyDown={(event) => {

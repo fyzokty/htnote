@@ -3,8 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Tooltip } from "./Tooltip";
 
-beforeEach(() => vi.useFakeTimers());
-afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
+beforeEach(() => {
+  vi.useFakeTimers();
+  vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({ width: 28, height: 28, left: 0, top: 0, bottom: 28 } as DOMRect);
+});
+afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
+
+function keyboardFocus(button: HTMLElement) {
+  vi.spyOn(button, "matches").mockImplementation((selector) => selector === ":focus-visible");
+  act(() => button.focus());
+}
 
 describe("Tooltip", () => {
   it("opens after 400ms, uses a portal and preserves existing descriptions", () => {
@@ -39,12 +47,12 @@ describe("Tooltip", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
-  it("opens on focus, closes on blur and keeps child event handlers", () => {
+  it("opens on keyboard focus, closes on blur and keeps child event handlers", () => {
     const focus = vi.fn();
     const click = vi.fn();
     render(<Tooltip label="Save"><button onFocus={focus} onClick={click}>Save</button></Tooltip>);
     const button = screen.getByRole("button");
-    fireEvent.focus(button);
+    keyboardFocus(button);
     expect(screen.getByRole("tooltip")).toBeInTheDocument();
     expect(focus).toHaveBeenCalledOnce();
     fireEvent.click(button);
@@ -53,14 +61,74 @@ describe("Tooltip", () => {
     expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
   });
 
+  it("does not open on pointer or programmatic focus and closes hover despite that focus", () => {
+    render(<Tooltip label="Save"><button>Save</button></Tooltip>);
+    const button = screen.getByRole("button");
+    vi.spyOn(button, "matches").mockReturnValue(false);
+    fireEvent.pointerDown(button);
+    act(() => button.focus());
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+    fireEvent.mouseEnter(button);
+    act(() => vi.advanceTimersByTime(400));
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    fireEvent.mouseLeave(button);
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("keeps a keyboard tooltip open on mouse leave", () => {
+    render(<Tooltip label="Save"><button>Save</button></Tooltip>);
+    const button = screen.getByRole("button");
+    keyboardFocus(button);
+    fireEvent.mouseLeave(button);
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+  });
+
+  it.each(["inert", "aria-hidden", "hidden", "style"])("closes without blur when an ancestor becomes %s", async (attribute) => {
+    const { container } = render(<div><Tooltip label="Save"><button>Save</button></Tooltip></div>);
+    keyboardFocus(screen.getByRole("button"));
+    expect(screen.getByRole("tooltip")).toBeInTheDocument();
+    await act(async () => container.firstElementChild!.setAttribute(attribute,
+      attribute === "aria-hidden" ? "true" : attribute === "style" ? "visibility: hidden" : ""));
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("does not open a pending hover in a panel that has closed", () => {
+    const { container } = render(<Tooltip label="Save"><button>Save</button></Tooltip>);
+    fireEvent.mouseEnter(screen.getByRole("button"));
+    container.setAttribute("inert", "");
+    act(() => vi.advanceTimersByTime(400));
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("closes when the anchor is detached without unmounting", async () => {
+    const { container } = render(<Tooltip label="Save"><button>Save</button></Tooltip>);
+    keyboardFocus(screen.getByRole("button"));
+    await act(async () => container.remove());
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
+  it("closes when the anchor shrinks to zero", () => {
+    let resize = () => {};
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: () => void) { resize = callback; }
+      observe() {}
+      disconnect() {}
+    });
+    render(<Tooltip label="Save"><button>Save</button></Tooltip>);
+    keyboardFocus(screen.getByRole("button"));
+    vi.mocked(HTMLElement.prototype.getBoundingClientRect).mockReturnValue({ width: 0, height: 0 } as DOMRect);
+    act(() => resize());
+    expect(screen.queryByRole("tooltip")).not.toBeInTheDocument();
+  });
+
   it("flips above the trigger and clamps against viewport edges", () => {
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockImplementation(function (this: HTMLElement) {
       return this.getAttribute("role") === "tooltip"
         ? { width: 200, height: 40 } as DOMRect
-        : { left: window.innerWidth - 25, top: window.innerHeight - 25, bottom: window.innerHeight - 5, width: 20 } as DOMRect;
+        : { left: window.innerWidth - 25, top: window.innerHeight - 25, bottom: window.innerHeight - 5, width: 20, height: 20 } as DOMRect;
     });
     render(<Tooltip label="Save"><button>Save</button></Tooltip>);
-    fireEvent.focus(screen.getByRole("button"));
+    keyboardFocus(screen.getByRole("button"));
     expect(screen.getByRole("tooltip")).toHaveStyle({
       left: `${window.innerWidth - 208}px`, top: `${window.innerHeight - 73}px`,
     });

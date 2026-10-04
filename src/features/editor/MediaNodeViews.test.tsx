@@ -1,7 +1,7 @@
 import { Editor } from "@tiptap/core";
 import { EditorContent } from "@tiptap/react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createVisualExtensions } from "@/features/editor/extensions";
 import { initNoteOrigin } from "@/lib/noteUrl";
@@ -122,7 +122,9 @@ describe("media node views", () => {
     const label = kind === "audio" ? "Sesi sil" : "Videoyu sil";
     const button = screen.getByRole("button", { name: label });
     expect(button).not.toHaveAttribute("title");
-    fireEvent.focus(button);
+    vi.spyOn(button.parentElement!, "getBoundingClientRect").mockReturnValue({ width: 28, height: 28, left: 0, top: 0, bottom: 28 } as DOMRect);
+    vi.spyOn(button, "matches").mockImplementation((selector) => selector === ":focus-visible");
+    act(() => button.focus());
     expect(screen.getByRole("tooltip")).toHaveTextContent(label);
     expect(button).toHaveAttribute("aria-describedby", screen.getByRole("tooltip").id);
     expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
