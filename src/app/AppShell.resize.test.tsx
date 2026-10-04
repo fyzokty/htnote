@@ -112,4 +112,42 @@ describe("AppShell sidebar resizing", () => {
     });
     expect(useSettingsStore.getState().settings?.sidebarWidth).toBe(480);
   });
+
+  it("uses the sidebar offset for overlay dragging and preserves the width when hidden", async () => {
+    let persisted = { ...baseSettings };
+    mockIPC((command, args) => {
+      if (command === "update_settings") {
+        persisted = { ...persisted, ...(args as { patch: SettingsPatch }).patch };
+        return persisted;
+      }
+      if (command === "list_drafts") return [];
+      return undefined;
+    });
+
+    const { container } = render(<AppShell />);
+    const aside = screen.getByRole("complementary", { name: "Kenar çubuğu" });
+    vi.spyOn(aside, "getBoundingClientRect").mockReturnValue({ left: 8 } as DOMRect);
+    const separator = screen.getByRole("separator", { name: "Kenar çubuğunu yeniden boyutlandır" });
+    fireEvent.pointerDown(separator, { pointerId: 1, clientX: 268 });
+    fireEvent.pointerMove(separator, { pointerId: 1, clientX: 308 });
+    expect(aside).toHaveStyle({ width: "300px" });
+
+    const overlay = container.querySelector(".fixed.inset-0.cursor-col-resize");
+    expect(overlay).not.toBeNull();
+    fireEvent.pointerMove(overlay!, { pointerId: 1, clientX: 328 });
+    expect(aside).toHaveStyle({ width: "320px" });
+    await act(async () => {
+      fireEvent.pointerUp(overlay!, { pointerId: 1 });
+    });
+    expect(persisted.sidebarWidth).toBe(320);
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Kenar çubuğunu gizle" }));
+    });
+    expect(screen.queryByRole("complementary", { name: "Kenar çubuğu" })).toBeNull();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Kenar çubuğunu göster" }));
+    });
+    expect(screen.getByRole("complementary", { name: "Kenar çubuğu" })).toHaveStyle({ width: "320px" });
+  });
 });

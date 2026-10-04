@@ -78,6 +78,7 @@ export function AppShell() {
   const sidebarWidth = dragWidth ?? clampWidth(settings?.sidebarWidth ?? 260);
   const widthRef = useRef(sidebarWidth);
   const draggingRef = useRef(false);
+  const sidebarRef = useRef<HTMLElement | null>(null);
 
   const openShortcuts = () => {
     if (shortcutsOpen) return;
@@ -222,7 +223,7 @@ export function AppShell() {
 
   function resize(event: PointerEvent<HTMLDivElement>) {
     if (!draggingRef.current) return;
-    const left = event.currentTarget.parentElement?.getBoundingClientRect().left ?? 0;
+    const left = sidebarRef.current?.getBoundingClientRect().left ?? 0;
     const width = clampWidth(event.clientX - left);
     widthRef.current = width;
     setDragWidth(width);
@@ -254,7 +255,7 @@ export function AppShell() {
   }
 
   return (
-    <main className="select-none flex h-screen min-h-0 w-full overflow-hidden bg-app-bg text-app-text">
+    <main className="htnote-shell select-none flex h-screen min-h-0 w-full overflow-hidden bg-app-bg text-app-text">
       {isResizing && (
         <div
           className="fixed inset-0 z-50 cursor-col-resize select-none"
@@ -270,7 +271,8 @@ export function AppShell() {
       {!unsavedDialog && <RecoveryDialog candidates={recoveryCandidates} onRecover={(id) => void recoverDraft(id)} onIgnore={(id) => void ignoreDraft(id)} />}
       {sidebarVisible && (
         <aside
-          className="relative flex h-full min-h-0 shrink-0 flex-col border-r border-app-border bg-app-surface"
+          ref={sidebarRef}
+          className="htnote-sidebar-card relative flex h-full min-h-0 shrink-0 flex-col"
           style={{ width: sidebarWidth }}
           aria-label={t("sidebar.label")}
         >
@@ -322,13 +324,13 @@ export function AppShell() {
         </aside>
       )}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex h-10 shrink-0 items-center gap-3 border-b border-app-border bg-app-surface px-3">
+        <header className="htnote-shell-tabs flex h-10 shrink-0 items-center gap-3 border-b border-app-border bg-app-surface px-3">
           <IconButton type="button" onClick={toggleSidebar} shortcut={formatShortcut("toggleSidebar")} label={sidebarVisible ? t("sidebar.hide") : t("sidebar.show")} className="text-app-muted">
             <Menu className="size-5" aria-hidden />
           </IconButton>
           <TabBar />
         </header>
-        <section className="flex min-h-0 min-w-0 flex-1 overflow-hidden" aria-label={t("viewer.workspace")}>
+        <section className="htnote-workspace-card flex min-h-0 min-w-0 flex-1 overflow-hidden" aria-label={t("viewer.workspace")}>
           {settingsOpen && <SettingsView onShowShortcuts={openShortcuts} />}
           {trashOpen && <TrashView />}
           <div hidden={settingsOpen || trashOpen} className="h-full min-h-0 w-full"><NoteViewer /></div>
