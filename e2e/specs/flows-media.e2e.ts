@@ -75,7 +75,18 @@ async function clickMediaGap(selector: string, side: "left" | "right" = "right")
     // WebDriver offsets are relative to the element's in-view center, rounded
     // down by the protocol. Use the same center when computing the offsets.
     const centerY = Math.floor((Math.max(0, media.top) + Math.min(window.innerHeight, media.bottom)) / 2);
-    const x = Math.round(side === "right" ? editor.right - 8 : editor.left + 8);
+    let x = Math.round(side === "right" ? editor.right - 8 : editor.left + 8);
+    // Küçük pencerede içerik kaydırılabilir olur ve sağ kenardaki kaplama kaydırma
+    // çubuğu şeridi tıklamayı (tutamak sürüklemesi) alır; boşluk tıklaması şeridin dışında kalır.
+    if (side === "right") {
+      for (const track of document.querySelectorAll<HTMLElement>('.htnote-overlay-scrollbar[data-axis="y"]')) {
+        if (getComputedStyle(track).display === "none") continue;
+        const bounds = track.getBoundingClientRect();
+        if (bounds.left < x + 1 && bounds.right > x - 1 && bounds.top <= centerY && bounds.bottom >= centerY) {
+          x = Math.floor(bounds.left) - 4;
+        }
+      }
+    }
     return {
       x, y: centerY,
       edge: side === "right" ? media.right : media.left,

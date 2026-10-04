@@ -92,7 +92,13 @@ describe("organize and search flows", () => {
     await browser.refresh();
     for (const query of ["İstanbul", "istanbul"]) {
       await $('[data-testid="global-search"]').click();
-      await $('[data-testid="search-input"]').setValue(query);
+      // Arama önceki sorguyu korur. WebDriver clear() denetimli React girdisinde
+      // durumu sıfırlamayabilir; metin klavyeyle seçilip değiştirilir.
+      const input = await $('[data-testid="search-input"]');
+      await input.click();
+      await browser.keys(["Control", "a"]);
+      await browser.keys(query);
+      await browser.waitUntil(async () => await input.getValue() === query, { timeoutMsg: `Search input did not become ${query}` });
       const result = await $('[data-testid="search-result"]');
       await result.waitForDisplayed({ timeout: 15000 });
       assert.match(await result.getText(), /City/);
@@ -112,8 +118,16 @@ describe("organize and search flows", () => {
     const original = await readFile(path, "utf8");
     await writeFile(path, original.replace("</main>", "External update</main>"));
     // Dosya izleyicisinin debounce süresi için içerik koşulu beklenir.
+    // İçerik örtük beklemeyle okunmaz: iframe hazır olduktan hemen sonra dış değişiklikle
+    // yeniden yüklenirse eski çerçevede 30 sn takılır. Her denemede güncel çerçeveye girilir.
     await browser.waitUntil(async () => {
-      return withNoteFrame(note.id, async () => (await $("#htnote-content").getText()).includes("External update"));
+      try {
+        return await withNoteFrame(note.id, () => browser.execute(
+          () => document.getElementById("htnote-content")?.textContent?.includes("External update") ?? false));
+      } catch (error) {
+        if (error instanceof Error && /stale element|no such (frame|element|window)|frame detached/i.test(error.message)) return false;
+        throw error;
+      }
     }, { timeout: 30000, interval: 200 });
   });
 });

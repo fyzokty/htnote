@@ -8,9 +8,18 @@ import { visibleEditorTool, createNote, editNote, flatten, invoke, openNote, sav
 describe("editing flows", () => {
   let restore: (() => Promise<void>) | undefined;
   let root: string;
+  let language: string | null;
 
-  beforeEach(async () => { ({ root, restore } = await useTempRoot()); });
-  afterEach(async () => { await restore?.(); });
+  // Seçiciler Türkçe etiketleri kullanır; dil sistem yereline (CI'da en-US) bırakılmaz.
+  beforeEach(async () => {
+    ({ language } = await invoke<{ language: string | null }>("get_settings"));
+    await invoke("update_settings", { patch: { language: "tr" } });
+    ({ root, restore } = await useTempRoot());
+  });
+  afterEach(async () => {
+    await invoke("update_settings", { patch: { language } });
+    await restore?.();
+  });
 
   it("changes block type through the keyboard accessible popover and preserves editor selection", async () => {
     const note = await createNote("Block selector");
