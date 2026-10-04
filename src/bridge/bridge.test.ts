@@ -32,10 +32,88 @@ describe("note bridge", () => {
   });
 
   beforeEach(() => {
+    window.getSelection()?.removeAllRanges();
     document.body.innerHTML = "";
     document.documentElement.removeAttribute("data-ht-theme");
     messages.mockClear();
     vi.spyOn(window.parent, "postMessage").mockImplementation(messages);
+  });
+
+  it.each([
+    ["<div data-target></div>", true],
+    ['<input type="checkbox" data-target>', true],
+    ['<input type="search" data-target>', false],
+    ["<textarea data-target></textarea>", false],
+    ['<div contenteditable><span data-target></span></div>', false],
+    ['<div contenteditable="plaintext-only"><span data-target></span></div>', false],
+    ['<div contenteditable><span contenteditable="false" data-target></span></div>', true],
+    ['<div class="cm-editor"><span data-target></span></div>', false],
+    ['<div contenteditable><video data-target></video></div>', true],
+  ])("guards native menus locally: %s", (html, prevented) => {
+    document.body.innerHTML = html;
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    document.querySelector("[data-target]")!.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(prevented);
+    expect(messages).not.toHaveBeenCalled();
+  });
+
+  it("allows copying a selection only when it intersects its context menu target", () => {
+    document.body.innerHTML = "<p><strong>Selected text</strong></p><div>Other</div><video></video>";
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.selectNodeContents(document.querySelector("strong")!);
+    selection.addRange(range);
+    const dispatch = (element: Element) => {
+      const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+      element.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    expect(dispatch(document.querySelector("p")!)).toBe(false);
+    expect(dispatch(document.querySelector("div")!)).toBe(true);
+    range.selectNodeContents(document.querySelector("video")!);
+    expect(dispatch(document.querySelector("video")!)).toBe(true);
+    range.collapse(true);
+    expect(dispatch(document.querySelector("p")!)).toBe(true);
+    document.querySelector("p")!.textContent = "   ";
+    range.selectNodeContents(document.querySelector("p")!);
+    expect(dispatch(document.querySelector("p")!)).toBe(true);
+    expect(messages).not.toHaveBeenCalled();
+  });
+
+  it("allows copying a selection spanning paragraphs only on intersecting targets", () => {
+    document.body.innerHTML = "<section><p>First paragraph</p><p>Middle paragraph</p><p>Last paragraph</p><p>Other text</p></section>";
+    const [first, middle, last, other] = document.querySelectorAll("p");
+    const selection = window.getSelection()!;
+    const range = document.createRange();
+    range.setStart(first.firstChild!, 2);
+    range.setEnd(last.firstChild!, 4);
+    selection.addRange(range);
+    const dispatch = (target: EventTarget) => {
+      const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      return event.defaultPrevented;
+    };
+    for (const paragraph of [first, middle, last]) {
+      expect(dispatch(paragraph)).toBe(false);
+      expect(dispatch(paragraph.firstChild!)).toBe(false);
+    }
+    expect(dispatch(other)).toBe(true);
+    expect(messages).not.toHaveBeenCalled();
+  });
+
+  it("lets a custom menu handle the event before the bubbling guard", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+    const custom = vi.fn((event: Event) => {
+      expect(event.defaultPrevented).toBe(false);
+      event.preventDefault();
+      event.stopPropagation();
+    });
+    element.addEventListener("contextmenu", custom);
+    const event = new MouseEvent("contextmenu", { bubbles: true, cancelable: true });
+    element.dispatchEvent(event);
+    expect(custom).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
   });
 
   it("forwards and prevents settings shortcut when the note has focus", () => {
