@@ -45,6 +45,8 @@ import { useTabsStore } from "@/stores/tabsStore";
 import { useTreeStore } from "@/stores/treeStore";
 import { useUiStore } from "@/stores/uiStore";
 
+import { useSidebarPresence } from "./useSidebarPresence";
+
 const SIDEBAR_COMPACT_WIDTH = 200;
 const clampWidth = (width: number) => Math.min(480, Math.max(SIDEBAR_COMPACT_WIDTH, width));
 
@@ -65,6 +67,7 @@ export function AppShell() {
   const setRenaming = useTreeStore((state) => state.setRenaming);
   const sidebarVisible = useUiStore((state) => state.sidebarVisible);
   const setSidebarVisible = useUiStore((state) => state.setSidebarVisible);
+  const sidebarPresence = useSidebarPresence(sidebarVisible);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
   const [dragWidth, setDragWidth] = useState<number | null>(null);
   const [isResizing, setIsResizing] = useState(false);
@@ -288,11 +291,15 @@ export function AppShell() {
         <DialogPresence>{searchOpen && <SearchModal />}</DialogPresence>
         <DialogPresence>{shortcutsOpen && <ShortcutsModal onClose={closeShortcuts} />}</DialogPresence>
         <DialogPresence>{!unsavedDialog && <RecoveryDialog candidates={recoveryCandidates} onRecover={(id) => void recoverDraft(id)} onIgnore={(id) => void ignoreDraft(id)} />}</DialogPresence>
-        {sidebarVisible && (
+        {sidebarPresence.mounted && (
           <aside
             ref={sidebarRef}
             className="htnote-sidebar-card relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden"
-            style={{ width: sidebarWidth }}
+            data-state={sidebarPresence.state}
+            data-resizing={isResizing}
+            inert={!sidebarVisible}
+            aria-hidden={!sidebarVisible || undefined}
+            style={{ width: sidebarPresence.expanded ? sidebarWidth : 0, opacity: sidebarPresence.expanded ? 1 : 0, marginRight: sidebarPresence.expanded ? 8 : 0 }}
             aria-label={t("sidebar.label")}
           >
             <div className="flex shrink-0 items-center gap-3 px-4 pt-5 pb-2">
@@ -300,16 +307,16 @@ export function AppShell() {
               <div className="min-w-0"><h1 className="select-none text-lg font-semibold">{t("common.appName")}</h1>{settings?.rootDir && <p title={displayPath(settings.rootDir)} className="truncate text-xs text-app-muted">{displayPath(settings.rootDir).replace(/[\\/]+$/, "").split(/[\\/]/).pop()}</p>}</div>
             </div>
             <div className="shrink-0 space-y-3 p-3">
-              <div className="htnote-sidebar-actions grid grid-cols-[minmax(56px,0.7fr)_minmax(0,1.3fr)] gap-2">
-                <Tooltip label={t("sidebar.newNote")} shortcut={formatShortcut("newNote")} className="col-span-2"><Button type="button" data-testid="new-note" onClick={() => void createNote()} variant="primary" size="sm" className="w-full min-w-0 justify-start px-3">
-                  <FilePlus2 className="size-4 shrink-0" aria-hidden /> {t("sidebar.newNote")}<kbd className="htnote-shortcut-badge ml-auto">{formatShortcut("newNote")}</kbd>
+              <div className="htnote-sidebar-actions">
+                <Tooltip label={t("sidebar.newNote")} shortcut={formatShortcut("newNote")} className="min-w-0 flex-1"><Button type="button" data-testid="new-note" onClick={() => void createNote()} variant="primary" size="sm" className="w-full min-w-0 px-2">
+                  <FilePlus2 className="size-4 shrink-0" aria-hidden /><span>{t("sidebar.newNote")}</span>
                 </Button></Tooltip>
-                <Tooltip label={t("sidebar.newFolder")} shortcut={formatShortcut("newFolder")} className="min-w-0"><Button type="button" data-testid="new-folder" onClick={() => void createFolder()} size="sm" className="w-full min-w-0 px-2 text-xs">
-                  <FolderPlus className="size-4 shrink-0" aria-hidden /> {t("sidebar.folderAction")}
+                <Tooltip label={t("sidebar.newFolder")} shortcut={formatShortcut("newFolder")}><Button type="button" data-testid="new-folder" aria-label={t("sidebar.newFolder")} onClick={() => void createFolder()} size="sm" className="px-2">
+                  <FolderPlus className="size-4 shrink-0" aria-hidden /><span className="htnote-folder-action-label">{t("sidebar.folderAction")}</span>
                 </Button></Tooltip>
-                <Tooltip label={t("sidebar.search")} shortcut={formatShortcut("globalSearch")} className="min-w-0"><Button type="button" data-testid="global-search" onClick={openSearch} size="sm" className="w-full min-w-0 px-2 text-xs">
-                  <Search className="size-4 shrink-0" aria-hidden /> {t("sidebar.search")}<kbd className="htnote-shortcut-badge ml-auto">{formatShortcut("globalSearch")}</kbd>
-                </Button></Tooltip>
+                <IconButton label={t("sidebar.search")} shortcut={formatShortcut("globalSearch")} data-testid="global-search" size="sm" onClick={openSearch} className="htnote-sidebar-search">
+                  <Search className="size-4 shrink-0" aria-hidden />
+                </IconButton>
               </div>
               <div className="flex items-center gap-1">
                 <div className="relative min-w-0 flex-1">

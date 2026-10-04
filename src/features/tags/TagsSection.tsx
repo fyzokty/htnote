@@ -28,7 +28,7 @@ export function TagsSection() {
   const tags = useMemo(() => deriveTags(tree), [tree]);
   const [expanded, setExpanded] = useState(readExpanded);
   if (!tags.length) return null;
-  return <section className="select-none shrink-0 px-3 py-2" aria-label={t("tags.title")}>
+  return <section data-expanded={expanded} className="htnote-tags-section select-none shrink-0 px-3 py-2" aria-label={t("tags.title")}>
     <Button data-testid="tags-toggle" variant="ghost" size="sm" type="button" aria-label={t("tags.title")} aria-expanded={expanded} onClick={() => { writeExpanded(!expanded); setExpanded(!expanded); }} className="flex w-full justify-start items-center gap-2 rounded px-2 py-1 text-left text-[11px] font-bold uppercase tracking-wider hover:bg-app-subtle">
       <ChevronRight className={`size-4 shrink-0 transition-transform duration-150 ${expanded ? "rotate-90" : ""}`} aria-hidden />
       <Tags className="size-4" aria-hidden />{t("tags.title").toLocaleUpperCase(i18n.language)}

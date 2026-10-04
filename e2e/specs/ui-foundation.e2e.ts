@@ -91,6 +91,43 @@ describe("shared UI foundation", () => {
     }
   });
 
+  it("animates sidebar toggles without replacing the note iframe and fits compact actions", async () => {
+    const previous = await invoke<{ sidebarWidth: number; sidebarVisible: boolean; motion: string }>("get_settings");
+    try {
+      await invoke("update_settings", { patch: { sidebarWidth: 200, sidebarVisible: true, motion: "on" } });
+      await browser.refresh();
+      const note = await createNote("Sidebar animation");
+      await openNote(note.id);
+      await browser.execute(() => {
+        const frame = document.querySelector(".htnote-workspace-card iframe")!;
+        frame.setAttribute("data-sidebar-identity", "retained");
+      });
+      const actions = await browser.execute(() => {
+        const buttons = [...document.querySelectorAll<HTMLElement>(".htnote-sidebar-actions button")];
+        const rects = buttons.map((button) => button.getBoundingClientRect());
+        const aside = document.querySelector("aside")!;
+        return { ids: buttons.map((button) => button.dataset.testid), sameRow: rects.every((rect) => Math.abs(rect.top - rects[0].top) < 1), overflow: aside.scrollWidth - aside.clientWidth, iconOnly: buttons[2].textContent === "", hints: aside.querySelectorAll("kbd").length };
+      });
+      assert.deepEqual(actions.ids, ["new-note", "new-folder", "global-search"]);
+      assert.ok(actions.sameRow && actions.overflow <= 1 && actions.iconOnly);
+      assert.equal(actions.hints, 0);
+      for (let index = 0; index < 3; index++) {
+        await $(".htnote-titlebar-icon").click();
+        await browser.waitUntil(async () => await browser.execute(() => document.querySelector("aside") === null));
+        await $(".htnote-titlebar-icon").click();
+        await $('[data-state="open"].htnote-sidebar-card').waitForExist();
+        assert.equal(await browser.execute(() => document.querySelector("aside")!.getBoundingClientRect().width), 200);
+        assert.equal(await $('.htnote-workspace-card iframe').getAttribute("data-sidebar-identity"), "retained");
+      }
+      await $('[data-testid="global-search"]').click();
+      await $('[role="dialog"] kbd').waitForDisplayed();
+      await browser.keys("Escape");
+    } finally {
+      await invoke("update_settings", { patch: { sidebarWidth: previous.sidebarWidth, sidebarVisible: previous.sidebarVisible, motion: previous.motion } });
+      await browser.refresh();
+    }
+  });
+
   it("keeps note header controls at equal heights in view and edit modes, including compact layouts", async () => {
     const note = await createNote("Header heights");
     await openNote(note.id);
@@ -130,6 +167,7 @@ describe("shared UI foundation", () => {
       await separator.waitForDisplayed();
       await separator.doubleClick();
       await browser.waitUntil(async () => (await invoke<{ sidebarWidth: number }>("get_settings")).sidebarWidth === 200);
+      await browser.waitUntil(async () => await browser.execute(() => document.querySelector("aside")!.getBoundingClientRect().width) === 200);
       assert.equal(await browser.execute(() => document.querySelector("aside")!.getBoundingClientRect().width), 200);
     } finally {
       await invoke("update_settings", { patch: { sidebarWidth: previous } });

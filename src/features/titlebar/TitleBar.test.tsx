@@ -93,7 +93,7 @@ describe("TitleBar", () => {
     await renderTitleBar();
     expect(screen.queryByRole("group", { name: "Pencere denetimleri" })).not.toBeInTheDocument();
     expect(screen.getByTestId("titlebar").querySelector(".htnote-titlebar-traffic-lights")).toHaveAttribute("data-tauri-drag-region");
-    expect(screen.getByTestId("titlebar-search")).toHaveTextContent("⌘⇧F");
+    expect(screen.queryByTestId("titlebar-search")).not.toBeInTheDocument();
   });
 
   it("swaps the maximize icon and label when the window size changes", async () => {
@@ -124,13 +124,11 @@ describe("TitleBar", () => {
     expect(windowMock.destroy).not.toHaveBeenCalled();
   });
 
-  it("opens the full-text search dialog from the search box with the registry shortcut", async () => {
+  it("leaves the remaining space draggable without a search box or hints", async () => {
     await renderTitleBar();
-    const search = screen.getByRole("button", { name: "Tüm notlarda ara" });
-    expect(search).toHaveTextContent("Ara…");
-    expect(search).toHaveTextContent("Ctrl+Shift+F");
-    fireEvent.click(search);
-    expect(useUiStore.getState().searchOpen).toBe(true);
+    expect(screen.queryByTestId("titlebar-search")).not.toBeInTheDocument();
+    expect(screen.getByTestId("titlebar-drag-region")).toHaveAttribute("data-tauri-drag-region");
+    expect(screen.getByTestId("titlebar").querySelector("kbd")).toBeNull();
   });
 
   it("marks only empty areas as drag regions", async () => {

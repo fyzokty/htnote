@@ -37,7 +37,6 @@ export function EditSessionHeader({ doc, session, compact = false }: {
         disabled={doc.saving} aria-busy={doc.saving} onClick={() => { void session.save(false); }}>
         {doc.saving ? <LoaderCircle size={16} aria-hidden="true" className="htnote-editor-spinner" /> : <Save size={16} aria-hidden="true" />}
         <span data-action-text data-action-priority="5">{t(doc.saving ? "editor.session.saving" : "editor.session.save")}</span>
-        <kbd data-action-text data-action-priority="4" className="htnote-shortcut-badge" aria-hidden="true">{formatShortcut("save")}</kbd>
       </Button>
     </Tooltip>
   </div>;

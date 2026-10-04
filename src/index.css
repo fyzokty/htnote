@@ -180,7 +180,7 @@
 }
 
 .htnote-app { background: var(--app-window-gradient); }
-.htnote-shell { padding: 0 8px 8px; gap: 8px; }
+.htnote-shell { padding: 0 8px 8px; }
 .htnote-sidebar-card, .htnote-workspace-card { border: 1px solid var(--app-card-border); border-radius: var(--app-radius-card); background: var(--app-card); box-shadow: var(--app-shadow-card); }
 
 /* Özel başlık çubuğu (D29): sekmeler, arama kutusu ve Windows 11 pencere düğmeleri. */
@@ -195,9 +195,6 @@
 .htnote-tab[aria-selected="true"] .htnote-tab-icon { color: var(--app-accent); }
 .htnote-tab[aria-selected="true"]:hover { background: var(--app-card); border-color: var(--app-border); }
 .htnote-tab .htnote-tab-close { width: 1.5rem; height: 1.5rem; min-height: 1.5rem; border-radius: var(--app-radius-pill); }
-.htnote-titlebar-search { display: flex; flex: 0 1 240px; min-width: 120px; height: 32px; align-items: center; gap: 8px; margin-right: 8px; padding: 0 4px 0 12px; border: 1px solid var(--app-border); border-radius: var(--app-radius-control); background: var(--app-card); color: var(--app-muted); font-size: 0.8125rem; }
-.htnote-titlebar-search:not(:disabled):hover { background: var(--app-card); border-color: var(--app-muted); }
-.htnote-titlebar-search kbd { flex-shrink: 0; padding: 2px 6px; border-radius: 6px; background: var(--app-subtle); color: var(--app-muted); font-size: 0.6875rem; font-weight: 500; line-height: 1rem; }
 .htnote-caption-buttons { display: flex; align-self: stretch; flex-shrink: 0; }
 .htnote-caption-buttons .htnote-tooltip-anchor { height: 100%; }
 .htnote-caption-button.htnote-icon-button { width: var(--app-caption-button-width); height: 100%; min-height: 0; border: 0; border-radius: 0; background: transparent; color: var(--app-text); outline-offset: -2px; }
@@ -487,8 +484,6 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 
 .htnote-visual-editor { --ht-color-gray: var(--app-color-gray);--ht-color-red: var(--app-color-red);--ht-color-orange: var(--app-color-orange);--ht-color-yellow: var(--app-color-yellow);--ht-color-green: var(--app-color-green);--ht-color-teal: var(--app-color-teal);--ht-color-blue: var(--app-color-blue);--ht-color-purple: var(--app-color-purple);--ht-color-pink: var(--app-color-pink); }
 
-.htnote-shortcut-badge { border-radius: var(--app-radius-control); padding: 2px 4px; font-size: 10px; font-family: inherit; white-space: nowrap; background: var(--app-subtle); color: var(--app-muted); }
-.htnote-button-primary .htnote-shortcut-badge { background: color-mix(in srgb, var(--app-accent-text) 12%, transparent); color: var(--app-accent-text); }
 
 .htnote-note-viewer { container-type: inline-size; container-name: note-viewer; }
 @container note-viewer (max-width: 500px) {
@@ -499,11 +494,19 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 }
 
 .htnote-sidebar-card { container-type: inline-size; container-name: sidebar; }
-.htnote-sidebar-actions [data-testid="global-search"] { gap: 4px; padding-inline: 6px; }
+/* Üst eylemler kompakt genişlikte de tek satırda kalır. */
+.htnote-sidebar-actions { display: flex; align-items: center; gap: 4px; white-space: nowrap; }
+.htnote-sidebar-actions .htnote-button { height: 32px; gap: 4px; font-size: 12px; }
+.htnote-sidebar-actions .htnote-sidebar-search { border: 0; background: transparent; color: var(--app-accent); padding: 0; }
+.htnote-sidebar-actions .htnote-sidebar-search:hover { background: var(--app-hover); }
 @container sidebar (max-width: 230px) {
-  .htnote-sidebar-actions [data-testid="new-folder"] svg, .htnote-sidebar-actions [data-testid="global-search"] svg { display: none; }
-  .htnote-sidebar-actions [data-testid="global-search"] .htnote-shortcut-badge { font-size: 9px; padding-inline: 2px; }
+  .htnote-folder-action-label { display: none; }
 }
+.htnote-sidebar-card { border: 0; box-shadow: inset 0 0 0 1px var(--app-card-border), var(--app-shadow-card); transition: width 180ms cubic-bezier(0.16, 1, 0.3, 1), opacity 180ms cubic-bezier(0.16, 1, 0.3, 1), margin-right 180ms cubic-bezier(0.16, 1, 0.3, 1); }
+.htnote-sidebar-card[data-state="closing"] { transition-duration: 140ms; }
+.htnote-sidebar-card[data-resizing="true"] { transition: none; }
+.htnote-tags-section { border-top: 1px solid var(--app-card-border); box-shadow: 0 -6px 12px -10px transparent; transition: box-shadow 140ms cubic-bezier(0.16, 1, 0.3, 1); }
+.htnote-tags-section[data-expanded="true"] { box-shadow: 0 -6px 12px -10px color-mix(in srgb, var(--app-text) 20%, transparent); transition-duration: 180ms; }
 
 /* Editing sessions share the note header; controls fold after its metadata. */
 .htnote-note-header { white-space: nowrap; }
@@ -615,7 +618,6 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 .htnote-note-header [data-header-actions] .htnote-segmented-control { padding: 0; gap: 0; border: 0; position: relative; }
 .htnote-note-header [data-header-actions] .htnote-segmented-control::after { content: ""; position: absolute; inset: 0; border: 1px solid var(--app-border); border-radius: inherit; pointer-events: none; }
 .htnote-note-header [data-header-actions] .htnote-segmented-control[data-compact="true"] .htnote-button { width: 2rem; padding-inline: 0; }
-.htnote-note-header [data-header-actions] .htnote-shortcut-badge { line-height: 1rem; }
 .htnote-note-header [data-header-actions] svg { width: 1rem; height: 1rem; flex-shrink: 0; }
 
 .htnote-favorite-star[data-animate="add"] { animation: htnote-favorite-pop 280ms cubic-bezier(0.16, 1, 0.3, 1); }

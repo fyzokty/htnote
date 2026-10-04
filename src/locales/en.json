@@ -23,8 +23,6 @@
   },
   "titleBar": {
     "label": "Title bar",
-    "search": "Search…",
-    "searchLabel": "Search all notes",
     "windowControls": "Window controls",
     "minimize": "Minimize",
     "maximize": "Maximize",

@@ -62,8 +62,8 @@ describe("custom title bar", () => {
     assert.equal(await $('[data-testid="window-maximize"] [data-icon="maximize"]').isExisting(), true);
   });
 
-  it("opens full-text search from the title bar search box", async () => {
-    await $('[data-testid="titlebar-search"]').click();
+  it("opens full-text search from the sidebar search button", async () => {
+    await $('[data-testid="global-search"]').click();
     const dialog = await $('[role="dialog"]');
     await dialog.waitForDisplayed();
     await browser.keys("Escape");
