@@ -260,7 +260,13 @@
     "fontDefault": "Default",
     "fontSearch": "Search fonts",
     "fontNoResults": "No fonts found",
-    "fontSizeValue": "{{size}} px"
+    "fontSizeValue": "{{size}} px",
+    "textBox": {
+      "insert": "Text box",
+      "title": "Title",
+      "content": "Text box content",
+      "select": "Select text box"
+    }
   },
   "errors": {
     "settingsLoad": "Settings could not be loaded.",
@@ -472,5 +478,11 @@
     "words_other": "{{value}} words",
     "characters_one": "{{value}} character",
     "characters_other": "{{value}} characters"
+  },
+  "textBox": {
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Copy failed",
+    "reset": "Reset to default"
   }
 }

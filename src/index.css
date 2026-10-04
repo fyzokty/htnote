@@ -712,3 +712,12 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 .htnote-color-popover[data-closing="false"] .htnote-custom-color[data-closing="true"] { position: absolute; left: 12px; top: 40px; width: 240px; }
 
 .htnote-toolbar-measure { position: absolute; visibility: hidden; pointer-events: none; width: max-content; }
+
+/* Metin kutusu alanları atom node içinde yerel form kontrolleridir. */
+.htnote-textbox-editor { position: relative; margin: 16px 0; padding: 12px; border: 1px solid var(--app-border); border-radius: 12px; background: var(--app-card); }
+.htnote-textbox-editor.is-selected { outline: 2px solid var(--app-focus); outline-offset: 2px; }
+.htnote-textbox-editor input, .htnote-textbox-editor textarea { display: block; box-sizing: border-box; width: 100%; background: transparent; color: var(--app-text); border: 0; padding: 4px; }
+.htnote-textbox-editor input { font-weight: 600; padding-right: 20px; margin-bottom: 8px; }
+.htnote-textbox-editor textarea { field-sizing: content; min-height: 4.8em; resize: vertical; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.htnote-textbox-editor input:focus-visible, .htnote-textbox-editor textarea:focus-visible, .htnote-textbox-handle:focus-visible { outline: 2px solid var(--app-focus); border-radius: 4px; }
+.htnote-textbox-handle { position: absolute; top: 12px; right: 12px; width: 16px; height: 20px; cursor: grab; border-radius: 4px; background: radial-gradient(circle, var(--app-muted) 1px, transparent 1.5px) 0 0 / 5px 5px; }

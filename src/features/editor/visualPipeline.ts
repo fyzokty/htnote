@@ -5,6 +5,8 @@ import { classifyTopLevel } from "@/features/editor/blockClassifier";
 import { extractContent, replaceContent } from "@/features/editor/contentRegion";
 import type { ExtractResult } from "@/features/editor/contentRegion";
 import { formatHtml } from "@/features/editor/formatHtml";
+import { readTextBox, serializeTextBox } from "./textBox";
+import type { TextBoxAttributes } from "./textBox";
 
 type Parts = Extract<ExtractResult, { ok: true }>;
 type Element = DefaultTreeAdapterTypes.Element;
@@ -35,11 +37,13 @@ function escapeAttribute(value: string): string {
 }
 
 export function wrapRawBlocks(inner: string): string {
-  return classifyTopLevel(inner).map(({ kind, html }) =>
+  const blocks = classifyTopLevel(inner);
+  return blocks.map(({ kind, html }) => kind === "textBox"
+    ? `<htnote-textbox-node data-box="${escapeAttribute(JSON.stringify(readTextBox(html)))}"></htnote-textbox-node>` :
     // JSON kaçışları satır sonlarının HTML ayrıştırıcısında normalize edilmesini önler.
     kind === "raw" || !supportedByVisualEditor(html)
       ? `<htnote-raw data-html="${escapeAttribute(JSON.stringify(html))}"></htnote-raw>` : html,
-  ).join("");
+  ).join("") + (blocks[blocks.length - 1]?.kind === "textBox" ? "<p></p>" : "");
 }
 
 export function unwrapRawBlocks(editorHtml: string): string {
@@ -49,6 +53,14 @@ export function unwrapRawBlocks(editorHtml: string): string {
   function visit(node: DefaultTreeAdapterTypes.Node): void {
     if ("tagName" in node) {
       const element = node as Element;
+      if (element.tagName === "htnote-textbox-node") {
+        const location = element.sourceCodeLocation;
+        const data = element.attrs.find((attr) => attr.name === "data-box")?.value;
+        if (location && data) {
+          replacements.push({ start: location.startOffset, end: location.endOffset, html: serializeTextBox(JSON.parse(data) as TextBoxAttributes) });
+          return;
+        }
+      }
       if (element.tagName === "htnote-raw") {
         const location = element.sourceCodeLocation;
         const html = element.attrs.find((attr) => attr.name === "data-html")?.value;
