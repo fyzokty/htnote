@@ -1,3 +1,5 @@
+import { PopoverPresence } from "@/components/ui/PopoverPresence";
+import { useDialogActive } from "@/components/ui/useDialogPresence";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { Editor } from "@tiptap/core";
@@ -9,18 +11,21 @@ import { useReducedMotion } from "@/hooks/useReducedMotion";
 import { clampFontSize, familyLabel, FONT_SIZES, fontStack, loadSystemFonts, selectedComputedStyle, selectedTextStyle } from "./fonts";
 
 function FontPopover({ anchor, label, onClose, children }: { anchor: HTMLElement; label: string; onClose: () => void; children: ReactNode }) {
+  const active = useDialogActive();
   const panel = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   const reduced = useReducedMotion();
   const [position, setPosition] = useState({ left: 0, top: 0 });
   useLayoutEffect(() => { close.current = onClose; });
   useLayoutEffect(() => {
+    if (!active) return;
     const rect = anchor.getBoundingClientRect(), bounds = panel.current!.getBoundingClientRect();
     setPosition({ left: Math.max(8, Math.min(rect.left, window.innerWidth - bounds.width - 8)),
       top: Math.max(8, rect.bottom + bounds.height > window.innerHeight ? rect.top - bounds.height : rect.bottom + 4) });
     panel.current?.querySelector<HTMLElement>("input, button")?.focus();
-  }, [anchor]);
+  }, [anchor, active]);
   useEffect(() => {
+    if (!active) return;
     const element = panel.current;
     const outside = (event: PointerEvent) => { if (!element?.contains(event.target as Node) && !anchor.contains(event.target as Node)) close.current(); };
     const resize = () => close.current();
@@ -29,8 +34,8 @@ function FontPopover({ anchor, label, onClose, children }: { anchor: HTMLElement
       document.removeEventListener("pointerdown", outside); window.removeEventListener("resize", resize);
       if (document.activeElement === document.body || element?.contains(document.activeElement)) anchor.focus();
     };
-  }, [anchor]);
-  return createPortal(<div ref={panel} className="htnote-popover-surface htnote-font-popover" role="dialog" aria-label={label}
+  }, [anchor, active]);
+  return createPortal(<div ref={panel} inert={!active} aria-hidden={!active || undefined} data-closing={!active} data-side={position.top < anchor.getBoundingClientRect().top ? "up" : "down"} className="htnote-popover-motion htnote-popover-surface htnote-font-popover" role="dialog" aria-label={label}
     data-reduced-motion={reduced} style={position} onKeyDown={(event) => {
       if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
       if (event.key === "Tab" || (["ArrowDown", "ArrowUp"].includes(event.key) && (event.target as HTMLElement).tagName !== "INPUT")) {
@@ -63,7 +68,7 @@ export function FontFamilySelector({ editor }: { editor: Editor }) {
       onClick={(event) => { selection.current = { from: editor.state.selection.from, to: editor.state.selection.to }; setSearch(""); setLimit(60); setAnchor(anchor ? null : event.currentTarget); }}>
       <span>{familyLabel(current) || t("editor.fontDefault")}</span><ChevronDown size={12} aria-hidden />
     </Button></Tooltip>
-    {anchor && <FontPopover anchor={anchor} label={t("editor.fontFamily")} onClose={() => setAnchor(null)}>
+    <PopoverPresence>{anchor && <FontPopover anchor={anchor} label={t("editor.fontFamily")} onClose={() => setAnchor(null)}>
       <input type="search" aria-label={t("editor.fontSearch")} placeholder={t("editor.fontSearch")} value={search}
         onChange={(event) => { setSearch(event.target.value); setLimit(60); }} onKeyDown={(event) => {
           if (event.key === "ArrowDown") { event.preventDefault(); event.currentTarget.nextElementSibling?.querySelector<HTMLElement>("button")?.focus(); }
@@ -74,7 +79,7 @@ export function FontFamilySelector({ editor }: { editor: Editor }) {
           style={{ fontFamily: fontStack(family) }} aria-pressed={familyLabel(current) === family} onClick={() => apply(family)}>{family}</Button>)}
         {!filtered.length && <p>{t("editor.fontNoResults")}</p>}
       </div>
-    </FontPopover>}
+    </FontPopover>}</PopoverPresence>
   </>;
 }
 
@@ -103,10 +108,10 @@ export function FontSizeSelector({ editor }: { editor: Editor }) {
     <Tooltip label={t("editor.fontSizeOptions")}><Button size="sm" variant="ghost" data-testid="editor-font-size-options" aria-label={t("editor.fontSizeOptions")}
       aria-haspopup="dialog" aria-expanded={!!anchor} onMouseDown={(event) => event.preventDefault()}
       onClick={(event) => { capture(); setAnchor(anchor ? null : event.currentTarget); }}><ChevronDown size={12} aria-hidden /></Button></Tooltip>
-    {anchor && <FontPopover anchor={anchor} label={t("editor.fontSize")} onClose={() => setAnchor(null)}>
+    <PopoverPresence>{anchor && <FontPopover anchor={anchor} label={t("editor.fontSize")} onClose={() => setAnchor(null)}>
       <div className="htnote-font-list"><Button size="sm" variant="ghost" aria-pressed={!current} onClick={() => apply("")}>{t("editor.fontDefault")}</Button>
         {FONT_SIZES.map((size) => <Button key={size} size="sm" variant="ghost" aria-pressed={current === String(size)} onClick={() => apply(String(size))}>{t("editor.fontSizeValue", { size })}</Button>)}
       </div>
-    </FontPopover>}
+    </FontPopover>}</PopoverPresence>
   </div>;
 }

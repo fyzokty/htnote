@@ -265,10 +265,14 @@
 .htnote-media-audio { width: fit-content; }
 .htnote-media-audio audio { display: none; }
 .htnote-media.is-selected > .htnote-media-preview { outline: 2px solid var(--app-accent); outline-offset: 3px; }
-.htnote-media-floating { position: fixed; z-index: 50; overflow: auto; width: max-content; animation: htnote-media-open 160ms cubic-bezier(0.16, 1, 0.3, 1); }
-.htnote-media-floating[data-closing="true"] { pointer-events: none; animation: htnote-media-close 120ms ease-in forwards; }
-@keyframes htnote-media-open { from { opacity: 0; transform: translateY(4px) scale(.97); } to { opacity: 1; transform: none; } }
-@keyframes htnote-media-close { to { opacity: 0; transform: translateY(3px) scale(.98); } }
+/* Açılır yüzeylerin süreleri src/lib/motion.ts ile eşit tutulur. */
+:root { --app-popover-open-ms: 160ms; --app-popover-close-ms: 120ms; --app-motion-enter: cubic-bezier(0.16, 1, 0.3, 1); --app-motion-exit: ease-in; }
+.htnote-popover-motion { --popover-offset: -4px; transform-origin: top center; animation: htnote-popover-open var(--app-popover-open-ms) var(--app-motion-enter) both; }
+.htnote-popover-motion[data-side="up"] { --popover-offset: 4px; transform-origin: bottom center; }
+.htnote-popover-motion[data-closing="true"] { pointer-events: none; animation: htnote-popover-close var(--app-popover-close-ms) var(--app-motion-exit) both; }
+@keyframes htnote-popover-open { from { opacity: 0; transform: translateY(var(--popover-offset)) scale(.97); } to { opacity: 1; transform: none; } }
+@keyframes htnote-popover-close { to { opacity: 0; } }
+.htnote-media-floating { position: fixed; z-index: 50; overflow: auto; width: max-content; }
 :root[data-reduced-motion="true"] .htnote-media-floating, :root[data-reduced-motion="true"] .htnote-media-floating[data-closing="true"] { animation: none; }
 .htnote-media-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; max-width: 24rem; padding: 0.375rem; color: var(--app-text); font-size: 0.8rem; line-height: 1.3; }
 .htnote-media-toolbar button:not(.htnote-button) { display: inline-flex; align-items: center; justify-content: center; min-height: 1.9rem; padding: 0.3rem 0.5rem; border-radius: 0.3rem; color: var(--app-text); background: var(--app-subtle); cursor: pointer; }
@@ -590,7 +594,7 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 .htnote-settings-row:last-child { border-bottom: 0; padding-bottom: 0; }
 .htnote-settings-path { display: flex; flex: 1 1 280px; align-items: center; gap: 10px; min-width: 0; border: 1px solid var(--app-border); border-radius: var(--app-radius-control); background: var(--app-subtle); padding: 4px 8px; }
 .htnote-settings-path p { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
-.htnote-settings select { border: 1px solid var(--app-border); border-radius: var(--app-radius-control); padding: 8px 12px; background: var(--app-subtle); }
+.htnote-settings select, .htnote-settings .htnote-select-trigger { border: 1px solid var(--app-border); border-radius: var(--app-radius-control); padding: 8px 12px; background: var(--app-subtle); }
 .htnote-tag-row { gap: 0; padding-left: 8px; }
 .htnote-tag-row > .htnote-tooltip-anchor .htnote-icon-button { width: 16px; }
 .htnote-tag-row > .htnote-button { padding-left: 8px; }
@@ -692,3 +696,19 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 .htnote-font-list { max-height: min(280px, 40vh); overflow: auto; display: flex; flex-direction: column; gap: 2px; }
 .htnote-font-list button { min-height: 1.75rem; height: auto; flex-shrink: 0; justify-content: flex-start; text-align: start; font-size: 15px; line-height: 1.6; }
 .htnote-color-sv:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 3px; }
+
+.htnote-select-trigger { display: inline-flex; align-items: center; justify-content: space-between; gap: 8px; }
+.htnote-select-popover { position: fixed; z-index: 160; padding: 4px; max-width: calc(100vw - 16px); max-height: min(320px, 60vh); overflow: auto; }
+.htnote-select-popover [role="option"] { padding: 6px 10px; border-radius: var(--app-radius-control); cursor: pointer; font-size: 13px; }
+.htnote-select-popover [data-active="true"] { background: var(--app-hover); }
+.htnote-select-popover [aria-selected="true"] { color: var(--app-accent); }
+.htnote-toolbar-overflow[data-closing="true"] { pointer-events: none; }
+
+.htnote-dialog-backdrop > .htnote-note-picker.htnote-popover-motion { animation: htnote-popover-open var(--app-popover-open-ms) var(--app-motion-enter) both; }
+.htnote-dialog-backdrop[data-closing="true"] > .htnote-note-picker.htnote-popover-motion { animation: htnote-popover-close var(--app-popover-close-ms) var(--app-motion-exit) both; }
+.htnote-note-picker-backdrop.htnote-dialog-backdrop { animation-duration: var(--app-popover-open-ms); }
+.htnote-note-picker-backdrop.htnote-dialog-backdrop[data-closing="true"] { animation-duration: var(--app-popover-close-ms); }
+
+.htnote-color-popover[data-closing="false"] .htnote-custom-color[data-closing="true"] { position: absolute; left: 12px; top: 40px; width: 240px; }
+
+.htnote-toolbar-measure { position: absolute; visibility: hidden; pointer-events: none; width: max-content; }

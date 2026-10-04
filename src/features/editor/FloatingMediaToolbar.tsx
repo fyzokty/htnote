@@ -1,7 +1,8 @@
+import { usePresence } from "@/components/ui/usePresence";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
-import { DialogActiveContext, useDialogPresence } from "@/components/ui/useDialogPresence";
+import { DialogActiveContext } from "@/components/ui/useDialogPresence";
 import { mediaToolbarOwners, mediaToolbarPosition } from "./mediaToolbarPosition";
 
 export function FloatingMediaToolbar({ anchor, selected, align, children }: {
@@ -15,7 +16,7 @@ export function FloatingMediaToolbar({ anchor, selected, align, children }: {
     if (!selected) setDismissed(false);
   }
   const open = selected && !dismissed;
-  const { mounted } = useDialogPresence(open ? true : null, 120);
+  const { mounted } = usePresence(open ? true : null);
   useEffect(() => {
     const pointer = (event: PointerEvent) => {
       if (!(event.target instanceof Node)) return;
@@ -53,6 +54,7 @@ export function FloatingMediaToolbar({ anchor, selected, align, children }: {
       layer.style.maxHeight = `${Math.max(0, viewport.bottom - viewport.top - 16)}px`;
       const rect = (wrapper.querySelector(".htnote-media-preview") ?? wrapper).getBoundingClientRect();
       const position = mediaToolbarPosition(rect, layer.getBoundingClientRect(), viewport, align);
+      layer.dataset.side = position.top < rect.top ? "up" : "down";
       layer.style.left = `${position.left}px`;
       layer.style.top = `${position.top}px`;
       layer.style.visibility = position.visible || rect.width === 0 ? "visible" : "hidden";
@@ -73,7 +75,7 @@ export function FloatingMediaToolbar({ anchor, selected, align, children }: {
   }, [anchor, mounted, align]);
   if (!mounted) return null;
   return createPortal(<DialogActiveContext value={open}>
-    <div ref={menu} className="htnote-media-floating htnote-popover-surface" data-closing={!open}
+    <div ref={menu} className="htnote-media-floating htnote-popover-motion htnote-popover-surface" data-closing={!open}
       inert={!open} aria-hidden={!open || undefined} contentEditable={false}
       onMouseDown={(event) => {
         if (!(event.target instanceof Element && event.target.closest("input"))) event.preventDefault();

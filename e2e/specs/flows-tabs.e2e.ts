@@ -99,10 +99,17 @@ describe("tab reordering", () => {
   });
 
   for (const language of ["tr", "en"]) it(`changes tab sizing in ${language} settings and restores only note tabs`, async () => {
-    await invoke("update_settings", { patch: { language } });
     const note = await createNote("A long title for checking the size of a note tab");
     await openNote(note.id);
     await $('[data-testid="settings"]').click();
+    const languageSelect = await $('.htnote-settings [role="combobox"][aria-labelledby="settings-language-label"]');
+    await languageSelect.click();
+    await $('.htnote-select-popover[role="listbox"]').waitForDisplayed();
+    await browser.keys("Home");
+    await browser.keys("ArrowDown");
+    if (language === "en") await browser.keys("ArrowDown");
+    await browser.keys("Enter");
+    await browser.waitUntil(async () => (await invoke<{ language: string }>("get_settings")).language === language);
     const fit = await $('[data-testid="tab-sizing-fit"]');
     await fit.waitForDisplayed();
     await fit.click();

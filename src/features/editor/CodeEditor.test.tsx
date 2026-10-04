@@ -5,7 +5,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
 import { CodeEditor } from "@/features/editor/CodeEditor";
-import { fileName, getDropHandler, kindFromPath } from "@/features/editor/fileDrop";
+import { fileName, getDropHandler, kindFromPath, updateDropPreview } from "@/features/editor/fileDrop";
 import { formatShortcut } from "@/lib/shortcuts/registry";
 import { ipc } from "@/lib/ipc";
 import type { Settings } from "@/lib/types";
@@ -60,6 +60,24 @@ describe("CodeEditor formatting and layout", () => {
 });
 
 describe("CodeEditor file drop", () => {
+  it("registers the native preview only on HTML and clears it on tab change and unmount", () => {
+    vi.spyOn(EditorView.prototype, "posAtCoords").mockReturnValue(3);
+    vi.spyOn(EditorView.prototype, "coordsAtPos").mockReturnValue({ left: 30, right: 30, top: 40, bottom: 60 });
+    const view = render(<CodeEditor noteId="preview" html="<p>Text</p>" css="" js="" onChange={vi.fn()} />);
+    act(() => updateDropPreview("preview", { x: 30, y: 50 }, "code"));
+    expect(document.querySelector(".htnote-drop-cursor")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "style.css" }));
+    expect(document.querySelector(".htnote-drop-cursor")).not.toBeInTheDocument();
+    expect(getDropHandler("preview", "code")).toBeUndefined();
+    act(() => updateDropPreview("preview", { x: 30, y: 50 }, "code"));
+    expect(document.querySelector(".htnote-drop-cursor")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("tab", { name: "index.html" }));
+    act(() => updateDropPreview("preview", { x: 30, y: 50 }, "code"));
+    expect(document.querySelector(".htnote-drop-cursor")).toBeInTheDocument();
+    view.unmount();
+    expect(document.querySelector(".htnote-drop-cursor")).not.toBeInTheDocument();
+  });
+
   it("inserts every tag in order at the drop point with one change", async () => {
     vi.spyOn(EditorView.prototype, "posAtCoords").mockReturnValue(9);
     const copy = vi.spyOn(ipc, "copyAsset").mockImplementation(async (_noteId, path) => ({

@@ -1,3 +1,4 @@
+import { PopoverPresence } from "@/components/ui/PopoverPresence";
 import { useEffect, useRef, useState } from "react";
 import type { MouseEvent } from "react";
 import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
@@ -99,11 +100,11 @@ export function TabBar() {
       <IconButton type="button" onClick={newNote} label={t("tabs.newNote")} className="htnote-tab-new mx-1 text-app-muted">
         <Plus className="size-4" aria-hidden />
       </IconButton>
-      {menu && <ContextMenu x={menu.x} y={menu.y} trigger={menu.trigger} onClose={() => setMenu(null)} items={[
+      <PopoverPresence>{menu && <ContextMenu x={menu.x} y={menu.y} trigger={menu.trigger} onClose={() => setMenu(null)} items={[
         { id: "close", label: t("tabs.close"), shortcut: formatShortcut("closeTab"), onSelect: () => { void useTabsStore.getState().close(menu.noteId); } },
         { id: "closeOthers", label: t("tabs.closeOthers"), onSelect: () => { void useTabsStore.getState().closeOthers(menu.noteId); } },
         ...(!isSpecialTabId(menu.noteId) ? [{ id: "reveal", label: t("tabs.revealInTree"), onSelect: () => useTreeStore.getState().revealNote(menu.noteId) }] : []),
-      ]} />}
+      ]} />}</PopoverPresence>
     </div>
   );
 }

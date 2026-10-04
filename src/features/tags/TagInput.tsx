@@ -1,3 +1,5 @@
+import { PopoverPresence } from "@/components/ui/PopoverPresence";
+import { useDialogActive } from "@/components/ui/useDialogPresence";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { KeyboardEvent, ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
@@ -21,10 +23,12 @@ interface Props {
   portalPanels?: boolean;
 }
 
-function TagPanel({ anchor, children }: { anchor: RefObject<HTMLElement | null>; children: ReactNode }) {
+function TagPanel({ anchor, children, portal }: { anchor: RefObject<HTMLElement | null>; children: ReactNode; portal: boolean }) {
+  const active = useDialogActive();
   const ref = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ left: 0, top: 0 });
   useLayoutEffect(() => {
+    if (!portal) return;
     const place = () => {
       const rect = anchor.current?.getBoundingClientRect();
       const panel = ref.current?.getBoundingClientRect();
@@ -36,8 +40,11 @@ function TagPanel({ anchor, children }: { anchor: RefObject<HTMLElement | null>;
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
     return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
-  }, [anchor, children]);
-  return createPortal(<div ref={ref} className="htnote-tag-panel" style={position}>{children}</div>, document.body);
+  }, [anchor, children, portal]);
+  const panel = <div ref={ref} inert={!active} aria-hidden={!active || undefined} data-closing={!active}
+    data-side={portal && position.top < (anchor.current?.getBoundingClientRect().top ?? 0) ? "up" : "down"}
+    className={`htnote-popover-motion ${portal ? "htnote-tag-panel" : "absolute left-0 top-full z-20"}`} style={portal ? position : undefined}>{children}</div>;
+  return portal ? createPortal(panel, document.body) : panel;
 }
 
 export function TagInput({ tags, suggestions, onChange, compact = false, visibleTagCount = tags.length, portalPanels = false }: Props) {
@@ -73,8 +80,8 @@ export function TagInput({ tags, suggestions, onChange, compact = false, visible
     }
   }
 
-  const overflowPanel = <div className={`${portalPanels ? "" : "absolute left-0 top-full "}z-20 max-h-48 overflow-auto rounded-lg border border-app-border bg-app-card p-2 shadow-lg`}>{tags.slice(visibleCount).map((tag) => <div key={tag} className="flex items-center gap-1 text-xs"><span>#{tag}</span><IconButton size="sm" label={t("tags.remove", { tag })} onClick={() => onChange(removeTag(tags, tag))}>×</IconButton></div>)}</div>;
-  const suggestionsPanel = <ul className={`${portalPanels ? "" : "absolute left-0 top-full "}z-20 max-h-40 min-w-36 overflow-y-auto rounded border border-app-border bg-app-surface shadow-lg`} role="listbox" aria-label={t("tags.suggestions")}>
+  const overflowPanel = <div className={`z-20 max-h-48 overflow-auto rounded-lg border border-app-border bg-app-card p-2 shadow-lg`}>{tags.slice(visibleCount).map((tag) => <div key={tag} className="flex items-center gap-1 text-xs"><span>#{tag}</span><IconButton size="sm" label={t("tags.remove", { tag })} onClick={() => onChange(removeTag(tags, tag))}>×</IconButton></div>)}</div>;
+  const suggestionsPanel = <ul className={`z-20 max-h-40 min-w-36 overflow-y-auto rounded border border-app-border bg-app-surface shadow-lg`} role="listbox" aria-label={t("tags.suggestions")}>
     {matches.map(({ tag, count }, index) => <li key={tag} role="option" aria-selected={index === selected}>
       <Button variant="ghost" size="sm" type="button" onMouseDown={(event) => event.preventDefault()} onClick={() => commit(tag)} className="flex w-full justify-between gap-3 px-2 py-1 text-left text-xs hover:bg-app-subtle">{tag}<span>{count}</span></Button>
     </li>)}
@@ -89,13 +96,13 @@ export function TagInput({ tags, suggestions, onChange, compact = false, visible
       <span className="htnote-tag-dot" style={{ background: `var(--app-color-${tagColor(colors, tag) ?? "gray"})` }} aria-hidden /><span className="truncate">#{tag}</span><IconButton size="sm" className="size-4 min-h-0 opacity-0 group-hover:opacity-100 focus-visible:opacity-100" type="button" label={t("tags.remove", { tag })} onClick={() => onChange(removeTag(tags, tag))}>×</IconButton>
     </span>)}
     {visibleCount < tags.length && <Button ref={overflowRef} variant="ghost" size="sm" aria-label={t("tags.overflow", { count: tags.length - visibleCount })} aria-expanded={showOverflow} onClick={() => setShowOverflow(!showOverflow)} className="shrink-0 rounded-full px-2 text-xs">+{tags.length - visibleCount}</Button>}
-    {showOverflow && visibleCount < tags.length && (portalPanels ? <TagPanel anchor={overflowRef}>{overflowPanel}</TagPanel> : overflowPanel)}
+    <PopoverPresence>{showOverflow && visibleCount < tags.length && <TagPanel anchor={overflowRef} portal={portalPanels}>{overflowPanel}</TagPanel>}</PopoverPresence>
     <div data-tag-add className="relative min-w-0 shrink-0">
       <input ref={inputRef} type="text" aria-label={t("tags.add")} placeholder={t(compact ? "tags.addPill" : "tags.add")} value={value}
         onChange={(event) => { setValue(event.target.value); setSelected(0); }} onKeyDown={keyDown}
         onFocus={() => setFocused(true)} onBlur={() => setFocused(false)}
         className={`w-20 text-xs outline-none placeholder:text-app-muted ${compact ? "rounded-full border border-dashed border-app-border px-2 py-1" : "bg-transparent"}`} />
-      {focused && matches.length > 0 && (portalPanels ? <TagPanel anchor={inputRef}>{suggestionsPanel}</TagPanel> : suggestionsPanel)}
+      <PopoverPresence>{focused && matches.length > 0 && <TagPanel anchor={inputRef} portal={portalPanels}>{suggestionsPanel}</TagPanel>}</PopoverPresence>
     </div>
   </div>;
 }

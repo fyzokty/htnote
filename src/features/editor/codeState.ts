@@ -11,6 +11,7 @@ import { isolateHistory } from "@codemirror/commands";
 
 import type { ThemeMode } from "@/lib/theme";
 import { formatHtml } from "@/features/editor/formatHtml";
+import { prepareCodeDrop } from "./codeDrop";
 
 export type CodeTab = "html" | "css" | "js";
 export type CodeChange = Partial<Record<CodeTab, string>>;
@@ -53,4 +54,14 @@ export function formatHtmlDocument(view: EditorView): boolean {
     userEvent: "input.format",
   });
   return true;
+}
+
+export function insertCodeDrop(view: EditorView, position: number, tags: string[]): void {
+  const next = prepareCodeDrop(view.state.doc.toString(), position, tags);
+  view.dispatch({
+    changes: { from: 0, to: view.state.doc.length, insert: next.document },
+    selection: { anchor: next.cursor },
+    annotations: isolateHistory.of("full"),
+    userEvent: "input.drop",
+  });
 }

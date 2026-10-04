@@ -1,3 +1,4 @@
+import { Select } from "@/components/ui/Select";
 import { Folder, Copy, Info, Palette, Monitor, Sun, Moon, NotebookPen, ExternalLink } from "lucide-react";
 import { IconButton } from "@/components/ui/IconButton";
 import { TagColorPicker } from "@/features/tags/TagColorPicker";
@@ -72,11 +73,10 @@ export function SettingsView({ onShowShortcuts }: { onShowShortcuts?: () => void
               onChange={(motion) => void update({ motion }).catch(notifyError)} />
           </div>
           <label className="htnote-settings-row"><span><span id="settings-language-label">{t("settings.language")}</span><span className="block text-xs text-app-muted">{t("settings.languageHint")}</span></span>
-            <select aria-labelledby="settings-language-label" disabled={!settings} value={settings?.language ?? "system"} onChange={(event) => void update({ language: event.target.value === "system" ? null : event.target.value as "tr" | "en" }).catch(notifyError)} className="rounded border border-app-border bg-app-bg px-3 py-2">
-              <option value="system">{t("settings.system")}</option>
-              <option value="tr">{t("settings.turkish")}</option>
-              <option value="en">{t("settings.english")}</option>
-            </select>
+            <Select aria-labelledby="settings-language-label" disabled={!settings} value={settings?.language ?? "system"}
+              onChange={(value) => void update({ language: value === "system" ? null : value as "tr" | "en" }).catch(notifyError)}
+              className="rounded border border-app-border bg-app-bg px-3 py-2"
+              options={[{ value: "system", label: t("settings.system") }, { value: "tr", label: t("settings.turkish") }, { value: "en", label: t("settings.english") }]} />
           </label>
           <div className="htnote-settings-row">
             <div><span id="settings-tab-sizing">{t("settings.tabSizing")}</span><p className="text-xs text-app-muted">{t("settings.tabSizingHint")}</p></div>

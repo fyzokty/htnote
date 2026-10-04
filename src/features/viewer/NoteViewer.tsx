@@ -1,6 +1,7 @@
 import { MODE_TRANSITION_MS, MOTION_ENTER_EASING } from "@/lib/motion";
 import { requestRevision, revealRevision, type FrameBuffer } from "./frameBuffer";
 import { modeTransition } from "./modeTransition";
+import { PopoverPresence } from "@/components/ui/PopoverPresence";
 import { useReducedMotion } from "@/components/ui/useDialogPresence";
 import { FileText, Plus, Search } from "lucide-react";
 import { useHeaderLayout } from "./useHeaderLayout";
@@ -191,11 +192,11 @@ export function NoteViewer() {
             }} label={t("viewer.favorite")} aria-pressed={activeNote?.isFavorite ?? false} className={`rounded ${activeNote?.isFavorite ? "text-app-accent" : "text-app-muted"}`}><Star key={favoriteAnimation?.sequence ?? 0} className="size-4 htnote-favorite-star" data-animate={favoriteAnimation?.kind}
               onAnimationEnd={() => setFavoriteAnimation(null)} fill={activeNote?.isFavorite ? "currentColor" : "none"} aria-hidden /></IconButton>
             <Tooltip label={t("viewer.export")}><Button type="button" data-testid="export-note" disabled={!activeNote || exportBusy} aria-label={exportBusy ? t("export.exporting") : t("viewer.export")} onClick={(event) => { const rect = event.currentTarget.getBoundingClientRect(); setExportMenu({ x: rect.left, y: rect.bottom, trigger: event.currentTarget }); }} className="text-app-muted"><Download className="size-4" aria-hidden /><span data-action-text data-action-priority="1">{t("viewer.export")}</span></Button></Tooltip>
-            {exportMenu && activeNote && <ContextMenu x={exportMenu.x} y={exportMenu.y} trigger={exportMenu.trigger} onClose={() => setExportMenu(null)} items={[
+            <PopoverPresence>{exportMenu && activeNote && <ContextMenu x={exportMenu.x} y={exportMenu.y} trigger={exportMenu.trigger} onClose={() => setExportMenu(null)} items={[
               { id: "pdf", label: t(pdfMode() === "print" ? "export.printPdf" : "export.pdf"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "pdf") },
               { id: "html", label: t("export.html"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "html") },
               { id: "zip", label: t("export.zip"), onSelect: () => void exportNote(activeNote.id, activeNote.title, "zip") },
-            ]} />}
+            ]} />}</PopoverPresence>
             {tabs.find((tab) => tab.noteId === activeId)?.doc.mode === "view" && <Tooltip label={t("viewer.edit")} shortcut={formatShortcut("toggleEdit")}><Button type="button" variant="primary" data-testid="edit-note" aria-label={t("viewer.edit")} onClick={() => { void session.toggleEdit(); }} ><Pencil className="size-4" aria-hidden /><span data-action-text data-action-priority="5">{t("viewer.edit")}</span></Button></Tooltip>}
             {editing && activeTab && <EditSessionHeader doc={activeTab.doc} session={session} compact={headerLayout.compactLevel >= 3} />}
           </div>

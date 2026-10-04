@@ -71,9 +71,11 @@ describe("SettingsView", () => {
     render(<SettingsView />);
     fireEvent.click(screen.getByRole("button", { name: "Koyu" }));
     await waitFor(() => expect(update).toHaveBeenCalledWith({ theme: "dark" }));
-    fireEvent.change(screen.getByLabelText("Dil"), { target: { value: "en" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "Dil" }));
+    fireEvent.click(screen.getByRole("option", { name: "İngilizce" }));
     await waitFor(() => expect(update).toHaveBeenCalledWith({ language: "en" }));
-    fireEvent.change(screen.getByLabelText("Dil"), { target: { value: "system" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "Dil" }));
+    fireEvent.click(screen.getByRole("option", { name: "Sistem" }));
     await waitFor(() => expect(update).toHaveBeenCalledWith({ language: null }));
   });
 

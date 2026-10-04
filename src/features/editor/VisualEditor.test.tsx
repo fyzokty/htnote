@@ -223,11 +223,13 @@ describe("VisualEditor", () => {
     const onChange = vi.fn();
     const view = render(<VisualEditor initialInner="<p>First</p>" onChange={onChange} />);
     screen.getByRole("textbox", { name: "Not içeriği" });
-    act(() => { fireEvent.change(screen.getByRole("combobox"), { target: { value: "h2" } }); });
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "Başlık 2" }));
     expect(onChange).not.toHaveBeenCalled();
     act(() => vi.advanceTimersByTime(150));
     expect(onChange).toHaveBeenCalledWith("<h2>First</h2>");
-    act(() => { fireEvent.change(screen.getByRole("combobox"), { target: { value: "p" } }); });
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "Paragraf" }));
     view.unmount();
     expect(onChange).toHaveBeenCalledTimes(2);
   });
@@ -237,7 +239,8 @@ describe("VisualEditor", () => {
     const onChange = vi.fn();
     const ref = createRef<VisualEditorHandle>();
     render(<VisualEditor ref={ref} initialInner="<p>First</p>" onChange={onChange} />);
-    act(() => fireEvent.change(screen.getByRole("combobox"), { target: { value: "h2" } }));
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "Başlık 2" }));
     expect(onChange).not.toHaveBeenCalled();
     act(() => ref.current?.flush());
     expect(onChange).toHaveBeenCalledWith("<h2>First</h2>");
@@ -263,7 +266,8 @@ describe("VisualEditor", () => {
     vi.useFakeTimers();
     const onChange = vi.fn();
     const view = render(<VisualEditor initialInner={'<p class="x" data-y="1">A</p><canvas id="c"></canvas><script>run()</script>'} onChange={onChange} />);
-    act(() => { fireEvent.change(screen.getByRole("combobox"), { target: { value: "h2" } }); });
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "Başlık 2" }));
     act(() => vi.advanceTimersByTime(150));
     const result = onChange.mock.lastCall?.[0] as string;
     expect(result).toContain('<canvas id="c"></canvas>\n<script>run()</script>');

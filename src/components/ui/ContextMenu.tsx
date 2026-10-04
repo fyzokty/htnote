@@ -1,3 +1,4 @@
+import { useDialogActive } from "./useDialogPresence";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
@@ -21,23 +22,25 @@ interface Props {
 }
 
 export function ContextMenu({ items, x, y, trigger, onClose }: Props) {
+  const active = useDialogActive();
   const menu = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState({ left: x, top: y });
   const enabled = items.map((item, index) => !item.disabled ? index : -1).filter((index) => index >= 0);
   useLayoutEffect(() => {
     const element = menu.current;
-    if (!element) return;
+    if (!element || !active) return;
     const rect = element.getBoundingClientRect();
     setPosition({ left: Math.max(0, Math.min(x, window.innerWidth - rect.width)), top: Math.max(0, Math.min(y, window.innerHeight - rect.height)) });
     element.querySelector<HTMLElement>("[role=menuitem]:not([aria-disabled=true])")?.focus();
-  }, [x, y]);
+  }, [x, y, active]);
   useEffect(() => {
+    if (!active) return;
     function outside(event: PointerEvent) { if (!menu.current?.contains(event.target as Node)) onClose(); }
     document.addEventListener("pointerdown", outside);
     return () => { document.removeEventListener("pointerdown", outside); trigger?.focus(); };
-  }, [onClose, trigger]);
-  function activate(item: ContextMenuItem) { if (!item.disabled) { item.onSelect(); onClose(); } }
-  return <div ref={menu} role="menu" className="htnote-popover-surface select-none fixed z-50 min-w-48 p-1 text-sm text-app-text shadow-lg" style={position} onKeyDown={(event) => {
+  }, [onClose, trigger, active]);
+  function activate(item: ContextMenuItem) { if (active && !item.disabled) { item.onSelect(); onClose(); } }
+  return <div ref={menu} role="menu" inert={!active} aria-hidden={!active || undefined} data-closing={!active} data-side={position.top < y ? "up" : "down"} className="htnote-popover-motion htnote-popover-surface select-none fixed z-50 min-w-48 p-1 text-sm text-app-text shadow-lg" style={position} onKeyDown={(event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); return; }
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();

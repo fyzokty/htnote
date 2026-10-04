@@ -1,3 +1,4 @@
+import { PopoverPresence } from "@/components/ui/PopoverPresence";
 import { Collapsible } from "@/components/ui/Collapsible";
 import { DialogPresence } from "@/components/ui/DialogPresence";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -415,7 +416,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
           {t("tree.dropToRoot")}
         </div>
       )}
-      {menu && <ContextMenu items={menuItems} x={menu.x} y={menu.y} trigger={menu.trigger} onClose={() => setMenu(null)} />}
+      <PopoverPresence>{menu && <ContextMenu items={menuItems} x={menu.x} y={menu.y} trigger={menu.trigger} onClose={() => setMenu(null)} />}</PopoverPresence>
       <DialogPresence>{moveSource && <MoveDialog source={moveSource} tree={tree} onMove={(target) => { void moveNode(moveSource, target); setMoveSource(null); }} onClose={() => setMoveSource(null)} />}</DialogPresence>
     </TreeDropRoot>
     {createPortal(

@@ -1,5 +1,8 @@
 import type { Motion } from "./types";
 
+export const POPOVER_OPEN_MS = 160;
+export const POPOVER_CLOSE_MS = 120;
+
 export function resolveReducedMotion(motion: Motion, systemReduced: boolean): boolean {
   return motion === "off" || (motion === "system" && systemReduced);
 }
