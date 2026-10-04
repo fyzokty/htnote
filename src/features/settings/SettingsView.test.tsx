@@ -57,7 +57,7 @@ describe("SettingsView", () => {
   it("changes theme and language through settings", async () => {
     const update = vi.spyOn(ipc, "updateSettings").mockImplementation(async (patch) => ({ ...settings, ...patch }));
     render(<SettingsView />);
-    fireEvent.change(screen.getByLabelText("Tema"), { target: { value: "dark" } });
+    fireEvent.click(screen.getByRole("button", { name: "Koyu" }));
     await waitFor(() => expect(update).toHaveBeenCalledWith({ theme: "dark" }));
     fireEvent.change(screen.getByLabelText("Dil"), { target: { value: "en" } });
     await waitFor(() => expect(update).toHaveBeenCalledWith({ language: "en" }));
@@ -146,4 +146,14 @@ describe("changeRootFlow", () => {
     await expect(changeRootFlow("C:/Old")).rejects.toThrow("invalid root");
     expect(order).toEqual(["validate"]);
   });
+});
+
+it("copies the root path and retains tag color settings inside the appearance card", async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+  const { container } = render(<SettingsView />);
+  await screen.findByText("C:/Old");
+  fireEvent.click(screen.getByRole("button", { name: "Depolama yolunu kopyala" }));
+  expect(writeText).toHaveBeenCalledWith("C:/Old");
+  expect(container.querySelector("#settings-tag-colors")?.closest("section")).toHaveAttribute("aria-labelledby", "settings-appearance");
 });

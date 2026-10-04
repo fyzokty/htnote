@@ -12,6 +12,8 @@ it("styles cancel and destructive confirmation and preserves focus trapping", ()
   render(<ConfirmDialog />);
   const cancel = screen.getByRole("button", { name: "İptal" });
   const confirm = screen.getByRole("button", { name: "Sil" });
+  expect(screen.getByRole("dialog")).toHaveClass("htnote-dialog-surface");
+  expect(screen.getByRole("dialog").parentElement).toHaveClass("htnote-dialog-backdrop");
   expect(cancel).toHaveClass("htnote-button-secondary");
   expect(confirm).toHaveClass("htnote-button-danger");
   expect(cancel).toHaveFocus();

@@ -283,7 +283,7 @@ export function SidebarTree({ onOpenNote }: { onOpenNote: (id: string) => void }
       { id: "exportZip", label: `${t("viewer.export")} ▸ ${t("export.zip")}`, disabled: exportBusy, onSelect: () => { if (menu.node.type === "note") void exportNote(menu.node.id, menu.node.title, "zip"); } },
     ] : []),
     { id: "reveal", label: t("tree.reveal"), onSelect: () => void revealNode(menu.node) },
-    { id: "trash", label: t("tree.trash"), onSelect: () => void deleteTreeItem(menu.node) },
+    { id: "trash", danger: true, label: t("tree.trash"), onSelect: () => void deleteTreeItem(menu.node) },
   ] : [];
 
   const isRootTarget = dragSource !== null && dropPath === "";

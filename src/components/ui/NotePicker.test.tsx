@@ -24,7 +24,9 @@ describe("NotePicker", () => {
     const onSelect = vi.fn();
     render(<NotePicker currentNoteId={first} onSelect={onSelect} onClose={vi.fn()} />);
     fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
-    expect(onSelect).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toHaveClass("htnote-dialog-surface");
+  expect(screen.getByRole("dialog").parentElement).toHaveClass("htnote-dialog-backdrop");
+  expect(onSelect).not.toHaveBeenCalled();
     expect(screen.queryByRole("option")).toBeNull();
     act(() => { useTreeStore.setState({ tree }); });
     fireEvent.click(screen.getByRole("option", { name: "İzmir" }));

@@ -38,7 +38,7 @@ it("measures natural widths on resize and restores full metadata when space retu
   expect(JSON.parse(screen.getByTestId("layout").textContent!)).toEqual({ titleWidth: 180, pathWidth: 120, savedWidth: 200, visibleTags: 2, compactLevel: 0 });
   available = 470;
   act(() => resize?.());
-  expect(JSON.parse(screen.getByTestId("layout").textContent!)).toEqual({ titleWidth: 180, pathWidth: 120, savedWidth: 0, visibleTags: 0, compactLevel: 0 });
+  expect(JSON.parse(screen.getByTestId("layout").textContent!)).toEqual({ titleWidth: 180, pathWidth: 24, savedWidth: 0, visibleTags: 1, compactLevel: 0 });
   available = 800;
   act(() => resize?.());
   expect(JSON.parse(screen.getByTestId("layout").textContent!)).toEqual({ titleWidth: 180, pathWidth: 120, savedWidth: 200, visibleTags: 2, compactLevel: 0 });

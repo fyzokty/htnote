@@ -32,7 +32,7 @@ export function TagsSection() {
       {expanded ? <ChevronDown className="size-4" aria-hidden /> : <ChevronRight className="size-4" aria-hidden />}
       <Tags className="size-4" aria-hidden />{t("tags.title").toLocaleUpperCase(i18n.language)}
     </Button>
-    {expanded && <div className="max-h-48 overflow-y-auto">{tags.map(({ tag, count }) => <div key={tag} className="flex items-center gap-1"><TagColorPicker tag={tag} /><Button variant="ghost" size="sm" type="button"
+    {expanded && <div className="max-h-48 overflow-y-auto">{tags.map(({ tag, count }) => <div key={tag} className="htnote-tag-row flex items-center"><TagColorPicker tag={tag} /><Button variant="ghost" size="sm" type="button"
       aria-pressed={!!filterTag && normalizeText(filterTag) === normalizeText(tag)}
       onClick={() => setFilterTag(filterTag && normalizeText(filterTag) === normalizeText(tag) ? null : tag)}
       className={`flex w-full min-w-0 items-center justify-between rounded px-2 py-1 text-left text-sm hover:bg-app-subtle ${filterTag && normalizeText(filterTag) === normalizeText(tag) ? "bg-app-selected text-app-accent" : ""}`}><span className="flex min-w-0 items-center gap-2"><span className="truncate">#{tag}</span></span><span className="text-app-muted">{count}</span></Button></div>)}</div>}

@@ -2,6 +2,8 @@
 
 Bu doküman, HTNote uygulamasının kullanıcı arayüzü düzenini, ekran yerleşimlerini (wireframe), etkileşim modellerini ve klavye kısayollarını tanımlar.
 
+> D29 uyarınca güncel görsel kaynak [`DESIGN.md`](../DESIGN.md) belgesidir. Özel başlık çubuğu sekmeleri ve pencere düğmelerini taşır; başlık çubuğundaki arama düğmesi tam metin aramayı açar, hızlı filtre kenar çubuğundadır. Kenar çubuğu ve çalışma alanı yuvarlak kartlardır. Arama buzlu örtülü, sonuç pill’leri ve klavye ipuçları olan bir diyalogdur. Ayarlar Depolama, Görünüm ve Hakkında olmak üzere üç karttır; tema segmentleri, dil listesi, sekme/içerik genişliği kontrolleri ve etiket renkleri korunur. Aşağıdaki wireframe işlevsel yerleşimi özetler.
+
 > ⚠️ **Karar kaydı önceliklidir:** Bu doküman ile [`decisions.md`](decisions.md) çelişirse `decisions.md` geçerlidir.
 
 ---
@@ -12,7 +14,7 @@ Uygulama arayüzü 3 ana bölgeden oluşur: **Sol Kenar Çubuğu (Sidebar)**, **
 
 ```text
 +---------------------------------------------------------------------------------------+
-|  [Logo] HTNote     [Not 1 x] [Not 2 * x] [+]                     [_] [口] [X] (Window)|
+|  [☰]             [Not 1 x] [Not 2 * x] [+]                     [_] [口] [X] (Window)|
 +-------------------+-------------------------------------------------------------------+
 | [Hızlı Filtre..]  |  Not Başlığı (h1)                [⭐] [Dışa Aktar v] [ Düzenle ✏️ ] |
 |-------------------|-------------------------------------------------------------------|
@@ -42,7 +44,7 @@ Uygulama arayüzü 3 ana bölgeden oluşur: **Sol Kenar Çubuğu (Sidebar)**, **
   - `[+ Not]` : Seçili klasörün içinde anında yeni boş not oluşturur.
   - `[+ Klasör]` : Yeni klasör açar.
   - `[🔍 Ara]` : Genel tam metin arama penceresini (`Ctrl+Shift+F`) tetikler.
-- **Hızlı Filtre Çubuğu:** Girilen anahtar kelimeye göre sol ağaçtaki başlıkları anlık olarak süzer.
+- **Hızlı Filtre Çubuğu:** Kenar çubuğundaki alana girilen anahtar kelime sol ağaçtaki başlıkları anlık olarak süzer.
 - **Favoriler Bölümü:** Ağacın üstünde, favori notların düz listesi (daraltılabilir).
 - **Etiketler Bölümü:** Ağacın altında etiket listesi; tıklanan etiket ağacı süzer.
 - **Klasör Ağacı:**

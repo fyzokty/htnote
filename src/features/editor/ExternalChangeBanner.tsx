@@ -70,7 +70,7 @@ export function ExternalChangeBanner({ noteId, doc }: { noteId: string; doc: Doc
   }
 
   return (
-    <div role="alert" className="flex shrink-0 items-center gap-3 border-b border-app-border bg-app-subtle px-4 py-2 text-sm">
+    <div role="alert" className="htnote-external-banner flex shrink-0 items-center gap-3 border-b border-app-border bg-app-subtle px-4 py-2 text-sm">
       <span className="select-text">{doc.removedOnDisk ? t("external.removed") : t("external.changed")}</span>
       {doc.removedOnDisk
         ? <Button type="button" disabled={busy} variant="primary" onClick={() => { void saveAs(); }}>{t("external.saveAs")}</Button>

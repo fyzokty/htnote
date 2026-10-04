@@ -10,7 +10,7 @@ describe("fitNoteHeader", () => {
     expect(fitNoteHeader({ ...measurements, available: 1500 })).toMatchObject({ saved: 220, visibleTags: 2, title: 240 });
   });
   it("folds tags before secondary action labels and never leaves a one-letter saved text", () => {
-    expect(fitNoteHeader({ ...measurements, available: 1050 })).toMatchObject({ saved: 0, visibleTags: 0, compactLevel: 0, title: 240 });
+    expect(fitNoteHeader({ ...measurements, available: 1050 })).toMatchObject({ path: 24, saved: 0, visibleTags: 1, compactLevel: 0, title: 240 });
   });
   it("folds export, cancel, modes, save shortcut and save label in that order", () => {
     for (const [available, compactLevel] of [[950, 1], [880, 2], [830, 3], [760, 4], [700, 5]]) {
@@ -26,4 +26,13 @@ describe("fitNoteHeader", () => {
   it("handles absent metadata and short titles without reserving unnecessary space", () => {
     expect(fitNoteHeader({ available: 400, title: 100, path: 0, saved: 0, tags: [], add: 80, overflow: 32 })).toEqual({ title: 100, path: 0, saved: 0, visibleTags: 0, compactLevel: 0 });
   });
+  it("keeps two short tags when shortening the breadcrumb provides enough room", () => {
+    expect(fitNoteHeader({ available: 600, title: 140, path: 220, saved: 0,
+      tags: [64, 64], add: 80, overflow: 32, actions: 180 })).toMatchObject({ visibleTags: 2, title: 140, compactLevel: 0 });
+  });
+  it("preserves every tag at the exact measured width including all gaps", () => {
+    expect(fitNoteHeader({ available: 600, title: 140, path: 120, saved: 0,
+      tags: [64, 64], add: 80, overflow: 32, actions: 100 })).toMatchObject({ visibleTags: 2, path: 120, title: 140 });
+  });
+
 });

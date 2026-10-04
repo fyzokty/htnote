@@ -67,7 +67,7 @@ export function Tooltip({ label, shortcut, children, className = "" }: Props) {
       onPointerDown={close}>
       {cloneElement(children, { "aria-describedby": describedBy })}
     </span>
-    {open && createPortal(<div ref={tip} id={id} role="tooltip" className="htnote-tooltip select-none" style={position}>
+    {open && createPortal(<div ref={tip} id={id} role="tooltip" className="htnote-popover-surface htnote-tooltip select-none" style={position}>
       <span>{label}</span>{shortcut && <kbd aria-label={t("ui.shortcutHint")}>{shortcut}</kbd>}
     </div>, document.body)}
   </>;

@@ -170,7 +170,7 @@ it("allows snippet selection without opening the result on the trailing mouse cl
   await waitFor(() => expect(useTabsStore.getState().activeId).toBe("a"));
 });
 
-it("renders snippets with accent highlighting and 2-line clamp", async () => {
+it("renders snippets with warm highlighting and 2-line clamp", async () => {
   const customResults: SearchNotesResult = {
     indexing: false,
     results: [
@@ -195,6 +195,38 @@ it("renders snippets with accent highlighting and 2-line clamp", async () => {
   const mark = snippetContainer.querySelector("mark");
   expect(mark).toBeInTheDocument();
   expect(mark).toHaveTextContent("vurgu");
-  expect(mark).toHaveClass("bg-app-accent/20");
+  expect(mark).toHaveClass("htnote-search-match");
 });
 
+
+it("shows pills, counter and navigation badges, and clears without opening a result", async () => {
+  mockIPC((command) => command === "search_notes" ? results : undefined); render(<SearchModal />);
+  expect(screen.getByRole("dialog")).toHaveClass("htnote-dialog-surface");
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "alpha" } }); await screen.findByRole("option", { name: "Alpha" });
+  expect(screen.getAllByTestId("search-path-pill")).toHaveLength(2);
+  expect(screen.getAllByTestId("search-match-pill")[1]).toHaveTextContent("2 eşleşme");
+  expect(screen.getByTestId("search-found")).toHaveTextContent("2 not bulundu");
+  expect(screen.getByText("↑").tagName).toBe("KBD"); expect(screen.getByText("Enter").tagName).toBe("KBD");
+  const clear = screen.getByRole("button", { name: "Aramayı temizle" }); fireEvent.keyDown(clear, { key: "Enter" });
+  expect(useTabsStore.getState().tabs).toHaveLength(0); fireEvent.click(clear);
+  expect(screen.getByRole("searchbox")).toHaveValue(""); expect(screen.getByRole("searchbox")).toHaveFocus();
+  expect(screen.getByTestId("search-found")).toHaveTextContent("0 not bulundu");
+});
+it("traps focus through changing results and restores the trigger", async () => {
+  mockIPC((command) => command === "search_notes" ? results : undefined);
+  const trigger = document.createElement("button"); document.body.append(trigger); trigger.focus();
+  const modal = render(<SearchModal />); fireEvent.change(screen.getByRole("searchbox"), { target: { value: "alpha" } });
+  const last = await screen.findByRole("option", { name: "Beta" }); last.focus(); fireEvent.keyDown(last, { key: "Tab" });
+  expect(screen.getByRole("button", { name: "Aramayı kapat" })).toHaveFocus(); fireEvent.keyDown(document.activeElement!, { key: "Tab", shiftKey: true }); expect(last).toHaveFocus();
+  modal.unmount(); expect(trigger).toHaveFocus(); trigger.remove();
+});
+it("announces prompt, loading, empty and error states", async () => {
+  let reject!: (reason: unknown) => void;
+  mockIPC((command) => command === "search_notes" ? new Promise((_, rejectPromise) => { reject = rejectPromise; }) : undefined);
+  render(<SearchModal />); expect(screen.getByText("Aramak için en az iki karakter yazın.")).toBeInTheDocument();
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "missing" } }); expect(screen.getByText("Aranıyor...")).toBeInTheDocument();
+  await waitFor(() => expect(reject).toBeDefined()); await act(async () => reject(new Error("failed")));
+  expect(screen.getByText("Arama başarısız oldu.")).toBeInTheDocument();
+  mockIPC((command) => command === "search_notes" ? { indexing: false, results: [] } : undefined);
+  fireEvent.change(screen.getByRole("searchbox"), { target: { value: "empty" } }); expect(await screen.findByText("Sonuç bulunamadı")).toBeInTheDocument();
+});

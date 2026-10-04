@@ -1,3 +1,4 @@
+import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -46,9 +47,9 @@ export function TrashView() {
         <h2 className="text-xl font-semibold">{t("sidebar.trash")}</h2>
         <Button type="button" disabled={!items.length} onClick={() => void empty()} variant="danger">{t("trash.emptyTrash")}</Button>
       </div>
-      {!items.length ? <p className="text-app-muted">{t("trash.empty")}</p> : (
+      {!items.length ? <div className="htnote-empty-state"><Trash2 aria-hidden /><p>{t("trash.empty")}</p></div> : (
         <ul className="space-y-2">{items.map((item) => (
-          <li key={item.trashId} className="flex flex-wrap items-center gap-3 rounded border border-app-border p-3">
+          <li key={item.trashId} className="flex flex-wrap items-center gap-3 rounded-2xl border border-app-card-border bg-app-card p-4 shadow-sm">
             <div className="min-w-0 flex-1">
               <p className="font-medium">{item.title}</p>
               <p className="break-all text-sm text-app-muted">{t(`trash.kind.${item.kind}`)} · {item.originalRelPath} · {new Intl.DateTimeFormat(i18n.language, { dateStyle: "medium", timeStyle: "short" }).format(new Date(item.deletedAt))}</p>

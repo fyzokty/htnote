@@ -27,9 +27,19 @@ export function MoveDialog({ source, tree, onMove, onClose }: Props) {
   const [focused, setFocused] = useState(valid[0]?.path ?? "");
   const dialog = useRef<HTMLDivElement>(null);
   const listbox = useRef<HTMLDivElement>(null);
-  useEffect(() => { dialog.current?.querySelector<HTMLElement>("[role=listbox]")?.focus(); }, []);
+  useEffect(() => {
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialog.current?.querySelector<HTMLElement>("[role=listbox]")?.focus();
+    return () => previous?.focus();
+  }, []);
   function onKeyDown(event: KeyboardEvent) {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); }
+    if (event.key === "Tab") {
+      const controls = [...(dialog.current?.querySelectorAll<HTMLElement>('[role="listbox"], button:not(:disabled):not([tabindex="-1"])') ?? [])];
+      const first = controls[0]; const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }
     if (event.target !== listbox.current) return;
     if (event.key === "Enter") {
       event.preventDefault(); event.stopPropagation();
@@ -44,8 +54,8 @@ export function MoveDialog({ source, tree, onMove, onClose }: Props) {
       }
     }
   }
-  return <div className="fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
-    <div ref={dialog} role="dialog" aria-modal="true" aria-label={t("tree.moveTitle")} tabIndex={-1} onKeyDown={onKeyDown} className="max-h-[80vh] w-80 overflow-y-auto rounded-lg bg-app-surface p-4 text-app-text shadow-xl outline-none">
+  return <div className="htnote-dialog-backdrop fixed inset-0 z-50 flex items-center justify-center bg-app-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
+    <div ref={dialog} role="dialog" aria-modal="true" aria-label={t("tree.moveTitle")} tabIndex={-1} onKeyDown={onKeyDown} className="htnote-dialog-surface max-h-[80vh] w-80 overflow-y-auto  p-4 text-app-text shadow-xl outline-none">
       <h2 className="mb-3 font-semibold">{t("tree.moveTitle")}</h2>
       <div ref={listbox} role="listbox" tabIndex={0} aria-label={t("tree.moveTarget")} aria-activedescendant={valid.some((folder) => folder.path === focused) ? `move-${folders.findIndex((folder) => folder.path === focused)}` : undefined}>
         {folders.map((folder, index) => {
