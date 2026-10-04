@@ -213,6 +213,26 @@
   document.addEventListener("contextmenu", (event) => {
     if (event.target?.closest?.("video")) event.preventDefault();
   }, true);
+  // Host dinleyicisi ayrı origin'deki iframe'e ulaşamaz; kural burada da uygulanır.
+  const textInputTypes = new Set(["text", "search", "email", "url", "tel", "password", "number"]);
+  window.addEventListener("contextmenu", (event) => {
+    const target = event.target;
+    const element = target instanceof Element ? target : target instanceof Node ? target.parentElement : null;
+    if (element) {
+      if (element.closest("textarea, .cm-editor")) return;
+      if (element instanceof HTMLInputElement && textInputTypes.has(element.type)) return;
+      const editable = element.closest("[contenteditable]")?.getAttribute("contenteditable")?.toLowerCase();
+      if (editable === "" || editable === "true" || editable === "plaintext-only") return;
+      const selection = window.getSelection();
+      if (selection && selection.toString().trim()) {
+        for (let index = 0; index < selection.rangeCount; index++) {
+          const range = selection.getRangeAt(index);
+          if (!range.collapsed && range.intersectsNode(element)) return;
+        }
+      }
+    }
+    event.preventDefault();
+  });
   const send = (type, payload = {}) => window.parent.postMessage({ type, ...payload }, "*");
   const external = /^(https?:|mailto:)/i;
   const note = /^htnote:\/\/note\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/?$/i;

@@ -6,9 +6,11 @@ import "@/i18n";
 import { applyThemeClass, readCachedThemeMode } from "@/lib/theme";
 import { ipc } from "@/lib/ipc";
 import { initNoteOrigin } from "@/lib/noteUrl";
+import { installContextMenuGuard } from "@/lib/contextMenuGuard";
 import "@fontsource-variable/plus-jakarta-sans/wght.css";
 import "@/index.css";
 
+installContextMenuGuard();
 applyThemeClass(readCachedThemeMode() ?? (window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light"));
 
 void ipc.getNoteOrigin().then((origin) => {
