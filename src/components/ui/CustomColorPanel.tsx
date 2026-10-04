@@ -1,3 +1,4 @@
+import { useDialogActive } from "./useDialogPresence";
 import { useState, type PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { resolveCustomColor, hexToHsv, hsvToHex, readRecentColors, rememberColor, validHex, type HSV } from "@/lib/colors";
@@ -5,6 +6,7 @@ import { Button } from "./Button";
 
 export function CustomColorPanel({ value, getComputedColor, onApply, onCancel }: { value: string; getComputedColor?: () => string; onApply: (color: string) => void; onCancel: () => void }) {
   const { t } = useTranslation();
+  const active = useDialogActive();
   const [initialColor] = useState(() => resolveCustomColor(value, getComputedColor?.() ?? "",
     getComputedStyle(document.documentElement).getPropertyValue("--app-accent")));
   const [hsv, setHsv] = useState(() => hexToHsv(initialColor));
@@ -18,7 +20,7 @@ export function CustomColorPanel({ value, getComputedColor, onApply, onCancel }:
     update({ ...hsv, s: Math.max(0, Math.min(100, (event.clientX - rect.left) / rect.width * 100)),
       v: Math.max(0, Math.min(100, 100 - (event.clientY - rect.top) / rect.height * 100)) });
   };
-  return <div className="htnote-custom-color" onKeyDown={(event) => {
+  return <div inert={!active} aria-hidden={!active || undefined} data-closing={!active} className="htnote-custom-color htnote-popover-motion" onKeyDown={(event) => {
     if (event.key === "Enter" && (event.target as HTMLElement).tagName !== "BUTTON") { event.preventDefault(); apply(); }
   }}>
     <div role="slider" tabIndex={0} aria-label={t("colors.saturationBrightness")} aria-valuemin={0} aria-valuemax={100}

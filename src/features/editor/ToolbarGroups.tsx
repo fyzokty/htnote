@@ -1,3 +1,5 @@
+import { DialogActiveContext } from "@/components/ui/useDialogPresence";
+import { usePresence } from "@/components/ui/usePresence";
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { MoreHorizontal } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -39,19 +41,21 @@ export function ToolbarGroups({ groups }: { groups: ReactNode[] }) {
     if (!open) return;
     if (focusOnOpen.current) panel.current?.querySelector<HTMLElement>("button:not(:disabled), select, input")?.focus();
     const outside = (event: PointerEvent) => {
-      if (!root.current?.contains(event.target as Node) && !(event.target as HTMLElement).closest?.(".htnote-color-popover, .htnote-font-popover, .htnote-tooltip")) setOpen(false);
+      if (!root.current?.contains(event.target as Node) && !(event.target as HTMLElement).closest?.(".htnote-color-popover, .htnote-font-popover, .htnote-select-popover, .htnote-tooltip")) setOpen(false);
     };
     document.addEventListener("pointerdown", outside);
     return () => document.removeEventListener("pointerdown", outside);
   }, [open]);
   const hasOverflow = visible.length < groups.length;
+  const presence = usePresence(open && hasOverflow ? true : null);
+  const overflowGroups = <DialogActiveContext value={open && hasOverflow}>{groups.map((group, index) => !visible.includes(index) && <div className="htnote-toolbar-group-slot" data-toolbar-group={index} key={index}>{group}</div>)}</DialogActiveContext>;
   return <div ref={root} className="htnote-toolbar-groups">
     {visible.map((index) => <div className="htnote-toolbar-group-slot" data-toolbar-group={index} key={index}>{groups[index]}</div>)}
     {hasOverflow && <IconButton ref={trigger} size="sm" data-testid="editor-overflow" label={t("editor.overflow")}
       aria-haspopup="dialog" aria-expanded={open} aria-controls={id} onMouseDown={(event) => event.preventDefault()}
       onClick={(event) => { focusOnOpen.current = event.detail === 0; setOpen(!open); }}><MoreHorizontal size={16} aria-hidden="true" /></IconButton>}
-    <div id={id} ref={panel} role="dialog" aria-label={t("editor.overflow")} aria-hidden={!open || !hasOverflow}
-      inert={!open || !hasOverflow} className="htnote-toolbar-overflow" data-open={open && hasOverflow}
+    {presence.mounted ? <div key="menu" id={id} ref={panel} role="dialog" aria-label={t("editor.overflow")} aria-hidden={!open || !hasOverflow}
+      inert={!open || !hasOverflow} className={`htnote-toolbar-overflow ${presence.mounted ? "htnote-popover-motion" : ""}`} data-closing={presence.closing} data-open={presence.mounted}
       onKeyDown={(event) => {
         if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); }
         if (event.key === "Tab" || (["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp"].includes(event.key) && !["SELECT", "INPUT"].includes((event.target as HTMLElement).tagName))) {
@@ -61,7 +65,7 @@ export function ToolbarGroups({ groups }: { groups: ReactNode[] }) {
           controls[(controls.indexOf(document.activeElement as HTMLElement) + (backward ? controls.length - 1 : 1)) % controls.length]?.focus();
         }
       }}>
-      {groups.map((group, index) => !visible.includes(index) && <div className="htnote-toolbar-group-slot" data-toolbar-group={index} key={index}>{group}</div>)}
-    </div>
+      {overflowGroups}
+    </div> : <div key="measure" className="htnote-toolbar-measure" inert aria-hidden>{overflowGroups}</div>}
   </div>;
 }

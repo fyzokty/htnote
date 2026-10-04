@@ -7,13 +7,14 @@ export type DropHandler = (paths: string[], point: DropPoint) => Promise<void>;
 const handlers = new Map<string, DropHandler>();
 const previews = new Map<string, (point: DropPoint | null) => void>();
 
-export function registerDropPreview(noteId: string, preview: (point: DropPoint | null) => void): () => void {
-  previews.set(noteId, preview);
-  return () => { preview(null); if (previews.get(noteId) === preview) previews.delete(noteId); };
+export function registerDropPreview(noteId: string, preview: (point: DropPoint | null) => void, editor: DropEditor = "visual"): () => void {
+  const key = `${noteId}:${editor}`;
+  previews.set(key, preview);
+  return () => { preview(null); if (previews.get(key) === preview) previews.delete(key); };
 }
 
-export function updateDropPreview(noteId: string | null, point: DropPoint | null): void {
-  for (const [id, preview] of previews) preview(id === noteId ? point : null);
+export function updateDropPreview(noteId: string | null, point: DropPoint | null, editor: DropEditor = "visual"): void {
+  for (const [id, preview] of previews) preview(id === `${noteId}:${editor}` ? point : null);
 }
 
 export function toCssPoint(point: DropPoint, scale: number): DropPoint {

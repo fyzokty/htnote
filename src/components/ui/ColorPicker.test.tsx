@@ -54,7 +54,7 @@ describe("ColorPicker", () => {
     openCustom();
     fireEvent.keyDown(screen.getByRole("slider", { name: "Doygunluk ve parlaklık" }), { key: "ArrowRight" });
     fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
-    expect(screen.queryByLabelText("Hex renk")).toBeNull();
+    expect(screen.queryByRole("textbox", { name: "Hex renk" })).toBeNull();
     expect(screen.getByRole("button", { name: "Kırmızı" })).toBeInTheDocument();
     openCustom();
     fireEvent.click(screen.getByRole("button", { name: "İptal" }));

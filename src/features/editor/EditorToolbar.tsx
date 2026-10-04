@@ -1,7 +1,9 @@
+import { Select } from "@/components/ui/Select";
+import { usePresence } from "@/components/ui/usePresence";
 import type { CSSProperties } from "react";
 import { COLOR_NAMES } from "@/lib/colors";
 import { ColorPicker } from "@/components/ui/ColorPicker";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
 import { useTranslation } from "react-i18next";
 import { open } from "@tauri-apps/plugin-dialog";
@@ -26,9 +28,11 @@ interface EditorToolbarProps { editor: Editor; noteId?: string; onLinkNote?: () 
 export function EditorToolbar({ editor, noteId = "", onLinkNote }: EditorToolbarProps) {
   const { t } = useTranslation();
   const [, setRevision] = useState(0);
+  const blockSelection = useRef({ from: 1, to: 1 });
   const [linkOpen, setLinkOpen] = useState(false);
   const [linkUrl, setLinkUrl] = useState("");
   const [linkError, setLinkError] = useState(false);
+  const linkPresence = usePresence(linkOpen ? true : null);
   const selectedColor = editor.getAttributes("textStyle").color as string | undefined;
   const colorOptions = COLOR_NAMES.map((name) => ({
     value: `var(--ht-color-${name}, ${getComputedStyle(document.documentElement).getPropertyValue(`--app-color-${name}`).trim() || "currentColor"})`,
@@ -93,16 +97,15 @@ export function EditorToolbar({ editor, noteId = "", onLinkNote }: EditorToolbar
           {action(t("editor.redo"), <Redo2 size={16} />, () => editor.chain().focus().redo().run(), false, !editor.can().redo(), formatShortcut("editorRedo"))}
         </div>,
         <div key="0" className="htnote-editor-group" role="group" aria-label={t("editor.groups.text")}>
-          <Tooltip label={t("editor.blockType")}><select className="htnote-block-select" aria-label={t("editor.blockType")}
+          <Tooltip label={t("editor.blockType")}><Select className="htnote-block-select" aria-label={t("editor.blockType")}
             value={editor.isActive("heading") ? `h${editor.getAttributes("heading").level}` : "p"}
-            onChange={(event) => {
-              const value = event.target.value;
-              if (value === "p") editor.chain().focus().setParagraph().run();
-              else editor.chain().focus().setHeading({ level: Number(value.slice(1)) as 1 | 2 | 3 | 4 | 5 | 6 }).run();
-            }}>
-            <option value="p">{t("editor.paragraph")}</option>
-            {[1, 2, 3, 4, 5, 6].map((level) => <option key={level} value={`h${level}`}>{t("editor.heading", { level })}</option>)}
-          </select></Tooltip>
+            onOpen={() => { blockSelection.current = { from: editor.state.selection.from, to: editor.state.selection.to }; }}
+            options={[{ value: "p", label: t("editor.paragraph") }, ...[1, 2, 3, 4, 5, 6].map((level) => ({ value: `h${level}`, label: t("editor.heading", { level }) }))]}
+            onChange={(value) => {
+              const chain = editor.chain().focus().setTextSelection(blockSelection.current);
+              if (value === "p") chain.setParagraph().run();
+              else chain.setHeading({ level: Number(value.slice(1)) as 1 | 2 | 3 | 4 | 5 | 6 }).run();
+            }} /></Tooltip>
           <FontFamilySelector editor={editor} />
           <FontSizeSelector editor={editor} />
         </div>,
@@ -147,7 +150,7 @@ export function EditorToolbar({ editor, noteId = "", onLinkNote }: EditorToolbar
           {action(t("editor.removeLink"), <Link2Off size={16} />, () => editor.chain().focus().unsetLink().run(), false, !editor.isActive("link"))}
         </div>,
       ]} />
-      {linkOpen && <div className="htnote-editor-link">
+      {linkPresence.mounted && <div inert={!linkOpen} aria-hidden={!linkOpen || undefined} data-closing={!linkOpen} className="htnote-editor-link htnote-popover-motion">
         <input aria-label={t("editor.linkUrl")} type="url" value={linkUrl} onChange={(event) => setLinkUrl(event.target.value)}
           onKeyDown={(event) => { if (event.key === "Enter") applyLink(); if (event.key === "Escape") setLinkOpen(false); }} />
         <Tooltip label={t("editor.applyLink")}><Button size="sm" variant="primary" onClick={applyLink}>{t("editor.applyLink")}</Button></Tooltip>

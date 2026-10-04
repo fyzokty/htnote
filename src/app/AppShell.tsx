@@ -157,7 +157,7 @@ export function AppShell() {
         if (editor === "code") target?.classList.add("htnote-drop-target");
         hovered = target;
       }
-      updateDropPreview(editor === "visual" && handler ? tabs.activeId : null, event.type === "drop" ? null : point);
+      updateDropPreview(handler ? tabs.activeId : null, event.type === "drop" ? null : point, editor ?? "visual");
       if (event.type === "drop") {
         clearHover();
         if (handler) void handler(event.paths, point);

@@ -1,4 +1,5 @@
-import { DialogPresence } from "@/components/ui/DialogPresence";
+import { codeDropPosition, createCodeDropCursor } from "./codeDrop";
+import { PopoverPresence } from "@/components/ui/PopoverPresence";
 import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Compartment } from "@codemirror/state";
@@ -12,9 +13,9 @@ import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { NotePicker } from "@/components/ui/NotePicker";
-import { codeChange, codeTheme, createCodeState, formatHtmlDocument } from "@/features/editor/codeState";
+import { codeChange, codeTheme, createCodeState, formatHtmlDocument, insertCodeDrop } from "@/features/editor/codeState";
 import type { CodeChange, CodeTab } from "@/features/editor/codeState";
-import { codeTagFor, copyFilesSequentially, fileName, registerDropHandler } from "@/features/editor/fileDrop";
+import { codeTagFor, copyFilesSequentially, fileName, registerDropHandler, registerDropPreview, updateDropPreview } from "@/features/editor/fileDrop";
 import { codeNoteLink } from "@/features/editor/noteLinks";
 import { useThemeMode } from "@/hooks/useThemeMode";
 import { formatShortcut } from "@/lib/shortcuts/registry";
@@ -63,19 +64,20 @@ export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = 
 
   useEffect(() => {
     if (activeTab !== "html") return;
-    return registerDropHandler(noteId, "code", async (paths, point) => {
+    const unregister = registerDropHandler(noteId, "code", async (paths, point) => {
       const view = viewRef.current;
       if (!view || activeRef.current !== "html") {
         useUiStore.getState().pushToast({ kind: "info", messageKey: "editor.dropInEditMode" });
         return;
       }
-      const position = view.posAtCoords({ x: point.x, y: point.y }) ?? view.state.selection.main.head;
+      const position = codeDropPosition(view, point);
       const copied = await copyFilesSequentially(paths, (path) => ipc.copyAsset(noteId, path),
         (path) => useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.dropCopyFailed", params: { name: fileName(path) } }));
       if (viewRef.current !== view || activeRef.current !== "html" || !copied.length) return;
-      const tags = copied.map(({ result, path }) => codeTagFor(result, fileName(path))).join("");
-      view.dispatch({ changes: { from: position, insert: tags }, selection: { anchor: position + tags.length } });
+      const tags = copied.map(({ result, path }) => codeTagFor(result, fileName(path)));
+      insertCodeDrop(view, position, tags);
     });
+    return unregister;
   }, [noteId, activeTab]);
 
   useEffect(() => {
@@ -102,6 +104,14 @@ export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = 
     // İlk belge yalnızca mount sırasında yüklenir; sonraki prop güncellemeleri aşağıdaki effect'tedir.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (activeTab !== "html" || !view) return;
+    const cursor = createCodeDropCursor(view);
+    const unregister = registerDropPreview(noteId, (point) => cursor.update(point), "code");
+    return () => { unregister(); cursor.destroy(); };
+  }, [noteId, activeTab]);
 
   useEffect(() => {
     const states = statesRef.current;
@@ -131,6 +141,8 @@ export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = 
 
   const switchTab = (tab: CodeTab) => {
     if (tab === activeRef.current || !statesRef.current || !viewRef.current) return;
+    // Sekme değişimi çizimden önce eski önizlemeyi kaldırır.
+    updateDropPreview(null, null);
     statesRef.current[activeRef.current] = viewRef.current.state;
     activeRef.current = tab;
     viewRef.current.setState(statesRef.current[tab]);
@@ -179,7 +191,7 @@ export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = 
         </div>
       </div>
       <div className="htnote-code-host" ref={hostRef} id={`${tabId}-panel`} role="tabpanel" aria-labelledby={`${tabId}-${activeTab}`} />
-      <DialogPresence>{pickerOpen && <NotePicker currentNoteId={noteId} onSelect={selectNote} onClose={() => setPickerOpen(false)} />}</DialogPresence>
+      <PopoverPresence>{pickerOpen && <NotePicker currentNoteId={noteId} onSelect={selectNote} onClose={() => setPickerOpen(false)} />}</PopoverPresence>
     </section>
   );
 }

@@ -141,7 +141,8 @@ describe("EditorToolbar", () => {
     const redo = screen.getByRole("button", { name: "Yinele" });
     expect(undo).toBeDisabled();
     expect(redo).toBeDisabled();
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "h2" } });
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "Başlık 2" }));
     expect(undo).toBeEnabled();
     fireEvent.click(undo);
     expect(editor.getHTML()).toBe("<p>Text</p>");
@@ -184,9 +185,10 @@ describe("EditorToolbar", () => {
   it("runs formatting commands and reflects the active block", () => {
     editor = new Editor({ extensions: createVisualExtensions(""), content: "<p>Text</p>" });
     render(<EditorToolbar editor={editor} />);
-    fireEvent.change(screen.getByRole("combobox"), { target: { value: "h2" } });
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "Başlık 2" }));
     expect(editor.getHTML()).toContain("<h2>Text</h2>");
-    expect(screen.getByRole("combobox")).toHaveValue("h2");
+    expect(screen.getByRole("combobox")).toHaveTextContent("Başlık 2");
     fireEvent.click(screen.getByRole("button", { name: "Madde listesi" }));
     expect(editor.getHTML()).toContain("<ul>");
     expect(screen.getByRole("button", { name: "Madde listesi" })).toHaveAttribute("aria-pressed", "true");

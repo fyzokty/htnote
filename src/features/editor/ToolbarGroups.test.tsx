@@ -25,7 +25,7 @@ it("remeasures reordered overflow groups, restores controls and shows shortcut t
   expect(screen.queryByTestId("editor-overflow")).not.toBeInTheDocument();
   width = 800;
   act(() => resize());
-  expect(document.querySelector('.htnote-toolbar-overflow [data-toolbar-group="4"]')).toBeInTheDocument();
+  expect(document.querySelector('.htnote-toolbar-measure [data-toolbar-group="4"]')).toBeInTheDocument();
   expect(document.querySelector('.htnote-toolbar-groups > [data-toolbar-group="0"]')).toBeInTheDocument();
   act(() => resize());
   expect(document.querySelector('.htnote-toolbar-groups > [data-toolbar-group="0"]')).toBeInTheDocument();

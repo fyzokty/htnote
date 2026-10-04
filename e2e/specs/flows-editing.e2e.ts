@@ -12,6 +12,26 @@ describe("editing flows", () => {
   beforeEach(async () => { ({ root, restore } = await useTempRoot()); });
   afterEach(async () => { await restore?.(); });
 
+  it("changes block type through the keyboard accessible popover and preserves editor selection", async () => {
+    const note = await createNote("Block selector");
+    await openNote(note.id);
+    await editNote();
+    await typeInVisualEditor("Heading sample");
+    const trigger = await visibleEditorTool('.htnote-block-select[role="combobox"]');
+    await trigger.click();
+    await $('.htnote-select-popover[role="listbox"]').waitForDisplayed();
+    await browser.keys("Home");
+    await browser.keys("ArrowDown");
+    await browser.keys("ArrowDown");
+    await browser.keys("Enter");
+    assert.equal(await $(".tiptap h2").getText(), "Heading sample");
+    await trigger.click();
+    await browser.keys("Home");
+    await browser.keys("Enter");
+    assert.equal(await $(".tiptap p").getText(), "Heading sample");
+    await saveAndView(note.id, (html) => html.includes("<p>Heading sample</p>"));
+  });
+
   it("lists system fonts and preserves a 24px selected text size after save and reopen", async () => {
     const fonts = await invoke<string[]>("list_system_fonts");
     assert.ok(fonts.length > 0);

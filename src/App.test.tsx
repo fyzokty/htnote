@@ -153,7 +153,8 @@ describe("App", () => {
     });
     render(<App />);
     fireEvent.click(await screen.findByRole("button", { name: "Ayarlar" }));
-    fireEvent.change(screen.getByRole("combobox", { name: "Dil" }), { target: { value: "en" } });
+    fireEvent.click(screen.getByRole("combobox", { name: "Dil" }));
+    fireEvent.click(screen.getByRole("option", { name: "İngilizce" }));
     expect(await screen.findByRole("heading", { name: "Appearance" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Language" })).toBeInTheDocument();
     expect(localStorage.getItem("htnote.language")).toBe("en");

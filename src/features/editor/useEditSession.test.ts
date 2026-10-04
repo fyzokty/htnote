@@ -87,7 +87,8 @@ describe("useEditSession", () => {
     await act(async () => { await result.current.enter(); });
     render(createElement(VisualEditor, { ref: result.current.visualRef, initialInner: parts.inner,
       contentIndent: visualContentIndent(parts), onChange: result.current.onVisualChange }));
-    act(() => fireEvent.change(screen.getByRole("combobox"), { target: { value: "h2" } }));
+    fireEvent.click(screen.getByRole("combobox"));
+    fireEvent.click(screen.getByRole("option", { name: "Başlık 2" }));
     await act(async () => { expect(await result.current.save(true)).toBe(true); });
     const expected = parts.before + '\n    <h2>First</h2>\n    <p>Second</p>\n    <div> raw\r\n  <span> untouched </span></div>\n  ' + parts.after;
     expect(payloads).toEqual([{ html: expected, css: "p {}", js: "run()", expectedHash: "old" }]);
