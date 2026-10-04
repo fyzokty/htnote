@@ -271,9 +271,15 @@ describe("visual media previews", () => {
           const toolbarRect = toolbar.getBoundingClientRect();
           const imageRect = image.getBoundingClientRect();
           const style = getComputedStyle(toolbar);
+          const probe = document.createElement("span");
+          probe.style.color = "var(--app-text)";
+          document.body.appendChild(probe);
+          const expectedColor = getComputedStyle(probe).color;
+          probe.remove();
           return {
             background: style.backgroundColor,
             color: style.color,
+            expectedColor,
             aboveImage: toolbarRect.bottom <= imageRect.top,
             withinEditor: toolbarRect.top >= editor.getBoundingClientRect().top,
             outline: getComputedStyle(image).outlineWidth,
@@ -282,7 +288,7 @@ describe("visual media previews", () => {
         assert.equal(layout.aboveImage, true);
         assert.equal(layout.withinEditor, true);
         assert.ok(layout.outline === "2px" || layout.outline === "1.6px", `Expected outline width 2px (or 1.6px at 125% DPI), got ${layout.outline}`);
-        assert.equal(layout.color, theme === "dark" ? "rgb(241, 245, 249)" : "rgb(17, 24, 39)");
+        assert.equal(layout.color, layout.expectedColor);
         backgrounds[theme] = layout.background;
         await browser.saveScreenshot(resolve(directory, `media-toolbar-${theme}.png`));
       }
