@@ -279,6 +279,17 @@
       "item": "Madde {{index}}",
       "remove": "Madde {{index}} sil",
       "add": "Madde ekle"
+    },
+    "copyFields": {
+      "insert": "Kopyalanabilir alanlar",
+      "title": "Başlık",
+      "select": "Kopyalanabilir alanları seç",
+      "label": "Etiket {{index}}",
+      "value": "Değer {{index}}",
+      "labelPlaceholder": "Etiket",
+      "valuePlaceholder": "Değer",
+      "remove": "Alan {{index}} sil",
+      "add": "Alan ekle"
     }
   },
   "errors": {
@@ -362,7 +373,11 @@
   "settings": {
     "motion": "Animasyonlar",
     "motionHint": "Sistem, işletim sisteminin animasyon efektleri ayarını izler.",
-    "motionOptions": {"system": "Sistem", "on": "Açık", "off": "Kapalı"},
+    "motionOptions": {
+      "system": "Sistem",
+      "on": "Açık",
+      "off": "Kapalı"
+    },
     "theme": "Tema",
     "system": "Sistem",
     "light": "Açık",
@@ -494,7 +509,8 @@
   },
   "widgetTypes": {
     "textbox": "METİN KUTUSU",
-    "checklist": "KONTROL LİSTESİ"
+    "checklist": "KONTROL LİSTESİ",
+    "copyfields": "KOPYALANABİLİR ALANLAR"
   },
   "textBox": {
     "copy": "Kopyala",
@@ -506,5 +522,10 @@
     "reset": "Sıfırla",
     "copyRemaining": "Kalanları kopyala",
     "progress": "Tamamlanma oranı"
+  },
+  "copyFields": {
+    "copyAll": "Tümünü kopyala",
+    "copyRow": "Kopyala: {{name}}",
+    "row": "satır {{index}}"
   }
 }

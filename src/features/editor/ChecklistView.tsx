@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import { NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
 import { useTranslation } from "react-i18next";
 import { ListChecks, Plus, Trash2 } from "lucide-react";
@@ -8,7 +8,9 @@ import { WidgetHeader } from "./widgets/WidgetHeader";
 
 export function ChecklistView({ node, updateAttributes, editor, getPos, selected }: NodeViewProps) {
   const { t } = useTranslation();
-  const items = node.attrs.items as ChecklistItem[];
+  const savedItems = node.attrs.items as ChecklistItem[];
+  // Boş listenin yazım satırı yalnız görünümde kalır; özgün HTML değişmez.
+  const items = useMemo(() => savedItems.length ? savedItems : [{ text: "", checked: false }], [savedItems]);
   const fields = useRef<(HTMLInputElement | null)[]>([]);
   const title = useRef<HTMLInputElement>(null);
   const pendingFocus = useRef<number | null>(null);

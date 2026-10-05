@@ -9,10 +9,25 @@ const attrs = { title: "Başlık <&>", items: [{ text: "<script> & ü", checked:
 const html = serializeChecklist(attrs);
 
 describe("checklist format", () => {
-  it.each([{ items: attrs.items }, { items: [] }, { items: [{ text: "", checked: false }] }])("round-trips plain escaped text, defaults and empty lists", ({ items }) => {
+  it.each([{ items: attrs.items }, { items: [] }])("round-trips plain escaped text, defaults and empty lists", ({ items }) => {
     const saved = serializeChecklist({ ...attrs, items });
     expect(readChecklist(saved)).toEqual({ ...attrs, items, html: saved, background: "" });
     expect(classifyTopLevel(saved)[0].kind).toBe("checklist");
+  });
+  it("drops blank items regardless of checked state without changing editor attributes", () => {
+    const items = [{ text: "", checked: false }, { text: " \t\u00a0\r\n", checked: true }, ...attrs.items, { text: " ", checked: false }];
+    const before = structuredClone(items);
+    expect(readChecklist(serializeChecklist({ ...attrs, items }))?.items).toEqual(attrs.items);
+    expect(items).toEqual(before);
+    expect(readChecklist(serializeChecklist({ ...attrs, items: [{ text: "\t", checked: true }] }))?.items).toEqual([]);
+  });
+  it("preserves original blank items exactly until the widget changes", () => {
+    const original = html.replace('data-htnote-widget="checklist"', "data-htnote-widget='checklist'")
+      .replace("</ul>", '<li><label><input type="checkbox" checked="checked"> &#32;&#9;</label></li></ul>');
+    const parsed = readChecklist(original)!;
+    expect(serializeChecklist(parsed)).toBe(original);
+    expect(readChecklist(serializeChecklist({ ...parsed, title: "Changed" }))?.items).toEqual(attrs.items);
+    expect(readChecklist(serializeChecklist({ ...parsed, background: "mint" }))?.items).toEqual(attrs.items);
   });
   it("preserves source until attributes change, with undo and background round-trip", () => {
     const original = html.replace('data-htnote-widget="checklist"', "data-htnote-widget='checklist' data-htnote-bg='mint'").replace(" checked>", ' checked="checked">');

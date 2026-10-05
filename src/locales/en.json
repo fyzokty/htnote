@@ -279,6 +279,17 @@
       "item": "Item {{index}}",
       "remove": "Delete item {{index}}",
       "add": "Add item"
+    },
+    "copyFields": {
+      "insert": "Copy fields",
+      "title": "Title",
+      "select": "Select copy fields",
+      "label": "Label {{index}}",
+      "value": "Value {{index}}",
+      "labelPlaceholder": "Label",
+      "valuePlaceholder": "Value",
+      "remove": "Remove field {{index}}",
+      "add": "Add field"
     }
   },
   "errors": {
@@ -362,7 +373,11 @@
   "settings": {
     "motion": "Animations",
     "motionHint": "System follows the operating system animation effects setting.",
-    "motionOptions": {"system": "System", "on": "On", "off": "Off"},
+    "motionOptions": {
+      "system": "System",
+      "on": "On",
+      "off": "Off"
+    },
     "theme": "Theme",
     "system": "System",
     "light": "Light",
@@ -494,7 +509,8 @@
   },
   "widgetTypes": {
     "textbox": "TEXT BOX",
-    "checklist": "CHECKLIST"
+    "checklist": "CHECKLIST",
+    "copyfields": "COPY FIELDS"
   },
   "textBox": {
     "copy": "Copy",
@@ -506,5 +522,10 @@
     "reset": "Reset",
     "copyRemaining": "Copy remaining",
     "progress": "Completion progress"
+  },
+  "copyFields": {
+    "copyAll": "Copy all",
+    "copyRow": "Copy: {{name}}",
+    "row": "row {{index}}"
   }
 }

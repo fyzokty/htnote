@@ -8,6 +8,65 @@ describe("text box widget", () => {
   before(async () => { ({ root, restore } = await useTempRoot()); });
   after(async () => { await restore(); });
 
+  it("inserts and saves copy fields, copies rows/all and preserves the saved definition list", async () => {
+    const note = await createNote("Copy fields round trip");
+    await openNote(note.id); await editNote();
+    await (await visibleEditorTool('[data-testid="insert-widget"]')).click();
+    await $('[data-testid="insert-copyfields"]').click();
+    const title = await $('[data-testid="copyfields-title"]'); await title.waitForDisplayed();
+    await title.setValue("Server fields"); await browser.keys("Enter");
+    await $('[data-testid="copyfields-label"]').setValue("Host"); await browser.keys("Enter");
+    assert.equal(await browser.execute(() => document.activeElement?.getAttribute("data-testid")), "copyfields-value");
+    await $('[data-testid="copyfields-value"]').setValue("server <&> value"); await browser.keys("Enter");
+    await browser.waitUntil(async () => (await $$('[data-testid="copyfields-value"]')).length === 2);
+    await (await $$('[data-testid="copyfields-value"]'))[1].setValue("unlabeled"); await browser.keys("Enter");
+    await browser.waitUntil(async () => (await $$('[data-testid="copyfields-value"]')).length === 3);
+    await (await $$('[data-testid="copyfields-label"]'))[2].setValue("Empty");
+    await (await $$('[data-testid="copyfields-value"]'))[2].click(); await browser.keys("Enter");
+    await browser.waitUntil(async () => (await $$('[data-testid="copyfields-value"]')).length === 4);
+    await $('.htnote-widget-tools button').click();
+    await $('.htnote-color-popover button[aria-label="Nane"], .htnote-color-popover button[aria-label="Mint"]').click();
+    const html = await saveAndView(note.id, (value) => value.includes("Server fields") && value.includes("server &lt;&amp;&gt; value"));
+    assert.match(html, /<dl class="htnote-copyfields-list"><div class="htnote-copyfields-row"><dt>Host<\/dt><dd>server &lt;&amp;&gt; value<\/dd>/);
+    assert.ok(!html.includes("htnote-copyfields-node")); assert.ok(!html.includes("copyfields-copy-row"));
+    assert.equal((html.match(/class="htnote-copyfields-row"/g) || []).length, 3);
+    const exportedPath = join(root, "copyfields-export.html");
+    await invoke("export_single_html", { id: note.id, targetPath: exportedPath });
+    const exported = (await waitForFile(exportedPath)).toString();
+    assert.ok(exported.includes('<dt>Host</dt><dd>server &lt;&amp;&gt; value</dd>'));
+    assert.ok(!exported.includes("/__htnote/bridge.js"));
+    await withNoteFrame(note.id, async () => {
+      const copyAll = await $('[data-testid="copyfields-copy-all"]'); await copyAll.waitForExist();
+      await browser.waitUntil(async () => (await copyAll.getText()).length > 0);
+      await browser.execute(() => { const field = document.createElement("textarea"); field.id = "copyfields-probe"; document.body.append(field); });
+      const probe = await $('#copyfields-probe');
+      const verifyClipboard = async (expected: string) => {
+        await probe.setValue(""); await probe.click(); await browser.keys(["Control", "v"]);
+        await browser.waitUntil(async () => await probe.getValue() === expected);
+      };
+      const buttons = await $$('[data-testid="copyfields-copy-row"]');
+      assert.equal(buttons.length, 2);
+      await buttons[0].click();
+      await browser.waitUntil(async () => /Kopyalandı|Copied/.test(await buttons[0].getText()));
+      await verifyClipboard("server <&> value");
+      await (await $$('.htnote-copyfields-row dd'))[1].doubleClick();
+      await browser.waitUntil(async () => /Kopyalandı|Copied/.test(await buttons[1].getText()));
+      await verifyClipboard("unlabeled");
+      await copyAll.click(); await browser.waitUntil(async () => /Kopyalandı|Copied/.test(await copyAll.getText()));
+      await verifyClipboard("Host: server <&> value\nunlabeled");
+      await browser.waitUntil(async () => !/Kopyalandı|Copied/.test(await buttons[0].getText()));
+      assert.equal(await (await $$('.htnote-copyfields-row dd'))[0].getText(), "server <&> value");
+      await browser.execute(() => document.getElementById("copyfields-probe")?.remove());
+    });
+    assert.equal((await invoke<{ html: string }>("read_note", { id: note.id })).html, html);
+    assert.equal((await waitForFile(join(root, note.relPath, "index.html"))).toString(), html);
+    await editNote();
+    assert.equal(await $('[data-testid="copyfields-title"]').getValue(), "Server fields");
+    assert.equal((await $$('[data-testid="copyfields-value"]')).length, 3);
+    assert.equal(await (await $$('[data-testid="copyfields-value"]'))[0].getValue(), "server <&> value");
+    await $('[data-testid="cancel-edit"]').click();
+  });
+
   it("saves checklist defaults, copies remaining items, resets and discards viewer checks on refresh", async () => {
     const note = await createNote("Checklist round trip");
     await openNote(note.id);
@@ -29,6 +88,8 @@ describe("text box widget", () => {
     await browser.keys("Enter");
     await browser.waitUntil(async () => (await $$('[data-testid="checklist-item"]')).length === 3);
     await (await $$('[data-testid="checklist-item"]'))[2].setValue("Third remaining");
+    await browser.keys("Enter");
+    await browser.waitUntil(async () => (await $$('[data-testid="checklist-item"]')).length === 4);
     await $('.htnote-widget-tools button').click();
     await $('.htnote-color-popover button[aria-label="Nane"], .htnote-color-popover button[aria-label="Mint"]').click();
     const html = await saveAndView(note.id, (value) => value.includes("Release checklist") && value.includes("First &lt;&amp;&gt; item"));
@@ -84,6 +145,7 @@ describe("text box widget", () => {
     await editNote();
     assert.equal(await $('[data-testid="checklist-title"]').getValue(), "Release checklist");
     const fields = await $$('[data-testid="checklist-item"]');
+    assert.equal(fields.length, 3);
     assert.equal(await fields[0].getValue(), "First <&> item");
     assert.equal(await fields[2].getValue(), "Third remaining");
     await $('[data-testid="cancel-edit"]').click();

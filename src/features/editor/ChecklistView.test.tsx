@@ -60,10 +60,11 @@ describe("ChecklistView", () => {
       await act(async () => { fireEvent.keyDown(fields()[0], { key: "ArrowUp" }); });
       expect(editor.state.doc.firstChild?.type.name).toBe("paragraph");
       for (let index = fields().length; index > 0; index--) await act(async () => { fireEvent.click(screen.getByRole("button", { name: `Madde ${index} sil` })); });
-      expect(fields()).toHaveLength(0);
-      await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Madde ekle" })); });
       expect(fields()).toHaveLength(1);
-      expect(fields()[0]).toHaveFocus();
+      expect(fields()[0].value).toBe("");
+      await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Madde ekle" })); });
+      expect(fields()).toHaveLength(2);
+      expect(fields()[1]).toHaveFocus();
     } finally { unmount(); unmountHook(); resetTabsStoreForTests(); vi.useRealTimers(); }
   });
 });

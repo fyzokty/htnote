@@ -5,6 +5,7 @@ import { classifyTopLevel } from "@/features/editor/blockClassifier";
 import { extractContent, replaceContent } from "@/features/editor/contentRegion";
 import type { ExtractResult } from "@/features/editor/contentRegion";
 import { formatHtml } from "@/features/editor/formatHtml";
+import { readCopyFields, serializeCopyFields, type CopyFieldsAttributes } from "./copyFields";
 import { readChecklist, serializeChecklist, type ChecklistAttributes } from "./checklist";
 import { readTextBox, serializeTextBox } from "./textBox";
 import type { TextBoxAttributes } from "./textBox";
@@ -40,13 +41,14 @@ function escapeAttribute(value: string): string {
 
 export function wrapRawBlocks(inner: string): string {
   const blocks = classifyTopLevel(inner);
-  return blocks.map(({ kind, html }) => kind === "checklist"
+  return blocks.map(({ kind, html }) => kind === "copyfields"
+    ? `<htnote-copyfields-node data-copyfields="${escapeAttribute(JSON.stringify(readCopyFields(html)))}"></htnote-copyfields-node>` : kind === "checklist"
     ? `<htnote-checklist-node data-checklist="${escapeAttribute(JSON.stringify(readChecklist(html)))}"></htnote-checklist-node>` : kind === "textBox"
     ? `<htnote-textbox-node data-box="${escapeAttribute(JSON.stringify(readTextBox(html)))}"></htnote-textbox-node>` :
     // JSON kaçışları satır sonlarının HTML ayrıştırıcısında normalize edilmesini önler.
     kind === "raw" || !supportedByVisualEditor(html)
       ? `<htnote-raw data-html="${escapeAttribute(JSON.stringify(html))}"></htnote-raw>` : html,
-  ).join("") + (["textBox", "checklist"].includes(blocks[blocks.length - 1]?.kind) ? "<p></p>" : "");
+  ).join("") + (["textBox", "checklist", "copyfields"].includes(blocks[blocks.length - 1]?.kind) ? "<p></p>" : "");
 }
 
 export function unwrapRawBlocks(editorHtml: string): string {
@@ -56,6 +58,14 @@ export function unwrapRawBlocks(editorHtml: string): string {
   function visit(node: DefaultTreeAdapterTypes.Node): void {
     if ("tagName" in node) {
       const element = node as Element;
+      if (element.tagName === "htnote-copyfields-node") {
+        const location = element.sourceCodeLocation;
+        const data = element.attrs.find((attr) => attr.name === "data-copyfields")?.value;
+        if (location && data) {
+          replacements.push({ start: location.startOffset, end: location.endOffset, html: serializeCopyFields(JSON.parse(data) as CopyFieldsAttributes) });
+          return;
+        }
+      }
       if (element.tagName === "htnote-checklist-node") {
         const location = element.sourceCodeLocation;
         const data = element.attrs.find((attr) => attr.name === "data-checklist")?.value;

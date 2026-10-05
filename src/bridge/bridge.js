@@ -142,19 +142,28 @@
   :where(.htnote-checklist-progress){height:5px;border:1px solid var(--ht-widget-border);border-radius:8px;background:var(--ht-widget-field);overflow:hidden}
   :where(.htnote-checklist-progress > div){height:100%;background:var(--ht-widget-accent)}
   :where(.htnote-checklist-done){color:var(--ht-widget-muted);text-decoration:line-through}
+
+:where(.htnote-copyfields){box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:12px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff)}
+:where(.htnote-copyfields-title){font-weight:700;min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+:where(.htnote-copyfields-list){margin:0;padding:0}
+:where(.htnote-copyfields-row){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,4fr) auto;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--ht-widget-divider,#e0e3ee)}
+:where(.htnote-copyfields-row dt){font-weight:700;overflow-wrap:anywhere}
+:where(.htnote-copyfields-row dd){min-width:0;margin:0;padding:8px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff);font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
+  .htnote-copyfields-copy{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ht-widget-border);border-radius:8px;padding:6px;color:var(--ht-widget-text);background:var(--ht-widget-surface);cursor:pointer}
+  .htnote-copyfields-copy svg{width:15px;height:15px;flex-shrink:0}
+  .htnote-copyfields-copy:hover{background:var(--ht-widget-hover)}
+  .htnote-copyfields-copy:focus-visible{outline:2px solid var(--ht-widget-accent);outline-offset:2px}
+  .htnote-copyfields-copy[data-feedback="copied"]{color:var(--ht-widget-accent)}
+  @media(max-width:480px){:where(.htnote-copyfields-row){grid-template-columns:minmax(0,1fr) auto}:where(.htnote-copyfields-row dt){grid-column:1/-1}}
   .htnote-textbox-print{display:none;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;margin:0}
-  @media print{.htnote-widget-actions,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}.htnote-textbox-title{padding-right:0}.htnote-textbox{break-inside:auto}}
-  ${printing ? ".htnote-widget-actions,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}" : ""}
+  @media print{.htnote-widget-actions,.htnote-copyfields-copy,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}.htnote-textbox-title{padding-right:0}.htnote-textbox{break-inside:auto}}
+  ${printing ? ".htnote-widget-actions,.htnote-copyfields-copy,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}" : ""}
   `;
   document.head.append(boxStyle);
   const textBoxes = new WeakMap();
   let boxLabels = {};
   // Tür satırı gelecekteki widget'larda da aynı DOM ve etiket güncellemesini paylaşır.
-  function createWidgetHeader(box, labelKey, iconPaths, actions) {
-    const header = document.createElement("div"), type = document.createElement("span"), label = document.createElement("span");
-    header.className = "htnote-widget-header";
-    header.dataset.htnoteWidgetHeader = "true";
-    type.className = "htnote-widget-type";
+  function createWidgetIcon(iconPaths) {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     for (const [name, value] of Object.entries({ viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", "stroke-width": "2", "stroke-linecap": "round", "stroke-linejoin": "round", "aria-hidden": "true" })) svg.setAttribute(name, value);
     iconPaths.forEach((d) => {
@@ -162,6 +171,14 @@
       path.setAttribute("d", d);
       svg.append(path);
     });
+    return svg;
+  }
+  function createWidgetHeader(box, labelKey, iconPaths, actions) {
+    const header = document.createElement("div"), type = document.createElement("span"), label = document.createElement("span");
+    header.className = "htnote-widget-header";
+    header.dataset.htnoteWidgetHeader = "true";
+    type.className = "htnote-widget-type";
+    const svg = createWidgetIcon(iconPaths);
     type.append(svg, label);
     header.append(type, actions);
     box.prepend(header);
@@ -201,21 +218,25 @@
     }
     return copied;
   }
-  function bindWidgetCopy(button, labelKey, getValue, sourceInput) {
+  function bindWidgetCopy(button, labelKey, getValue, sourceInput, options = {}) {
     let feedback = labelKey, timer;
     const update = () => {
       const label = boxLabels[feedback] || "";
-      if (button.textContent !== label) button.textContent = label;
+      if (options.render) options.render(feedback, label);
+      else if (button.textContent !== label) button.textContent = label;
       button.dataset.feedback = feedback;
     };
     button.setAttribute("aria-live", "polite");
     button.addEventListener("mousedown", (event) => event.preventDefault());
-    button.addEventListener("click", async () => {
+    const copy = async () => {
+      if (options.canCopy && !options.canCopy()) return;
       const copied = await copyWidgetText(getValue(), sourceInput);
       feedback = copied ? "copied" : "copyFailed";
       clearTimeout(timer); update();
       timer = setTimeout(() => { feedback = labelKey; update(); }, 1500);
-    });
+    };
+    button.addEventListener("click", copy);
+    options.doubleClickTarget?.addEventListener("dblclick", copy);
     return update;
   }
   function enhanceTextBox(box) {
@@ -270,7 +291,11 @@
     progress.setAttribute("role", "progressbar");
     progress.setAttribute("aria-valuemin", "0");
     progress.append(fill); summary.append(counter, progress); list.before(summary);
-    const inputs = () => Array.from(list.querySelectorAll('li > label > input[type="checkbox"]'));
+    const inputs = () => Array.from(list.querySelectorAll('li > label > input[type="checkbox"]')).filter((input) => {
+      const empty = !input.parentElement.textContent.trim();
+      input.parentElement.parentElement.hidden = empty;
+      return !empty;
+    });
     const updateCopy = bindWidgetCopy(copy, "copyRemaining", () => inputs().filter((input) => !input.checked).map((input) => input.parentElement.textContent.replace(/^ /, "")).join("\n"));
     const update = () => {
       updateHeader();
@@ -294,9 +319,67 @@
     checklists.set(box, { update });
     update();
   }
+  const copyFields = new WeakMap();
+  function enhanceCopyFields(box) {
+    if (copyFields.has(box)) return;
+    const list = box.querySelector(":scope > dl.htnote-copyfields-list");
+    if (!list) return;
+    const actions = document.createElement("div"), copy = document.createElement("button");
+    actions.className = "htnote-widget-actions";
+    copy.type = "button"; copy.dataset.testid = "copyfields-copy-all";
+    actions.append(copy);
+    const updateHeader = createWidgetHeader(box, "copyfieldsType", ["M9 5H5v16h14V5h-4", "M9 3h6v4H9z", "M9 12h6", "M9 16h6"], actions);
+    const rows = () => Array.from(list.querySelectorAll(":scope > div.htnote-copyfields-row"));
+    const updateCopy = bindWidgetCopy(copy, "copyAll", () => rows().map((row) => {
+      const label = row.querySelector(":scope > dt")?.textContent || "";
+      const value = row.querySelector(":scope > dd")?.textContent || "";
+      return value.trim() ? (label ? `${label}: ${value}` : value) : null;
+    }).filter((value) => value !== null).join("\n"));
+    const bindings = new WeakMap();
+    const update = () => {
+      updateHeader(); updateCopy();
+      rows().forEach((row, index) => {
+        const label = row.querySelector(":scope > dt"), value = row.querySelector(":scope > dd");
+        if (!label || !value) return;
+        if (!value.textContent.trim()) {
+          bindings.get(row)?.button.remove();
+          return;
+        }
+        if (!bindings.has(row)) {
+          const button = document.createElement("button"), status = document.createElement("span");
+          const icon = createWidgetIcon(["M9 9h12v12H9z", "M5 15H3V3h12v2"]);
+          button.type = "button"; button.className = "htnote-copyfields-copy"; button.dataset.testid = "copyfields-copy-row";
+          button.append(icon, status); row.append(button);
+          let previousFeedback, previousLabel;
+          const updateRow = bindWidgetCopy(button, "copyRow", () => value.textContent, null, {
+            doubleClickTarget: value,
+            canCopy: () => !!value.textContent.trim(),
+            render: (feedback, text) => {
+              if (previousFeedback === feedback && previousLabel === text) return;
+              previousFeedback = feedback; previousLabel = text;
+              // Geçici durum yalnız eylemde görünür; kayıtlı dt/dd metnine dokunulmaz.
+              icon.replaceChildren(...createWidgetIcon(feedback === "copied" ? ["m5 12 4 4L19 6"] : ["M9 9h12v12H9z", "M5 15H3V3h12v2"]).childNodes);
+              status.textContent = feedback === "copyRow" ? "" : text;
+            },
+          });
+          bindings.set(row, { button, update: updateRow });
+        }
+        const binding = bindings.get(row);
+        if (binding.button.parentElement !== row) row.append(binding.button);
+        const name = label.textContent || value.textContent.slice(0, 40) || (boxLabels.copyfieldsRow || "").replace("{{index}}", String(index + 1));
+        const accessibleName = (boxLabels.copyRow || "").replace("{{name}}", () => name);
+        if (binding.button.getAttribute("aria-label") !== accessibleName) {
+          binding.button.setAttribute("aria-label", accessibleName); binding.button.title = accessibleName;
+        }
+        binding.update();
+      });
+    };
+    copyFields.set(box, { update });
+    update();
+  }
   function scanWidgets(node) {
     if (node.nodeType !== 1) return;
-    for (const [kind, enhance] of [["textbox", enhanceTextBox], ["checklist", enhanceChecklist]]) {
+    for (const [kind, enhance] of [["textbox", enhanceTextBox], ["checklist", enhanceChecklist], ["copyfields", enhanceCopyFields]]) {
       const selector = `[data-htnote-widget="${kind}"]`;
       if (node.matches(selector)) enhance(node);
       node.querySelectorAll(selector).forEach(enhance);
@@ -304,14 +387,14 @@
   }
   function updateWidgets() {
     document.querySelectorAll('[data-htnote-widget]').forEach((box) => {
-      textBoxes.get(box)?.update(); checklists.get(box)?.update();
+      textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update();
     });
   }
   scanWidgets(root);
   new MutationObserver((records) => records.forEach((record) => {
     record.addedNodes.forEach(scanWidgets);
     const box = record.target.nodeType === 1 ? record.target.closest('[data-htnote-widget]') : record.target.parentElement?.closest('[data-htnote-widget]');
-    if (box) { scanWidgets(box); textBoxes.get(box)?.update(); checklists.get(box)?.update(); }
+    if (box) { scanWidgets(box); textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); }
   })).observe(root, { childList: true, subtree: true, characterData: true });
   window.addEventListener("beforeprint", updateWidgets);
   const audioPlayers = new WeakMap();
@@ -645,7 +728,7 @@
     if (e.source !== window.parent || !e.data || typeof e.data !== "object") return;
     const { type, vars, mode, query, scrollY, token, contentWidth, audioLabels: labels, labels: widgetLabels } = e.data;
     if (type === "HTNOTE_THEME" && widgetLabels && typeof widgetLabels === "object" && !Array.isArray(widgetLabels)) {
-      for (const key of ["copy", "copied", "copyFailed", "reset", "textboxType", "checklistType", "checklistReset", "copyRemaining", "checklistProgress"]) {
+      for (const key of ["copy", "copied", "copyFailed", "reset", "textboxType", "checklistType", "checklistReset", "copyRemaining", "checklistProgress", "copyfieldsType", "copyAll", "copyRow", "copyfieldsRow"]) {
         if (typeof widgetLabels[key] === "string" && widgetLabels[key].length <= 200) boxLabels[key] = widgetLabels[key];
       }
       updateWidgets();
