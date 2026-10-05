@@ -9,6 +9,7 @@ import { MAX_BOARD_CELLS, type CellLayout } from "./board";
 import { mediaToolbarOwners, mediaToolbarPosition } from "./mediaToolbarPosition";
 import { installBoardPointer } from "./boardPointer";
 import { installBlockPointer } from "./blockPointer";
+import { editorViewport } from "./editorViewport";
 
 interface Active extends CellLayout { pos: number; count: number; layout: boolean }
 export function FloatingBoardToolbar({ editor }: { editor: Editor }) {
@@ -57,10 +58,8 @@ export function FloatingBoardToolbar({ editor }: { editor: Editor }) {
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
         // Ölçümlerin tamamı yazımlardan önce okunur; hücre başına gözlemci yoktur.
-        const clip = scroll?.getBoundingClientRect();
-        const viewport = { left: Math.max(0, clip?.left ?? 0), top: Math.max(0, clip?.top ?? 0),
-          right: Math.min(window.innerWidth, clip?.right ?? window.innerWidth),
-          bottom: Math.min(window.innerHeight, clip?.bottom ?? window.innerHeight) };
+        // Üst sınır yapışkan editör araç çubuğunun altıdır; araç çubuğu onun üstüne çizilmez.
+        const viewport = editorViewport(scroll) ?? { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
         const bounds = anchor.getBoundingClientRect();
         const size = layer.getBoundingClientRect();
         const position = mediaToolbarPosition(bounds, size, viewport, "right");

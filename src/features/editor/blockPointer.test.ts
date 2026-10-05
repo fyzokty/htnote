@@ -10,8 +10,9 @@ let layer: HTMLElement, handle: HTMLElement, chip: HTMLElement, indicator: HTMLE
 let frames: Map<number, FrameRequestCallback>, transactions: number;
 const flush = () => { const pending = [...frames.values()]; frames.clear(); pending.forEach((frame) => frame(0)); };
 const settle = () => new Promise((resolve) => setTimeout(resolve, 30));
-function event(target: Element, type: string, x: number, y: number, id = 1) {
-  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0 });
+// Basılı sürüklemede birincil düğme açıktır; bırakma ve iptal olaylarında düğme yoktur.
+function event(target: Element, type: string, x: number, y: number, id = 1, buttons = type === "pointerdown" || type === "pointermove" ? 1 : 0) {
+  const event = new MouseEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, buttons });
   Object.defineProperty(event, "pointerId", { value: id });
   target.dispatchEvent(event); return event as PointerEvent;
 }
@@ -43,6 +44,22 @@ it.each(["Escape", "pointercancel", "lostpointercapture"])("cancels %s after twe
   await settle(); expect(transactions).toBe(0);
   if (kind === "Escape") document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
   else event(kind === "lostpointercapture" ? handle : document.body, kind, 430, 120);
+  event(document.body, "pointerup", 430, 120); await settle();
+  expect(editor.state.doc).toBe(before); expect(transactions).toBe(0);
+});
+it("keeps dragging when capture is lost while the button is still pressed", async () => {
+  event(handle, "pointerdown", 25, 170);
+  event(handle, "lostpointercapture", 30, 170, 1, 1);
+  expect(pointer.isDragging()).toBe(true);
+  for (let i = 0; i < 3; i++) { event(document.body, "pointermove", 430, 120); flush(); }
+  event(document.body, "pointerup", 430, 120); await settle();
+  expect(transactions).toBe(1); expect(editor.state.doc.firstChild?.type.name).toBe("board");
+});
+it("cancels a drag whose release was missed outside the window", async () => {
+  const before = editor.state.doc;
+  event(handle, "pointerdown", 25, 170); event(document.body, "pointermove", 430, 120); flush();
+  event(document.body, "pointermove", 430, 120, 1, 0);
+  expect(pointer.isDragging()).toBe(false);
   event(document.body, "pointerup", 430, 120); await settle();
   expect(editor.state.doc).toBe(before); expect(transactions).toBe(0);
 });

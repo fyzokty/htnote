@@ -4,13 +4,14 @@ import { blockAt, blockMoveTransaction, selectBlock, validBlockTarget, widgetBlo
 import { MAX_BOARD_CELLS, boardPointerTarget, type BoardGrid, type CellLayout } from "./board";
 import { mediaToolbarOwners } from "./mediaToolbarPosition";
 import { dispatchBlockMove } from "./blockMovement";
+import { editorViewport, type ViewportBounds } from "./editorViewport";
 
 interface Hit { range: BlockRange; dom: HTMLElement }
 interface Destination { target: BlockTarget; rect: { left: number; top: number; width: number; height: number }; edge?: boolean }
 interface Drag { source: Hit; doc: ProseMirrorNode; id: number; capture: HTMLElement; x: number; y: number; startX: number; startY: number; moved: boolean; target: Destination | null }
 
 // Aynı kırpma tüm sabit katmanlarda kullanılır; taşan grip yalnız kaydırma alanı içinde görünür.
-export function clipPointerLayer(layer: HTMLElement, bounds: { left: number; top: number; right: number; bottom: number }, clip: DOMRect | undefined, allowance = 0) {
+export function clipPointerLayer(layer: HTMLElement, bounds: { left: number; top: number; right: number; bottom: number }, clip: ViewportBounds | undefined, allowance = 0) {
   layer.style.clipPath = clip ? `inset(${Math.max(-allowance, clip.top - bounds.top)}px ${Math.max(-allowance, bounds.right - clip.right)}px ${Math.max(-allowance, bounds.bottom - clip.bottom)}px ${Math.max(-allowance, clip.left - bounds.left)}px)` : "";
 }
 export function installBlockPointer(editor: Editor, layer: HTMLElement, handle: HTMLElement, chip: HTMLElement, indicator: HTMLElement, hint: HTMLElement) {
@@ -56,7 +57,7 @@ export function installBlockPointer(editor: Editor, layer: HTMLElement, handle: 
     const top = pointer.insertRow ? (row?.top ?? grid.rows[grid.rows.length - 1].bottom + gap) : row!.top;
     return { target: { kind: "grid", board: pos, layout, insertRow: pointer.insertRow }, rect: { left: grid.edges[col - 1], top, width: step * layout.span - gap, height: row && !pointer.insertRow ? row.bottom - row.top : 48 } };
   };
-  const destination = (current: Drag, clip: DOMRect | undefined): Destination | null => {
+  const destination = (current: Drag, clip: ViewportBounds | undefined): Destination | null => {
     const { x, y } = current;
     if (clip && (x < clip.left || x > clip.right || y < clip.top || y > clip.bottom)) return null;
     const coordinates = view.posAtCoords({ left: x, top: y });
@@ -97,7 +98,7 @@ export function installBlockPointer(editor: Editor, layer: HTMLElement, handle: 
     return validBlockTarget(view.state.doc, current.source.range, target) ? { target, rect: { left: bounds.left, top: after ? bounds.bottom : bounds.top, width: bounds.width, height: 2 } } : null;
   };
   const draw = () => {
-    const clip = scroll?.getBoundingClientRect();
+    const clip = editorViewport(scroll);
     if (!drag) {
       const point = hoverEvent;
       if (point) hovered = fromElement(point.element);
@@ -119,8 +120,11 @@ export function installBlockPointer(editor: Editor, layer: HTMLElement, handle: 
     const current = drag;
     if (Math.hypot(current.x - current.startX, current.y - current.startY) >= 4) current.moved = true;
     current.target = current.moved ? destination(current, clip) : null;
-    const speed = clip && current.y < clip.top + 44 ? -Math.ceil((clip.top + 44 - current.y) / 5)
-      : clip && current.y > clip.bottom - 44 ? Math.ceil((current.y - clip.bottom + 44) / 5) : 0;
+    // Otomatik kaydırma bölgesi kaydırma alanının kenarlarıdır (üstte araç çubuğunun üzeri); araç
+    // çubuğunun hemen altındaki bloğu tutmak sayfayı kaydırmaz.
+    const area = scroll?.getBoundingClientRect();
+    const speed = area && current.y < area.top + 44 ? -Math.ceil((area.top + 44 - current.y) / 5)
+      : area && current.y > area.bottom - 44 ? Math.ceil((current.y - area.bottom + 44) / 5) : 0;
     const scrollTop = scroll?.scrollTop ?? 0;
     const target = current.target;
     // Belge/DOM klonu yok; çip ve kaynak opaklığı yalnız geçici boyamadır.
@@ -156,7 +160,7 @@ export function installBlockPointer(editor: Editor, layer: HTMLElement, handle: 
     document.removeEventListener("pointermove", move, true); document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", cancel, true);
     editor.off("transaction", update);
     document.removeEventListener("keydown", escape, true);
-    current.capture.removeEventListener("lostpointercapture", cancel);
+    current.capture.removeEventListener("lostpointercapture", lost);
     if (current.capture.hasPointerCapture(current.id)) current.capture.releasePointerCapture(current.id);
     if (commit && view.state.doc === current.doc) {
       if (!current.moved) dispatchBlockMove(editor, selectBlock(view.state.tr, current.source.range.from));
@@ -181,12 +185,22 @@ export function installBlockPointer(editor: Editor, layer: HTMLElement, handle: 
     chip.querySelector("[data-block-preview]")!.textContent = String(node.textContent || attrs.title || attrs.content || attrs.items?.[0]?.text || attrs.fields?.[0]?.value || attrs.alt || attrs.src || attrs.html || "").slice(0, 40);
     chip.dataset.type = source.range.node.type.name;
     capture.setPointerCapture(event.pointerId);
-    capture.addEventListener("lostpointercapture", cancel);
+    capture.addEventListener("lostpointercapture", lost);
     document.addEventListener("pointermove", move, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", cancel, true);
     editor.on("transaction", update);
     document.addEventListener("keydown", escape, true);
   };
-  const move = (event: PointerEvent) => { if (drag?.id === event.pointerId) { drag.x = event.clientX; drag.y = event.clientY; schedule(); } };
+  // Capture yalnız olayları tutamağa sabitler; sürükleme belge dinleyicileriyle sürer. WebView2,
+  // düğüm görünümü içindeki tutamakta (widget başlığı) düğme basılıyken capture'ı ilk harekette
+  // düşürebiliyor. Bu yüzden capture kaybı yalnız düğme bırakılmışsa iptaldir; pencere dışında
+  // kaçan pointerup da düğmesiz ilk harekette iptal edilir.
+  const released = (event: PointerEvent) => (event.buttons & 1) === 0;
+  const move = (event: PointerEvent) => {
+    if (drag?.id !== event.pointerId) return;
+    if (released(event)) { end(false); return; }
+    drag.x = event.clientX; drag.y = event.clientY; schedule();
+  };
+  const lost = (event: PointerEvent) => { if (drag?.id === event.pointerId && released(event)) end(false); };
   const up = (event: PointerEvent) => { if (drag?.id === event.pointerId) { drag.x = event.clientX; drag.y = event.clientY; end(true); } };
   const cancel = (event: PointerEvent) => { if (drag?.id === event.pointerId) end(false); };
   const escape = (event: KeyboardEvent) => { if (drag && event.key === "Escape") { event.preventDefault(); event.stopImmediatePropagation(); end(false); } };

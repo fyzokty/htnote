@@ -4,6 +4,7 @@ import { activeBoard, boardAtCell } from "./boardNodes";
 import { boardPointerTarget, boardResizeTarget, boardTargetLayout, type BoardGrid, type BoardTarget, type CellLayout } from "./board";
 import { mediaToolbarOwners } from "./mediaToolbarPosition";
 import { clipPointerLayer, type installBlockPointer } from "./blockPointer";
+import { editorViewport } from "./editorViewport";
 
 type Mode = "move" | "left" | "right";
 interface PreviewCell extends CellLayout { dom: HTMLElement; style: string; original: number }
@@ -59,7 +60,7 @@ export function installBoardPointer(editor: Editor, layer: HTMLElement, ghost: H
     const dom = selected ? view.nodeDOM(selected.cellPos) : null;
     anchor = hovered?.isConnected ? hovered : dom instanceof HTMLElement ? dom : null;
     const bounds = anchor?.getBoundingClientRect();
-    const clip = view.dom.closest(".htnote-visual-scroll")?.getBoundingClientRect();
+    const clip = editorViewport(view.dom.closest(".htnote-visual-scroll"));
     // Bütün okumalar bitti; ortak katmanın yerleşimini şimdi yaz.
     if (!bounds || !editor.isEditable || clip && (bounds.bottom <= clip.top || bounds.top >= clip.bottom)) { layer.hidden = true; return; }
     layer.hidden = false;
@@ -90,7 +91,7 @@ export function installBoardPointer(editor: Editor, layer: HTMLElement, ghost: H
     for (let i = 1; i < heights.length; i++) rowTops[i] = rowTops[i - 1] + heights[i - 1] + current.grid.gap;
     const top = current.mode === "move" ? rowTops[moved.row - 1] : row?.top ?? last.bottom + current.grid.gap;
     const height = current.bounds.height;
-    const clip = view.dom.closest(".htnote-visual-scroll")?.getBoundingClientRect();
+    const clip = editorViewport(view.dom.closest(".htnote-visual-scroll"));
     // Önizleme yalnız stillerde tutulur; ProseMirror belge geçmişine girmez.
     for (const entry of ordered) {
       if (current.mode === "move") {

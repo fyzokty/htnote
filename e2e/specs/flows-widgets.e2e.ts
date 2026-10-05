@@ -5,15 +5,18 @@ import { pointerClickAt, pointerDrag, pointerMoveTo, waitForPointerStable } from
 
 describe("widget flows", () => {
   let root: string;
-  let restore: () => Promise<void>;
+  let restore: (() => Promise<void>) | undefined;
   let language: string | null;
   // Pin labels and calculation number formatting independently of the OS locale.
   before(async () => {
     ({ language } = await invoke<{ language: string | null }>("get_settings"));
     await invoke("update_settings", { patch: { language: "tr" } });
-    ({ root, restore } = await useTempRoot());
   });
-  after(async () => { await invoke("update_settings", { patch: { language } }); await restore(); });
+  after(async () => { await invoke("update_settings", { patch: { language } }); });
+  // Her test kendi köküyle başlar: düşen bir testin kirli taslağı yenilemede kurtarma
+  // diyaloğu açıp sonraki testleri engellemez (diğer akış spec'leriyle aynı yol).
+  beforeEach(async () => { ({ root, restore } = await useTempRoot()); });
+  afterEach(async () => { await restore?.(); restore = undefined; });
 
   it("creates a board at a block edge, moves a checklist into it and extracts a paragraph", async () => {
     const note = await createNote("Block pointer round trip");
@@ -24,8 +27,7 @@ describe("widget flows", () => {
     const handle = await $('[data-testid="block-handle"]'); await handle.waitForDisplayed();
     const edge = await browser.execute(() => { const rect = document.querySelector('.tiptap > p')!.getBoundingClientRect(); return { x: Math.round(rect.right - 8), y: Math.round(rect.top + rect.height / 2) }; });
     await pointerDrag(handle, await $('.tiptap > p'), { toPoint: edge });
-    await $('.tiptap > .htnote-board').waitForDisplayed();
-    assert.equal(await $('.htnote-board-cell:nth-child(1)').getAttribute('data-htnote-cell'), '1 6 1');
+    await $('.tiptap > .htnote-board').waitForDisplayed();    assert.equal(await $('.htnote-board-cell:nth-child(1)').getAttribute('data-htnote-cell'), '1 6 1');
     assert.equal(await $('.htnote-board-cell:nth-child(2)').getAttribute('data-htnote-cell'), '7 6 1');
     await (await visibleEditorContentControl('.tiptap > p:last-child')).click();
     await (await visibleEditorTool('[data-testid="insert-widget"]')).click(); await $('[data-testid="insert-checklist"]').click();
