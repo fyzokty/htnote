@@ -1,6 +1,7 @@
 import { Node } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import { Plugin } from "@tiptap/pm/state";
+import { insertWidget } from "./widgets/widgetCommands";
 import { CalcView } from "./CalcView";
 
 declare module "@tiptap/core" {
@@ -26,7 +27,7 @@ export const Calc = Node.create({
     return ["htnote-calc-node", { "data-calc": JSON.stringify(node.attrs) }];
   },
   addCommands() {
-    return { insertCalc: () => ({ commands }) => commands.insertContent({ type: this.name }) };
+    return { insertCalc: () => insertWidget(this.name) };
   },
   addProseMirrorPlugins() {
     return [new Plugin({ appendTransaction: (transactions, _old, state) => {

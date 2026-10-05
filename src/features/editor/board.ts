@@ -67,6 +67,42 @@ export function removedCellLayout<T extends CellLayout>(cells: readonly T[], ind
   return resolveLayout(cells.filter((_, i) => i !== index), -1);
 }
 
+export interface BoardGrid {
+  // Sütun başlangıçları ve en sağ kenar; gap ayrıca saklanır.
+  edges: number[];
+  gap: number;
+  rows: { row: number; top: number; bottom: number }[];
+}
+export interface BoardTarget extends CellLayout { insertRow: boolean }
+const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+export function boardPointerTarget(x: number, y: number, cell: CellLayout, grid: BoardGrid): BoardTarget {
+  let col = 1;
+  for (let i = 0; i < 12; i++) if (x >= grid.edges[i]) col = i + 1;
+  col = clamp(col, 1, 13 - cell.span);
+  for (let i = 0; i < grid.rows.length - 1; i++) {
+    const next = grid.rows[i + 1];
+    const boundary = (grid.rows[i].bottom + next.top) / 2;
+    if (Math.abs(y - boundary) <= 8) return { col, span: cell.span, row: next.row, insertRow: true };
+  }
+  const last = grid.rows[grid.rows.length - 1];
+  if (y > last.bottom) return { col, span: cell.span, row: last.row + 1, insertRow: true };
+  const row = grid.rows.find((bounds) => y <= bounds.bottom)?.row ?? last.row;
+  return { col, span: cell.span, row, insertRow: false };
+}
+export function boardResizeTarget(x: number, edge: "left" | "right", cell: CellLayout, grid: BoardGrid): BoardTarget {
+  // Sağ kenar gap'in önüne, sol kenar gap'in sonuna yapışır.
+  const boundaries = grid.edges.map((value, index) => edge === "right" && index > 0 && index < 12 ? value - grid.gap : value);
+  const nearest = boundaries.reduce((best, value, index) => Math.abs(value - x) < Math.abs(boundaries[best] - x) ? index : best, 0) + 1;
+  const end = cell.col + cell.span;
+  const col = edge === "left" ? clamp(nearest, 1, end - 1) : cell.col;
+  const span = edge === "left" ? end - col : clamp(nearest, col + 1, 13) - col;
+  return { col, span, row: cell.row, insertRow: false };
+}
+export function boardTargetLayout<T extends CellLayout>(cells: readonly T[], index: number, target: BoardTarget): T[] {
+  return resolveLayout(cells.map((cell, i) => i === index ? { ...cell, col: target.col, span: target.span, row: target.row }
+    : { ...cell, row: cell.row + (target.insertRow && cell.row >= target.row ? 1 : 0) }), index);
+}
+
 export function readBoard(html: string): BoardCellHtml[] | null {
   const root = readWidgetRoot(html);
   if (!root || !exactWidgetElement(root, "div", { class: "htnote-board", "data-htnote-layout": "board", style: BOARD_STYLE })) return null;

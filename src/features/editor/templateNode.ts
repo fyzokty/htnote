@@ -1,6 +1,7 @@
 import { Node } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import { Plugin } from "@tiptap/pm/state";
+import { insertWidget } from "./widgets/widgetCommands";
 import { TemplateView } from "./TemplateView";
 
 declare module "@tiptap/core" {
@@ -26,7 +27,7 @@ export const Template = Node.create({
     return ["htnote-template-node", { "data-template": JSON.stringify(node.attrs) }];
   },
   addCommands() {
-    return { insertTemplate: () => ({ commands }) => commands.insertContent({ type: this.name }) };
+    return { insertTemplate: () => insertWidget(this.name) };
   },
   addProseMirrorPlugins() {
     return [new Plugin({ appendTransaction: (transactions, _old, state) => {

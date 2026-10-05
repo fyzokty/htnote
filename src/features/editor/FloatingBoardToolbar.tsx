@@ -2,11 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Editor } from "@tiptap/core";
 import { useTranslation } from "react-i18next";
-import { Columns3, Plus, Trash2, Ungroup } from "lucide-react";
+import { Columns3, GripHorizontal, Plus, Trash2, Ungroup } from "lucide-react";
 import { IconButton } from "@/components/ui/IconButton";
 import { activeBoard, boardLayoutKey } from "./boardNodes";
 import { MAX_BOARD_CELLS, type CellLayout } from "./board";
 import { mediaToolbarOwners, mediaToolbarPosition } from "./mediaToolbarPosition";
+import { installBoardPointer } from "./boardPointer";
 
 interface Active extends CellLayout { pos: number; count: number; layout: boolean }
 export function FloatingBoardToolbar({ editor }: { editor: Editor }) {
@@ -14,6 +15,12 @@ export function FloatingBoardToolbar({ editor }: { editor: Editor }) {
   const [active, setActive] = useState<Active | null>(null);
   const menu = useRef<HTMLDivElement>(null);
   const frame = useRef<HTMLDivElement>(null);
+  const handles = useRef<HTMLDivElement>(null);
+  const ghost = useRef<HTMLDivElement>(null);
+  const widthLabel = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (handles.current && ghost.current && widthLabel.current) return installBoardPointer(editor, handles.current, ghost.current, widthLabel.current);
+  }, [editor]);
   useEffect(() => {
     let signature = "";
     const update = () => {
@@ -67,9 +74,16 @@ export function FloatingBoardToolbar({ editor }: { editor: Editor }) {
       document.removeEventListener("scroll", measure, true); window.removeEventListener("resize", measure);
     };
   }, [editor, active]);
-  if (!active) return null;
   return createPortal(<>
-    <div ref={menu} role="toolbar" aria-label={t("editor.board.toolbar")} className="htnote-board-toolbar htnote-popover-surface"
+    <div ref={handles} className="htnote-board-pointer-layer" hidden>
+      <button type="button" tabIndex={-1} data-board-handle="move" data-testid="board-move" className="htnote-board-move-handle"
+        aria-label={t("editor.board.move")} title={t("editor.board.pointerHint")}><GripHorizontal size={14} aria-hidden /></button>
+      <div data-board-handle="left" data-testid="board-resize-left" className="htnote-board-resize-handle" aria-hidden />
+      <div data-board-handle="right" data-testid="board-resize-right" className="htnote-board-resize-handle" aria-hidden />
+    </div>
+    <div ref={ghost} className="htnote-board-ghost" hidden aria-hidden />
+    <div ref={widthLabel} className="htnote-board-width-label" hidden aria-hidden />
+    {active && <><div ref={menu} role="toolbar" aria-label={t("editor.board.toolbar")} className="htnote-board-toolbar htnote-popover-surface"
       onMouseDown={(event) => event.preventDefault()}>
       <IconButton size="sm" label={t("editor.board.addCell")} disabled={active.count >= MAX_BOARD_CELLS}
         data-testid="board-add-cell" onClick={() => editor.chain().focus().addBoardCell().run()}><Plus size={16} aria-hidden /></IconButton>
@@ -83,6 +97,6 @@ export function FloatingBoardToolbar({ editor }: { editor: Editor }) {
     {active.layout && <div ref={frame} className="htnote-board-layout-frame" aria-hidden />}
     <div className="sr-only" role="status" aria-live="polite" aria-atomic="true">
       {active.layout && `${t("editor.board.announcement", { col: active.col, span: active.span, row: active.row })}. ${t("editor.board.layoutHint")}`}
-    </div>
+    </div></>}
   </>, document.body);
 }

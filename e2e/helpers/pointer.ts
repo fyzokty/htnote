@@ -11,7 +11,7 @@ interface PointerMeasurementResult {
   measurement?: { point: PointerPoint; snapshot: PointerSnapshot };
 }
 export type PointerElement = WebdriverIO.Element | ChainablePromiseElement;
-type EventKind = "pointermove" | "mousemove" | "mousedown" | "mouseup";
+type EventKind = "pointermove" | "pointerdown" | "pointerup" | "mousemove" | "mousedown" | "mouseup";
 type PointerAction = { type: "pointerMove"; duration: number; origin: { "element-6066-11e4-a52e-4f735466cecf": string }; x: number; y: number }
   | { type: "pointerDown" | "pointerUp"; button: number };
 
@@ -124,7 +124,7 @@ class PointerSession {
     await browser.execute(() => {
       window.__htnotePointerProbe?.stop();
       const events: Partial<Record<EventKind, RecordedPoint>> = {};
-      const kinds: EventKind[] = ["pointermove", "mousemove", "mousedown", "mouseup"];
+      const kinds: EventKind[] = ["pointermove", "pointerdown", "pointerup", "mousemove", "mousedown", "mouseup"];
       const record = (event: MouseEvent) => {
         if (!event.isTrusted) return;
         const rect = window.__htnotePointerProbe?.target?.getBoundingClientRect();
@@ -235,7 +235,8 @@ class PointerSession {
   async button(kind: "mousedown" | "mouseup", point: PointerPoint, button: number) {
     await this.clear();
     await perform([{ type: kind === "mousedown" ? "pointerDown" : "pointerUp", button }]);
-    const actual = await this.actual(kind);
+    // pointerdown.preventDefault() uyumluluk mouse olaylarını bastırabilir.
+    const actual = await this.actual(kind === "mousedown" ? "pointerdown" : "pointerup") ?? await this.actual(kind);
     if (!matches(actual, point)) throw this.error(kind, point, actual);
     return actual!;
   }

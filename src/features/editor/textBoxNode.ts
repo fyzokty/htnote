@@ -1,6 +1,7 @@
 import { Node } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import { Plugin } from "@tiptap/pm/state";
+import { insertWidget } from "./widgets/widgetCommands";
 import { TextBoxView } from "./TextBoxView";
 
 declare module "@tiptap/core" {
@@ -26,7 +27,7 @@ export const TextBox = Node.create({
     return ["htnote-textbox-node", { "data-box": JSON.stringify(node.attrs) }];
   },
   addCommands() {
-    return { insertTextBox: () => ({ commands }) => commands.insertContent({ type: this.name }) };
+    return { insertTextBox: () => insertWidget(this.name) };
   },
   addProseMirrorPlugins() {
     return [new Plugin({ appendTransaction: (transactions, _old, state) => {

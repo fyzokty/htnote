@@ -47,11 +47,14 @@ export function selectMediaGap(view: EditorView, event: MouseEvent, debug?: Medi
   let bias = 1;
   let nearestDistance = Infinity;
   let insideContent = false;
+  const cell = event.target instanceof Element ? event.target.closest(".htnote-board-cell") : null;
   view.state.doc.descendants((node, pos) => {
     const isMedia = ["image", "audio", "video"].includes(node.type.name);
     if (!isMedia && !node.isTextblock) return;
     const dom = view.nodeDOM(pos);
     if (!(dom instanceof HTMLElement)) return;
+    // Hücre içindeki tıklama komşu hücrenin medyasına veya metnine ait değildir.
+    if (cell && !cell.contains(dom)) return false;
     const row = dom.getBoundingClientRect();
     if (!isMedia) {
       if (event.clientY >= row.top && event.clientY <= row.bottom) insideContent = true;

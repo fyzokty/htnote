@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addedCellLayout, BOARD_STYLE, cellStyle, parseCell, readBoard, removedCellLayout, resolveLayout, serializeBoard, validCell, validLayout } from "./board";
+import { addedCellLayout, boardPointerTarget, boardResizeTarget, boardTargetLayout, BOARD_STYLE, cellStyle, parseCell, readBoard, removedCellLayout, resolveLayout, serializeBoard, validCell, validLayout } from "./board";
 import { classifyTopLevel } from "./blockClassifier";
 import { wrapRawBlocks, serializeVisualHtml } from "./visualPipeline";
 import { Editor } from "@tiptap/core";
@@ -13,6 +13,33 @@ import { serializeCalc } from "./calc";
 const defaults = [{ col: 1, span: 7, row: 1, html: "<p>Left</p>" }, { col: 8, span: 5, row: 1, html: "<p>Right</p>" }];
 const source = serializeBoard(defaults);
 describe("board format and layout", () => {
+  const grid = { edges: Array.from({ length: 13 }, (_, i) => i * 50 - (i === 12 ? 16 : 0)), gap: 16,
+    rows: [{ row: 1, top: 100, bottom: 200 }, { row: 2, top: 216, bottom: 400 }] };
+  it("snaps pointer targets, inserts between rows or below, and clamps outside the board", () => {
+    const cell = { col: 8, span: 5, row: 1 };
+    expect(boardPointerTarget(410, 150, cell, grid)).toEqual({ col: 8, span: 5, row: 1, insertRow: false });
+    expect(boardPointerTarget(-999, -999, cell, grid)).toEqual({ col: 1, span: 5, row: 1, insertRow: false });
+    expect(boardPointerTarget(999, 999, cell, grid)).toEqual({ col: 8, span: 5, row: 3, insertRow: true });
+    expect(boardPointerTarget(60, 208, cell, grid)).toEqual({ col: 2, span: 5, row: 2, insertRow: true });
+    expect(boardPointerTarget(60, 230, cell, grid).insertRow).toBe(false);
+  });
+  it("inserts a row without mutating sources, keeps content identities and resolves collisions", () => {
+    const cells = [...defaults, { col: 1, span: 12, row: 2, html: "<p>Below</p>" }];
+    const result = boardTargetLayout(cells, 1, { col: 1, span: 5, row: 2, insertRow: true });
+    expect(result.map(({ row, html }) => [row, html])).toEqual([[1, defaults[0].html], [2, defaults[1].html], [3, "<p>Below</p>"]]);
+    expect(validLayout(result)).toBe(true); expect(cells[2].row).toBe(2);
+    const collision = boardTargetLayout(cells, 1, { col: 7, span: 5, row: 1, insertRow: false });
+    expect(collision.map(({ row }) => row)).toEqual([1, 2, 3]);
+  });
+  it("snaps either resize edge to its column boundary and preserves the opposite edge", () => {
+    const cell = { col: 4, span: 6, row: 2 };
+    expect(boardResizeTarget(100, "left", cell, grid)).toEqual({ col: 3, span: 7, row: 2, insertRow: false });
+    expect(boardResizeTarget(999, "left", cell, grid)).toMatchObject({ col: 9, span: 1 });
+    expect(boardResizeTarget(-999, "left", cell, grid)).toMatchObject({ col: 1, span: 9 });
+    expect(boardResizeTarget(484, "right", cell, grid)).toMatchObject({ col: 4, span: 7 });
+    expect(boardResizeTarget(999, "right", cell, grid)).toMatchObject({ col: 4, span: 9 });
+    expect(boardResizeTarget(-999, "right", cell, grid)).toMatchObject({ col: 4, span: 1 });
+  });
   it("validates integer cells and produces portable canonical CSS", () => {
     expect(BOARD_STYLE).toBe("display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; align-items: start;");
     expect(cellStyle(defaults[0])).toBe("grid-column: 1 / span 7; grid-row: 1;");
@@ -94,7 +121,7 @@ describe("board format and layout", () => {
     expect(saved).toContain('<canvas data-x="yes"></canvas>');
     expect(saved).toContain('<script>alert(1)</script>');
     expect(saved).toContain('width="50%"');
-    expect(editor.state.doc.firstChild?.firstChild?.lastChild?.type.name).toBe('paragraph');
+    expect(editor.state.doc.firstChild?.firstChild?.lastChild?.type.name).toBe('calc');
     editor.commands.setContent(wrapRawBlocks(saved));
     expect(serializeVisualHtml(editor.getHTML())).toBe(saved);
     editor.destroy();
