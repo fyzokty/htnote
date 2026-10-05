@@ -798,3 +798,17 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 .htnote-calc-editor-total strong:last-child { color: var(--app-accent); font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
 
 @media print { .htnote-calc-editor .htnote-widget-tools { display: none; } }
+
+/* Pano ölçüsü editör alanına bağlıdır; kayıtlı yerleşim değişmez. */
+.htnote-visual-content { container-type: inline-size; }
+.ProseMirror .htnote-board { margin-block: 16px; }
+.ProseMirror .htnote-board-cell { min-width: 0; padding: 8px; border: 1px dashed var(--app-border); border-radius: var(--app-radius-control); }
+.ProseMirror .htnote-board-cell:hover, .ProseMirror .htnote-board-cell:focus-within { border-color: var(--app-accent); background: color-mix(in srgb, var(--app-hover) 25%, transparent); }
+.ProseMirror .htnote-board-cell > :first-child { margin-top: 0; }
+.ProseMirror .htnote-board-cell > :last-child { margin-bottom: 0; }
+.htnote-board-toolbar { position: fixed; z-index: 40; display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; }
+.htnote-board-layout-frame { position: fixed; z-index: 39; pointer-events: none; border: 2px solid var(--app-focus); border-radius: var(--app-radius-control); }
+@container (max-width: 560px) {
+  .ProseMirror .htnote-board { display: block !important; }
+  .ProseMirror .htnote-board-cell + .htnote-board-cell { margin-top: 16px; }
+}

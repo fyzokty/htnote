@@ -261,6 +261,16 @@
     "fontSearch": "Search fonts",
     "fontNoResults": "No fonts found",
     "fontSizeValue": "{{size}} px",
+    "board": {
+      "insert": "Board",
+      "addCell": "Add cell",
+      "removeCell": "Remove cell",
+      "dissolve": "Dissolve board",
+      "layout": "Layout",
+      "toolbar": "Board cell tools",
+      "announcement": "Column {{col}}, width {{span}}, row {{row}}",
+      "layoutHint": "Move with arrows, resize with Shift and horizontal arrows; exit with Enter or Escape."
+    },
     "widgets": {
       "insert": "Insert widget",
       "background": "Widget background"
@@ -461,6 +471,7 @@
       "editorRedo": "Redo",
       "editorStrike": "Strikethrough",
       "formatDocument": "Format document",
+      "boardLayout": "Board cell layout",
       "editorLink": "Link note",
       "openSettings": "Open settings"
     }

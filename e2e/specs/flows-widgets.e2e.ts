@@ -14,6 +14,55 @@ describe("widget flows", () => {
   });
   after(async () => { await invoke("update_settings", { patch: { language } }); await restore(); });
 
+  it("saves a board, changes its cell width and enhances the nested checklist", async () => {
+    const note = await createNote("Board round trip");
+    await openNote(note.id); await editNote();
+    await (await visibleEditorTool('[data-testid="insert-widget"]')).click();
+    await $('[data-testid="insert-board"]').click();
+    await (await visibleEditorContentControl('.htnote-board-cell p')).click();
+    await browser.keys("Left cell text");
+    await (await visibleEditorContentControl('.htnote-board-cell:nth-child(2) p')).click();
+    await (await visibleEditorTool('[data-testid="insert-widget"]')).click();
+    assert.equal(await $('[data-testid="insert-board"]').getAttribute("aria-disabled"), "true");
+    await $('[data-testid="insert-checklist"]').click();
+    const title = await $('[data-testid="checklist-title"]'); await title.waitForDisplayed();
+    await title.setValue("Board checklist"); await browser.keys("Enter");
+    await $('[data-testid="checklist-item"]').setValue("Right cell item");
+    // Widget girdisine odaklanınca, önceki metin hücresinin seçimi etkin kalmamalı.
+    await (await visibleEditorContentControl('.htnote-board-cell:first-child p')).click();
+    await (await visibleEditorContentControl('[data-testid="checklist-title"]')).click();
+    await browser.keys(["Control", "Alt", "l"]);
+    assert.equal(await $('[data-testid="board-layout"]').getAttribute("aria-pressed"), "true");
+    await browser.keys("Escape");
+    // Yerleşim kipi editör odağıyla çalışır; widget'ın sonundaki paragraftan girilir.
+    await (await visibleEditorContentControl('.htnote-board-cell:nth-child(2) > p:last-child')).click();
+    const layout = await $('[data-testid="board-layout"]'); await layout.waitForClickable(); await layout.click();
+    // Shift+sol sağ kenarı bir birim daraltır; sağa genişletme ızgara sınırına tabidir.
+    await browser.keys(["Shift", "ArrowLeft"]); await browser.keys("Escape");
+    const html = await saveAndView(note.id, (value) => value.includes("Left cell text") && value.includes("Right cell item") && value.includes('data-htnote-cell="8 4 1"'));
+    assert.equal((html.match(/class="htnote-board-cell"/g) ?? []).length, 2);
+    assert.ok(html.includes('data-htnote-cell="1 7 1"'));
+    assert.ok(html.includes('grid-column: 8 / span 4; grid-row: 1;'));
+    await withNoteFrame(note.id, async () => {
+      const checkbox = await $('.htnote-board-cell .htnote-checklist-items input'); await checkbox.waitForDisplayed();
+      assert.equal(await checkbox.isSelected(), false); await checkbox.click(); assert.equal(await checkbox.isSelected(), true);
+      await $('[data-testid="checklist-reset"]').click(); assert.equal(await checkbox.isSelected(), false);
+      const copy = await $('[data-testid="checklist-copy"]'); await copy.click();
+      await browser.waitUntil(async () => /Kopyalandı|Copied/.test(await copy.getText()));
+      const positions = await browser.execute(() => Array.from(document.querySelectorAll('.htnote-board > .htnote-board-cell')).map((cell) => cell.getBoundingClientRect().x));
+      assert.equal(positions.length, 2); assert.notEqual(positions[0], positions[1]);
+    });
+    assert.equal((await invoke<{ html: string }>("read_note", { id: note.id })).html, html);
+    const exportedPath = join(root, "board-export.html");
+    await invoke("export_single_html", { id: note.id, targetPath: exportedPath });
+    const exported = (await waitForFile(exportedPath)).toString();
+    assert.ok(exported.includes('data-htnote-cell="8 4 1"'));
+    assert.ok(exported.includes('grid-template-columns: repeat(12, minmax(0, 1fr))'));
+    assert.ok(!exported.includes("/__htnote/bridge.js"));
+    await editNote(); assert.equal(await $('[data-testid="checklist-item"]').getValue(), "Right cell item");
+    await $('[data-testid="cancel-edit"]').click();
+  });
+
   it("saves a calculation, edits/copies/resets live values and keeps disk HTML unchanged", async () => {
     const note = await createNote("Calculation round trip");
     await openNote(note.id); await editNote();

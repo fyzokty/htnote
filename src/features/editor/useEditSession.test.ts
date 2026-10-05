@@ -25,6 +25,31 @@ beforeEach(() => {
 });
 
 describe("useEditSession", () => {
+  it.each(["save", "code"])("flushes the last real editor change before %s without waiting for debounce", async (action) => {
+    vi.useFakeTimers();
+    try {
+      const payloads: unknown[] = [];
+      mockIPC((command, args) => {
+        if (command === "read_note") return note;
+        if (command === "save_note") { payloads.push((args as { payload: unknown }).payload); return { contentHash: "new", metadata: note.metadata }; }
+      });
+      const { result } = renderHook(() => useEditSession("a"));
+      await act(async () => { await result.current.enter(); });
+      render(createElement(VisualEditor, { ref: result.current.visualRef, initialInner: "<p>First</p>", onChange: result.current.onVisualChange }));
+      const editor = (screen.getByRole("textbox", { name: "Not içeriği" }) as HTMLElement & { editor: Editor }).editor;
+      const serialize = vi.spyOn(editor, "getHTML");
+      act(() => { editor.commands.insertContentAt(6, " latest"); });
+      expect(serialize).not.toHaveBeenCalled();
+      if (action === "save") {
+        await act(async () => { await result.current.save(true); });
+        expect(payloads[0]).toMatchObject({ html: expect.stringContaining("First latest") });
+      } else {
+        act(() => result.current.switchMode("code"));
+        expect(doc().draft?.html).toContain("First latest");
+      }
+      expect(serialize).toHaveBeenCalledOnce();
+    } finally { vi.useRealTimers(); }
+  });
   it("saves a clean document and returns to view mode", async () => {
     const commands: string[] = [];
     mockIPC((command) => {
