@@ -114,6 +114,11 @@
   @media(prefers-color-scheme:dark){:where(html:not([data-ht-theme])){--ht-widget-surface:#101623;--ht-widget-text:#f1f5f9;--ht-widget-accent:#a5a6ff;--ht-widget-border:#78849b;--ht-widget-divider:#303647;--ht-widget-muted:#a8b6cc;--ht-widget-field:#0d1220;--ht-widget-hover:#222c40;--ht-note-sepia:#302b23;--ht-note-mint:#23352b;--ht-note-rose:#35252d;--ht-note-sky:#243043;--ht-note-lavender:#2e2940;--ht-note-charcoal:#171d25;}}
   :where(html[data-ht-theme="dark"]){--ht-widget-surface:#101623;--ht-widget-text:#f1f5f9;--ht-widget-accent:#a5a6ff;--ht-widget-border:#78849b;--ht-widget-divider:#303647;--ht-widget-muted:#a8b6cc;--ht-widget-field:#0d1220;--ht-widget-hover:#222c40;--ht-note-sepia:#302b23;--ht-note-mint:#23352b;--ht-note-rose:#35252d;--ht-note-sky:#243043;--ht-note-lavender:#2e2940;--ht-note-charcoal:#171d25;}
 
+/* Dar ekranda taşınabilir inline grid yalnız burada ezilir; yazdırmada ızgara korunur. */
+:where(.htnote-board-cell){min-width:0}
+:where(.htnote-board-cell > :first-child){margin-top:0}
+:where(.htnote-board-cell > :last-child){margin-bottom:0}
+@media screen and (max-width:560px){:where(.htnote-board){display:block!important}:where(.htnote-board-cell + .htnote-board-cell){margin-top:16px}}
 :where(.htnote-textbox){position:relative;box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:12px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff)}
 :where(.htnote-textbox-input){box-sizing:border-box;width:100%;padding:8px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff)}
 :where(.htnote-textbox-title){font-weight:700;min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}

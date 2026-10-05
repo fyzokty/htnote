@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createVisualExtensions } from "@/features/editor/extensions";
 import { VisualEditor } from "@/features/editor/VisualEditor";
+import { activeBoard, boardLayoutKey } from "./boardNodes";
 import type { VisualEditorHandle } from "@/features/editor/VisualEditor";
 import { fileName, getDropHandler, kindFromPath, updateDropPreview } from "@/features/editor/fileDrop";
 import { ipc } from "@/lib/ipc";
@@ -36,6 +37,66 @@ afterEach(() => {
 });
 
 describe("VisualEditor", () => {
+
+  it("serializes the latest document only when flushing, including the raw NodeView code action", async () => {
+    vi.useFakeTimers();
+    const onChange = vi.fn();
+    const onEditInCode = vi.fn(() => expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining("Latest")));
+    const ref = createRef<VisualEditorHandle>();
+    render(<VisualEditor ref={ref} initialInner="<p>First</p><canvas></canvas>" onChange={onChange} onEditInCode={onEditInCode} />);
+    const editor = (screen.getByRole("textbox", { name: "Not içeriği" }) as HTMLElement & { editor: Editor }).editor;
+    const serialize = vi.spyOn(editor, "getHTML");
+    await act(async () => { editor.commands.insertContentAt(6, " Last"); editor.commands.insertContentAt(11, " Latest"); });
+    expect(serialize).not.toHaveBeenCalled();
+    act(() => { ref.current?.flush(); });
+    expect(serialize).toHaveBeenCalledOnce();
+    expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining("Latest"));
+    expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining("<canvas></canvas>"));
+    await act(async () => { editor.commands.insertContentAt(1, "Newest "); });
+    fireEvent.click(screen.getByRole("button", { name: "Kod modunda düzenle" }));
+    expect(onEditInCode).toHaveBeenCalledOnce();
+    expect(onChange).toHaveBeenLastCalledWith(expect.stringContaining("Newest"));
+    expect(serialize).toHaveBeenCalledTimes(2);
+  });
+
+  it("inserts a board from the menu, disables nesting and exposes shared cell actions", () => {
+    render(<VisualEditor initialInner="<p></p>" onChange={vi.fn()} />);
+    fireEvent.click(screen.getByTestId("insert-widget"));
+    fireEvent.click(screen.getByTestId("insert-board"));
+    const editor = (screen.getByRole("textbox", { name: "Not içeriği" }) as HTMLElement & { editor: Editor }).editor;
+    expect(editor.state.doc.firstChild?.type.name).toBe("board");
+    fireEvent.click(screen.getByTestId("insert-widget"));
+    expect(screen.getByTestId("insert-board")).toHaveAttribute("aria-disabled", "true");
+    fireEvent.keyDown(screen.getByTestId("insert-checklist"), { key: "Escape" });
+    fireEvent.click(screen.getByTestId("board-add-cell"));
+    expect(editor.state.doc.firstChild?.childCount).toBe(3);
+    fireEvent.click(screen.getByTestId("board-layout"));
+    expect(screen.getByRole("status")).toHaveTextContent("Sütun 1, genişlik 12, satır 2");
+    fireEvent.keyDown(editor.view.dom, { key: "ArrowLeft", shiftKey: true });
+    expect(screen.getByRole("status")).toHaveTextContent("genişlik 11");
+    fireEvent.keyDown(editor.view.dom, { key: "Escape" });
+    fireEvent.click(screen.getByTestId("board-remove-cell"));
+    expect(editor.state.doc.firstChild?.childCount).toBe(2);
+    fireEvent.click(screen.getByTestId("board-dissolve"));
+    expect(editor.state.doc.firstChild?.type.name).toBe("paragraph");
+  });
+
+  it("tracks focused widget inputs in another cell and accepts the layout shortcut there", async () => {
+    render(<VisualEditor initialInner="<p></p>" onChange={vi.fn()} />);
+    const editor = (screen.getByRole("textbox", { name: "Not içeriği" }) as HTMLElement & { editor: Editor }).editor;
+    await act(async () => { editor.commands.insertBoard(); editor.commands.setTextSelection(7); editor.commands.insertChecklist(); });
+    const field = screen.getByTestId("checklist-item");
+    act(() => { editor.commands.setTextSelection(3); });
+    expect(activeBoard(editor.state)?.index).toBe(0);
+    fireEvent.focusIn(field);
+    expect(activeBoard(editor.state)?.index).toBe(1);
+    fireEvent.keyDown(field, { key: "l", code: "KeyL", ctrlKey: true, altKey: true });
+    expect(boardLayoutKey.getState(editor.state)?.pos).toBe(activeBoard(editor.state)?.cellPos);
+    fireEvent.keyDown(editor.view.dom, { key: "ArrowLeft", shiftKey: true });
+    expect(activeBoard(editor.state)?.cell.attrs.span).toBe(4);
+    fireEvent.keyDown(editor.view.dom, { key: "Escape" });
+    expect(boardLayoutKey.getState(editor.state)?.pos).toBeNull();
+  });
 
   it.each([false, true])("restores the captured note-link selection after dialog focus (range=%s)", (range) => {
     vi.useFakeTimers();

@@ -261,6 +261,16 @@
     "fontSearch": "Font ara",
     "fontNoResults": "Font bulunamadı",
     "fontSizeValue": "{{size}} px",
+    "board": {
+      "insert": "Pano",
+      "addCell": "Hücre ekle",
+      "removeCell": "Hücreyi kaldır",
+      "dissolve": "Panoyu çöz",
+      "layout": "Yerleşim",
+      "toolbar": "Pano hücresi araçları",
+      "announcement": "Sütun {{col}}, genişlik {{span}}, satır {{row}}",
+      "layoutHint": "Oklarla taşı, Shift ve yatay oklarla genişliği değiştir; Enter veya Escape ile çık."
+    },
     "widgets": {
       "insert": "Widget ekle",
       "background": "Widget arka planı"
@@ -461,6 +471,7 @@
       "editorRedo": "Yinele",
       "editorStrike": "Üstü çizili",
       "formatDocument": "Belgeyi biçimlendir",
+      "boardLayout": "Pano hücresi yerleşimi",
       "editorLink": "Not bağlantısı",
       "openSettings": "Ayarları aç"
     }

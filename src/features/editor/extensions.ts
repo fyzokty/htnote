@@ -3,6 +3,8 @@ import { TableKit } from "@tiptap/extension-table";
 import { Placeholder } from "@tiptap/extensions";
 import StarterKit from "@tiptap/starter-kit";
 
+import { Board, BoardCell } from "./boardNodes";
+
 import { GlobalAttributes } from "@/features/editor/globalAttributesExtension";
 import { HtmlBlock } from "@/features/editor/htmlBlockNode";
 import { CopyFields } from "./copyFieldsNode";
@@ -29,6 +31,8 @@ export function createVisualExtensions(placeholder: string, onEditInCode?: () =>
     FontFamily,
     FontSize,
     GlobalAttributes,
+    Board,
+    BoardCell,
     Image.configure({ noteId }),
     Audio.configure({ noteId }),
     Video.configure({ noteId }),

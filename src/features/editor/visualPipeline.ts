@@ -13,6 +13,8 @@ import { readTextBox, serializeTextBox } from "./textBox";
 import type { TextBoxAttributes } from "./textBox";
 import { syncAppearanceStyle } from "@/features/viewer/noteAppearance";
 
+import { readBoard, serializeBoard } from "./board";
+
 type Parts = Extract<ExtractResult, { ok: true }>;
 type Element = DefaultTreeAdapterTypes.Element;
 
@@ -43,7 +45,8 @@ function escapeAttribute(value: string): string {
 
 export function wrapRawBlocks(inner: string): string {
   const blocks = classifyTopLevel(inner);
-  return blocks.map(({ kind, html }) => kind === "calc"
+  return blocks.map(({ kind, html }) => kind === "board"
+    ? serializeBoard(readBoard(html)!.map((cell) => ({ ...cell, html: wrapRawBlocks(cell.html) }))) : kind === "calc"
     ? `<htnote-calc-node data-calc="${escapeAttribute(JSON.stringify(readCalc(html)))}"></htnote-calc-node>` : kind === "template"
     ? `<htnote-template-node data-template="${escapeAttribute(JSON.stringify(readTemplate(html)))}"></htnote-template-node>` : kind === "copyfields"
     ? `<htnote-copyfields-node data-copyfields="${escapeAttribute(JSON.stringify(readCopyFields(html)))}"></htnote-copyfields-node>` : kind === "checklist"
@@ -52,7 +55,7 @@ export function wrapRawBlocks(inner: string): string {
     // JSON kaçışları satır sonlarının HTML ayrıştırıcısında normalize edilmesini önler.
     kind === "raw" || !supportedByVisualEditor(html)
       ? `<htnote-raw data-html="${escapeAttribute(JSON.stringify(html))}"></htnote-raw>` : html,
-  ).join("") + (["textBox", "checklist", "copyfields", "template", "calc"].includes(blocks[blocks.length - 1]?.kind) ? "<p></p>" : "");
+  ).join("") + (["board", "textBox", "checklist", "copyfields", "template", "calc"].includes(blocks[blocks.length - 1]?.kind) ? "<p></p>" : "");
 }
 
 export function unwrapRawBlocks(editorHtml: string): string {

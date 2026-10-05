@@ -20,6 +20,7 @@ export type ShortcutId =
   | "editorBold"
   | "editorItalic"
   | "editorUnderline"
+  | "boardLayout"
   | "editorLink"
   | "editorUndo"
   | "editorRedo"
@@ -74,6 +75,7 @@ const SHORTCUTS: Record<ShortcutId, ShortcutDefinition> = {
   editorRedo: { codes: ["KeyZ"], key: "Z", modifier: "mod", shift: true, category: "editor", displayOnly: true, bound: true },
   editorStrike: { codes: ["KeyS"], key: "S", modifier: "mod", shift: true, category: "editor", displayOnly: true, bound: true },
   formatDocument: { codes: ["KeyF"], key: "F", modifier: "none", shift: true, alt: true, category: "editor", displayOnly: true, bound: true },
+  boardLayout: { codes: ["KeyL"], key: "L", modifier: "mod", shift: false, alt: true, category: "editor", displayOnly: true, bound: true },
   editorLink: { codes: ["KeyK"], key: "K", modifier: "mod", shift: false, category: "editor", displayOnly: true, bound: true },
 };
 

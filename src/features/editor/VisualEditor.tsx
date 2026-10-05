@@ -5,6 +5,8 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import type { Transaction } from "@tiptap/pm/state";
 import { useTranslation } from "react-i18next";
 
+import { FloatingBoardToolbar } from "./FloatingBoardToolbar";
+
 import { EditorToolbar } from "@/features/editor/EditorToolbar";
 import { NotePicker } from "@/components/ui/NotePicker";
 import { classifyClipboard, decodeDataUrl, pasteFileName, rewriteDataUrlImages, shouldWarnExternalImages } from "@/features/editor/clipboardPaste";
@@ -41,7 +43,7 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
   useEffect(() => { contentIndentRef.current = contentIndent; }, [contentIndent]);
   const onEditInCodeRef = useRef(onEditInCode);
   useEffect(() => { onEditInCodeRef.current = onEditInCode; }, [onEditInCode]);
-  const pending = useRef<string | null>(null);
+  const pending = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const baseline = useRef<string | null>(null);
   const lastReported = useRef<string | null>(null);
@@ -58,9 +60,10 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
   const flush = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
-    const html = pending.current;
-    pending.current = null;
-    if (html !== null && html !== lastReported.current) {
+    if (!pending.current || !editorRef.current) return;
+    const html = editorRef.current.getHTML();
+    pending.current = false;
+    if (html !== lastReported.current) {
       lastReported.current = html;
       onChangeRef.current(serializeVisualHtml(html, contentIndentRef.current));
     }
@@ -127,8 +130,8 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
         return true;
       },
     },
-    onUpdate: ({ editor: current }) => {
-      pending.current = current.getHTML();
+    onUpdate: () => {
+      pending.current = true;
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(flush, 150);
     },
@@ -197,6 +200,7 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
   return (
     <section className="htnote-visual-editor" data-content-width={contentWidth}>
       <div ref={scrollRef} className="htnote-visual-scroll" style={surfaceStyle}>
+        <FloatingBoardToolbar editor={editor} />
         <EditorToolbar editor={editor} noteId={noteId} onLinkNote={openPicker} />
         <EditorContent editor={editor} className="htnote-visual-content" aria-label={t("editor.content")}
           onMouseDownCapture={(event) => {

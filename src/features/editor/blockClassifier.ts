@@ -5,6 +5,7 @@ import { readChecklist } from "./checklist";
 import { readCalc } from "./calc";
 import { readTemplate } from "./template";
 import { readTextBox } from "./textBox";
+import { readBoard } from "./board";
 
 type Node = DefaultTreeAdapterTypes.ChildNode;
 type Element = DefaultTreeAdapterTypes.Element;
@@ -59,7 +60,7 @@ function isSupportedTree(node: Node): boolean {
   return node.childNodes.every(isSupportedTree);
 }
 
-export type ClassifiedBlock = { kind: "rich" | "raw" | "textBox" | "checklist" | "copyfields" | "template" | "calc"; html: string };
+export type ClassifiedBlock = { kind: "rich" | "raw" | "board" | "textBox" | "checklist" | "copyfields" | "template" | "calc"; html: string };
 
 export function classifyTopLevel(innerHtml: string): ClassifiedBlock[] {
   const fragment = parseFragment(innerHtml, { sourceCodeLocationInfo: true });
@@ -79,7 +80,7 @@ export function classifyTopLevel(innerHtml: string): ClassifiedBlock[] {
     addRaw(innerHtml.slice(cursor, location.startOffset));
     const html = innerHtml.slice(location.startOffset, location.endOffset);
     if (html.trim()) {
-      blocks.push({ kind: readCalc(html) ? "calc" : readTemplate(html) ? "template" : readTextBox(html) ? "textBox" : readChecklist(html) ? "checklist" : readCopyFields(html) ? "copyfields" : isElement(node) && isSupportedTree(node) ? "rich" : "raw", html });
+      blocks.push({ kind: readBoard(html) ? "board" : readCalc(html) ? "calc" : readTemplate(html) ? "template" : readTextBox(html) ? "textBox" : readChecklist(html) ? "checklist" : readCopyFields(html) ? "copyfields" : isElement(node) && isSupportedTree(node) ? "rich" : "raw", html });
     }
     cursor = location.endOffset;
   }
