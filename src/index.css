@@ -801,15 +801,19 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 
 /* Pano ölçüsü editör alanına bağlıdır; kayıtlı yerleşim değişmez. */
 .htnote-visual-content { container-type: inline-size; }
-.ProseMirror .htnote-board { margin-block: 16px; }
+.ProseMirror .htnote-board { margin-block: 22px 16px; }
 .ProseMirror .htnote-board-cell { min-width: 0; padding: 8px; border: 1px dashed var(--app-border); border-radius: var(--app-radius-control); }
 .ProseMirror .htnote-board-cell:hover, .ProseMirror .htnote-board-cell:focus-within { border-color: var(--app-accent); background: color-mix(in srgb, var(--app-hover) 25%, transparent); }
 .ProseMirror .htnote-board-cell > :first-child { margin-top: 0; }
 .ProseMirror .htnote-board-cell > :last-child { margin-bottom: 0; }
 .htnote-board-toolbar { position: fixed; z-index: 40; display: flex; flex-wrap: wrap; gap: 4px; padding: 4px; }
 .htnote-board-layout-frame { position: fixed; z-index: 39; pointer-events: none; border: 2px solid var(--app-focus); border-radius: var(--app-radius-control); }
-.htnote-board-pointer-layer { position: fixed; z-index: 41; pointer-events: none; }
-.htnote-board-move-handle { position: absolute; top: 0; left: 0; display: flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 1px solid var(--app-border); border-radius: 4px; background: var(--app-card); color: var(--app-accent); cursor: grab; pointer-events: auto; touch-action: none; }
+.htnote-board-pointer-layer { position: fixed; z-index: 41; pointer-events: none; clip-path: none !important; }
+.htnote-board-move-handle { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; width: 28px; height: 16px; box-sizing: border-box; padding: 0; border: 1px solid var(--app-border); border-radius: 4px; background: var(--app-card); color: var(--app-accent); cursor: grab; pointer-events: auto; touch-action: none; box-shadow: 0 1px 2px var(--app-shadow); }
+.htnote-board-move-handle:hover { border-color: var(--app-accent); }
+.htnote-board-move-handle:active { cursor: grabbing; }
+.htnote-board-move-handle::before { content: ""; position: absolute; inset: -4px -2px; }
+.htnote-board-move-handle svg { display: block; flex-shrink: 0; fill: currentColor; }
 .htnote-board-resize-handle { position: absolute; top: 22px; bottom: 0; width: 8px; min-height: 12px; cursor: ew-resize; pointer-events: auto; touch-action: none; background: color-mix(in srgb, var(--app-accent) 25%, transparent); border-radius: 4px; }
 .htnote-board-resize-handle[data-board-handle=left] { left: 0; }
 .htnote-board-resize-handle[data-board-handle=right] { right: 0; }

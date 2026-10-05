@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Editor } from "@tiptap/core";
 import { useTranslation } from "react-i18next";
-import { Columns3, Grip, Plus, Trash2, Ungroup } from "lucide-react";
+import { Columns3, GripHorizontal, Plus, Trash2, Ungroup } from "lucide-react";
 import { IconButton } from "@/components/ui/IconButton";
 import { activeBoard, boardLayoutKey } from "./boardNodes";
 import { MAX_BOARD_CELLS, type CellLayout } from "./board";
@@ -77,7 +77,7 @@ export function FloatingBoardToolbar({ editor }: { editor: Editor }) {
   return createPortal(<>
     <div ref={handles} className="htnote-board-pointer-layer" hidden>
       <button type="button" tabIndex={-1} data-board-handle="move" data-testid="board-move" className="htnote-board-move-handle"
-        aria-label={t("editor.board.move")} title={t("editor.board.pointerHint")}><Grip size={14} aria-hidden /></button>
+        aria-label={t("editor.board.move")} title={t("editor.board.pointerHint")}><GripHorizontal size={14} aria-hidden /></button>
       <div data-board-handle="left" data-testid="board-resize-left" className="htnote-board-resize-handle" aria-hidden />
       <div data-board-handle="right" data-testid="board-resize-right" className="htnote-board-resize-handle" aria-hidden />
     </div>
