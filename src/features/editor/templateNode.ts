@@ -15,7 +15,7 @@ export const Template = Node.create({
   group: "block",
   atom: true,
   selectable: true,
-  draggable: true,
+  draggable: false,
   addAttributes() {
     return { title: { default: "" }, content: { default: "" }, html: { default: null }, background: { default: "" } };
   },

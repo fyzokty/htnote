@@ -15,6 +15,7 @@ import { copyFilesSequentially, fileName, mediaFor, registerDropHandler, registe
 import { createNativeDropCursor, dropPosition } from "@/features/editor/dropCursor";
 import type { InsertMediaOptions } from "@/features/editor/mediaNodes";
 import { escapeHtml, noteLinkHref } from "@/features/editor/noteLinks";
+import { setStickyToolbarInset } from "@/features/editor/editorViewport";
 import { serializeVisualHtml, wrapRawBlocks } from "@/features/editor/visualPipeline";
 import { ipc } from "@/lib/ipc";
 import type { FlatNote } from "@/lib/types";
@@ -144,8 +145,11 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
     if (!scroll || !toolbar) return;
     // Keep native scrollIntoView below the sticky card, also when its inline
     // link controls increase its height.
+    // Aynı ölçü yüzen pano/blok araçlarının üst sınırıdır (editorViewport).
     const measure = () => {
-      scroll.style.scrollPaddingTop = `${(parseFloat(getComputedStyle(toolbar).top) || 0) + toolbar.getBoundingClientRect().height + 8}px`;
+      const inset = (parseFloat(getComputedStyle(toolbar).top) || 0) + toolbar.getBoundingClientRect().height;
+      setStickyToolbarInset(scroll, inset);
+      scroll.style.scrollPaddingTop = `${inset + 8}px`;
     };
     measure();
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);

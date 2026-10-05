@@ -92,7 +92,7 @@ export const Image = Node.create<MediaOptions>({
   name: "image",
   group: "block",
   atom: true,
-  draggable: true,
+  draggable: false,
   addOptions() { return { noteId: "" }; },
   addAttributes() {
     return {
@@ -110,7 +110,7 @@ export const Audio = Node.create<MediaOptions>({
   name: "audio",
   group: "block",
   atom: true,
-  draggable: true,
+  draggable: false,
   addOptions() { return { noteId: "" }; },
   addAttributes() { return { ...playbackAttributes, align: alignment }; },
   parseHTML() { return [{ tag: "audio" }]; },
@@ -124,7 +124,7 @@ export const Video = Node.create<MediaOptions>({
   name: "video",
   group: "block",
   atom: true,
-  draggable: true,
+  draggable: false,
   addOptions() { return { noteId: "" }; },
   addAttributes() { return { ...playbackAttributes, align: alignment, poster: { default: null }, width: { default: null }, height: { default: null } }; },
   parseHTML() { return [{ tag: "video" }]; },

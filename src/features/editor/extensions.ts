@@ -4,6 +4,7 @@ import { Placeholder } from "@tiptap/extensions";
 import StarterKit from "@tiptap/starter-kit";
 
 import { Board, BoardCell } from "./boardNodes";
+import { BlockMovement } from "./blockMovement";
 
 import { GlobalAttributes } from "@/features/editor/globalAttributesExtension";
 import { HtmlBlock } from "@/features/editor/htmlBlockNode";
@@ -33,6 +34,7 @@ export function createVisualExtensions(placeholder: string, onEditInCode?: () =>
     GlobalAttributes,
     Board,
     BoardCell,
+    BlockMovement,
     Image.configure({ noteId }),
     Audio.configure({ noteId }),
     Video.configure({ noteId }),

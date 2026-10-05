@@ -261,6 +261,7 @@
     "fontSearch": "Search fonts",
     "fontNoResults": "No fonts found",
     "fontSizeValue": "{{size}} px",
+    "block": { "move": "Select or drag block", "sideBySide": "Side by side" },
     "board": {
       "insert": "Board",
       "addCell": "Add cell",
@@ -474,6 +475,8 @@
       "editorStrike": "Strikethrough",
       "formatDocument": "Format document",
       "boardLayout": "Board cell layout",
+      "blockMoveUp": "Move block up",
+      "blockMoveDown": "Move block down",
       "editorLink": "Link note",
       "openSettings": "Open settings"
     }

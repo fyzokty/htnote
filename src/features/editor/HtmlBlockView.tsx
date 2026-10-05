@@ -10,7 +10,7 @@ export function HtmlBlockView({ node, extension }: NodeViewProps) {
   const onEditInCode = extension.options.onEditInCode as (() => void) | undefined;
 
   return (
-    <NodeViewWrapper className="htnote-html-block" draggable="true" contentEditable={false}>
+    <NodeViewWrapper className="htnote-html-block" draggable="false" contentEditable={false}>
       <div>{t("editor.htmlBlock.label")}</div>
       <pre>{preview}</pre>
       <Button size="sm" type="button" onClick={() => onEditInCode?.()}>{t("editor.htmlBlock.editInCode")}</Button>

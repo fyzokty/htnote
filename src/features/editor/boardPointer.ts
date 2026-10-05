@@ -3,6 +3,8 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { activeBoard, boardAtCell } from "./boardNodes";
 import { boardPointerTarget, boardResizeTarget, boardTargetLayout, type BoardGrid, type BoardTarget, type CellLayout } from "./board";
 import { mediaToolbarOwners } from "./mediaToolbarPosition";
+import { clipPointerLayer, type installBlockPointer } from "./blockPointer";
+import { editorViewport } from "./editorViewport";
 
 type Mode = "move" | "left" | "right";
 interface PreviewCell extends CellLayout { dom: HTMLElement; style: string; original: number }
@@ -13,13 +15,14 @@ interface Drag {
 }
 
 // Tek ortak katman ve editör düzeyinde tek hover dinleyicisi; hücrelerde abonelik yoktur.
-export function installBoardPointer(editor: Editor, layer: HTMLElement, ghost: HTMLElement, label: HTMLElement) {
+export function installBoardPointer(editor: Editor, layer: HTMLElement, ghost: HTMLElement, label: HTMLElement, blocks?: ReturnType<typeof installBlockPointer>) {
   const view = editor.view;
   let anchor: HTMLElement | null = null;
   let hovered: HTMLElement | null = null;
   let hoverTarget: Element | null | undefined;
   let drag: Drag | null = null;
   let raf = 0;
+  let hoverX = -Infinity;
   mediaToolbarOwners.set(layer, view.dom);
   const restore = (current: Drag) => current.cells.forEach((cell) => cell.dom.setAttribute("style", cell.style));
   const measure = (current: Drag) => {
@@ -47,6 +50,7 @@ export function installBoardPointer(editor: Editor, layer: HTMLElement, ghost: H
     current.remeasure = false;
   };
   const position = () => {
+    if (blocks?.isDragging()) { layer.hidden = true; return; }
     if (hoverTarget !== undefined) {
       const target = hoverTarget?.closest<HTMLElement>(".htnote-board-cell");
       hovered = target && view.dom.contains(target) ? target : null;
@@ -56,13 +60,14 @@ export function installBoardPointer(editor: Editor, layer: HTMLElement, ghost: H
     const dom = selected ? view.nodeDOM(selected.cellPos) : null;
     anchor = hovered?.isConnected ? hovered : dom instanceof HTMLElement ? dom : null;
     const bounds = anchor?.getBoundingClientRect();
-    const clip = view.dom.closest(".htnote-visual-scroll")?.getBoundingClientRect();
+    const clip = editorViewport(view.dom.closest(".htnote-visual-scroll"));
     // Bütün okumalar bitti; ortak katmanın yerleşimini şimdi yaz.
     if (!bounds || !editor.isEditable || clip && (bounds.bottom <= clip.top || bounds.top >= clip.bottom)) { layer.hidden = true; return; }
     layer.hidden = false;
     layer.style.left = `${bounds.left}px`; layer.style.top = `${bounds.top}px`;
     layer.style.width = `${bounds.width}px`; layer.style.height = `${bounds.height}px`;
-    layer.style.clipPath = clip ? `inset(${Math.max(0, clip.top - bounds.top)}px ${Math.max(0, bounds.right - clip.right)}px ${Math.max(0, bounds.bottom - clip.bottom)}px ${Math.max(0, clip.left - bounds.left)}px)` : "";
+    clipPointerLayer(layer, bounds, clip, 12);
+    layer.querySelectorAll<HTMLElement>(".htnote-board-resize-handle").forEach((handle) => { handle.style.visibility = Math.min(Math.abs(hoverX - bounds.left), Math.abs(hoverX - bounds.right)) <= 10 ? "visible" : "hidden"; });
   };
   const preview = () => {
     if (!drag) { position(); return; }
@@ -86,6 +91,7 @@ export function installBoardPointer(editor: Editor, layer: HTMLElement, ghost: H
     for (let i = 1; i < heights.length; i++) rowTops[i] = rowTops[i - 1] + heights[i - 1] + current.grid.gap;
     const top = current.mode === "move" ? rowTops[moved.row - 1] : row?.top ?? last.bottom + current.grid.gap;
     const height = current.bounds.height;
+    const clip = editorViewport(view.dom.closest(".htnote-visual-scroll"));
     // Önizleme yalnız stillerde tutulur; ProseMirror belge geçmişine girmez.
     for (const entry of ordered) {
       if (current.mode === "move") {
@@ -102,9 +108,11 @@ export function installBoardPointer(editor: Editor, layer: HTMLElement, ghost: H
     ghost.hidden = false;
     ghost.style.left = `${left}px`; ghost.style.top = `${top}px`;
     ghost.style.width = `${right - left}px`; ghost.style.height = `${height}px`;
+    clipPointerLayer(ghost, { left, top, right, bottom: top + height }, clip);
     label.hidden = current.mode === "move";
     label.textContent = `${moved.span}/12`;
     label.style.left = `${left}px`; label.style.top = `${top}px`;
+    clipPointerLayer(label, { left, top, right: left + 60, bottom: top + 24 }, clip);
   };
   const schedule = () => {
     if (!raf) raf = requestAnimationFrame(() => { raf = 0; preview(); });
@@ -125,11 +133,13 @@ export function installBoardPointer(editor: Editor, layer: HTMLElement, ghost: H
     hovered = null; schedule();
   };
   const hover = (event: PointerEvent) => {
+    blocks?.hover(event); hoverX = event.clientX;
     if (drag) return;
     hoverTarget = event.target instanceof Element ? event.target : null;
     schedule();
   };
   const leave = (event: PointerEvent) => {
+    blocks?.leave(event);
     if (event.relatedTarget instanceof Node && layer.contains(event.relatedTarget)) return;
     hoverTarget = null; if (!drag) schedule();
   };

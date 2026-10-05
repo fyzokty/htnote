@@ -261,6 +261,7 @@
     "fontSearch": "Font ara",
     "fontNoResults": "Font bulunamadı",
     "fontSizeValue": "{{size}} px",
+    "block": { "move": "Bloğu seç veya sürükle", "sideBySide": "Yan yana" },
     "board": {
       "insert": "Pano",
       "addCell": "Hücre ekle",
@@ -474,6 +475,8 @@
       "editorStrike": "Üstü çizili",
       "formatDocument": "Belgeyi biçimlendir",
       "boardLayout": "Pano hücresi yerleşimi",
+      "blockMoveUp": "Bloğu yukarı taşı",
+      "blockMoveDown": "Bloğu aşağı taşı",
       "editorLink": "Not bağlantısı",
       "openSettings": "Ayarları aç"
     }
