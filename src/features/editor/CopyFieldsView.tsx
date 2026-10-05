@@ -6,13 +6,14 @@ import type { CopyField } from "./copyFields";
 import { singleLineWidgetText } from "./widgets/widgetFormat";
 import { leaveTextBox } from "./textBox";
 import { WidgetHeader } from "./widgets/WidgetHeader";
+import { SingleLineTextarea } from "./widgets/SingleLineTextarea";
 
 export function CopyFieldsView({ node, updateAttributes, editor, getPos, selected }: NodeViewProps) {
   const { t } = useTranslation();
   const savedFields = node.attrs.fields as CopyField[];
   // Boş listenin yazım satırı yalnız görünümde kalır; özgün HTML değişmez.
   const fields = useMemo(() => savedFields.length ? savedFields : [{ label: "", value: "" }], [savedFields]);
-  const inputs = useRef<(HTMLInputElement | null)[]>([]);
+  const inputs = useRef<(HTMLTextAreaElement | null)[]>([]);
   const title = useRef<HTMLInputElement>(null);
   const pendingFocus = useRef<number | null>(null);
   useLayoutEffect(() => {
@@ -44,7 +45,7 @@ export function CopyFieldsView({ node, updateAttributes, editor, getPos, selecte
       onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); if (fields.length) inputs.current[0]?.focus(); else add(0); } }} />
     <div className="htnote-copyfields-editor-fields">
       {fields.map((field, index) => <div className="htnote-copyfields-editor-row" key={index}>
-        {(["label", "value"] as const).map((column, at) => <input key={column} ref={(input) => { inputs.current[index * 2 + at] = input; }}
+        {(["label", "value"] as const).map((column, at) => <SingleLineTextarea key={column} ref={(input) => { inputs.current[index * 2 + at] = input; }}
           className={`htnote-copyfields-editor-${column}`} data-testid={`copyfields-${column}`} spellCheck={false}
           aria-label={t(`editor.copyFields.${column}`, { index: index + 1 })} placeholder={t(`editor.copyFields.${column}Placeholder`)}
           value={field[column]} onChange={(event) => change(fields.map((entry, row) => row === index ? { ...entry, [column]: singleLineWidgetText(event.target.value) } : entry))}

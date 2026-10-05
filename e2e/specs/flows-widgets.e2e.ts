@@ -259,9 +259,16 @@ describe("widget flows", () => {
     await $('[data-testid="insert-copyfields"]').click();
     const title = await $('[data-testid="copyfields-title"]'); await title.waitForDisplayed();
     await title.setValue("Server fields"); await browser.keys("Enter");
-    await $('[data-testid="copyfields-label"]').setValue("Host"); await browser.keys("Enter");
+    await $('[data-testid="copyfields-label"]').setValue("Host");
+    await browser.keys(["Shift", "Enter"]);
+    assert.equal(await $('[data-testid="copyfields-label"]').getValue(), "Host");
+    await browser.keys("Enter");
     assert.equal(await browser.execute(() => document.activeElement?.getAttribute("data-testid")), "copyfields-value");
-    await $('[data-testid="copyfields-value"]').setValue("server <&> value"); await browser.keys("Enter");
+    await $('[data-testid="copyfields-value"]').setValue("server <&> value");
+    await browser.keys(["Shift", "Enter"]);
+    assert.equal(await $('[data-testid="copyfields-value"]').getValue(), "server <&> value");
+    assert.equal((await $$('[data-testid="copyfields-value"]')).length, 1);
+    await browser.keys("Enter");
     await browser.waitUntil(async () => (await $$('[data-testid="copyfields-value"]')).length === 2);
     await (await $$('[data-testid="copyfields-value"]'))[1].setValue("unlabeled"); await browser.keys("Enter");
     await browser.waitUntil(async () => (await $$('[data-testid="copyfields-value"]')).length === 3);
@@ -323,6 +330,9 @@ describe("widget flows", () => {
     await browser.keys("Enter");
     assert.equal(await browser.execute(() => document.activeElement?.getAttribute("data-testid")), "checklist-item");
     await $('[data-testid="checklist-item"]').setValue("First <&> item");
+    await browser.keys(["Shift", "Enter"]);
+    assert.equal(await $('[data-testid="checklist-item"]').getValue(), "First <&> item");
+    assert.equal((await $$('[data-testid="checklist-item"]')).length, 1);
     await $('.htnote-checklist-editor-row input[type="checkbox"]').click();
     await $('[data-testid="checklist-item"]').click();
     await browser.keys("End");

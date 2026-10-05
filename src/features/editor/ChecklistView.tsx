@@ -5,13 +5,15 @@ import { ListChecks, Plus, Trash2 } from "lucide-react";
 import type { ChecklistItem } from "./checklist";
 import { leaveTextBox } from "./textBox";
 import { WidgetHeader } from "./widgets/WidgetHeader";
+import { SingleLineTextarea } from "./widgets/SingleLineTextarea";
+import { singleLineWidgetText } from "./widgets/widgetFormat";
 
 export function ChecklistView({ node, updateAttributes, editor, getPos, selected }: NodeViewProps) {
   const { t } = useTranslation();
   const savedItems = node.attrs.items as ChecklistItem[];
   // Boş listenin yazım satırı yalnız görünümde kalır; özgün HTML değişmez.
   const items = useMemo(() => savedItems.length ? savedItems : [{ text: "", checked: false }], [savedItems]);
-  const fields = useRef<(HTMLInputElement | null)[]>([]);
+  const fields = useRef<(HTMLTextAreaElement | null)[]>([]);
   const title = useRef<HTMLInputElement>(null);
   const pendingFocus = useRef<number | null>(null);
   useLayoutEffect(() => {
@@ -45,8 +47,8 @@ export function ChecklistView({ node, updateAttributes, editor, getPos, selected
       {items.map((item, index) => <div className="htnote-checklist-editor-row" key={index}>
         <input type="checkbox" aria-label={t("editor.checklist.checked", { index: index + 1 })} checked={item.checked}
           onChange={(event) => change(items.map((entry, at) => at === index ? { ...entry, checked: event.target.checked } : entry))} />
-        <input type="text" size={1} ref={(field) => { fields.current[index] = field; }} data-testid="checklist-item" aria-label={t("editor.checklist.item", { index: index + 1 })}
-          value={item.text} onChange={(event) => change(items.map((entry, at) => at === index ? { ...entry, text: event.target.value } : entry))}
+        <SingleLineTextarea ref={(field) => { fields.current[index] = field; }} data-testid="checklist-item" aria-label={t("editor.checklist.item", { index: index + 1 })}
+          value={item.text} onChange={(event) => change(items.map((entry, at) => at === index ? { ...entry, text: singleLineWidgetText(event.target.value) } : entry))}
           onPaste={(event) => {
             const pasted = event.clipboardData.getData("text/plain");
             if (!/[\r\n]/.test(pasted)) return;

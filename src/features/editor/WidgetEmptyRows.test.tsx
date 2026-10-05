@@ -18,7 +18,7 @@ describe("widget empty rows", () => {
   it.each(widgets)("keeps $kind writing rows visible and reopens saved empty lists with one usable row", async ({ kind, field, empty, rows }) => {
     const original = empty.replace(`data-htnote-widget="${kind}"`, `data-htnote-widget='${kind}'`);
     const open = (source: string) => render(<VisualEditor initialInner={source} onChange={vi.fn()} />);
-    const fields = () => screen.getAllByTestId(field) as HTMLInputElement[];
+    const fields = () => screen.getAllByTestId(field) as HTMLTextAreaElement[];
     const save = () => {
       const editor = (screen.getByRole("textbox", { name: "Not içeriği" }) as HTMLElement & { editor: Editor }).editor;
       return serializeVisualHtml(editor.getHTML());

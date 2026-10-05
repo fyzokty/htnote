@@ -17,8 +17,8 @@ describe("CopyFieldsView", () => {
     const ref = createRef<VisualEditorHandle>();
     const { unmount } = render(<VisualEditor ref={ref} initialInner={initial} onChange={result.current.onVisualChange} />);
     const editor = (screen.getByRole("textbox", { name: "Not içeriği" }) as HTMLElement & { editor: Editor }).editor;
-    const labels = () => screen.queryAllByTestId("copyfields-label") as HTMLInputElement[];
-    const values = () => screen.queryAllByTestId("copyfields-value") as HTMLInputElement[];
+    const labels = () => screen.queryAllByTestId("copyfields-label") as HTMLTextAreaElement[];
+    const values = () => screen.queryAllByTestId("copyfields-value") as HTMLTextAreaElement[];
     const key = async (input: HTMLElement, key: string) => { await act(async () => { fireEvent.keyDown(input, { key }); }); };
     try {
       await act(async () => { fireEvent.change(screen.getByTestId("copyfields-title"), { target: { value: "Saved" } }); });

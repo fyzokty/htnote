@@ -7,7 +7,7 @@
 
 - Şablon doldurucu: genişleyen monospace kaynak alanı, ipucu ve değişken çipleri; görüntülemede etiketli geçici girdiler, indigo değerler/kesik çerçeveli yer tutucular, dar alanda alt alta önizleme ve ortak kopyalama/sıfırlama eylemleri.
 
-- Kopyalanabilir alanlar ve kontrol listesi: boş yazım satırları editörde kalır, widget değişince kaydedilmez; boş liste editörde bir yazım satırıyla açılır. Görüntülemede boş değerin kopyalama eylemi ve boş kontrol maddesi gizlenir.
+- Kopyalanabilir alanlar ve kontrol listesi: madde/etiket/değer editörleri tek satır yüksekliğinden başlayıp dar alanda kelime sınırında sarılarak genişler; boş yazım satırları editörde kalır, widget değişince kaydedilmez; boş liste editörde bir yazım satırıyla açılır. Görüntülemede boş değerin kopyalama eylemi ve boş kontrol maddesi gizlenir.
 
 - Kopyalanabilir alanlar: dar etiket ve monospace değer editörü; görüntülemede seçilebilir, sarılan değerler, satır kopyalama/onay geri bildirimi ve ortak tümünü kopyala eylemi; dışa aktarımda okunur tanım listesi.
 
