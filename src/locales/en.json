@@ -290,6 +290,14 @@
       "valuePlaceholder": "Value",
       "remove": "Remove field {{index}}",
       "add": "Add field"
+    },
+    "template": {
+      "insert": "Template",
+      "title": "Title",
+      "content": "Template text",
+      "select": "Select template",
+      "hint": "Use {{name}} for variables, {{name|value}} for defaults",
+      "detected": "Detected:"
     }
   },
   "errors": {
@@ -510,7 +518,8 @@
   "widgetTypes": {
     "textbox": "TEXT BOX",
     "checklist": "CHECKLIST",
-    "copyfields": "COPY FIELDS"
+    "copyfields": "COPY FIELDS",
+    "template": "TEMPLATE"
   },
   "textBox": {
     "copy": "Copy",
@@ -527,5 +536,9 @@
     "copyAll": "Copy all",
     "copyRow": "Copy: {{name}}",
     "row": "row {{index}}"
+  },
+  "template": {
+    "reset": "Reset",
+    "preview": "Preview"
   }
 }

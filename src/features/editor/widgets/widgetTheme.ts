@@ -29,4 +29,9 @@ export const widgetBaseCss = `
 :where(.htnote-copyfields-row){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,4fr) auto;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--ht-widget-divider,#e0e3ee)}
 :where(.htnote-copyfields-row dt){font-weight:700;overflow-wrap:anywhere}
 :where(.htnote-copyfields-row dd){min-width:0;margin:0;padding:8px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff);font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
+
+:where(.htnote-template){container-type:inline-size;box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:12px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff)}
+:where(.htnote-template-title){font-weight:700;min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+:where(.htnote-template-source){display:block;box-sizing:border-box;width:100%;min-height:4.8em;padding:8px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff);field-sizing:content;resize:vertical;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+:where(.htnote-template-source:focus-visible){outline:2px solid var(--ht-widget-accent,#4648d4);outline-offset:2px}
 `;

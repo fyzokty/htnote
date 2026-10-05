@@ -290,6 +290,14 @@
       "valuePlaceholder": "Değer",
       "remove": "Alan {{index}} sil",
       "add": "Alan ekle"
+    },
+    "template": {
+      "insert": "Şablon doldurucu",
+      "title": "Başlık",
+      "content": "Şablon metni",
+      "select": "Şablon doldurucuyu seç",
+      "hint": "Değişken için {{ad}}, varsayılan için {{ad|değer}} yazın",
+      "detected": "Algılananlar:"
     }
   },
   "errors": {
@@ -510,7 +518,8 @@
   "widgetTypes": {
     "textbox": "METİN KUTUSU",
     "checklist": "KONTROL LİSTESİ",
-    "copyfields": "KOPYALANABİLİR ALANLAR"
+    "copyfields": "KOPYALANABİLİR ALANLAR",
+    "template": "ŞABLON DOLDURUCU"
   },
   "textBox": {
     "copy": "Kopyala",
@@ -527,5 +536,9 @@
     "copyAll": "Tümünü kopyala",
     "copyRow": "Kopyala: {{name}}",
     "row": "satır {{index}}"
+  },
+  "template": {
+    "reset": "Sıfırla",
+    "preview": "Önizleme"
   }
 }

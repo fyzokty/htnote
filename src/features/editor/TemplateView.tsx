@@ -1,6 +1,6 @@
 import type { NodeViewProps } from "@tiptap/react";
 import { TextareaWidgetView } from "./widgets/TextareaWidgetView";
 
-export function TextBoxView(props: NodeViewProps) {
-  return <TextareaWidgetView {...props} kind="textbox" />;
+export function TemplateView(props: NodeViewProps) {
+  return <TextareaWidgetView {...props} kind="template" />;
 }

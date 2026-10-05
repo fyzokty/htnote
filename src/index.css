@@ -736,14 +736,14 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 .htnote-toolbar-measure { position: absolute; visibility: hidden; pointer-events: none; width: max-content; }
 
 /* Metin kutusu alanları atom node içinde yerel form kontrolleridir. */
-.htnote-textbox-editor { position: relative; margin: 16px 0; padding: 12px; border: 1px solid var(--app-widget-border); border-radius: 12px; background: var(--app-card); color: var(--app-text); }
-.htnote-textbox-editor.is-selected { outline: 2px solid var(--app-focus); outline-offset: 2px; }
-.htnote-textbox-editor input, .htnote-textbox-editor textarea { display: block; box-sizing: border-box; width: 100%; color: var(--app-text); border-radius: 8px; padding: 8px; }
-.htnote-textbox-editor input { font-weight: 700; margin-bottom: 8px; border: 0; background: transparent; }
-.htnote-textbox-editor input:hover { background: var(--app-hover); }
-.htnote-textbox-editor textarea { background: var(--app-widget-field); border: 1px solid var(--app-widget-border); }
-.htnote-textbox-editor textarea { field-sizing: content; min-height: 4.8em; resize: vertical; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; }
-.htnote-textbox-editor input:focus-visible, .htnote-textbox-editor textarea:focus-visible, .htnote-widget-handle:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+:is(.htnote-textbox-editor, .htnote-template-editor) { position: relative; margin: 16px 0; padding: 12px; border: 1px solid var(--app-widget-border); border-radius: 12px; background: var(--app-card); color: var(--app-text); }
+:is(.htnote-textbox-editor, .htnote-template-editor).is-selected { outline: 2px solid var(--app-focus); outline-offset: 2px; }
+:is(.htnote-textbox-editor, .htnote-template-editor) input, :is(.htnote-textbox-editor, .htnote-template-editor) textarea { display: block; box-sizing: border-box; width: 100%; color: var(--app-text); border-radius: 8px; padding: 8px; }
+:is(.htnote-textbox-editor, .htnote-template-editor) input { font-weight: 700; margin-bottom: 8px; border: 0; background: transparent; }
+:is(.htnote-textbox-editor, .htnote-template-editor) input:hover { background: var(--app-hover); }
+:is(.htnote-textbox-editor, .htnote-template-editor) textarea { background: var(--app-widget-field); border: 1px solid var(--app-widget-border); }
+:is(.htnote-textbox-editor, .htnote-template-editor) textarea { field-sizing: content; min-height: 4.8em; resize: vertical; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; }
+:is(.htnote-textbox-editor, .htnote-template-editor) input:focus-visible, :is(.htnote-textbox-editor, .htnote-template-editor) textarea:focus-visible, .htnote-widget-handle:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
 .htnote-widget-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
 .htnote-widget-type { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--app-muted); font-size: 11px; font-weight: 700; letter-spacing: .04em; }
 .htnote-widget-type > span { display: flex; color: var(--app-accent); }
@@ -782,3 +782,9 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 .htnote-copyfields-add { margin-top: 8px; color: var(--app-accent); }
 .htnote-copyfields-editor input:focus-visible, .htnote-copyfields-editor button:focus-visible { outline: 2px solid var(--app-focus); outline-offset: 2px; }
 @media print { .htnote-copyfields-editor button, .htnote-copyfields-editor .htnote-widget-tools { display: none; } }
+
+.htnote-template-editor-info { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; margin-top: 12px; color: var(--app-muted); font-size: 12px; }
+.htnote-template-editor-info p { margin: 0; }
+.htnote-template-editor-variables { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
+.htnote-template-chip { padding: 2px 8px; border: 1px solid var(--app-widget-border); border-radius: 999px; background: var(--app-widget-field); color: var(--app-text); overflow-wrap: anywhere; }
+@media print { .htnote-template-editor .htnote-widget-tools, .htnote-template-editor-info { display: none; } }

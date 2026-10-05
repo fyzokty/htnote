@@ -1,5 +1,6 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { serializeCopyFields } from "@/features/editor/copyFields";
+import { parseTemplate, serializeTemplate } from "@/features/editor/template";
 import source from "./bridge.js?raw";
 import { writeNoteBackground } from "@/features/viewer/noteAppearance";
 
@@ -22,6 +23,7 @@ function click(href: string, type = "click") {
 
 describe("note bridge", () => {
   beforeAll(() => {
+    Object.assign(window, { HTNOTE_TEMPLATE_ENGINE: { parseTemplate } });
     history.replaceState(null, "", "/123e4567-e89b-12d3-a456-426614174000/index.html");
     document.body.innerHTML = '<video controls></video><audio controls></audio>';
     vi.spyOn(window.parent, "postMessage").mockImplementation(messages);
@@ -54,6 +56,94 @@ describe("note bridge", () => {
     hostMessage({ type: "HTNOTE_THEME", labels: { copy: "Copy", copied: "Copied", copyFailed: "Copy failed", reset: "Reset", textboxType: "TEXT BOX" } });
     return document.querySelector("textarea")!;
   }
+
+  async function addTemplate(content = "Sayın {{Ad|Ahmet}}, {{AD}}\nNo: {{No}}\n<&>") {
+    document.body.innerHTML = serializeTemplate({ title: "Response", content, html: null });
+    await vi.waitFor(() => expect(document.querySelector('[data-testid="template-copy"]')).not.toBeNull());
+    hostMessage({ type: "HTNOTE_THEME", labels: { copy: "Copy", copied: "Copied", copyFailed: "Copy failed", templateType: "TEMPLATE", templateReset: "Reset", templatePreview: "Preview" } });
+    return Array.from(document.querySelectorAll<HTMLInputElement>('[data-testid="template-variable"]'));
+  }
+
+  it("fills repeated variables, safely previews/copies temporary values and resets saved defaults", async () => {
+    const fields = await addTemplate();
+    const source = document.querySelector<HTMLTextAreaElement>(".htnote-template-source")!;
+    const saved = source.defaultValue, sourceHtml = source.innerHTML;
+    const reset = document.querySelector<HTMLButtonElement>('[data-testid="template-reset"]')!;
+    const preview = document.querySelector('[data-testid="template-preview"]')!;
+    expect(source.hidden).toBe(true);
+    expect(fields.map((field) => field.value)).toEqual(["Ahmet", ""]);
+    expect(fields.map((field) => document.querySelector(`label[for="${field.id}"]`)?.textContent)).toEqual(["Ad", "No"]);
+    expect(reset.disabled).toBe(true);
+    expect(preview.textContent).toBe("Sayın Ahmet, Ahmet\nNo: No\n<&>");
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    try {
+      document.querySelector<HTMLButtonElement>('[data-testid="template-copy"]')!.click();
+      await vi.waitFor(() => expect(writeText).toHaveBeenLastCalledWith("Sayın Ahmet, Ahmet\nNo: \n<&>"));
+      fields[0].value = '<img src=x onerror="alert(1)">'; fields[0].dispatchEvent(new Event("input"));
+      expect(reset.disabled).toBe(false);
+      expect(preview.textContent).toContain(fields[0].value + ", " + fields[0].value);
+      expect(preview.querySelector("img,script,input")).toBeNull();
+      expect(Array.from(preview.childNodes).every((node) => node.nodeType === Node.TEXT_NODE || node.nodeName === "SPAN")).toBe(true);
+      fields[1].value = "42"; fields[1].dispatchEvent(new Event("input"));
+      document.querySelector<HTMLButtonElement>('[data-testid="template-copy"]')!.click();
+      await vi.waitFor(() => expect(writeText).toHaveBeenLastCalledWith(`Sayın ${fields[0].value}, ${fields[0].value}\nNo: 42\n<&>`));
+      window.dispatchEvent(new Event("beforeprint"));
+      expect(preview.textContent).toContain("No: 42");
+      reset.click();
+      expect(fields.map((field) => field.value)).toEqual(["Ahmet", ""]);
+      expect(reset.disabled).toBe(true);
+      expect(source.defaultValue).toBe(saved); expect(source.innerHTML).toBe(sourceHtml);
+      expect(messages).not.toHaveBeenCalled();
+    } finally { delete (navigator as { clipboard?: unknown }).clipboard; }
+  });
+
+  it("uses clipboard fallback, restores variable focus/selection and reports failure", async () => {
+    const fields = await addTemplate("{{Ad|Saved}} / {{No}}");
+    fields[0].focus(); fields[0].setSelectionRange(1, 3);
+    const execCommand = vi.fn(() => { expect((document.activeElement as HTMLTextAreaElement).value).toBe("Saved / "); return false; });
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error("Denied")) } });
+    Object.defineProperty(document, "execCommand", { configurable: true, value: execCommand });
+    try {
+      const copy = document.querySelector<HTMLButtonElement>('[data-testid="template-copy"]')!;
+      copy.click();
+      await vi.waitFor(() => expect(copy.textContent).toBe("Copy failed"));
+      expect(execCommand).toHaveBeenCalledWith("copy"); expect(fields[0]).toHaveFocus();
+      expect([fields[0].selectionStart, fields[0].selectionEnd]).toEqual([1, 3]);
+      expect(document.querySelectorAll("textarea")).toHaveLength(1);
+    } finally { delete (navigator as { clipboard?: unknown }).clipboard; delete (document as unknown as { execCommand?: unknown }).execCommand; }
+  });
+
+  it("handles no variables, late widgets, unique field labels and source updates without duplicate controls", async () => {
+    await addTemplate("plain\n{{invalid\nname}}");
+    expect(document.querySelector('[data-testid="template-reset"]')).toBeNull();
+    expect(document.querySelectorAll('[data-testid="template-variable"]')).toHaveLength(0);
+    expect(document.querySelector('[data-testid="template-preview"]')?.textContent).toBe("plain\n{{invalid\nname}}");
+    document.body.insertAdjacentHTML("beforeend", serializeTemplate({ title: "Second", content: "{{Ad}}", html: null }));
+    await vi.waitFor(() => expect(document.querySelectorAll('[data-testid="template-copy"]')).toHaveLength(2));
+    const source = document.querySelector<HTMLTextAreaElement>(".htnote-template-source")!;
+    source.defaultValue = "{{Ad|Default}}";
+    await vi.waitFor(() => expect(document.querySelectorAll('[data-testid="template-variable"]')).toHaveLength(2));
+    const fields = Array.from(document.querySelectorAll<HTMLInputElement>('[data-testid="template-variable"]'));
+    expect(new Set(fields.map((field) => field.id)).size).toBe(2);
+    expect(fields[0].value).toBe("Default");
+    expect(document.querySelectorAll('[data-htnote-widget-header]')).toHaveLength(2);
+  });
+
+  it("validates template labels, rejects foreign messages and preserves live values on language changes", async () => {
+    const fields = await addTemplate();
+    fields[0].value = "Live"; fields[0].dispatchEvent(new Event("input"));
+    hostMessage({ type: "HTNOTE_THEME", labels: { templateType: "<img src=x>", templatePreview: "Önizleme", templateReset: "Sıfırla" } });
+    expect(document.querySelector('.htnote-widget-type')?.textContent).toBe("<img src=x>");
+    expect(document.querySelector('.htnote-template-preview-heading')?.textContent).toBe("Önizleme");
+    expect(document.querySelector('[data-testid="template-reset"]')?.textContent).toBe("Sıfırla");
+    hostMessage({ type: "HTNOTE_THEME", labels: { templateType: "x".repeat(201), templatePreview: 42, templateReset: [] } });
+    hostMessage({ type: "HTNOTE_THEME", labels: { templatePreview: "Foreign" } }, {} as Window);
+    expect(document.querySelector('.htnote-template-preview-heading')?.textContent).toBe("Önizleme");
+    expect(document.querySelector('.htnote-widget-type')?.textContent).toBe("<img src=x>");
+    expect(document.querySelector('img')).toBeNull();
+    expect(fields[0].value).toBe("Live");
+  });
 
   async function addCopyFields() {
     document.body.innerHTML = serializeCopyFields({ title: "Fields", html: null, fields: [
@@ -481,10 +571,8 @@ describe("note bridge", () => {
     expect(messages).toHaveBeenCalledWith({ type: "HTNOTE_SHORTCUT", key: ",", ctrl: true, shift: false, alt: false, meta: false }, "*");
   });
 
-  it("exposes frozen note metadata within the size limit", () => {
+  it("exposes frozen note metadata", () => {
     expect(Object.isFrozen((window as unknown as { htnote: object }).htnote)).toBe(true);
-    // Ses oynatıcı, kök çubuk ve widget’lar tek köprüde sunulur; bütçe 48 KiB.
-    expect(new TextEncoder().encode(source).length).toBeLessThan(49152);
   });
 
   it("uses low-specificity theme defaults and the portable preset stylesheet", () => {

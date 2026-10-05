@@ -157,7 +157,7 @@ function currentTheme() {
   }
   const audioLabels = Object.fromEntries((["play", "pause", "mute", "unmute", "seek", "title", "error"] as const).map((key) => [key, i18n.t(`audioPlayer.${key}`)]));
   const labels = Object.fromEntries((["copy", "copied", "copyFailed", "reset"] as const).map((key) => [key, i18n.t(`textBox.${key}`)]));
-  return { type: "HTNOTE_THEME", vars, mode, audioLabels, labels: { ...labels, textboxType: i18n.t("widgetTypes.textbox"), checklistType: i18n.t("widgetTypes.checklist"), checklistReset: i18n.t("checklist.reset"), copyRemaining: i18n.t("checklist.copyRemaining"), checklistProgress: i18n.t("checklist.progress"), copyfieldsType: i18n.t("widgetTypes.copyfields"), copyAll: i18n.t("copyFields.copyAll"), copyRow: i18n.t("copyFields.copyRow", { name: "{{name}}" }), copyfieldsRow: i18n.t("copyFields.row", { index: "{{index}}" }) } };
+  return { type: "HTNOTE_THEME", vars, mode, audioLabels, labels: { ...labels, textboxType: i18n.t("widgetTypes.textbox"), checklistType: i18n.t("widgetTypes.checklist"), checklistReset: i18n.t("checklist.reset"), copyRemaining: i18n.t("checklist.copyRemaining"), checklistProgress: i18n.t("checklist.progress"), templateType: i18n.t("widgetTypes.template"), templateReset: i18n.t("template.reset"), templatePreview: i18n.t("template.preview"), copyfieldsType: i18n.t("widgetTypes.copyfields"), copyAll: i18n.t("copyFields.copyAll"), copyRow: i18n.t("copyFields.copyRow", { name: "{{name}}" }), copyfieldsRow: i18n.t("copyFields.row", { index: "{{index}}" }) } };
 }
 
 function sendTheme(frame: Window) {
