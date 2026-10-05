@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { formatShortcut, matchShortcut } from "@/lib/shortcuts/registry";
+import { formatShortcut, listShortcuts, matchShortcut } from "@/lib/shortcuts/registry";
 import type { KeyInput, Platform, ShortcutId } from "@/lib/shortcuts/registry";
 
 const base: KeyInput = { key: "", ctrl: false, shift: false, alt: false, meta: false };
@@ -60,6 +60,17 @@ describe("matchShortcut", () => {
 });
 
 describe("formatShortcut", () => {
+  it("registers the block movement keys without collisions", () => {
+    const shortcuts = listShortcuts();
+    for (const id of ["blockMoveUp", "blockMoveDown"] as const) {
+      const shortcut = shortcuts.find((entry) => entry.id === id)!;
+      expect(shortcut.bound).toBe(true);
+      expect(shortcut.displayOnly).toBe(true);
+      expect(shortcuts.filter((entry) => entry.key === shortcut.key && entry.modifier === shortcut.modifier && entry.shift === shortcut.shift && entry.alt === shortcut.alt)).toHaveLength(1);
+    }
+    expect(formatShortcut("blockMoveUp", "windows")).toBe("Alt+Shift+ArrowUp");
+    expect(formatShortcut("blockMoveDown", "mac")).toBe("⌥⇧ArrowDown");
+  });
   it("Windows ve macOS etiketlerini üretir", () => {
     expect(formatShortcut("newNote", "windows")).toBe("Ctrl+N");
     expect(formatShortcut("newFolder", "linux")).toBe("Ctrl+Shift+N");

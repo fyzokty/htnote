@@ -15,7 +15,7 @@ export const CopyFields = Node.create({
   group: "block",
   atom: true,
   selectable: true,
-  draggable: true,
+  draggable: false,
   addAttributes() {
     return { title: { default: "" }, fields: { default: [{ label: "", value: "" }] }, html: { default: null }, background: { default: "" } };
   },

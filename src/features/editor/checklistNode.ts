@@ -15,7 +15,7 @@ export const Checklist = Node.create({
   group: "block",
   atom: true,
   selectable: true,
-  draggable: true,
+  draggable: false,
   addAttributes() {
     return { title: { default: "" }, items: { default: [{ text: "", checked: false }] }, html: { default: null }, background: { default: "" } };
   },

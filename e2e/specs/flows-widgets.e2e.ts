@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { createNote, editNote, openNote, saveAndView, useTempRoot, visibleEditorContentControl, visibleEditorTool, waitForFile, withNoteFrame, invoke } from "../helpers/flows";
-import { pointerClickAt, pointerDrag, pointerMoveTo } from "../helpers/pointer";
+import { pointerClickAt, pointerDrag, pointerMoveTo, waitForPointerStable } from "../helpers/pointer";
 
 describe("widget flows", () => {
   let root: string;
@@ -14,6 +14,47 @@ describe("widget flows", () => {
     ({ root, restore } = await useTempRoot());
   });
   after(async () => { await invoke("update_settings", { patch: { language } }); await restore(); });
+
+  it("creates a board at a block edge, moves a checklist into it and extracts a paragraph", async () => {
+    const note = await createNote("Block pointer round trip");
+    await openNote(note.id); await editNote();
+    await (await visibleEditorContentControl('.tiptap > p')).click();
+    await browser.keys("First block"); await browser.keys("Enter"); await browser.keys("Second block");
+    const second = await $('.tiptap > p:last-child'); await pointerMoveTo(second);
+    const handle = await $('[data-testid="block-handle"]'); await handle.waitForDisplayed();
+    const edge = await browser.execute(() => { const rect = document.querySelector('.tiptap > p')!.getBoundingClientRect(); return { x: Math.round(rect.right - 8), y: Math.round(rect.top + rect.height / 2) }; });
+    await pointerDrag(handle, await $('.tiptap > p'), { toPoint: edge });
+    await $('.tiptap > .htnote-board').waitForDisplayed();
+    assert.equal(await $('.htnote-board-cell:nth-child(1)').getAttribute('data-htnote-cell'), '1 6 1');
+    assert.equal(await $('.htnote-board-cell:nth-child(2)').getAttribute('data-htnote-cell'), '7 6 1');
+    await (await visibleEditorContentControl('.tiptap > p:last-child')).click();
+    await (await visibleEditorTool('[data-testid="insert-widget"]')).click(); await $('[data-testid="insert-checklist"]').click();
+    await $('[data-testid="checklist-title"]').setValue("Moved checklist");
+    await $('[data-testid="checklist-item"]').setValue("Saved item");
+    const widgetGrip = await $('.tiptap .htnote-widget-handle');
+    await browser.waitUntil(async () => browser.execute(() => {
+      const editor = (document.querySelector('.tiptap') as HTMLElement & { editor: { getJSON: () => { content: { type: string; attrs?: { title?: string; items?: { text: string }[] } }[] } } }).editor;
+      const widget = editor.getJSON().content.find((node) => node.type === 'checklist');
+      return widget?.attrs?.title === 'Moved checklist' && widget.attrs.items?.[0]?.text === 'Saved item';
+    }));
+    await widgetGrip.scrollIntoView(); await waitForPointerStable(widgetGrip);
+    const cellEnd = await browser.execute(() => { const rect = document.querySelector('.htnote-board-cell:first-child p')!.getBoundingClientRect(); return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.bottom - 1) }; });
+    await pointerDrag(widgetGrip, await $('.htnote-board-cell:first-child'), { toPoint: cellEnd, waypoints: [cellEnd], afterActivation: async () => { await $('.htnote-block-chip').waitForDisplayed(); } });
+    await $('.htnote-board-cell:first-child .htnote-widget-handle').waitForDisplayed();
+    const paragraph = await $('.htnote-board-cell:first-child > p'); await pointerMoveTo(paragraph); await handle.waitForDisplayed();
+    const below = await browser.execute(() => { const rect = document.querySelector('.tiptap > p:last-child')!.getBoundingClientRect(); return { x: Math.round(rect.left + rect.width / 2), y: Math.round(rect.top + 1) }; });
+    await pointerDrag(handle, await $('.tiptap > p:last-child'), { toPoint: below });
+    await browser.waitUntil(async () => await $('.tiptap > p').getText() === "First block");
+    const html = await saveAndView(note.id, (value) => value.includes("Saved item") && value.includes("First block"));
+    assert.equal((html.match(/class="htnote-board-cell"/g) ?? []).length, 2);
+    assert.match(html, /data-htnote-cell="1 6 1"[^>]*>\s*<div class="htnote-checklist"/);
+    assert.match(html, /data-htnote-cell="7 6 1"[^>]*>\s*<p>Second block<\/p>/);
+    assert.ok(html.indexOf("First block") > html.indexOf("Second block"));
+    await editNote();
+    assert.equal(await $('.tiptap > p').getText(), "First block");
+    assert.equal(await $('.htnote-board-cell:first-child [data-testid="checklist-title"]').getValue(), "Moved checklist");
+    await $('[data-testid="cancel-edit"]').click();
+  });
 
   it("moves and resizes board cells with real pointer actions and saves their layouts", async () => {
     const note = await createNote("Board pointer round trip");
@@ -32,7 +73,9 @@ describe("widget flows", () => {
     });
     await pointerDrag(grip, await $('.tiptap .htnote-board'), { toPoint: destination });
     await browser.waitUntil(async () => (await $('.tiptap .htnote-board-cell:nth-child(2)').getAttribute('data-htnote-cell')) === '8 5 2');
-    const left = await visibleEditorContentControl('.htnote-board-cell:first-child p'); await left.click(); await pointerMoveTo(left);
+    const left = await visibleEditorContentControl('.htnote-board-cell:first-child p'); await left.click();
+    const edgePoint = await browser.execute(() => { const cell = document.querySelector('.tiptap .htnote-board-cell')!.getBoundingClientRect(); return { x: Math.round(cell.right - 3), y: Math.round(cell.top + cell.height / 2) }; });
+    await pointerMoveTo(left, edgePoint);
     const edge = await $('[data-testid="board-resize-right"]'); await edge.waitForDisplayed();
     const expanded = await browser.execute(() => {
       const board = document.querySelector('.tiptap .htnote-board')!.getBoundingClientRect();

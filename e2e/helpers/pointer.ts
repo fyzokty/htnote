@@ -260,11 +260,11 @@ async function withPointer<T>(run: (session: PointerSession) => Promise<T>): Pro
   finally { await session.stop(); }
 }
 
-export async function pointerMoveTo(target: PointerElement) {
+export async function pointerMoveTo(target: PointerElement, point?: PointerPoint) {
   const element = await target.getElement();
   await element.scrollIntoView();
   return withPointer(async (session) => {
-    return session.move(element, await pointerCenter(element));
+    return session.move(element, point ?? await pointerCenter(element));
   });
 }
 

@@ -16,7 +16,7 @@ export function WidgetHeader({ icon, label, background, onBackgroundChange, sele
     <span className="htnote-widget-type"><span aria-hidden>{icon}</span>{label}</span>
     <div className="htnote-widget-tools">
       <WidgetBackgroundButton value={background} onChange={onBackgroundChange} />
-      <span className="htnote-widget-handle" data-drag-handle draggable="true" role="button" tabIndex={0}
+      <span className="htnote-widget-handle" data-block-handle draggable="false" role="button" tabIndex={0}
         aria-label={selectLabel} onClick={onSelect}
         onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(); } }} />
     </div>

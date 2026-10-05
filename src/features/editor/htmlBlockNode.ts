@@ -8,7 +8,7 @@ export const HtmlBlock = Node.create<{ onEditInCode?: () => void }>({
   group: "block",
   atom: true,
   selectable: true,
-  draggable: true,
+  draggable: false,
   addOptions() {
     return { onEditInCode: undefined };
   },

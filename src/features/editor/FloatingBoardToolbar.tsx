@@ -2,12 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Editor } from "@tiptap/core";
 import { useTranslation } from "react-i18next";
-import { Columns3, GripHorizontal, Plus, Trash2, Ungroup } from "lucide-react";
+import { Columns3, GripHorizontal, GripVertical, Type, List, Image, Code, Table, Plus, Trash2, Ungroup } from "lucide-react";
 import { IconButton } from "@/components/ui/IconButton";
 import { activeBoard, boardLayoutKey } from "./boardNodes";
 import { MAX_BOARD_CELLS, type CellLayout } from "./board";
 import { mediaToolbarOwners, mediaToolbarPosition } from "./mediaToolbarPosition";
 import { installBoardPointer } from "./boardPointer";
+import { installBlockPointer } from "./blockPointer";
 
 interface Active extends CellLayout { pos: number; count: number; layout: boolean }
 export function FloatingBoardToolbar({ editor }: { editor: Editor }) {
@@ -18,8 +19,16 @@ export function FloatingBoardToolbar({ editor }: { editor: Editor }) {
   const handles = useRef<HTMLDivElement>(null);
   const ghost = useRef<HTMLDivElement>(null);
   const widthLabel = useRef<HTMLDivElement>(null);
+  const blocks = useRef<HTMLDivElement>(null);
+  const blockHandle = useRef<HTMLButtonElement>(null);
+  const chip = useRef<HTMLDivElement>(null);
+  const indicator = useRef<HTMLDivElement>(null);
+  const hint = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (handles.current && ghost.current && widthLabel.current) return installBoardPointer(editor, handles.current, ghost.current, widthLabel.current);
+    if (!handles.current || !ghost.current || !widthLabel.current || !blocks.current || !blockHandle.current || !chip.current || !indicator.current || !hint.current) return;
+    const pointer = installBlockPointer(editor, blocks.current, blockHandle.current, chip.current, indicator.current, hint.current);
+    const stop = installBoardPointer(editor, handles.current, ghost.current, widthLabel.current, pointer);
+    return () => { stop(); pointer.destroy(); };
   }, [editor]);
   useEffect(() => {
     let signature = "";
@@ -75,6 +84,17 @@ export function FloatingBoardToolbar({ editor }: { editor: Editor }) {
     };
   }, [editor, active]);
   return createPortal(<>
+    <div ref={blocks} className="htnote-block-pointer-layer" hidden>
+      <button ref={blockHandle} type="button" data-block-handle data-testid="block-handle" className="htnote-block-handle"
+        aria-label={t("editor.block.move")} title={t("editor.block.move")}><GripVertical size={16} aria-hidden /></button>
+    </div>
+    <div ref={chip} className="htnote-block-chip" hidden aria-hidden>
+      <Type className="block-icon-text" size={14} /><List className="block-icon-list" size={14} /><Image className="block-icon-media" size={14} />
+      <Code className="block-icon-code" size={14} /><Table className="block-icon-table" size={14} /><Columns3 className="block-icon-board" size={14} />
+      <span data-block-preview />
+    </div>
+    <div ref={indicator} className="htnote-block-indicator" hidden aria-hidden />
+    <div ref={hint} className="htnote-block-hint" hidden aria-hidden>{t("editor.block.sideBySide")}</div>
     <div ref={handles} className="htnote-board-pointer-layer" hidden>
       <button type="button" tabIndex={-1} data-board-handle="move" data-testid="board-move" className="htnote-board-move-handle"
         aria-label={t("editor.board.move")} title={t("editor.board.pointerHint")}><GripHorizontal size={14} aria-hidden /></button>
