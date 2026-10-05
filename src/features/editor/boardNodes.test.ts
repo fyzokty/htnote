@@ -1,7 +1,8 @@
 import { Editor } from "@tiptap/core";
-import { TextSelection } from "@tiptap/pm/state";
+import { NodeSelection, TextSelection } from "@tiptap/pm/state";
+import { GapCursor } from "@tiptap/pm/gapcursor";
 import { closeHistory } from "@tiptap/pm/history";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { createVisualExtensions } from "./extensions";
 import { activeBoard, boardLayoutKey } from "./boardNodes";
 import { serializeBoard, validLayout } from "./board";
@@ -32,6 +33,131 @@ function key(key: string, shiftKey = false, ctrlKey = false, altKey = false) {
 function separate() { editor.view.dispatch(closeHistory(editor.state.tr)); }
 
 describe("board editor commands", () => {
+  it.each(["textBox", "checklist", "copyfields", "template", "calc"])("deletes the paragraph after %s, selects the widget and restores it with one undo", (type) => {
+    setup(); editor.commands.insertBoard();
+    const active = activeBoard(editor.state)!;
+    editor.view.dispatch(editor.state.tr.replaceWith(active.cellPos + 1, active.cellPos + active.cell.nodeSize - 1,
+      [editor.schema.nodes[type].create(), editor.schema.nodes.paragraph.create()]));
+    focusCell(0, true);
+    const before = editor.getJSON();
+    key("Backspace");
+    expect(activeBoard(editor.state)?.cell.childCount).toBe(1);
+    expect(editor.state.selection).toBeInstanceOf(NodeSelection);
+    expect((editor.state.selection as NodeSelection).node.type.name).toBe(type);
+    editor.state.doc.check();
+    editor.commands.undo(); expect(editor.getJSON()).toEqual(before);
+    editor.commands.redo();
+    editor.view.dispatch(editor.state.tr.setNodeMarkup(active.cellPos, undefined, { col: 1, span: 6, row: 1 }));
+    expect(activeBoard(editor.state)?.cell.childCount).toBe(1);
+    key("Delete"); expect(activeBoard(editor.state)?.cell.firstChild?.type.name).toBe("paragraph");
+  });
+  it.each(["cell", "top"])("removes an empty paragraph after a widget and supports Enter in %s", (location) => {
+    const widget = { type: "checklist" };
+    const blocks = [widget, { type: "paragraph" }, { type: "paragraph", content: [{ type: "text", text: "Tail" }] }];
+    setup();
+    editor.commands.setContent({ type: "doc", content: location === "cell"
+      ? [{ type: "board", content: [{ type: "boardCell", content: blocks }] }, { type: "paragraph" }]
+      : blocks });
+    const start = location === "cell" ? 2 : 0;
+    editor.commands.setTextSelection(start + 2); separate();
+    key("Backspace");
+    expect(editor.state.selection).toBeInstanceOf(NodeSelection);
+    expect(editor.state.selection.from).toBe(start);
+    key("Enter");
+    expect(editor.state.selection).toBeInstanceOf(TextSelection);
+    expect(editor.state.selection.from).toBe(start + 2);
+    expect(editor.state.selection.$from.parent.type.name).toBe("paragraph");
+    expect(editor.state.doc.textContent).toBe("Tail");
+    editor.state.doc.check();
+  });
+  it("keeps the document-end paragraph required by D30", () => {
+    setup(); editor.commands.insertChecklist();
+    editor.commands.setTextSelection(editor.state.doc.content.size - 1);
+    key("Backspace");
+    expect(editor.state.doc.lastChild?.type.name).toBe("paragraph");
+    expect(editor.state.selection).toBeInstanceOf(NodeSelection);
+  });
+  it.each(["textBox", "checklist", "copyfields", "template", "calc"])("Enter after a final selected %s creates a paragraph in the same cell", (type) => {
+    setup(); editor.commands.insertBoard();
+    const active = activeBoard(editor.state)!;
+    editor.view.dispatch(editor.state.tr.replaceWith(active.cellPos + 1, active.cellPos + active.cell.nodeSize - 1, editor.schema.nodes[type].create()));
+    editor.commands.setNodeSelection(2); separate(); const before = editor.getJSON();
+    key("Enter");
+    expect(activeBoard(editor.state)?.index).toBe(0);
+    expect(activeBoard(editor.state)?.cell.childCount).toBe(2);
+    expect(editor.state.selection).toBeInstanceOf(TextSelection);
+    expect(editor.state.selection.from).toBe(4);
+    editor.commands.undo(); expect(editor.getJSON()).toEqual(before);
+  });
+  it("undoes Backspace independently of the Enter that just created the paragraph", () => {
+    setup(); editor.commands.insertBoard(); editor.commands.insertChecklist(); editor.commands.setNodeSelection(2);
+    key("Enter"); const before = editor.getJSON();
+    key("Backspace");
+    expect(activeBoard(editor.state)?.cell.childCount).toBe(1);
+    editor.commands.undo(); expect(editor.getJSON()).toEqual(before);
+    expect(editor.state.selection).toBeInstanceOf(TextSelection);
+  });
+  it.each(["insertTextBox", "insertChecklist", "insertCopyFields", "insertTemplate", "insertCalc"] as const)("%s replaces an empty cell paragraph and inserts after a filled paragraph", (command) => {
+    setup(); editor.commands.insertBoard();
+    editor.commands[command]();
+    expect(activeBoard(editor.state)?.cell.childCount).toBe(1);
+    editor.destroy(); setup(); editor.commands.insertBoard();
+    editor.commands.insertContent("Before"); editor.commands.setTextSelection(5);
+    editor.commands[command]();
+    const cell = activeBoard(editor.state)!.cell;
+    expect(cell.childCount).toBe(2);
+    expect(cell.firstChild?.textContent).toBe("Before");
+    expect(cell.lastChild?.isAtom).toBe(true);
+  });
+  it.each(["widget", "text"])("deletes the first empty cell paragraph and selects the following %s", (kind) => {
+    setup(); editor.commands.insertBoard();
+    const active = activeBoard(editor.state)!;
+    const next = kind === "widget" ? editor.schema.nodes.checklist.create()
+      : editor.schema.nodes.paragraph.create(null, editor.schema.text("Next"));
+    editor.view.dispatch(editor.state.tr.insert(active.cellPos + 3, next));
+    focusCell(0); separate(); const before = editor.getJSON();
+    key("Backspace");
+    expect(activeBoard(editor.state)?.cell.childCount).toBe(1);
+    expect(editor.state.selection).toBeInstanceOf(kind === "widget" ? NodeSelection : TextSelection);
+    expect(editor.state.selection.from).toBe(active.cellPos + (kind === "widget" ? 1 : 2));
+    editor.state.doc.check();
+    editor.commands.undo(); expect(editor.getJSON()).toEqual(before);
+  });
+  it.each(["ArrowRight", "ArrowDown"])("moves from the last selected widget to a cell gap with %s and types inside it", (arrow) => {
+    setup(); editor.commands.insertBoard(); editor.commands.insertChecklist();
+    editor.commands.setNodeSelection(2);
+    key(arrow);
+    expect(editor.state.selection).toBeInstanceOf(GapCursor);
+    expect(activeBoard(editor.state)?.index).toBe(0);
+    const end = activeBoard(editor.state)!.cellPos + activeBoard(editor.state)!.cell.nodeSize - 1;
+    expect(editor.state.selection.from).toBe(end);
+    editor.commands.insertContent("After");
+    expect(activeBoard(editor.state)?.cell.lastChild?.textContent).toBe("After");
+    expect(activeBoard(editor.state)?.cell.childCount).toBe(2);
+    editor.state.doc.check();
+  });
+  it("places a click below the last widget in that cell's gap despite coordinate hit testing", () => {
+    setup(); editor.commands.insertBoard(); editor.commands.insertChecklist();
+    const board = activeBoard(editor.state)!;
+    const siblingPos = board.cellPos + board.cell.nodeSize;
+    editor.view.dispatch(editor.state.tr.replaceWith(siblingPos + 1, siblingPos + 3, editor.schema.nodes.image.create({ src: "neighbor.png" })));
+    const media = editor.view.nodeDOM(siblingPos + 1) as HTMLElement;
+    vi.spyOn(media, "getBoundingClientRect").mockReturnValue(new DOMRect(250, 100, 200, 50));
+    const cell = editor.view.dom.querySelector(".htnote-board-cell")!;
+    const widget = editor.view.nodeDOM(2) as HTMLElement;
+    vi.spyOn(cell, "getBoundingClientRect").mockReturnValue({ left: 10, right: 200, top: 10, bottom: 150 } as DOMRect);
+    vi.spyOn(widget, "getBoundingClientRect").mockReturnValue({ bottom: 100 } as DOMRect);
+    const event = new MouseEvent("mousedown", { bubbles: true, cancelable: true, clientX: 50, clientY: 120 });
+    cell.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+    expect(editor.state.selection).toBeInstanceOf(GapCursor);
+    expect(activeBoard(editor.state)?.index).toBe(0);
+    const selection = editor.state.selection;
+    cell.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, clientX: 50, clientY: 120 }));
+    expect(editor.state.selection.eq(selection)).toBe(true);
+    editor.commands.insertContent("Clicked");
+    expect(activeBoard(editor.state)?.cell.lastChild?.textContent).toBe("Clicked");
+  });
   it("commits a pointer layout once, preserves cell content through reorder and undoes once", () => {
     setup(wrapRawBlocks(serializeBoard([{ col: 1, span: 7, row: 1, html: "<p>Left</p>" }, { col: 8, span: 5, row: 1, html: "<p>Right</p>" }])));
     focusCell(1);
@@ -79,7 +205,7 @@ describe("board editor commands", () => {
     editor.view.dispatch(editor.state.tr.setNodeMarkup(activeBoard(editor.state)!.cellPos, undefined, attrs));
     expect(editor.state.doc).toBe(before);
   });
-  it.each(["blockquote", "list", "table"])("validates boards in %s and appends a paragraph after their last widget", (container) => {
+  it.each(["blockquote", "list", "table"])("validates boards in %s without appending a paragraph inside cells", (container) => {
     setup();
     const { board, boardCell, paragraph, blockquote, bulletList, listItem, table, tableRow, tableCell, checklist } = editor.schema.nodes;
     const nested = board.create(null, boardCell.create({ col: 1, span: 12, row: 1 }, paragraph.create()));
@@ -91,7 +217,7 @@ describe("board editor commands", () => {
     editor.state.doc.descendants((node, pos) => { if (node.type.name === "boardCell") cellPos = pos; });
     expect(cellPos).toBeGreaterThan(0);
     editor.view.dispatch(editor.state.tr.replaceWith(cellPos + 1, cellPos + 3, checklist.create()));
-    expect(editor.state.doc.nodeAt(cellPos)?.lastChild?.type.name).toBe("paragraph");
+    expect(editor.state.doc.nodeAt(cellPos)?.lastChild?.type.name).toBe("checklist");
     const before = editor.state.doc;
     editor.view.dispatch(editor.state.tr.setNodeMarkup(cellPos, undefined, { col: 1, span: 13, row: 1 }));
     expect(editor.state.doc).toBe(before);
@@ -138,12 +264,13 @@ describe("board editor commands", () => {
     expect(editor.state.doc.child(0).type.name).toBe("paragraph");
     editor.commands.undo(); expect(editor.getJSON()).toEqual(before);
   });
-  it("uses the right gap, appends a paragraph after a widget and blocks the 49th cell", () => {
+  it("uses the right gap, replaces the empty paragraph with a widget and blocks the 49th cell", () => {
     setup(wrapRawBlocks(serializeBoard([{ col: 1, span: 3, row: 1, html: "<p></p>" }, { col: 8, span: 5, row: 1, html: "<p></p>" }])));
     focusCell(0); editor.commands.addBoardCell();
     expect(cells()[1]).toMatchObject({ col: 4, span: 4, row: 1 });
     editor.commands.insertChecklist();
-    expect(activeBoard(editor.state)?.cell.lastChild?.type.name).toBe("paragraph");
+    expect(activeBoard(editor.state)?.cell.childCount).toBe(1);
+    expect(activeBoard(editor.state)?.cell.lastChild?.type.name).toBe("checklist");
     expect(activeBoard(editor.state)?.cell.firstChild?.type.name).toBe("checklist");
     editor.destroy(); setup(wrapRawBlocks(serializeBoard(Array.from({ length: 48 }, (_, index) => ({ col: 1, span: 12, row: index + 1, html: "<p></p>" })))));
     focusCell(0); expect(editor.can().addBoardCell()).toBe(false);
@@ -179,6 +306,12 @@ describe("board editor commands", () => {
     focusCell(0, true); key("ArrowRight"); expect(activeBoard(editor.state)?.index).toBe(1);
     focusCell(1, true); key("ArrowRight"); expect(activeBoard(editor.state)).toBeNull();
     focusCell(0); key("a", false, true); expect(editor.getJSON()).toEqual(original);
+  });
+  it("protects the start of a filled first paragraph", () => {
+    setup(); editor.commands.insertBoard(); editor.commands.insertContent("Keep");
+    focusCell(0); const before = editor.getJSON();
+    key("Backspace"); expect(editor.getJSON()).toEqual(before);
+    expect(activeBoard(editor.state)?.index).toBe(0);
   });
   it("keeps the layout cursor inside a media-only cell and preserves its media", () => {
     setup(wrapRawBlocks(serializeBoard([{ col: 1, span: 6, row: 1, html: '<img src="./assets/photo.png" width="50%">' }, { col: 7, span: 6, row: 1, html: "<p>Right</p>" }])));

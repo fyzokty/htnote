@@ -2,8 +2,9 @@ import { Node as TiptapNode } from "@tiptap/core";
 import type { CommandProps } from "@tiptap/core";
 import type { Node } from "@tiptap/pm/model";
 import { GapCursor } from "@tiptap/pm/gapcursor";
-import { Plugin, PluginKey, Selection, TextSelection } from "@tiptap/pm/state";
+import { NodeSelection, Plugin, PluginKey, Selection, TextSelection } from "@tiptap/pm/state";
 import { closeHistory } from "@tiptap/pm/history";
+import { joinBackward } from "@tiptap/pm/commands";
 import { getPlatform } from "@/lib/platform";
 import { addedCellLayout, boardTargetLayout, BOARD_STYLE, cellStyle, cellValue, parseCell, readBoard, resolveLayout, validCell, validLayout, type BoardTarget, type CellLayout } from "./board";
 
@@ -224,15 +225,6 @@ export const Board = TiptapNode.create({
       appendTransaction: (transactions, _old, state) => {
         if (!transactions.some((tr) => tr.docChanged)) return null;
         const tr = state.tr;
-        const ends: number[] = [];
-        state.doc.descendants((node, pos) => {
-          if (node.isTextblock || node.isAtom || node.isLeaf) return false;
-          if (node.type.name !== "boardCell") return;
-          if (widgets.has(node.lastChild?.type.name ?? "")) ends.push(pos + node.nodeSize - 1);
-          // Filtre iç içe panoyu reddeder; hücre çocuklarında başka hücre bulunamaz.
-          return false;
-        });
-        for (const pos of ends.reverse()) tr.insert(pos, state.schema.nodes.paragraph.create());
         if (state.doc.lastChild?.type.name === "board") tr.insert(tr.doc.content.size, state.schema.nodes.paragraph.create());
         return tr.docChanged ? tr : null;
       },
@@ -259,12 +251,27 @@ export const Board = TiptapNode.create({
         };
         view.dom.addEventListener("focusin", focus);
         view.dom.addEventListener("keydown", keydown, true);
-        return { destroy: () => { view.dom.removeEventListener("focusin", focus); view.dom.removeEventListener("keydown", keydown, true); } };
+        const mousedown = (event: MouseEvent) => {
+          if (!view.editable || event.button !== 0 || !(event.target instanceof Element) || !event.target.matches(".htnote-board-cell")) return;
+          const cellDOM = event.target;
+          const cellPos = view.posAtDOM(cellDOM, 0) - 1;
+          const cell = view.state.doc.nodeAt(cellPos);
+          if (!cell || !widgets.has(cell.lastChild?.type.name ?? "")) return;
+          const end = cellPos + cell.nodeSize - 1;
+          const lastDOM = view.nodeDOM(end - cell.lastChild!.nodeSize);
+          if (!(lastDOM instanceof HTMLElement)) return;
+          const bounds = cellDOM.getBoundingClientRect();
+          if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < lastDOM.getBoundingClientRect().bottom || event.clientY > bounds.bottom) return;
+          // Hücreye ait alt boşlukta koordinat araması komşu hücreyi seçemez.
+          view.dispatch(view.state.tr.setSelection(new GapCursor(view.state.doc.resolve(end))));
+          view.focus(); event.preventDefault(); event.stopPropagation();
+        };
+        view.dom.addEventListener("mousedown", mousedown, true);
+        return { destroy: () => { view.dom.removeEventListener("focusin", focus); view.dom.removeEventListener("keydown", keydown, true); view.dom.removeEventListener("mousedown", mousedown, true); } };
       },
       props: { handleKeyDown: (view, event) => {
         const active = activeBoard(view.state);
-        if (!active) return false;
-        if (boardLayoutKey.getState(view.state)?.pos !== null) {
+        if (active && boardLayoutKey.getState(view.state)?.pos !== null) {
           if (event.key === "Enter" || event.key === "Escape") {
             this.editor.commands.toggleBoardLayout(); event.preventDefault(); return true;
           }
@@ -272,9 +279,32 @@ export const Board = TiptapNode.create({
             this.editor.commands.moveBoardCell(event.key, event.shiftKey); event.preventDefault(); return true;
           }
         }
+        const selection = view.state.selection;
+        if (event.key === "Enter" && !event.ctrlKey && !event.metaKey && !event.altKey && !event.shiftKey && selection instanceof NodeSelection && widgets.has(selection.node.type.name)) {
+          const tr = closeHistory(view.state.tr).insert(selection.to, view.state.schema.nodes.paragraph.create());
+          tr.setSelection(TextSelection.create(tr.doc, selection.to + 1));
+          view.dispatch(tr.scrollIntoView());
+          return true;
+        }
+        if (event.key === "Backspace" && selection instanceof TextSelection && selection.empty && !selection.$from.parent.content.size && selection.$from.parent.type.name === "paragraph") {
+          const $before = view.state.doc.resolve(selection.$from.before());
+          if (widgets.has($before.nodeBefore?.type.name ?? "")) {
+            // Varsayılan atom seçimini koru; paragraf silme önceki Enter/yazımdan ayrı geri alınır.
+            return joinBackward(view.state, (tr) => view.dispatch(closeHistory(tr).scrollIntoView()), view);
+          }
+        }
+        if (!active) return false;
         const { $from, empty } = view.state.selection;
         if (!empty) return false;
-        if (event.key === "Backspace" && $from.pos === active.cellPos + 2) return true;
+        if (event.key === "Backspace" && selection instanceof TextSelection && $from.pos === active.cellPos + 2) {
+          if ($from.parent.type.name === "paragraph" && !$from.parent.content.size && active.cell.childCount > 1) {
+            const start = active.cellPos + 1;
+            const tr = closeHistory(view.state.tr).delete(start, start + $from.parent.nodeSize);
+            tr.setSelection(Selection.near(tr.doc.resolve(start), 1));
+            view.dispatch(tr.scrollIntoView());
+          }
+          return true;
+        }
         const end = active.cellPos + active.cell.nodeSize - (view.state.selection instanceof GapCursor ? 1 : 2);
         if (event.key === "ArrowRight" && $from.pos === end || event.key === "ArrowDown" && $from.pos === end && (view.state.selection instanceof GapCursor || view.endOfTextblock("down"))) {
           const after = active.cellPos + active.cell.nodeSize;

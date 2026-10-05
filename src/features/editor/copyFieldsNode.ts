@@ -1,6 +1,7 @@
 import { Node } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import { Plugin } from "@tiptap/pm/state";
+import { insertWidget } from "./widgets/widgetCommands";
 import { CopyFieldsView } from "./CopyFieldsView";
 
 declare module "@tiptap/core" {
@@ -26,7 +27,7 @@ export const CopyFields = Node.create({
     return ["htnote-copyfields-node", { "data-copyfields": JSON.stringify(node.attrs) }];
   },
   addCommands() {
-    return { insertCopyFields: () => ({ commands }) => commands.insertContent({ type: this.name }) };
+    return { insertCopyFields: () => insertWidget(this.name) };
   },
   addProseMirrorPlugins() {
     return [new Plugin({ appendTransaction: (transactions, _old, state) => {

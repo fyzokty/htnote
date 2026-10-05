@@ -1,6 +1,7 @@
 import { Node } from "@tiptap/core";
 import { ReactNodeViewRenderer } from "@tiptap/react";
 import { Plugin } from "@tiptap/pm/state";
+import { insertWidget } from "./widgets/widgetCommands";
 import { ChecklistView } from "./ChecklistView";
 
 declare module "@tiptap/core" {
@@ -26,7 +27,7 @@ export const Checklist = Node.create({
     return ["htnote-checklist-node", { "data-checklist": JSON.stringify(node.attrs) }];
   },
   addCommands() {
-    return { insertChecklist: () => ({ commands }) => commands.insertContent({ type: this.name }) };
+    return { insertChecklist: () => insertWidget(this.name) };
   },
   addProseMirrorPlugins() {
     return [new Plugin({ appendTransaction: (transactions, _old, state) => {

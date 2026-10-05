@@ -121,7 +121,7 @@ describe("board format and layout", () => {
     expect(saved).toContain('<canvas data-x="yes"></canvas>');
     expect(saved).toContain('<script>alert(1)</script>');
     expect(saved).toContain('width="50%"');
-    expect(editor.state.doc.firstChild?.firstChild?.lastChild?.type.name).toBe('paragraph');
+    expect(editor.state.doc.firstChild?.firstChild?.lastChild?.type.name).toBe('calc');
     editor.commands.setContent(wrapRawBlocks(saved));
     expect(serializeVisualHtml(editor.getHTML())).toBe(saved);
     editor.destroy();

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 import { createNote, editNote, openNote, saveAndView, useTempRoot, visibleEditorContentControl, visibleEditorTool, waitForFile, withNoteFrame, invoke } from "../helpers/flows";
-import { pointerDrag, pointerMoveTo } from "../helpers/pointer";
+import { pointerClickAt, pointerDrag, pointerMoveTo } from "../helpers/pointer";
 
 describe("widget flows", () => {
   let root: string;
@@ -65,8 +65,29 @@ describe("widget flows", () => {
     await browser.keys(["Control", "Alt", "l"]);
     assert.equal(await $('[data-testid="board-layout"]').getAttribute("aria-pressed"), "true");
     await browser.keys("Escape");
-    // Yerleşim kipi editör odağıyla çalışır; widget'ın sonundaki paragraftan girilir.
-    await (await visibleEditorContentControl('.htnote-board-cell:nth-child(2) > p:last-child')).click();
+    // Widget ile biten hücrede seçim tutamağı editör odağını hücrede tutar.
+    await (await visibleEditorContentControl('.htnote-board-cell:nth-child(2) .htnote-widget-handle')).click();
+    assert.equal(await $$('.htnote-board-cell:nth-child(2) > p').length, 0);
+    await browser.keys("Enter");
+    await browser.waitUntil(async () => await $$('.htnote-board-cell:nth-child(2) > p').length === 1);
+    await browser.keys("Backspace");
+    await browser.waitUntil(async () => await $$('.htnote-board-cell:nth-child(2) > p').length === 0);
+    assert.equal(await $('.htnote-board-cell:nth-child(2) .ProseMirror-selectednode').isExisting(), true);
+    await browser.keys(["Control", "z"]);
+    await browser.waitUntil(async () => await $$('.htnote-board-cell:nth-child(2) > p').length === 1);
+    await browser.keys("Backspace");
+    await browser.keys("ArrowDown");
+    assert.equal(await $('.htnote-board-cell:nth-child(2) .ProseMirror-gapcursor').isExisting(), true);
+    await (await visibleEditorContentControl('.htnote-board-cell:first-child p')).click();
+    const cell = await visibleEditorContentControl('.htnote-board-cell:nth-child(2)');
+    const gapPoint = await browser.execute(() => {
+      const bounds = document.querySelector('.tiptap .htnote-board-cell:nth-child(2)')!.getBoundingClientRect();
+      return { x: Math.round(bounds.left + bounds.width / 2), y: Math.round(bounds.bottom - 4) };
+    });
+    await pointerClickAt(cell, gapPoint.x, gapPoint.y);
+    assert.equal(await $('.htnote-board-cell:nth-child(2) .ProseMirror-gapcursor').isExisting(), true);
+    await browser.keys("Cell note");
+    assert.equal(await $('.htnote-board-cell:nth-child(2) > p').getText(), "Cell note");
     const layout = await $('[data-testid="board-layout"]'); await layout.waitForClickable(); await layout.click();
     // Shift+sol sağ kenarı bir birim daraltır; sağa genişletme ızgara sınırına tabidir.
     await browser.keys(["Shift", "ArrowLeft"]); await browser.keys("Escape");
