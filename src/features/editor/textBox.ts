@@ -13,6 +13,11 @@ function exactAttributes(element: Element, expected: Record<string, string>): bo
 }
 
 export function readTextBox(html: string): TextBoxAttributes | null {
+  return readTextareaWidget(html, "textbox", "input");
+}
+
+// Metin tabanlı widget'lar aynı katı HTML ve textarea satır sonu kurallarını paylaşır.
+export function readTextareaWidget(html: string, kind: string, field: string): TextBoxAttributes | null {
   if (!/^<div[\s>]/i.test(html)) return null;
   let invalid = false;
   const fragment = parseFragment(html, { sourceCodeLocationInfo: true, onParseError: ({ code }) => { if (code !== "control-character-reference") invalid = true; } });
@@ -20,15 +25,15 @@ export function readTextBox(html: string): TextBoxAttributes | null {
   const box = fragment.childNodes[0];
   if (fragment.childNodes.length !== 1 || !box || !("tagName" in box) || box.tagName !== "div") return null;
   const background = readWidgetBackground(box.attrs.find(({ name }) => name === WIDGET_BACKGROUND_ATTRIBUTE)?.value);
-  if (background === null || !exactAttributes(box, { class: "htnote-textbox", "data-htnote-widget": "textbox",
+  if (background === null || !exactAttributes(box, { class: `htnote-${kind}`, "data-htnote-widget": kind,
     ...(background ? { [WIDGET_BACKGROUND_ATTRIBUTE]: background } : {}) })) return null;
   const children = box.childNodes.filter((child) => !("value" in child) || child.value.trim());
   if (children.length !== 2) return null;
   const [title, input] = children;
   if (!("tagName" in title) || title.tagName !== "div" ||
-    !exactAttributes(title, { class: "htnote-textbox-title" }) ||
+    !exactAttributes(title, { class: `htnote-${kind}-title` }) ||
     !("tagName" in input) || input.tagName !== "textarea" ||
-    !exactAttributes(input, { class: "htnote-textbox-input", spellcheck: "false", rows: "3" })) return null;
+    !exactAttributes(input, { class: `htnote-${kind}-${field}`, spellcheck: "false", rows: "3" })) return null;
   // Onarılmış/eksik etiketler ve yinelenmiş öznitelikler ham HTML olarak kalır.
   for (const element of [box, title, input]) {
     const location = element.sourceCodeLocation;
@@ -47,10 +52,14 @@ export function escapeTextBoxText(value: string): string {
 }
 
 export function serializeTextBox({ title, content, html, background = "" }: TextBoxAttributes): string {
-  const original = html === null ? null : readTextBox(html);
+  return serializeTextareaWidget({ title, content, html, background }, "textbox", "input");
+}
+
+export function serializeTextareaWidget({ title, content, html, background = "" }: TextBoxAttributes, kind: string, field: string): string {
+  const original = html === null ? null : readTextareaWidget(html, kind, field);
   if (original && original.title === title && original.content === content && original.background === background) return html!;
   // Boş başlık da daima yazılır; biçim tek ve öngörülebilirdir.
-  return `<div class="htnote-textbox" data-htnote-widget="textbox"${serializeWidgetBackground(background)}><div class="htnote-textbox-title">${escapeTextBoxText(title)}</div><textarea class="htnote-textbox-input" spellcheck="false" rows="3">${content.startsWith("\n") ? "\n" : ""}${escapeTextBoxText(content)}</textarea></div>`;
+  return `<div class="htnote-${kind}" data-htnote-widget="${kind}"${serializeWidgetBackground(background)}><div class="htnote-${kind}-title">${escapeTextBoxText(title)}</div><textarea class="htnote-${kind}-${field}" spellcheck="false" rows="3">${content.startsWith("\n") ? "\n" : ""}${escapeTextBoxText(content)}</textarea></div>`;
 }
 
 export function leaveTextBox(editor: Editor, position: number, size: number, direction: -1 | 1): void {

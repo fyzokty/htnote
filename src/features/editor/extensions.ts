@@ -7,6 +7,7 @@ import { GlobalAttributes } from "@/features/editor/globalAttributesExtension";
 import { HtmlBlock } from "@/features/editor/htmlBlockNode";
 import { CopyFields } from "./copyFieldsNode";
 import { Checklist } from "./checklistNode";
+import { Template } from "./templateNode";
 import { TextBox } from "./textBoxNode";
 import { Audio, Image, InsertMedia, Video } from "@/features/editor/mediaNodes";
 import { MediaSelection } from "@/features/editor/mediaSelection";
@@ -36,6 +37,7 @@ export function createVisualExtensions(placeholder: string, onEditInCode?: () =>
     TextBox,
     Checklist,
     CopyFields,
+    Template,
     NoteLinkDecorations,
     ...(onLinkNote ? [noteLinkShortcut(onLinkNote)] : []),
   ];

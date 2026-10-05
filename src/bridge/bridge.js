@@ -155,6 +155,29 @@
   .htnote-copyfields-copy:focus-visible{outline:2px solid var(--ht-widget-accent);outline-offset:2px}
   .htnote-copyfields-copy[data-feedback="copied"]{color:var(--ht-widget-accent)}
   @media(max-width:480px){:where(.htnote-copyfields-row){grid-template-columns:minmax(0,1fr) auto}:where(.htnote-copyfields-row dt){grid-column:1/-1}}
+
+:where(.htnote-template){container-type:inline-size;box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:12px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff)}
+:where(.htnote-template-title){font-weight:700;min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+:where(.htnote-template-source){display:block;box-sizing:border-box;width:100%;min-height:4.8em;padding:8px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff);field-sizing:content;resize:vertical;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+:where(.htnote-template-source:focus-visible){outline:2px solid var(--ht-widget-accent,#4648d4);outline-offset:2px}
+
+  .htnote-template-source[hidden],.htnote-template-fields[hidden]{display:none!important}
+  :where(.htnote-template-layout){display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:16px;padding-top:16px;border-top:1px solid var(--ht-widget-divider)}
+  :where(.htnote-template-layout:has(.htnote-template-fields[hidden])){grid-template-columns:minmax(0,1fr)}
+  :where(.htnote-template-fields){display:flex;flex-direction:column;gap:12px;min-width:0}
+  :where(.htnote-template-fields label){display:block;margin-bottom:4px;color:var(--ht-widget-muted);font:12px/1.4 var(--ht-font,system-ui,sans-serif);overflow-wrap:anywhere}
+  :where(.htnote-template-fields input){box-sizing:border-box;width:100%;min-width:0;padding:8px;border:1px solid var(--ht-widget-border);border-radius:8px;background:var(--ht-widget-field);color:var(--ht-widget-text);font:13px/1.6 var(--ht-font,system-ui,sans-serif)}
+  :where(.htnote-template-fields input:focus-visible){outline:2px solid var(--ht-widget-accent);outline-offset:2px}
+  :where(.htnote-template-panel){min-width:0;padding:12px;border:1px solid var(--ht-widget-border);border-radius:8px;background:var(--ht-widget-field)}
+  :where(.htnote-template-preview-heading){display:block;padding-bottom:8px;margin-bottom:8px;border-bottom:1px solid var(--ht-widget-divider);color:var(--ht-widget-muted);font:12px/1.4 var(--ht-font,system-ui,sans-serif)}
+  :where(.htnote-template-preview){white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
+  :where(.htnote-template-value){border-radius:4px;color:var(--ht-widget-accent);background:color-mix(in srgb,var(--ht-widget-accent) 15%,transparent);box-decoration-break:clone;padding:1px 3px}
+  :where(.htnote-template-placeholder){border:1px dashed var(--ht-widget-border);border-radius:4px;color:var(--ht-widget-muted);padding:1px 3px}
+  .htnote-widget-actions .htnote-template-copy{color:var(--ht-widget-accent);background:color-mix(in srgb,var(--ht-widget-accent) 12%,var(--ht-widget-surface))}
+  @container(max-width:600px){:where(.htnote-template-layout){grid-template-columns:minmax(0,1fr)}}
+  @media(max-width:600px){:where(.htnote-template-layout){grid-template-columns:minmax(0,1fr)}}
+  @media print{.htnote-template .htnote-widget-header,.htnote-template-title,.htnote-template-source,.htnote-template-fields,.htnote-template-preview-heading{display:none!important}.htnote-template-layout{display:block!important}.htnote-template-panel{border:0!important;padding:0!important;background:transparent!important}}
+  ${printing ? ".htnote-template .htnote-widget-header,.htnote-template-title,.htnote-template-source,.htnote-template-fields,.htnote-template-preview-heading{display:none!important}.htnote-template-layout{display:block!important}.htnote-template-panel{border:0!important;padding:0!important;background:transparent!important}" : ""}
   .htnote-textbox-print{display:none;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;margin:0}
   @media print{.htnote-widget-actions,.htnote-copyfields-copy,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}.htnote-textbox-title{padding-right:0}.htnote-textbox{break-inside:auto}}
   ${printing ? ".htnote-widget-actions,.htnote-copyfields-copy,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}" : ""}
@@ -377,9 +400,75 @@
     copyFields.set(box, { update });
     update();
   }
+  const templates = new WeakMap();
+  let templateId = 0;
+  function enhanceTemplate(box) {
+    if (templates.has(box)) return;
+    const source = box.querySelector(":scope > textarea.htnote-template-source");
+    if (!source) return;
+    const actions = document.createElement("div"), copy = document.createElement("button"), reset = document.createElement("button");
+    actions.className = "htnote-widget-actions";
+    copy.type = reset.type = "button";
+    copy.dataset.testid = "template-copy"; reset.dataset.testid = "template-reset";
+    copy.className = "htnote-template-copy";
+    actions.append(copy);
+    const updateHeader = createWidgetHeader(box, "templateType", ["M14 2H6v20h12V6z", "M14 2v6h4", "M8 13h8", "M8 17h8"], actions);
+    const layout = document.createElement("div"), fields = document.createElement("div"), panel = document.createElement("div");
+    const heading = document.createElement("span"), preview = document.createElement("div");
+    layout.className = "htnote-template-layout"; fields.className = "htnote-template-fields";
+    panel.className = "htnote-template-panel"; heading.className = "htnote-template-preview-heading";
+    preview.className = "htnote-template-preview"; preview.dataset.testid = "template-preview";
+    panel.append(heading, preview); layout.append(fields, panel); box.append(layout);
+    source.hidden = true;
+    let parsed, savedSource, rendered;
+    const inputs = new Map();
+    const output = () => parsed.segments.map((segment) => "text" in segment ? segment.text : inputs.get(segment.key).value).join("");
+    const updateCopy = bindWidgetCopy(copy, "copy", output);
+    const render = () => {
+      reset.disabled = Array.from(inputs.values()).every((input) => input.value === input.defaultValue);
+      // Gözlemci, aynı önizlemeyi yeniden kurup kendini tetiklememeli.
+      const signature = JSON.stringify([parsed, Array.from(inputs.values(), (input) => input.value)]);
+      if (signature === rendered) return;
+      rendered = signature;
+      const nodes = parsed.segments.map((segment) => {
+        if ("text" in segment) return document.createTextNode(segment.text);
+        const input = inputs.get(segment.key), span = document.createElement("span");
+        span.className = input.value ? "htnote-template-value" : "htnote-template-placeholder";
+        span.textContent = input.value || parsed.variables.find((variable) => variable.key === segment.key).name;
+        return span;
+      });
+      preview.replaceChildren(...nodes);
+    };
+    const update = () => {
+      updateHeader(); updateCopy();
+      if (reset.textContent !== (boxLabels.templateReset || "")) reset.textContent = boxLabels.templateReset || "";
+      if (heading.textContent !== (boxLabels.templatePreview || "")) heading.textContent = boxLabels.templatePreview || "";
+      if (savedSource !== source.defaultValue) {
+        savedSource = source.defaultValue;
+        parsed = globalThis.HTNOTE_TEMPLATE_ENGINE.parseTemplate(savedSource);
+        inputs.clear(); fields.replaceChildren();
+        parsed.variables.forEach((variable, index) => {
+          const row = document.createElement("div"), label = document.createElement("label"), input = document.createElement("input");
+          let id;
+          do { id = `htnote-template-${++templateId}-${index}`; } while (document.getElementById(id));
+          input.type = "text"; input.id = id; input.dataset.testid = "template-variable";
+          input.value = variable.defaultValue; input.defaultValue = input.value;
+          label.htmlFor = id; label.textContent = variable.name;
+          input.addEventListener("input", render);
+          inputs.set(variable.key, input); row.append(label, input); fields.append(row);
+        });
+        if (parsed.variables.length) { actions.prepend(reset); fields.hidden = false; }
+        else { reset.remove(); fields.hidden = true; }
+      }
+      render();
+    };
+    reset.addEventListener("click", () => { inputs.forEach((input) => { input.value = input.defaultValue; }); render(); });
+    templates.set(box, { update });
+    update();
+  }
   function scanWidgets(node) {
     if (node.nodeType !== 1) return;
-    for (const [kind, enhance] of [["textbox", enhanceTextBox], ["checklist", enhanceChecklist], ["copyfields", enhanceCopyFields]]) {
+    for (const [kind, enhance] of [["textbox", enhanceTextBox], ["checklist", enhanceChecklist], ["copyfields", enhanceCopyFields], ["template", enhanceTemplate]]) {
       const selector = `[data-htnote-widget="${kind}"]`;
       if (node.matches(selector)) enhance(node);
       node.querySelectorAll(selector).forEach(enhance);
@@ -387,14 +476,14 @@
   }
   function updateWidgets() {
     document.querySelectorAll('[data-htnote-widget]').forEach((box) => {
-      textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update();
+      textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update();
     });
   }
   scanWidgets(root);
   new MutationObserver((records) => records.forEach((record) => {
     record.addedNodes.forEach(scanWidgets);
     const box = record.target.nodeType === 1 ? record.target.closest('[data-htnote-widget]') : record.target.parentElement?.closest('[data-htnote-widget]');
-    if (box) { scanWidgets(box); textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); }
+    if (box) { scanWidgets(box); textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update(); }
   })).observe(root, { childList: true, subtree: true, characterData: true });
   window.addEventListener("beforeprint", updateWidgets);
   const audioPlayers = new WeakMap();
@@ -728,7 +817,7 @@
     if (e.source !== window.parent || !e.data || typeof e.data !== "object") return;
     const { type, vars, mode, query, scrollY, token, contentWidth, audioLabels: labels, labels: widgetLabels } = e.data;
     if (type === "HTNOTE_THEME" && widgetLabels && typeof widgetLabels === "object" && !Array.isArray(widgetLabels)) {
-      for (const key of ["copy", "copied", "copyFailed", "reset", "textboxType", "checklistType", "checklistReset", "copyRemaining", "checklistProgress", "copyfieldsType", "copyAll", "copyRow", "copyfieldsRow"]) {
+      for (const key of ["copy", "copied", "copyFailed", "reset", "textboxType", "checklistType", "checklistReset", "copyRemaining", "checklistProgress", "copyfieldsType", "copyAll", "copyRow", "copyfieldsRow", "templateType", "templateReset", "templatePreview"]) {
         if (typeof widgetLabels[key] === "string" && widgetLabels[key].length <= 200) boxLabels[key] = widgetLabels[key];
       }
       updateWidgets();

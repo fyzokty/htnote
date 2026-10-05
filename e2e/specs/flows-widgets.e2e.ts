@@ -8,6 +8,60 @@ describe("text box widget", () => {
   before(async () => { ({ root, restore } = await useTempRoot()); });
   after(async () => { await restore(); });
 
+  it("saves a template, fills and copies repeated variables, resets and keeps disk HTML unchanged", async () => {
+    const note = await createNote("Template round trip");
+    await openNote(note.id); await editNote();
+    await (await visibleEditorTool('[data-testid="insert-widget"]')).click();
+    await $('[data-testid="insert-template"]').click();
+    const title = await $('[data-testid="template-title"]'); await title.waitForDisplayed();
+    await title.setValue("Customer response"); await browser.keys("Enter");
+    const source = "Sayın {{Ad|Ahmet}}, {{AD}}\nNo: {{No}}\n<&>";
+    await $('[data-testid="template-content"]').setValue(source);
+    await $('.htnote-widget-tools button').click();
+    await $('.htnote-color-popover button[aria-label="Nane"], .htnote-color-popover button[aria-label="Mint"]').click();
+    const html = await saveAndView(note.id, (value) => value.includes("Customer response") && value.includes("{{Ad|Ahmet}}"));
+    assert.ok(html.includes('<textarea class="htnote-template-source" spellcheck="false" rows="3">'));
+    assert.ok(html.includes('data-htnote-bg="mint"'));
+    assert.ok(!html.includes("htnote-template-node")); assert.ok(!html.includes("template-preview"));
+    const exportedPath = join(root, "template-export.html");
+    await invoke("export_single_html", { id: note.id, targetPath: exportedPath });
+    const exported = (await waitForFile(exportedPath)).toString();
+    assert.ok(exported.includes("{{Ad|Ahmet}}")); assert.ok(!exported.includes("/__htnote/bridge.js"));
+    await withNoteFrame(note.id, async () => {
+      const copy = await $('[data-testid="template-copy"]'); await copy.waitForExist();
+      await browser.waitUntil(async () => (await copy.getText()).length > 0);
+      const fields = await $$('[data-testid="template-variable"]');
+      const reset = await $('[data-testid="template-reset"]');
+      assert.equal(fields.length, 2); assert.equal(await fields[0].getValue(), "Ahmet");
+      assert.equal(await reset.isEnabled(), false);
+      assert.equal(await $('.htnote-template-source').isDisplayed(), false);
+      await fields[0].setValue("Live <&>");
+      const preview = await $('[data-testid="template-preview"]');
+      assert.ok((await preview.getText()).includes("Sayın Live <&>, Live <&>"));
+      await copy.click(); await browser.waitUntil(async () => /Kopyalandı|Copied/.test(await copy.getText()));
+      await browser.execute(() => { const probe = document.createElement("textarea"); probe.id = "template-probe"; document.body.append(probe); });
+      const probe = await $('#template-probe'); await probe.click(); await browser.keys(["Control", "v"]);
+      await browser.waitUntil(async () => await probe.getValue() === "Sayın Live <&>, Live <&>\nNo: \n<&>");
+      await browser.execute(() => document.getElementById("template-probe")?.remove());
+      await fields[1].setValue("42");
+      assert.ok((await preview.getText()).includes("No: 42"));
+      await reset.click();
+      assert.equal(await fields[0].getValue(), "Ahmet"); assert.equal(await fields[1].getValue(), "");
+      assert.equal(await reset.isEnabled(), false);
+      await fields[0].setValue("Unsaved viewer mutation");
+    });
+    assert.equal((await invoke<{ html: string }>("read_note", { id: note.id })).html, html);
+    assert.equal((await waitForFile(join(root, note.relPath, "index.html"))).toString(), html);
+    await browser.refresh(); await openNote(note.id);
+    await withNoteFrame(note.id, async () => {
+      const input = await $('[data-testid="template-variable"]'); await input.waitForExist();
+      assert.equal(await input.getValue(), "Ahmet");
+    });
+    await editNote();
+    assert.equal(await $('[data-testid="template-content"]').getValue(), source);
+    await $('[data-testid="cancel-edit"]').click();
+  });
+
   it("inserts and saves copy fields, copies rows/all and preserves the saved definition list", async () => {
     const note = await createNote("Copy fields round trip");
     await openNote(note.id); await editNote();

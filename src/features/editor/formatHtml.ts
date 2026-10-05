@@ -8,9 +8,9 @@ const BLOCK_TAGS = new Set([
   "p", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "blockquote", "div",
   "pre", "textarea", "table", "thead", "tbody", "tfoot", "tr", "td", "th", "caption", "colgroup", "col",
   "figure", "figcaption", "img", "video", "audio", "source", "hr",
-  "title", "meta", "link", "script", "style", "htnote-raw", "htnote-textbox-node", "htnote-checklist-node", "htnote-copyfields-node",
+  "title", "meta", "link", "script", "style", "htnote-raw", "htnote-textbox-node", "htnote-checklist-node", "htnote-copyfields-node", "htnote-template-node",
 ]);
-const VERBATIM_TAGS = new Set(["pre", "textarea", "code", "script", "style", "htnote-raw", "htnote-textbox-node", "htnote-checklist-node", "htnote-copyfields-node"]);
+const VERBATIM_TAGS = new Set(["pre", "textarea", "code", "script", "style", "htnote-raw", "htnote-textbox-node", "htnote-checklist-node", "htnote-copyfields-node", "htnote-template-node"]);
 const isWhitespace = (text: string) => /^[\t\n\f\r ]*$/.test(text);
 
 // Kaynak dilimleri kullanılır: etiketler, öznitelikler, entity'ler ve metin yeniden serialize edilmez.

@@ -148,6 +148,9 @@ mod tests {
         assert!(request(&origin, host, "GET", &format!("/{id}/__draft/1/asset.txt"), None).1.contains("disk asset"));
         assert_eq!(request(&origin, host, "GET", "/00000000-0000-4000-8000-000000000000/", None).0, 404);
         assert_eq!(request(&origin, host, "POST", &format!("/{id}/"), None).0, 405);
-        assert_eq!(request(&origin, host, "GET", "/__htnote/bridge.js", None).0, 200);
+        let (bridge_status, bridge) = request(&origin, host, "GET", "/__htnote/bridge.js", None);
+        assert_eq!(bridge_status, 200);
+        assert!(bridge.contains("function parseTemplate("));
+        assert!(bridge.contains("function enhanceTemplate("));
     }
 }
