@@ -1,0 +1,62 @@
+import { createRef } from "react";
+import type { Editor } from "@tiptap/core";
+import { closeHistory } from "@tiptap/pm/history";
+import { act, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { VisualEditor, type VisualEditorHandle } from "./VisualEditor";
+import { serializeCopyFields } from "./copyFields";
+import { useEditSession } from "./useEditSession";
+import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
+
+const initial = serializeCopyFields({ title: "", fields: [{ label: "", value: "" }], html: null });
+describe("CopyFieldsView", () => {
+  it("updates drafts, navigates columns/rows, normalizes paste, removes empty rows and uses history", async () => {
+    vi.useFakeTimers(); resetTabsStoreForTests();
+    useTabsStore.getState().openNote("fields", { editBase: { html: `<main id="htnote-content">${initial}</main>`, css: null, js: null, contentHash: "base" } });
+    const { result, unmount: unmountHook } = renderHook(() => useEditSession("fields"));
+    const ref = createRef<VisualEditorHandle>();
+    const { unmount } = render(<VisualEditor ref={ref} initialInner={initial} onChange={result.current.onVisualChange} />);
+    const editor = (screen.getByRole("textbox", { name: "Not içeriği" }) as HTMLElement & { editor: Editor }).editor;
+    const labels = () => screen.queryAllByTestId("copyfields-label") as HTMLInputElement[];
+    const values = () => screen.queryAllByTestId("copyfields-value") as HTMLInputElement[];
+    const key = async (input: HTMLElement, key: string) => { await act(async () => { fireEvent.keyDown(input, { key }); }); };
+    try {
+      await act(async () => { fireEvent.change(screen.getByTestId("copyfields-title"), { target: { value: "Saved" } }); });
+      await key(screen.getByTestId("copyfields-title"), "Enter"); expect(labels()[0]).toHaveFocus();
+      await act(async () => { fireEvent.paste(labels()[0], { clipboardData: { getData: () => "Host\r\nname" } }); });
+      expect(labels()[0].value).toBe("Host name");
+      await key(labels()[0], "Enter"); expect(values()[0]).toHaveFocus();
+      await act(async () => { fireEvent.change(values()[0], { target: { value: "before-after" } }); });
+      values()[0].setSelectionRange(6, 7);
+      await act(async () => { fireEvent.paste(values()[0], { clipboardData: { getData: () => "<&>\r\nx\ry\n" } }); });
+      expect(values()[0].value).toBe("before<&> x y after");
+      await key(values()[0], "Enter"); expect(labels()).toHaveLength(2); expect(labels()[1]).toHaveFocus();
+      await key(labels()[1], "ArrowUp"); expect(labels()[0]).toHaveFocus();
+      await key(values()[0], "ArrowDown"); expect(values()[1]).toHaveFocus();
+      await key(values()[1], "Backspace"); expect(values()).toHaveLength(1); expect(values()[0]).toHaveFocus();
+      await key(labels()[0], "Backspace"); expect(labels()).toHaveLength(1);
+      await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Widget arka planı" })); });
+      await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Nane" })); });
+      act(() => { ref.current?.flush(); vi.advanceTimersByTime(150); });
+      expect(useTabsStore.getState().isDirty("fields")).toBe(true);
+      expect(useTabsStore.getState().tabs[0].doc.draft?.html).toContain("before&lt;&amp;&gt; x y after");
+      expect(useTabsStore.getState().tabs[0].doc.draft?.html).toContain('data-htnote-bg="mint"');
+      act(() => editor.view.dispatch(closeHistory(editor.state.tr)));
+      await act(async () => { fireEvent.change(values()[0], { target: { value: "changed" } }); });
+      await act(async () => { fireEvent.keyDown(values()[0], { key: "z", ctrlKey: true }); });
+      expect(values()[0].value).toBe("before<&> x y after");
+      await act(async () => { fireEvent.keyDown(values()[0], { key: "y", ctrlKey: true }); });
+      expect(values()[0].value).toBe("changed");
+      const save = new KeyboardEvent("keydown", { key: "s", ctrlKey: true, bubbles: true, cancelable: true });
+      values()[0].dispatchEvent(save); expect(save.defaultPrevented).toBe(false);
+      await key(values()[0], "ArrowDown"); expect(editor.state.selection.$from.parent.type.name).toBe("paragraph");
+      await key(labels()[0], "ArrowUp"); expect(editor.state.doc.firstChild?.type.name).toBe("paragraph");
+      await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Alan 1 sil" })); });
+      expect(labels()).toHaveLength(1); expect(labels()[0].value).toBe(""); expect(screen.getByTestId("copyfields-title")).toHaveFocus();
+      await key(screen.getByTestId("copyfields-title"), "Enter"); expect(labels()).toHaveLength(1); expect(labels()[0]).toHaveFocus();
+      await key(labels()[0], "Backspace"); expect(labels()).toHaveLength(1); expect(labels()[0].value).toBe("");
+      await act(async () => { fireEvent.click(screen.getByRole("button", { name: "Alan ekle" })); });
+      expect(labels()).toHaveLength(2); expect(labels()[1]).toHaveFocus();
+    } finally { unmount(); unmountHook(); resetTabsStoreForTests(); vi.useRealTimers(); }
+  });
+});

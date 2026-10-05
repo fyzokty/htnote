@@ -1,5 +1,9 @@
 # HTNote — Canlı Kartlar tasarım dili
 
+- Kopyalanabilir alanlar ve kontrol listesi: boş yazım satırları editörde kalır, widget değişince kaydedilmez; boş liste editörde bir yazım satırıyla açılır. Görüntülemede boş değerin kopyalama eylemi ve boş kontrol maddesi gizlenir.
+
+- Kopyalanabilir alanlar: dar etiket ve monospace değer editörü; görüntülemede seçilebilir, sarılan değerler, satır kopyalama/onay geri bildirimi ve ortak tümünü kopyala eylemi; dışa aktarımda okunur tanım listesi.
+
 - Kontrol listesi: ortak ikonlu tür başlığı, varsayılan onay kutulu madde editörü; görüntülemede ince indigo ilerleme çubuğu, sessiz sayaç, geçici işaretleme ve ortak sıfırlama/kopyalama eylemleri; iç ayırıcılar widget divider token’ını kullanır.
 
 Bu belge HTNote arayüzünün görsel spesifikasyonudur. Arayüzle çeliştiğinde bu belge esas alınır; davranış, veri modeli ve güvenlik sınırları mimari karar kaydına tabidir. Renklerin uygulamadaki tek kaynağı `src/index.css` içindeki `--app-*` token'larıdır.

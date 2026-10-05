@@ -44,9 +44,10 @@ export function appearanceCss(): string {
     NOTE_BACKGROUNDS.map((preset) => `\n:where([data-htnote-widget][data-htnote-bg="${preset}"]){background:var(--ht-note-${preset});}`).join("");
 }
 
-function hasPresetWidget(html: string): boolean {
+function hasStyledWidget(html: string): boolean {
   const tree = parse(html);
   function visit(node: DefaultTreeAdapterTypes.Node): boolean {
+    if ("tagName" in node && node.attrs.some(({ name, value }) => name === "data-htnote-widget" && value === "copyfields")) return true;
     if ("tagName" in node && node.attrs.some(({ name }) => name === "data-htnote-widget") &&
       node.attrs.some(({ name, value }) => name === "data-htnote-bg" && NOTE_BACKGROUNDS.includes(value as typeof NOTE_BACKGROUNDS[number]))) return true;
     return "childNodes" in node && node.childNodes.some(visit);
@@ -55,7 +56,7 @@ function hasPresetWidget(html: string): boolean {
 }
 
 export function syncAppearanceStyle(html: string): string {
-  const needed = !!readNoteBackground(html) || hasPresetWidget(html);
+  const needed = !!readNoteBackground(html) || hasStyledWidget(html);
   const style = findElement(html, "style", "htnote-appearance")?.sourceCodeLocation;
   if (!needed && !style) return html;
   const stylesheet = `<style id="htnote-appearance">${appearanceCss()}</style>`;

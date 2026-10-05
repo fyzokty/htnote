@@ -1,4 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { serializeCopyFields } from "@/features/editor/copyFields";
 import source from "./bridge.js?raw";
 import { writeNoteBackground } from "@/features/viewer/noteAppearance";
 
@@ -54,6 +55,121 @@ describe("note bridge", () => {
     return document.querySelector("textarea")!;
   }
 
+  async function addCopyFields() {
+    document.body.innerHTML = serializeCopyFields({ title: "Fields", html: null, fields: [
+      { label: "Host <&>", value: "server.example" }, { label: "", value: "  unlabeled" },
+      { label: "Empty", value: "" }, { label: "", value: "" },
+    ] });
+    await vi.waitFor(() => expect(document.querySelector('[data-testid="copyfields-copy-all"]')).not.toBeNull());
+    hostMessage({ type: "HTNOTE_THEME", labels: { copyfieldsType: "COPY FIELDS", copyAll: "Copy all", copyRow: "Copy: {{name}}", copyfieldsRow: "row {{index}}", copied: "Copied", copyFailed: "Copy failed" } });
+    return Array.from(document.querySelectorAll<HTMLButtonElement>('[data-testid="copyfields-copy-row"]'));
+  }
+
+  it("copies field values by icon and double click, filters empty values from copy-all and clears temporary feedback", async () => {
+    const buttons = await addCopyFields();
+    const values = Array.from(document.querySelectorAll('dl dd'));
+    const before = values.map((value) => value.textContent);
+    expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual(["Copy: Host <&>", "Copy:   unlabeled"]);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    vi.useFakeTimers();
+    try {
+      buttons[0].click(); await Promise.resolve(); await Promise.resolve();
+      expect(writeText).toHaveBeenLastCalledWith("server.example");
+      expect(buttons[0].textContent).toBe("Copied");
+      expect(buttons[0].getAttribute("aria-label")).toBe("Copy: Host <&>");
+      values[1].dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      await Promise.resolve(); await Promise.resolve();
+      expect(writeText).toHaveBeenLastCalledWith("  unlabeled");
+      expect(buttons[1].textContent).toBe("Copied");
+      document.querySelector<HTMLButtonElement>('[data-testid="copyfields-copy-all"]')!.click();
+      await Promise.resolve(); await Promise.resolve();
+      expect(writeText).toHaveBeenLastCalledWith("Host <&>: server.example\n  unlabeled");
+      vi.advanceTimersByTime(1500);
+      expect(buttons[0].textContent).toBe("");
+      expect(document.querySelector('[data-testid="copyfields-copy-all"]')?.textContent).toBe("Copy all");
+      expect(values.map((value) => value.textContent)).toEqual(before);
+      expect(document.querySelector('dl input')).toBeNull();
+      expect(messages).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); delete (navigator as { clipboard?: unknown }).clipboard; }
+  });
+
+  it.each([true, false])("uses copyfields clipboard fallback and restores selection/focus (success=%s)", async (success) => {
+    const buttons = await addCopyFields();
+    const value = document.querySelector('dl dd')!;
+    buttons[0].focus();
+    const range = document.createRange(); range.selectNodeContents(value);
+    window.getSelection()?.removeAllRanges(); window.getSelection()?.addRange(range);
+    expect(window.getSelection()?.toString()).toBe("server.example");
+    const execCommand = vi.fn(() => { expect((document.activeElement as HTMLTextAreaElement).value).toBe("server.example"); return success; });
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: vi.fn().mockRejectedValue(new Error("Denied")) } });
+    Object.defineProperty(document, "execCommand", { configurable: true, value: execCommand });
+    try {
+      buttons[0].click();
+      await vi.waitFor(() => expect(buttons[0].textContent).toBe(success ? "Copied" : "Copy failed"));
+      expect(execCommand).toHaveBeenCalledWith("copy"); expect(buttons[0]).toHaveFocus();
+      expect(window.getSelection()?.toString()).toBe("server.example");
+      expect(document.querySelector('textarea')).toBeNull();
+    } finally { delete (navigator as { clipboard?: unknown }).clipboard; delete (document as unknown as { execCommand?: unknown }).execCommand; }
+  });
+
+  it("omits copy buttons for external blank values and handles values becoming empty or filled", async () => {
+    await addCopyFields();
+    const list = document.querySelector('dl')!;
+    list.insertAdjacentHTML("beforeend", '<div class="htnote-copyfields-row"><dt></dt><dd></dd></div><div class="htnote-copyfields-row"><dt>Whitespace</dt><dd> &#9;&nbsp;</dd></div>');
+    const rows = Array.from(list.children);
+    const blanks = rows.slice(2);
+    await vi.waitFor(() => {
+      expect(document.querySelectorAll('[data-testid="copyfields-copy-row"]')).toHaveLength(2);
+      blanks.forEach((row) => expect(row.querySelector('button')).toBeNull());
+    });
+    expect(blanks[0].querySelector('dt')?.textContent).toBe("Empty");
+    const value = rows[0].querySelector('dd')!;
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    try {
+      value.textContent = " \t";
+      await vi.waitFor(() => expect(rows[0].querySelector('button')).toBeNull());
+      value.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      expect(writeText).not.toHaveBeenCalled();
+      document.querySelector<HTMLButtonElement>('[data-testid="copyfields-copy-all"]')!.click();
+      await vi.waitFor(() => expect(writeText).toHaveBeenLastCalledWith("  unlabeled"));
+      value.textContent = "restored";
+      await vi.waitFor(() => expect(rows[0].querySelectorAll('button')).toHaveLength(1));
+      value.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+      await vi.waitFor(() => expect(writeText).toHaveBeenLastCalledWith("restored"));
+    } finally { delete (navigator as { clipboard?: unknown }).clipboard; }
+  });
+
+  it("validates copyfields host labels, enhances later rows and widgets once and copies an empty list", async () => {
+    await addCopyFields();
+    hostMessage({ type: "HTNOTE_THEME", labels: { copyfieldsType: "Untrusted", copyAll: "Untrusted", copyRow: "Untrusted", copyfieldsRow: "Untrusted" } }, null);
+    hostMessage({ type: "HTNOTE_THEME", labels: { copyfieldsType: 4, copyAll: "x".repeat(201), copyRow: null, copyfieldsRow: [] } });
+    expect(document.querySelector('.htnote-widget-type')?.textContent).toBe("COPY FIELDS");
+    expect(document.querySelector('[data-testid="copyfields-copy-all"]')?.textContent).toBe("Copy all");
+    const safe = '<img src=x onerror="alert(1)">';
+    hostMessage({ type: "HTNOTE_THEME", labels: { copyfieldsType: safe, copyAll: safe } });
+    expect(document.querySelector('.htnote-widget-type')?.textContent).toBe(safe);
+    expect(document.querySelector('img')).toBeNull();
+    const list = document.querySelector('dl')!;
+    const row = document.createElement('div'); row.className = 'htnote-copyfields-row';
+    const label = document.createElement('dt'), value = document.createElement('dd');
+    value.textContent = 'x'.repeat(100); row.append(label, value); list.append(row);
+    await vi.waitFor(() => expect(row.querySelector('button')?.getAttribute('aria-label')).toBe('Copy: ' + 'x'.repeat(40)));
+    value.textContent = "$& Changed";
+    await vi.waitFor(() => expect(row.querySelector('button')?.getAttribute('aria-label')).toBe('Copy: $& Changed'));
+    expect(row.querySelectorAll('button')).toHaveLength(1);
+    const later = document.createElement('section'); later.innerHTML = serializeCopyFields({ title: '', fields: [], html: null }); document.body.append(later);
+    await vi.waitFor(() => expect(later.querySelector('[data-testid="copyfields-copy-all"]')).not.toBeNull());
+    expect(later.querySelector('.htnote-widget-type')?.textContent).toBe(safe);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    try {
+      later.querySelector<HTMLButtonElement>('button')!.click();
+      await vi.waitFor(() => expect(writeText).toHaveBeenLastCalledWith(""));
+    } finally { delete (navigator as { clipboard?: unknown }).clipboard; }
+  });
+
   async function addChecklist(empty = false) {
     document.body.innerHTML = `<div class="htnote-checklist" data-htnote-widget="checklist"><div class="htnote-checklist-title">Saved</div><ul class="htnote-checklist-items">${empty ? "" : '<li><label><input type="checkbox" checked> First &lt;&amp;&gt;</label></li><li><label><input type="checkbox"> Second</label></li><li><label><input type="checkbox">  Third</label></li>'}</ul></div>`;
     await vi.waitFor(() => expect(document.querySelector('[data-testid="checklist-copy"]')).not.toBeNull());
@@ -99,6 +215,34 @@ describe("note bridge", () => {
       await vi.waitFor(() => expect(writeText).toHaveBeenLastCalledWith("First <&>"));
       inputs[0].click(); copy.click();
       await vi.waitFor(() => expect(writeText).toHaveBeenLastCalledWith(""));
+    } finally { delete (navigator as { clipboard?: unknown }).clipboard; }
+  });
+
+  it("hides external blank items and excludes them from progress, reset and remaining copies", async () => {
+    await addChecklist();
+    const list = document.querySelector('.htnote-checklist-items')!;
+    list.insertAdjacentHTML("beforeend", '<li><label><input type="checkbox" checked> </label></li><li><label><input type="checkbox"> &#9;&nbsp;</label></li>');
+    const blanks = Array.from(list.querySelectorAll<HTMLLIElement>('li')).slice(3);
+    const counter = document.querySelector('[data-testid="checklist-counter"]')!;
+    const progress = document.querySelector('[role="progressbar"]')!;
+    await vi.waitFor(() => blanks.forEach((row) => expect(row.hidden).toBe(true)));
+    expect(counter.textContent).toBe("1 / 3");
+    expect(progress).toHaveAttribute("aria-valuemax", "3");
+    expect(progress).toHaveAttribute("aria-valuenow", "1");
+    blanks[0].querySelector<HTMLInputElement>('input')!.click();
+    expect(document.querySelector<HTMLButtonElement>('[data-testid="checklist-reset"]')!.disabled).toBe(true);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    try {
+      document.querySelector<HTMLButtonElement>('[data-testid="checklist-copy"]')!.click();
+      await vi.waitFor(() => expect(writeText).toHaveBeenLastCalledWith("Second\n Third"));
+      blanks[1].querySelector('label')!.append("Now filled");
+      await vi.waitFor(() => expect(counter.textContent).toBe("1 / 4"));
+      expect(blanks[1].hidden).toBe(false);
+      list.replaceChildren(...blanks.slice(0, 1));
+      await vi.waitFor(() => expect(counter.textContent).toBe("0 / 0"));
+      expect(progress).toHaveAttribute("aria-valuemax", "0");
+      expect(progress).toHaveAttribute("aria-valuenow", "0");
     } finally { delete (navigator as { clipboard?: unknown }).clipboard; }
   });
 

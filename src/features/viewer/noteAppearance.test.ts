@@ -1,10 +1,20 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { NOTE_BACKGROUNDS, noteBackgroundStyle, readNoteBackground, writeNoteBackground, syncAppearanceStyle } from "./noteAppearance";
+import { serializeCopyFields } from "@/features/editor/copyFields";
 import { serializeTextBox } from "@/features/editor/textBox";
 
 afterEach(() => { document.documentElement.removeAttribute("style"); });
 
 describe("portable note background", () => {
+  it("keeps copyfields export styling without a preset and removes it after the last widget is deleted", () => {
+    const widget = serializeCopyFields({ title: "Fields", fields: [{ label: "Host", value: "<&>" }], html: null });
+    const html = `<html><head></head><body><main id="htnote-content">${widget}</main></body></html>`;
+    const saved = syncAppearanceStyle(html);
+    expect(saved).toContain(widget);
+    expect(new DOMParser().parseFromString(saved, "text/html").getElementById("htnote-appearance")).not.toBeNull();
+    expect(syncAppearanceStyle(saved)).toBe(saved);
+    expect(syncAppearanceStyle(saved.replace(widget, ""))).toBe(html.replace(widget, ""));
+  });
   it("embeds widget presets without a body preset and keeps the stylesheet until the last preset is removed", () => {
     for (const preset of NOTE_BACKGROUNDS) for (const mode of ["light", "dark"]) {
       document.documentElement.style.setProperty(`--app-note-${preset}-${mode}`, mode === "light" ? "#abcdef" : "#123456");

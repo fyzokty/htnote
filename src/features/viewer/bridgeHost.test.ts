@@ -183,7 +183,7 @@ it("handles registered messages and resends theme on settings change", () => {
     window.dispatchEvent(message({ type: "HTNOTE_READY", noteId: id }, otherFrame));
     expect(frame.postMessage).not.toHaveBeenCalled();
     window.dispatchEvent(message({ type: "HTNOTE_READY", noteId: id }));
-    expect(frame.postMessage).toHaveBeenCalledWith({ type: "HTNOTE_THEME", mode: "light", vars: expect.objectContaining({ "--ht-bg": expect.any(String) }), audioLabels: expect.objectContaining({ play: "Oynat", seek: "Ses konumu" }), labels: { copy: "Kopyala", copied: "Kopyalandı", copyFailed: "Kopyalanamadı", reset: "Varsayılana dön", textboxType: "METİN KUTUSU", checklistType: "KONTROL LİSTESİ", checklistReset: "Sıfırla", copyRemaining: "Kalanları kopyala", checklistProgress: "Tamamlanma oranı" } }, NOTE_ORIGIN);
+    expect(frame.postMessage).toHaveBeenCalledWith({ type: "HTNOTE_THEME", mode: "light", vars: expect.objectContaining({ "--ht-bg": expect.any(String) }), audioLabels: expect.objectContaining({ play: "Oynat", seek: "Ses konumu" }), labels: { copy: "Kopyala", copied: "Kopyalandı", copyFailed: "Kopyalanamadı", reset: "Varsayılana dön", textboxType: "METİN KUTUSU", checklistType: "KONTROL LİSTESİ", checklistReset: "Sıfırla", copyRemaining: "Kalanları kopyala", checklistProgress: "Tamamlanma oranı", copyfieldsType: "KOPYALANABİLİR ALANLAR", copyAll: "Tümünü kopyala", copyRow: "Kopyala: {{name}}", copyfieldsRow: "satır {{index}}" } }, NOTE_ORIGIN);
 
     window.dispatchEvent(message({ type: "HTNOTE_OPEN_NOTE", id }));
     expect(useTabsStore.getState().activeId).toBe(id);
@@ -219,7 +219,7 @@ it("resends localized audio labels and app palette when language changes", async
     await i18n.changeLanguage("en");
     expect(frame.postMessage).toHaveBeenLastCalledWith(expect.objectContaining({
       type: "HTNOTE_THEME", audioLabels: expect.objectContaining({ play: "Play", seek: "Audio position" }),
-      labels: { copy: "Copy", copied: "Copied", copyFailed: "Copy failed", reset: "Reset to default", textboxType: "TEXT BOX", checklistType: "CHECKLIST", checklistReset: "Reset", copyRemaining: "Copy remaining", checklistProgress: "Completion progress" },
+      labels: { copy: "Copy", copied: "Copied", copyFailed: "Copy failed", reset: "Reset to default", textboxType: "TEXT BOX", checklistType: "CHECKLIST", checklistReset: "Reset", copyRemaining: "Copy remaining", checklistProgress: "Completion progress", copyfieldsType: "COPY FIELDS", copyAll: "Copy all", copyRow: "Copy: {{name}}", copyfieldsRow: "row {{index}}" },
       vars: expect.objectContaining({ "--ht-audio-surface": "test-surface" }),
     }), NOTE_ORIGIN);
   } finally {
