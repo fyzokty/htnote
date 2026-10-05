@@ -13,7 +13,7 @@ use crate::index::note_index::NoteIndex;
 use std::sync::{Arc, RwLock};
 use crate::state::{PreviewDraft, PreviewDrafts};
 
-const BRIDGE_JS: &str = concat!(include_str!("../../../src/bridge/templateEngine.js"), "\n", include_str!("../../../src/bridge/bridge.js"));
+const BRIDGE_JS: &str = concat!(include_str!("../../../src/bridge/templateEngine.js"), "\n", include_str!("../../../src/bridge/calcEngine.js"), "\n", include_str!("../../../src/bridge/bridge.js"));
 const BRIDGE_TAG: &str = "<script src=\"/__htnote/bridge.js\"></script>";
 
 struct NoteRequest {
@@ -517,6 +517,8 @@ mod tests {
         assert_eq!(bridge.status, StatusCode::OK);
         assert_eq!(bridge.body, BRIDGE_JS.as_bytes());
         let source = std::str::from_utf8(&bridge.body).unwrap();
+        assert!(source.find("function evaluateCalc(").unwrap() < source.find("function enhanceCalc(").unwrap());
+        assert!(source.find("function parseTemplate(").unwrap() < source.find("function evaluateCalc(").unwrap());
         assert!(source.find("function parseTemplate(").unwrap() < source.find("function enhanceTemplate(").unwrap());
         assert!(bridge.headers.contains(&("Content-Type", "application/javascript; charset=utf-8".into())));
         assert!(bridge.headers.contains(&("X-Content-Type-Options", "nosniff".into())));
