@@ -1,5 +1,10 @@
 (() => {
   "use strict";
+  // Not script'leri sonradan global adları değiştirse de motorlar yerel kalır.
+  const templateEngine = globalThis.HTNOTE_TEMPLATE_ENGINE;
+  const calcEngine = globalThis.HTNOTE_CALC_ENGINE;
+  delete globalThis.HTNOTE_TEMPLATE_ENGINE;
+  delete globalThis.HTNOTE_CALC_ENGINE;
 
   const { pathname, search } = location;
   const noteId = pathname.split("/")[1];
@@ -178,6 +183,23 @@
   @media(max-width:600px){:where(.htnote-template-layout){grid-template-columns:minmax(0,1fr)}}
   @media print{.htnote-template .htnote-widget-header,.htnote-template-title,.htnote-template-source,.htnote-template-fields,.htnote-template-preview-heading{display:none!important}.htnote-template-layout{display:block!important}.htnote-template-panel{border:0!important;padding:0!important;background:transparent!important}}
   ${printing ? ".htnote-template .htnote-widget-header,.htnote-template-title,.htnote-template-source,.htnote-template-fields,.htnote-template-preview-heading{display:none!important}.htnote-template-layout{display:block!important}.htnote-template-panel{border:0!important;padding:0!important;background:transparent!important}" : ""}
+
+:where(.htnote-calc){box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border);border-radius:12px;color:var(--ht-widget-text);background:var(--ht-widget-surface)}
+:where(.htnote-calc-title){font-weight:700;min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+:where(.htnote-calc-lines){display:grid;grid-template-columns:minmax(0,1fr) 12ch;border:1px solid var(--ht-widget-border);border-radius:8px;background:var(--ht-widget-field);overflow:hidden}
+:where(.htnote-calc-input){display:block;box-sizing:border-box;width:100%;min-width:0;min-height:4.8em;padding:8px;border:0;border-radius:0;color:var(--ht-widget-text);background:var(--ht-widget-field);field-sizing:fixed;resize:none;white-space:pre;overflow-x:auto;font:13px/21px ui-monospace,SFMono-Regular,Consolas,monospace}
+:where(.htnote-calc-input:focus-visible){outline:2px solid var(--ht-widget-accent);outline-offset:-2px}
+:where(.htnote-calc-results){padding:8px;border-left:1px solid var(--ht-widget-divider);overflow:hidden;text-align:right;font:13px/21px ui-monospace,SFMono-Regular,Consolas,monospace}
+:where(.htnote-calc-results>div){height:21px;white-space:nowrap}
+:where(.htnote-calc-error){color:var(--ht-widget-muted)}
+:where(.htnote-calc-total){display:flex;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--ht-widget-divider)}
+:where(.htnote-calc-total strong:last-child){color:var(--ht-widget-accent);font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.htnote-calc-print{display:none;font:13px/21px ui-monospace,SFMono-Regular,Consolas,monospace}
+.htnote-calc-print>div{display:grid;grid-template-columns:minmax(0,1fr) 12ch;gap:8px;break-inside:avoid}
+.htnote-calc-print pre{min-width:0;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
+.htnote-calc-print span{text-align:right;white-space:pre-wrap;overflow-wrap:anywhere}
+@media print{.htnote-calc-lines{display:none!important}.htnote-calc-print{display:block!important}}
+${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{display:block!important}" : ""}
   .htnote-textbox-print{display:none;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;margin:0}
   @media print{.htnote-widget-actions,.htnote-copyfields-copy,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}.htnote-textbox-title{padding-right:0}.htnote-textbox{break-inside:auto}}
   ${printing ? ".htnote-widget-actions,.htnote-copyfields-copy,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}" : ""}
@@ -445,7 +467,7 @@
       if (heading.textContent !== (boxLabels.templatePreview || "")) heading.textContent = boxLabels.templatePreview || "";
       if (savedSource !== source.defaultValue) {
         savedSource = source.defaultValue;
-        parsed = globalThis.HTNOTE_TEMPLATE_ENGINE.parseTemplate(savedSource);
+        parsed = templateEngine.parseTemplate(savedSource);
         inputs.clear(); fields.replaceChildren();
         parsed.variables.forEach((variable, index) => {
           const row = document.createElement("div"), label = document.createElement("label"), input = document.createElement("input");
@@ -466,9 +488,65 @@
     templates.set(box, { update });
     update();
   }
+  const calcs = new WeakMap();
+  function enhanceCalc(box) {
+    if (calcs.has(box)) return;
+    const input = box.querySelector(":scope > textarea.htnote-calc-input");
+    if (!input) return;
+    const actions = document.createElement("div"), copy = document.createElement("button"), reset = document.createElement("button");
+    actions.className = "htnote-widget-actions";
+    copy.type = reset.type = "button";
+    copy.dataset.testid = "calc-copy"; reset.dataset.testid = "calc-reset";
+    actions.append(copy, reset);
+    const updateHeader = createWidgetHeader(box, "calcType", ["M6 2h12v20H6z", "M9 6h6", "M9 10h.01", "M15 10h.01", "M9 14h.01", "M15 14v4", "M9 18h.01"], actions);
+    const layout = document.createElement("div"), results = document.createElement("div"), mirror = document.createElement("div");
+    const totalRow = document.createElement("div"), totalLabel = document.createElement("strong"), totalValue = document.createElement("strong"), limit = document.createElement("p");
+    layout.className = "htnote-calc-lines"; results.className = "htnote-calc-results"; mirror.className = "htnote-calc-print";
+    mirror.setAttribute("aria-hidden", "true");
+    totalRow.className = "htnote-calc-total"; totalValue.dataset.testid = "calc-total";
+    limit.className = "htnote-calc-error"; limit.setAttribute("role", "status");
+    input.wrap = "off";
+    // Textarea varsayılan metni taşınırken değiştirilmez; düzenlemeler yalnız value'dadır.
+    input.before(layout); layout.append(input, results); layout.after(mirror); totalRow.append(totalLabel, totalValue); box.append(limit, totalRow);
+    let calculation, rendered;
+    const updateCopy = bindWidgetCopy(copy, "calcCopyTotal", () => calculation.formattedTotal);
+    const update = () => {
+      updateHeader(); updateCopy();
+      if (reset.textContent !== (boxLabels.calcReset || "")) reset.textContent = boxLabels.calcReset || "";
+      if (totalLabel.textContent !== (boxLabels.calcTotal || "")) totalLabel.textContent = boxLabels.calcTotal || "";
+      input.setAttribute("aria-label", boxLabels.calcContent || "");
+      reset.disabled = input.value === input.defaultValue;
+      const signature = JSON.stringify([input.value, boxLabels.locale, boxLabels.calcError, boxLabels.calcLimit]);
+      if (signature === rendered) return;
+      rendered = signature;
+      calculation = calcEngine.evaluateCalc(input.value, boxLabels.locale);
+      results.replaceChildren(...calculation.lines.map((line) => {
+        const cell = document.createElement("div"); cell.dataset.testid = "calc-result"; cell.textContent = line.formatted;
+        if (line.status === "error") {
+          cell.className = "htnote-calc-error";
+          cell.title = boxLabels.calcError || ""; cell.setAttribute("aria-label", boxLabels.calcError || "");
+        }
+        return cell;
+      }));
+      totalValue.textContent = calculation.formattedTotal;
+      limit.hidden = !calculation.limited; limit.textContent = calculation.limited ? boxLabels.calcLimit || "" : "";
+      mirror.replaceChildren(...(calculation.limited ? [input.value] : input.value.split(/\r\n|[\r\n]/)).map((expression, index) => {
+        const row = document.createElement("div"), source = document.createElement("pre"), result = document.createElement("span");
+        source.textContent = expression || "\u00a0";
+        result.textContent = calculation.lines[index]?.formatted || (calculation.limited ? "?" : "");
+        row.append(source, result); return row;
+      }));
+      input.style.height = "auto";
+      input.style.height = `${Math.max(input.scrollHeight, 3 * (parseFloat(getComputedStyle(input).lineHeight) || 21) + 16)}px`;
+    };
+    reset.addEventListener("click", () => { input.value = input.defaultValue; update(); });
+    input.addEventListener("input", update);
+    input.addEventListener("scroll", () => { results.scrollTop = input.scrollTop; });
+    calcs.set(box, { update }); update();
+  }
   function scanWidgets(node) {
     if (node.nodeType !== 1) return;
-    for (const [kind, enhance] of [["textbox", enhanceTextBox], ["checklist", enhanceChecklist], ["copyfields", enhanceCopyFields], ["template", enhanceTemplate]]) {
+    for (const [kind, enhance] of [["textbox", enhanceTextBox], ["checklist", enhanceChecklist], ["copyfields", enhanceCopyFields], ["template", enhanceTemplate], ["calc", enhanceCalc]]) {
       const selector = `[data-htnote-widget="${kind}"]`;
       if (node.matches(selector)) enhance(node);
       node.querySelectorAll(selector).forEach(enhance);
@@ -476,14 +554,14 @@
   }
   function updateWidgets() {
     document.querySelectorAll('[data-htnote-widget]').forEach((box) => {
-      textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update();
+      textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update(); calcs.get(box)?.update();
     });
   }
   scanWidgets(root);
   new MutationObserver((records) => records.forEach((record) => {
     record.addedNodes.forEach(scanWidgets);
     const box = record.target.nodeType === 1 ? record.target.closest('[data-htnote-widget]') : record.target.parentElement?.closest('[data-htnote-widget]');
-    if (box) { scanWidgets(box); textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update(); }
+    if (box) { scanWidgets(box); textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update(); calcs.get(box)?.update(); }
   })).observe(root, { childList: true, subtree: true, characterData: true });
   window.addEventListener("beforeprint", updateWidgets);
   const audioPlayers = new WeakMap();
@@ -817,9 +895,10 @@
     if (e.source !== window.parent || !e.data || typeof e.data !== "object") return;
     const { type, vars, mode, query, scrollY, token, contentWidth, audioLabels: labels, labels: widgetLabels } = e.data;
     if (type === "HTNOTE_THEME" && widgetLabels && typeof widgetLabels === "object" && !Array.isArray(widgetLabels)) {
-      for (const key of ["copy", "copied", "copyFailed", "reset", "textboxType", "checklistType", "checklistReset", "copyRemaining", "checklistProgress", "copyfieldsType", "copyAll", "copyRow", "copyfieldsRow", "templateType", "templateReset", "templatePreview"]) {
+      for (const key of ["copy", "copied", "copyFailed", "reset", "textboxType", "checklistType", "checklistReset", "copyRemaining", "checklistProgress", "copyfieldsType", "copyAll", "copyRow", "copyfieldsRow", "templateType", "templateReset", "templatePreview", "calcType", "calcReset", "calcCopyTotal", "calcTotal", "calcContent", "calcError", "calcLimit"]) {
         if (typeof widgetLabels[key] === "string" && widgetLabels[key].length <= 200) boxLabels[key] = widgetLabels[key];
       }
+      if (Object.prototype.hasOwnProperty.call(widgetLabels, "locale")) boxLabels.locale = widgetLabels.locale === "en" ? "en" : "tr";
       updateWidgets();
     }
     if (type === "HTNOTE_THEME" && labels && typeof labels === "object") {

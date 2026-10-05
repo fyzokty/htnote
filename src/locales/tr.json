@@ -298,6 +298,12 @@
       "select": "Şablon doldurucuyu seç",
       "hint": "Değişken için {{ad}}, varsayılan için {{ad|değer}} yazın",
       "detected": "Algılananlar:"
+    },
+    "calc": {
+      "insert": "Hesap defteri",
+      "title": "Hesap defteri başlığı",
+      "content": "Hesap ifadeleri",
+      "select": "Hesap defterini seç"
     }
   },
   "errors": {
@@ -519,7 +525,8 @@
     "textbox": "METİN KUTUSU",
     "checklist": "KONTROL LİSTESİ",
     "copyfields": "KOPYALANABİLİR ALANLAR",
-    "template": "ŞABLON DOLDURUCU"
+    "template": "ŞABLON DOLDURUCU",
+    "calc": "HESAP DEFTERİ"
   },
   "textBox": {
     "copy": "Kopyala",
@@ -540,5 +547,12 @@
   "template": {
     "reset": "Sıfırla",
     "preview": "Önizleme"
+  },
+  "calc": {
+    "copyTotal": "Toplamı kopyala",
+    "total": "Toplam",
+    "error": "Hesaplanamadı",
+    "limit": "En fazla 500 satır, satır başına 500 karakter ve 64 iç içe işlem kullanılabilir.",
+    "reset": "Sıfırla"
   }
 }

@@ -5,6 +5,7 @@ import { join } from "node:path";
 
 import { waitForApp, waitForSavedEditor } from "./app";
 import { noteFrameFailure } from "./noteFrameDiagnostics";
+import { waitForPointerStable } from "./pointer";
 
 export interface NoteNode { type: "note"; id: string; title: string; relPath: string }
 interface FolderNode { type: "folder"; relPath: string; children: TreeNode[] }
@@ -19,6 +20,23 @@ export async function visibleEditorTool(selector: string) {
   }
   await tool.waitForDisplayed();
   return tool;
+}
+
+export async function visibleEditorContentControl(selector: string) {
+  // setValue focuses fields without the outside pointerdown that a user's
+  // click sends. Dismiss the overflow panel before clicking content beneath it.
+  const overflow = await $('[data-testid="editor-overflow"]');
+  if (await overflow.isExisting() && await overflow.getAttribute("aria-expanded") === "true") {
+    await overflow.click();
+    await browser.waitUntil(async () => await overflow.getAttribute("aria-expanded") === "false");
+  }
+  const control = await $(selector);
+  await control.waitForDisplayed();
+  // Native scrolling respects the editor's measured sticky-toolbar padding.
+  await browser.execute((element) => element.scrollIntoView({ block: "center", inline: "nearest", behavior: "instant" }), await control.getElement());
+  await waitForPointerStable(control);
+  await control.waitForClickable();
+  return control;
 }
 
 export async function invoke<T>(command: string, args: object = {}): Promise<T> {

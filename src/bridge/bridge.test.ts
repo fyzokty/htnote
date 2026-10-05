@@ -1,6 +1,7 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { serializeCopyFields } from "@/features/editor/copyFields";
 import { parseTemplate, serializeTemplate } from "@/features/editor/template";
+import { evaluateCalc, serializeCalc } from "@/features/editor/calc";
 import source from "./bridge.js?raw";
 import { writeNoteBackground } from "@/features/viewer/noteAppearance";
 
@@ -23,7 +24,7 @@ function click(href: string, type = "click") {
 
 describe("note bridge", () => {
   beforeAll(() => {
-    Object.assign(window, { HTNOTE_TEMPLATE_ENGINE: { parseTemplate } });
+    Object.assign(window, { HTNOTE_TEMPLATE_ENGINE: { parseTemplate }, HTNOTE_CALC_ENGINE: { evaluateCalc } });
     history.replaceState(null, "", "/123e4567-e89b-12d3-a456-426614174000/index.html");
     document.body.innerHTML = '<video controls></video><audio controls></audio>';
     vi.spyOn(window.parent, "postMessage").mockImplementation(messages);
@@ -56,6 +57,87 @@ describe("note bridge", () => {
     hostMessage({ type: "HTNOTE_THEME", labels: { copy: "Copy", copied: "Copied", copyFailed: "Copy failed", reset: "Reset", textboxType: "TEXT BOX" } });
     return document.querySelector("textarea")!;
   }
+
+  async function addCalc(content = "Kira = 18.500\nFatura = 2.340 + 870\nKDV = %20 * 4.000\n# comment\n5/0\ntoplam") {
+    document.body.innerHTML = serializeCalc({ title: "Budget", content, html: null });
+    await vi.waitFor(() => expect(document.querySelector('[data-testid="calc-copy"]')).not.toBeNull());
+    hostMessage({ type: "HTNOTE_THEME", labels: { locale: "tr", copy: "Copy", copied: "Copied", copyFailed: "Copy failed", reset: "Reset", calcType: "CALCULATION", calcReset: "Reset", calcCopyTotal: "Copy total", calcTotal: "Total", calcContent: "Expressions", calcError: "Could not calculate", calcLimit: "Limit" } });
+    return document.querySelector<HTMLTextAreaElement>(".htnote-calc-input")!;
+  }
+
+  it("removes engine globals at startup and ignores subsequent note-script replacements", async () => {
+    expect(Object.prototype.hasOwnProperty.call(window, "HTNOTE_TEMPLATE_ENGINE")).toBe(false);
+    expect(Object.prototype.hasOwnProperty.call(window, "HTNOTE_CALC_ENGINE")).toBe(false);
+    const hostile = vi.fn(() => { throw new Error("Note code must not run"); });
+    Object.assign(window, { HTNOTE_TEMPLATE_ENGINE: { parseTemplate: hostile }, HTNOTE_CALC_ENGINE: { evaluateCalc: hostile } });
+    await addCalc("2+3");
+    expect(document.querySelector('[data-testid="calc-total"]')?.textContent).toBe("5");
+    const fields = await addTemplate("{{Ad|Saved}}");
+    expect(fields[0].value).toBe("Saved");
+    expect(hostile).not.toHaveBeenCalled();
+  });
+
+  it("calculates live values, copies formatted total with fallback, resets and keeps default HTML unchanged", async () => {
+    const input = await addCalc();
+    const original = input.defaultValue, reset = document.querySelector<HTMLButtonElement>('[data-testid="calc-reset"]')!;
+    expect(Array.from(document.querySelectorAll('[data-testid="calc-result"]'), (cell) => cell.textContent)).toEqual(["18.500", "3.210", "800", "", "?", "22.510"]);
+    expect(document.querySelector('[aria-label="Could not calculate"]')?.textContent).toBe("?");
+    expect(reset.disabled).toBe(true);
+    input.value = "0,1 + 0,2\n100 + %20"; input.focus(); input.setSelectionRange(1, 3); input.dispatchEvent(new Event("input"));
+    expect(document.querySelector('[data-testid="calc-total"]')?.textContent).toBe("120,3");
+    expect(input.defaultValue).toBe(original);
+    expect(reset.disabled).toBe(false);
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    const copy = document.querySelector<HTMLButtonElement>('[data-testid="calc-copy"]')!;
+    copy.click(); await vi.waitFor(() => expect(copy.dataset.feedback).toBe("copied"));
+    expect(writeText).toHaveBeenCalledWith("120,3");
+    writeText.mockRejectedValue(new Error("clipboard denied"));
+    let fallback = "";
+    Object.defineProperty(document, "execCommand", { configurable: true, value: vi.fn(() => { fallback = (document.activeElement as HTMLTextAreaElement).value; return true; }) });
+    copy.click(); await vi.waitFor(() => expect(fallback).toBe("120,3"));
+    expect(input).toHaveFocus(); expect([input.selectionStart, input.selectionEnd]).toEqual([1, 3]);
+    expect(input.defaultValue).toBe(original);
+    window.dispatchEvent(new Event("beforeprint"));
+    expect(document.querySelector(".htnote-calc-print")?.textContent).toBe("0,1 + 0,20,3100 + %20120");
+    reset.click(); expect(input.value).toBe(original); expect(reset.disabled).toBe(true);
+    expect(document.querySelector('[data-testid="calc-total"]')?.textContent).toBe("22.510");
+  });
+
+  it("validates locale and labels, recalculates existing live values and enhances later widgets only once", async () => {
+    const input = await addCalc("1,234");
+    input.value = "2,345"; input.dispatchEvent(new Event("input"));
+    hostMessage({ type: "HTNOTE_THEME", labels: { locale: "en", calcTotal: "<img src=x>", calcCopyTotal: "Copy sum" } });
+    expect(document.querySelector('[data-testid="calc-total"]')?.textContent).toBe("2,345");
+    expect(document.querySelector(".htnote-calc-total strong")?.textContent).toBe("<img src=x>");
+    expect(document.querySelector("img")).toBeNull();
+    hostMessage({ type: "HTNOTE_THEME", labels: { locale: "tr", calcTotal: "Foreign" } }, {} as Window);
+    expect(document.querySelector('[data-testid="calc-total"]')?.textContent).toBe("2,345");
+    hostMessage({ type: "HTNOTE_THEME", labels: { locale: "invalid", calcTotal: 2, calcCopyTotal: "x".repeat(201), calcError: [] } });
+    expect(document.querySelector('[data-testid="calc-total"]')?.textContent).toBe("2,345");
+    expect(document.querySelector('[data-testid="calc-copy"]')?.textContent).toBe("Copy sum");
+    input.value = "18.500"; input.dispatchEvent(new Event("input"));
+    expect(document.querySelector('[data-testid="calc-total"]')?.textContent).toBe("18.500");
+    expect(input.defaultValue).toBe("1,234");
+    hostMessage({ type: "HTNOTE_THEME", labels: { locale: [] } });
+    document.body.insertAdjacentHTML("beforeend", serializeCalc({ title: "Later", content: "2+3", html: null }));
+    await vi.waitFor(() => expect(document.querySelectorAll('[data-testid="calc-copy"]')).toHaveLength(2));
+    document.querySelector(".htnote-calc")!.append(document.createElement("span"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.querySelectorAll('[data-testid="calc-copy"]')).toHaveLength(2);
+    expect(Array.from(document.querySelectorAll('[data-testid="calc-total"]'), (cell) => cell.textContent)).toEqual(["18.500", "5"]);
+  });
+
+  it("rejects oversized calculations and safely prints long expressions and literal markup", async () => {
+    const input = await addCalc("<&> = 2\n" + "Long label ".repeat(20) + "= 3");
+    expect(document.querySelector(".htnote-calc-print pre")?.textContent).toBe("<&> = 2");
+    expect(document.querySelector(".htnote-calc-print")?.querySelector("script")).toBeNull();
+    input.value = Array(501).fill("1").join("\n"); input.dispatchEvent(new Event("input"));
+    expect(document.querySelector('[data-testid="calc-total"]')?.textContent).toBe("0");
+    expect(document.querySelector('[role="status"]')?.textContent).toBe("Limit");
+    expect(document.querySelectorAll(".htnote-calc-print pre")).toHaveLength(1);
+    expect(document.querySelector(".htnote-calc-print pre")?.textContent).toBe(input.value);
+  });
 
   async function addTemplate(content = "Sayın {{Ad|Ahmet}}, {{AD}}\nNo: {{No}}\n<&>") {
     document.body.innerHTML = serializeTemplate({ title: "Response", content, html: null });

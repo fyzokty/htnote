@@ -53,7 +53,7 @@ have bounded timeouts for slower CI runners, without fixed sleeps or test retrie
 
 Settings controls use stable test IDs rather than translated button text; the
 tab sizing flow runs in both Turkish and English. Specs that select translated
-labels pin the language in settings (editing: `tr`, colors: `en`), because the
+labels pin the language in settings (editing/widgets: `tr`, colors: `en`), because the
 default follows the OS locale and CI runs in `en-US`. Right-side media gap clicks
 stay left of a visible overlay scrollbar track, which owns clicks on its strip
 when a smaller window makes the editor scrollable. The external-change flow polls
@@ -74,6 +74,36 @@ the rendered viewport, not the entire HTML document. Scroll the relevant content
 into view before asserting its source (the color flow uses Ctrl+End to reveal
 the note content after the appearance CSS). Also verify saved HTML through
 `read_note` and computed colors in the reopened note iframe.
+
+Widget content clicks use `visibleEditorContentControl`. In a narrow window,
+`visibleEditorTool` opens the toolbar overflow panel to reach Insert Widget.
+WebDriver `setValue` focuses fields without an outside pointerdown, so the panel
+can remain open and its disabled controls' tooltip anchors intercept the widget
+background button. A real click in the widget title closes that panel. The helper
+closes it with a real overflow-trigger click, scrolls the target using the editor's
+sticky-toolbar padding, and waits for stable geometry and clickability. It does
+not dispatch synthetic clicks or add fixed pauses.
+
+Run the editing and widget specs with the default window first, then repeat under
+the smaller CI-like window and English WebView2 locale:
+
+```powershell
+$env:CARGO_BUILD_JOBS = "4"
+npx wdio run e2e/wdio.conf.ts --spec e2e/specs/flows-widgets.e2e.ts --spec e2e/specs/flows-editing.e2e.ts
+$env:HTNOTE_E2E_WINDOW_SIZE = "1028x780"
+$env:HTNOTE_E2E_BROWSER_LANGUAGE = "en-US"
+npx wdio run e2e/wdio.conf.ts --spec e2e/specs/flows-widgets.e2e.ts --spec e2e/specs/flows-editing.e2e.ts
+Remove-Item Env:HTNOTE_E2E_WINDOW_SIZE, Env:HTNOTE_E2E_BROWSER_LANGUAGE
+```
+
+`HTNOTE_E2E_WINDOW_SIZE` is opt-in and logs the actual viewport, locale and user
+agent. `HTNOTE_E2E_BROWSER_LANGUAGE` passes `--lang` via
+[`webviewOptions.additionalBrowserArguments`](https://learn.microsoft.com/en-us/microsoft-edge/webdriver/capabilities-edge-options#webviewoptions-object)
+and asserts `navigator.language`. EdgeDriver replaces the browser argument
+environment when launching the application, so setting `--lang` only in
+`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS` can silently leave the OS locale active.
+Keep application language pinned inside specs even when the browser is started
+with `--lang=en-US`.
 
 If session creation fails, first check that both drivers are on `PATH` and that
 the EdgeDriver major version matches WebView2. If a security assertion fails,

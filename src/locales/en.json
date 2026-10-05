@@ -298,6 +298,12 @@
       "select": "Select template",
       "hint": "Use {{name}} for variables, {{name|value}} for defaults",
       "detected": "Detected:"
+    },
+    "calc": {
+      "insert": "Calculation",
+      "title": "Calculation title",
+      "content": "Calculation expressions",
+      "select": "Select calculation"
     }
   },
   "errors": {
@@ -519,7 +525,8 @@
     "textbox": "TEXT BOX",
     "checklist": "CHECKLIST",
     "copyfields": "COPY FIELDS",
-    "template": "TEMPLATE"
+    "template": "TEMPLATE",
+    "calc": "CALCULATION"
   },
   "textBox": {
     "copy": "Copy",
@@ -540,5 +547,12 @@
   "template": {
     "reset": "Reset",
     "preview": "Preview"
+  },
+  "calc": {
+    "copyTotal": "Copy total",
+    "total": "Total",
+    "error": "Could not calculate",
+    "limit": "Use up to 500 lines, 500 characters per line and 64 nested operations.",
+    "reset": "Reset"
   }
 }

@@ -1,12 +1,56 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { createNote, editNote, openNote, saveAndView, useTempRoot, visibleEditorTool, waitForFile, withNoteFrame, invoke } from "../helpers/flows";
+import { createNote, editNote, openNote, saveAndView, useTempRoot, visibleEditorContentControl, visibleEditorTool, waitForFile, withNoteFrame, invoke } from "../helpers/flows";
 
-describe("text box widget", () => {
+describe("widget flows", () => {
   let root: string;
   let restore: () => Promise<void>;
-  before(async () => { ({ root, restore } = await useTempRoot()); });
-  after(async () => { await restore(); });
+  let language: string | null;
+  // Pin labels and calculation number formatting independently of the OS locale.
+  before(async () => {
+    ({ language } = await invoke<{ language: string | null }>("get_settings"));
+    await invoke("update_settings", { patch: { language: "tr" } });
+    ({ root, restore } = await useTempRoot());
+  });
+  after(async () => { await invoke("update_settings", { patch: { language } }); await restore(); });
+
+  it("saves a calculation, edits/copies/resets live values and keeps disk HTML unchanged", async () => {
+    const note = await createNote("Calculation round trip");
+    await openNote(note.id); await editNote();
+    await (await visibleEditorTool('[data-testid="insert-widget"]')).click();
+    await $('[data-testid="insert-calc"]').click();
+    const title = await $('[data-testid="calc-title"]'); await title.waitForDisplayed();
+    await title.setValue("Monthly budget"); await browser.keys("Enter");
+    const source = "Kira = 18.500\nFatura = 2.340 + 870\nKDV = %20 * 4.000\n5/0\ntoplam";
+    await $('[data-testid="calc-content"]').setValue(source);
+    assert.equal(await $('[data-testid="calc-total"]').getText(), "22.510");
+    const html = await saveAndView(note.id, (value) => value.includes("Monthly budget") && value.includes("KDV = %20"));
+    assert.ok(html.includes('<textarea class="htnote-calc-input" spellcheck="false" rows="3">'));
+    assert.ok(!html.includes("htnote-calc-node")); assert.ok(!html.includes("calc-results"));
+    await withNoteFrame(note.id, async () => {
+      const input = await $('.htnote-calc-input'); await input.waitForDisplayed();
+      const copy = await $('[data-testid="calc-copy"]'), reset = await $('[data-testid="calc-reset"]');
+      await browser.waitUntil(async () => (await copy.getText()).length > 0);
+      assert.equal(await reset.isEnabled(), false);
+      assert.equal(await $('[data-testid="calc-total"]').getText(), "22.510");
+      assert.equal(await browser.execute(() => 'HTNOTE_CALC_ENGINE' in window || 'HTNOTE_TEMPLATE_ENGINE' in window), false);
+      await input.setValue("0,1 + 0,2\n100 + %20");
+      assert.equal(await $('[data-testid="calc-total"]').getText(), "120,3");
+      await copy.click(); await browser.waitUntil(async () => /Kopyalandı|Copied/.test(await copy.getText()));
+      await browser.execute(() => { const probe = document.createElement("textarea"); probe.id = "calc-probe"; document.body.append(probe); });
+      const probe = await $('#calc-probe'); await probe.click(); await browser.keys(["Control", "v"]);
+      await browser.waitUntil(async () => await probe.getValue() === "120,3");
+      await browser.execute(() => document.getElementById("calc-probe")?.remove());
+      await reset.click(); assert.equal(await input.getValue(), source);
+      assert.equal(await $('[data-testid="calc-total"]').getText(), "22.510");
+      assert.equal(await reset.isEnabled(), false);
+      await input.setValue("999");
+    });
+    assert.equal((await invoke<{ html: string }>("read_note", { id: note.id })).html, html);
+    assert.equal((await waitForFile(join(root, note.relPath, "index.html"))).toString(), html);
+    await editNote(); assert.equal(await $('[data-testid="calc-content"]').getValue(), source);
+    await $('[data-testid="cancel-edit"]').click();
+  });
 
   it("saves a template, fills and copies repeated variables, resets and keeps disk HTML unchanged", async () => {
     const note = await createNote("Template round trip");
@@ -17,7 +61,7 @@ describe("text box widget", () => {
     await title.setValue("Customer response"); await browser.keys("Enter");
     const source = "Sayın {{Ad|Ahmet}}, {{AD}}\nNo: {{No}}\n<&>";
     await $('[data-testid="template-content"]').setValue(source);
-    await $('.htnote-widget-tools button').click();
+    await (await visibleEditorContentControl('.htnote-widget-tools button')).click();
     await $('.htnote-color-popover button[aria-label="Nane"], .htnote-color-popover button[aria-label="Mint"]').click();
     const html = await saveAndView(note.id, (value) => value.includes("Customer response") && value.includes("{{Ad|Ahmet}}"));
     assert.ok(html.includes('<textarea class="htnote-template-source" spellcheck="false" rows="3">'));
@@ -78,7 +122,7 @@ describe("text box widget", () => {
     await (await $$('[data-testid="copyfields-label"]'))[2].setValue("Empty");
     await (await $$('[data-testid="copyfields-value"]'))[2].click(); await browser.keys("Enter");
     await browser.waitUntil(async () => (await $$('[data-testid="copyfields-value"]')).length === 4);
-    await $('.htnote-widget-tools button').click();
+    await (await visibleEditorContentControl('.htnote-widget-tools button')).click();
     await $('.htnote-color-popover button[aria-label="Nane"], .htnote-color-popover button[aria-label="Mint"]').click();
     const html = await saveAndView(note.id, (value) => value.includes("Server fields") && value.includes("server &lt;&amp;&gt; value"));
     assert.match(html, /<dl class="htnote-copyfields-list"><div class="htnote-copyfields-row"><dt>Host<\/dt><dd>server &lt;&amp;&gt; value<\/dd>/);
@@ -144,7 +188,7 @@ describe("text box widget", () => {
     await (await $$('[data-testid="checklist-item"]'))[2].setValue("Third remaining");
     await browser.keys("Enter");
     await browser.waitUntil(async () => (await $$('[data-testid="checklist-item"]')).length === 4);
-    await $('.htnote-widget-tools button').click();
+    await (await visibleEditorContentControl('.htnote-widget-tools button')).click();
     await $('.htnote-color-popover button[aria-label="Nane"], .htnote-color-popover button[aria-label="Mint"]').click();
     const html = await saveAndView(note.id, (value) => value.includes("Release checklist") && value.includes("First &lt;&amp;&gt; item"));
     assert.match(html, /<div class="htnote-checklist" data-htnote-widget="checklist" data-htnote-bg="mint">/);
@@ -221,7 +265,7 @@ describe("text box widget", () => {
     assert.equal(await browser.execute(() => document.activeElement?.getAttribute("data-testid")), "textbox-content");
     const saved = "Saved first line\n<saved> & last line";
     await content.setValue(saved);
-    await $('.htnote-widget-tools button').click();
+    await (await visibleEditorContentControl('.htnote-widget-tools button')).click();
     const mint = await $('.htnote-color-popover button[aria-label="Nane"], .htnote-color-popover button[aria-label="Mint"]');
     await mint.waitForDisplayed();
     await mint.click();
@@ -298,7 +342,7 @@ describe("text box widget", () => {
     await editNote();
     assert.equal(await $('[data-testid="textbox-title"]').getValue(), "Widget title");
     assert.equal(await $('[data-testid="textbox-content"]').getValue(), saved);
-    await $('.htnote-widget-tools button').click();
+    await (await visibleEditorContentControl('.htnote-widget-tools button')).click();
     assert.equal(await $('.htnote-color-popover button[aria-label="Nane"], .htnote-color-popover button[aria-label="Mint"]').getAttribute("aria-pressed"), "true");
     await browser.keys("Escape");
     await $('[data-testid="cancel-edit"]').click();

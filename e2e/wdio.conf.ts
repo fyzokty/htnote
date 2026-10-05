@@ -36,6 +36,9 @@ export const config = {
   capabilities: [{
     "tauri:options": {
       application: resolve("src-tauri", "target", "debug", process.platform === "win32" ? "htnote.exe" : "htnote"),
+      ...(process.platform === "win32" && process.env.HTNOTE_E2E_BROWSER_LANGUAGE ? {
+        webviewOptions: { additionalBrowserArguments: [`--lang=${process.env.HTNOTE_E2E_BROWSER_LANGUAGE}`] },
+      } : {}),
     },
   }],
   framework: "mocha",
@@ -48,6 +51,18 @@ export const config = {
   async before() {
     await browser.setTimeout({ script: 60000 });
     await waitForApp();
+    if (process.env.HTNOTE_E2E_BROWSER_LANGUAGE) {
+      assert.equal(await browser.execute(() => navigator.language), process.env.HTNOTE_E2E_BROWSER_LANGUAGE,
+        "WebView2 must use the requested E2E browser language");
+    }
+    if (process.env.HTNOTE_E2E_WINDOW_SIZE) {
+      const size = /^(\d+)x(\d+)$/.exec(process.env.HTNOTE_E2E_WINDOW_SIZE);
+      assert.ok(size, "HTNOTE_E2E_WINDOW_SIZE must be WIDTHxHEIGHT");
+      const width = Number(size[1]), height = Number(size[2]);
+      assert.ok(width > 0 && height > 0, "E2E window dimensions must be positive");
+      await browser.setWindowSize(width, height);
+      console.info("E2E viewport:", await browser.execute(() => ({ width: innerWidth, height: innerHeight, language: navigator.language, userAgent: navigator.userAgent })));
+    }
     if (process.platform === "win32") {
       assert.equal(await browser.execute(() => matchMedia("(prefers-reduced-motion: reduce)").matches), true,
         "E2E WebView2 must start with --force-prefers-reduced-motion");
