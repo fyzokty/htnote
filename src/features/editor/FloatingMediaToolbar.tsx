@@ -4,6 +4,7 @@ import type { ReactNode, RefObject } from "react";
 import { createPortal } from "react-dom";
 import { DialogActiveContext } from "@/components/ui/useDialogPresence";
 import { mediaToolbarOwners, mediaToolbarPosition } from "./mediaToolbarPosition";
+import { editorViewport } from "./editorViewport";
 
 export function FloatingMediaToolbar({ anchor, selected, align, children }: {
   anchor: RefObject<HTMLDivElement | null>; selected: boolean; align: string; children: ReactNode;
@@ -46,10 +47,7 @@ export function FloatingMediaToolbar({ anchor, selected, align, children }: {
     if (editor) mediaToolbarOwners.set(layer, editor);
     const scroll = wrapper.closest(".htnote-visual-scroll");
     const measure = () => {
-      const clip = scroll?.getBoundingClientRect();
-      const viewport = { left: Math.max(0, clip?.left ?? 0), top: Math.max(0, clip?.top ?? 0),
-        right: Math.min(window.innerWidth, clip?.right ?? window.innerWidth),
-        bottom: Math.min(window.innerHeight, clip?.bottom ?? window.innerHeight) };
+      const viewport = editorViewport(scroll) ?? { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
       layer.style.maxWidth = `${Math.max(0, viewport.right - viewport.left - 16)}px`;
       layer.style.maxHeight = `${Math.max(0, viewport.bottom - viewport.top - 16)}px`;
       const rect = (wrapper.querySelector(".htnote-media-preview") ?? wrapper).getBoundingClientRect();

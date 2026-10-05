@@ -1,29 +1,23 @@
-import { useLayoutEffect, useRef } from "react";
+import { useRef } from "react";
 import { NodeViewWrapper } from "@tiptap/react";
 import type { NodeViewProps } from "@tiptap/react";
 import { useTranslation } from "react-i18next";
 import { Calculator, FileText, TextCursorInput } from "lucide-react";
 import { leaveTextBox, textBoxBoundary } from "../textBox";
 import { WidgetHeader } from "./WidgetHeader";
+import { useTextareaSizing } from "./useTextareaSizing";
 
 import { parseTemplate } from "../template";
 import { evaluateCalc } from "../calc";
 
 export function TextareaWidgetView({ node, updateAttributes, editor, getPos, selected, kind }: NodeViewProps & { kind: "textbox" | "template" | "calc" }) {
   const { t, i18n } = useTranslation();
-  const content = useRef<HTMLTextAreaElement>(null);
   const results = useRef<HTMLDivElement>(null);
   const labelKey = kind === "textbox" ? "editor.textBox" : kind === "template" ? "editor.template" : "editor.calc";
   const value = String(node.attrs.content);
   const variables = kind === "template" ? parseTemplate(value).variables : [];
   const calculation = kind === "calc" ? evaluateCalc(value, i18n.resolvedLanguage?.split("-")[0]) : null;
-  useLayoutEffect(() => {
-    const field = content.current;
-    if (field && (kind === "calc" || !window.CSS?.supports?.("field-sizing", "content"))) {
-      field.style.height = "auto";
-      field.style.height = `${Math.max(field.scrollHeight, 3 * (parseFloat(getComputedStyle(field).lineHeight) || 21))}px`;
-    }
-  }, [value, kind]);
+  const content = useTextareaSizing(value, 3, kind === "calc");
   const history = (event: React.KeyboardEvent) => {
     if ((event.ctrlKey || event.metaKey) && ["z", "y"].includes(event.key.toLowerCase())) {
       event.preventDefault();

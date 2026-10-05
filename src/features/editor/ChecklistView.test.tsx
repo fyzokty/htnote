@@ -18,7 +18,7 @@ describe("ChecklistView", () => {
     const ref = createRef<VisualEditorHandle>();
     const { unmount } = render(<VisualEditor ref={ref} initialInner={initial} onChange={result.current.onVisualChange} />);
     const editor = (screen.getByRole("textbox", { name: "Not içeriği" }) as HTMLElement & { editor: Editor }).editor;
-    const fields = () => screen.queryAllByTestId("checklist-item") as HTMLInputElement[];
+    const fields = () => screen.queryAllByTestId("checklist-item") as HTMLTextAreaElement[];
     try {
       await act(async () => { fireEvent.change(screen.getByTestId("checklist-title"), { target: { value: "Saved title" } }); });
       await act(async () => { fireEvent.keyDown(screen.getByTestId("checklist-title"), { key: "Enter" }); });
