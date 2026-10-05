@@ -5,7 +5,7 @@ import { GapCursor } from "@tiptap/pm/gapcursor";
 import { Plugin, PluginKey, Selection, TextSelection } from "@tiptap/pm/state";
 import { closeHistory } from "@tiptap/pm/history";
 import { getPlatform } from "@/lib/platform";
-import { addedCellLayout, BOARD_STYLE, cellStyle, cellValue, parseCell, readBoard, resolveLayout, validLayout, type CellLayout } from "./board";
+import { addedCellLayout, boardTargetLayout, BOARD_STYLE, cellStyle, cellValue, parseCell, readBoard, resolveLayout, validCell, validLayout, type BoardTarget, type CellLayout } from "./board";
 
 declare module "@tiptap/core" {
   interface Commands<ReturnType> {
@@ -16,6 +16,7 @@ declare module "@tiptap/core" {
       dissolveBoard: () => ReturnType;
       toggleBoardLayout: () => ReturnType;
       moveBoardCell: (key: string, resize?: boolean) => ReturnType;
+      setBoardCellLayout: (cellPos: number, target: BoardTarget) => ReturnType;
     };
   }
 }
@@ -30,6 +31,12 @@ export function activeBoard(state: CommandProps["state"]) {
     return { board, boardPos: $from.before(depth - 1), cell: $from.node(depth), cellPos: $from.before(depth), index: $from.index(depth - 1) };
   }
   return null;
+}
+export function boardAtCell(state: CommandProps["state"], cellPos: number) {
+  if (state.doc.nodeAt(cellPos)?.type.name !== "boardCell") return null;
+  const $pos = state.doc.resolve(cellPos + 1);
+  const depth = $pos.depth;
+  return { board: $pos.node(depth - 1), boardPos: $pos.before(depth - 1), cell: $pos.node(depth), cellPos, index: $pos.index(depth - 1) };
 }
 function entries(board: Node) {
   const cells: (CellLayout & { node: Node; original: number })[] = [];
@@ -57,6 +64,32 @@ function boardDOM(attributes: Record<string, string>) {
 function finish(tr: CommandProps["tr"], dispatch: CommandProps["dispatch"]) {
   if (dispatch) { closeHistory(tr); tr.scrollIntoView(); }
   return true;
+}
+function applyCellLayout(props: CommandProps, active: NonNullable<ReturnType<typeof activeBoard>>, target: BoardTarget, layoutMode: boolean) {
+  const { tr, dispatch } = props;
+  const current = entries(active.board);
+  const ordered = boardTargetLayout(current, active.index, target);
+  if (ordered.every((cell, index) => cell.original === index && cell.col === current[index].col && cell.span === current[index].span && cell.row === current[index].row)) {
+    if (dispatch && !tr.steps.length) tr.setMeta("preventDispatch", true);
+    return true;
+  }
+  if (dispatch) {
+    // Önceki yazım geçmişi ve sonraki hareket ayrı geri alma adımlarıdır.
+    closeHistory(tr);
+    const cells = ordered.map((cell) => cell.node.type.create({ col: cell.col, span: cell.span, row: cell.row }, cell.node.content));
+    if (ordered.some((cell, index) => cell.original !== index)) {
+      tr.replaceWith(active.boardPos, active.boardPos + active.board.nodeSize, active.board.type.create(null, cells));
+    } else {
+      let pos = active.boardPos + 1;
+      cells.forEach((cell, index) => {
+        if (!cell.sameMarkup(active.board.child(index))) tr.setNodeMarkup(pos, undefined, cell.attrs);
+        pos += cell.nodeSize;
+      });
+    }
+    const cellPos = selectCell(tr, active.boardPos, cells, ordered.findIndex((cell) => cell.original === active.index));
+    tr.setMeta(boardLayoutKey, { pos: layoutMode ? cellPos : null });
+  }
+  return finish(tr, dispatch);
 }
 function unwrap({ state, tr, dispatch }: CommandProps) {
   const active = activeBoard(state);
@@ -135,7 +168,8 @@ export const Board = TiptapNode.create({
         }
         return true;
       },
-      moveBoardCell: (key, resize = false) => ({ state, tr, dispatch }) => {
+      moveBoardCell: (key, resize = false) => (props) => {
+        const { state } = props;
         const active = activeBoard(state);
         if (!active) return false;
         const current = entries(active.board);
@@ -147,22 +181,12 @@ export const Board = TiptapNode.create({
           else moved.col = Math.max(1, Math.min(13 - moved.span, moved.col + delta));
         } else if (key === "ArrowUp" || key === "ArrowDown") moved.row = Math.max(1, Math.min(100, moved.row + (key === "ArrowUp" ? -1 : 1)));
         else return false;
-        const ordered = resolveLayout(current, active.index);
-        if (dispatch) {
-          const cells = ordered.map((cell) => cell.node.type.create({ col: cell.col, span: cell.span, row: cell.row }, cell.node.content));
-          if (ordered.some((cell, index) => cell.original !== index)) {
-            tr.replaceWith(active.boardPos, active.boardPos + active.board.nodeSize, active.board.type.create(null, cells));
-          } else {
-            let pos = active.boardPos + 1;
-            cells.forEach((cell, index) => {
-              if (!cell.sameMarkup(active.board.child(index))) tr.setNodeMarkup(pos, undefined, cell.attrs);
-              pos += cell.nodeSize;
-            });
-          }
-          const cellPos = selectCell(tr, active.boardPos, cells, ordered.findIndex((cell) => cell.original === active.index));
-          tr.setMeta(boardLayoutKey, { pos: cellPos });
-        }
-        return finish(tr, dispatch);
+        return applyCellLayout(props, active, { ...moved, insertRow: false }, true);
+      },
+      setBoardCellLayout: (cellPos, target) => (props) => {
+        const active = boardAtCell(props.state, cellPos);
+        if (!active || !validCell(target)) { if (props.dispatch && !props.tr.steps.length) props.tr.setMeta("preventDispatch", true); return false; }
+        return applyCellLayout(props, active, target, boardLayoutKey.getState(props.state)?.pos !== null);
       },
     };
   },
@@ -291,7 +315,9 @@ export const BoardCell = TiptapNode.create({
         return true;
       };
       update(node);
-      return { dom, contentDOM: dom, update };
+      return { dom, contentDOM: dom, update,
+        // Paylaşılan fare katmanının geçici stilleri belge mutasyonu değildir.
+        ignoreMutation: (mutation) => mutation.type === "attributes" && mutation.target === dom };
     };
   },
 });

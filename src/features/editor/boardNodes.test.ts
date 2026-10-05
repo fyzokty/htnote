@@ -32,6 +32,27 @@ function key(key: string, shiftKey = false, ctrlKey = false, altKey = false) {
 function separate() { editor.view.dispatch(closeHistory(editor.state.tr)); }
 
 describe("board editor commands", () => {
+  it("commits a pointer layout once, preserves cell content through reorder and undoes once", () => {
+    setup(wrapRawBlocks(serializeBoard([{ col: 1, span: 7, row: 1, html: "<p>Left</p>" }, { col: 8, span: 5, row: 1, html: "<p>Right</p>" }])));
+    focusCell(1);
+    const before = editor.getJSON();
+    let transactions = 0;
+    editor.on("transaction", () => transactions++);
+    editor.commands.setBoardCellLayout(activeBoard(editor.state)!.cellPos, { col: 7, span: 5, row: 1, insertRow: false });
+    expect(transactions).toBe(1);
+    expect(cells()).toEqual([{ col: 7, span: 5, row: 1, text: "Right" }, { col: 1, span: 7, row: 2, text: "Left" }]);
+    editor.commands.undo(); expect(editor.getJSON()).toEqual(before);
+  });
+  it("does not dispatch for an unchanged or invalid pointer target", () => {
+    setup(); editor.commands.insertBoard();
+    const before = editor.state.doc;
+    let transactions = 0;
+    editor.on("transaction", () => transactions++);
+    const pos = activeBoard(editor.state)!.cellPos;
+    editor.commands.setBoardCellLayout(pos, { col: 1, span: 7, row: 1, insertRow: false });
+    editor.commands.setBoardCellLayout(pos, { col: 0, span: 7, row: 1, insertRow: false });
+    expect(transactions).toBe(0); expect(editor.state.doc).toBe(before);
+  });
   it.each(["direct", "blockquote", "list", "table"])("rejects a nested board pasted through %s without changing the document", (container) => {
     setup(); editor.commands.insertBoard();
     const { board, boardCell, paragraph, blockquote, bulletList, listItem, table, tableRow, tableCell } = editor.schema.nodes;

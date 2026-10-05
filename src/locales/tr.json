@@ -269,7 +269,9 @@
       "layout": "Yerleşim",
       "toolbar": "Pano hücresi araçları",
       "announcement": "Sütun {{col}}, genişlik {{span}}, satır {{row}}",
-      "layoutHint": "Oklarla taşı, Shift ve yatay oklarla genişliği değiştir; Enter veya Escape ile çık."
+      "layoutHint": "Oklarla taşı, Shift ve yatay oklarla genişliği değiştir; Enter veya Escape ile çık.",
+      "move": "Pano hücresini taşı",
+      "pointerHint": "Taşımak veya boyutlandırmak için sürükle; Escape iptal eder. Klavye için Yerleşim düğmesini kullan."
     },
     "widgets": {
       "insert": "Widget ekle",

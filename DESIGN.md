@@ -1,6 +1,7 @@
 # HTNote — Canlı Kartlar tasarım dili
 
 - Hesap defteri: sarılmadan yatay kaydırılan monospace ifadeler, sabit ve satırlarla hizalı sonuç sütunu, soluk erişilebilir hata işareti; ayırıcı altında kalın toplam ve indigo sonuç, görüntülemede ortak kopyalama/sıfırlama eylemleri.
+- Pano: paylaşılan grip ve kenar tutamaklarıyla fare yerleşimi, kesikli accent hedef önizlemesi; dar widget kapsayıcılarında alanlar genişliğe uyar, hesap defterinde 360px altında ifadeler sarılır ve sonuçlar alta geçer.
 
 - Şablon doldurucu: genişleyen monospace kaynak alanı, ipucu ve değişken çipleri; görüntülemede etiketli geçici girdiler, indigo değerler/kesik çerçeveli yer tutucular, dar alanda alt alta önizleme ve ortak kopyalama/sıfırlama eylemleri.
 

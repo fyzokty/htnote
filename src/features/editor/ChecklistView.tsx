@@ -45,7 +45,7 @@ export function ChecklistView({ node, updateAttributes, editor, getPos, selected
       {items.map((item, index) => <div className="htnote-checklist-editor-row" key={index}>
         <input type="checkbox" aria-label={t("editor.checklist.checked", { index: index + 1 })} checked={item.checked}
           onChange={(event) => change(items.map((entry, at) => at === index ? { ...entry, checked: event.target.checked } : entry))} />
-        <input ref={(field) => { fields.current[index] = field; }} data-testid="checklist-item" aria-label={t("editor.checklist.item", { index: index + 1 })}
+        <input type="text" size={1} ref={(field) => { fields.current[index] = field; }} data-testid="checklist-item" aria-label={t("editor.checklist.item", { index: index + 1 })}
           value={item.text} onChange={(event) => change(items.map((entry, at) => at === index ? { ...entry, text: event.target.value } : entry))}
           onPaste={(event) => {
             const pasted = event.clipboardData.getData("text/plain");

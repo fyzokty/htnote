@@ -189,7 +189,7 @@
   @media print{.htnote-template .htnote-widget-header,.htnote-template-title,.htnote-template-source,.htnote-template-fields,.htnote-template-preview-heading{display:none!important}.htnote-template-layout{display:block!important}.htnote-template-panel{border:0!important;padding:0!important;background:transparent!important}}
   ${printing ? ".htnote-template .htnote-widget-header,.htnote-template-title,.htnote-template-source,.htnote-template-fields,.htnote-template-preview-heading{display:none!important}.htnote-template-layout{display:block!important}.htnote-template-panel{border:0!important;padding:0!important;background:transparent!important}" : ""}
 
-:where(.htnote-calc){box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border);border-radius:12px;color:var(--ht-widget-text);background:var(--ht-widget-surface)}
+:where(.htnote-calc){container-type:inline-size;container-name:widget;box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border);border-radius:12px;color:var(--ht-widget-text);background:var(--ht-widget-surface)}
 :where(.htnote-calc-title){font-weight:700;min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
 :where(.htnote-calc-lines){display:grid;grid-template-columns:minmax(0,1fr) 12ch;border:1px solid var(--ht-widget-border);border-radius:8px;background:var(--ht-widget-field);overflow:hidden}
 :where(.htnote-calc-input){display:block;box-sizing:border-box;width:100%;min-width:0;min-height:4.8em;padding:8px;border:0;border-radius:0;color:var(--ht-widget-text);background:var(--ht-widget-field);field-sizing:fixed;resize:none;white-space:pre;overflow-x:auto;font:13px/21px ui-monospace,SFMono-Regular,Consolas,monospace}
@@ -199,6 +199,18 @@
 :where(.htnote-calc-error){color:var(--ht-widget-muted)}
 :where(.htnote-calc-total){display:flex;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--ht-widget-divider)}
 :where(.htnote-calc-total strong:last-child){color:var(--ht-widget-accent);font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+:where([data-htnote-widget]){min-width:0;max-width:100%;overflow-wrap:anywhere}
+:where(.htnote-textbox-input,.htnote-template-source){min-width:0}
+:where(.htnote-copyfields){container-type:inline-size;container-name:widget}
+:where(.htnote-calc-total){flex-wrap:wrap}
+@container widget (max-width:360px){
+  :where(.htnote-calc-lines){grid-template-columns:minmax(0,1fr)}
+  :where(.htnote-calc-input){white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:hidden;field-sizing:content;height:auto!important}
+  :where(.htnote-calc-results){border-left:0;border-top:1px solid var(--ht-widget-divider)}
+  :where(.htnote-calc-results>div){height:auto;min-height:21px;white-space:pre-wrap;overflow-wrap:anywhere}
+  :where(.htnote-copyfields-row){grid-template-columns:minmax(0,1fr) auto}
+  :where(.htnote-copyfields-row dt){grid-column:1/-1}
+}
 .htnote-calc-print{display:none;font:13px/21px ui-monospace,SFMono-Regular,Consolas,monospace}
 .htnote-calc-print>div{display:grid;grid-template-columns:minmax(0,1fr) 12ch;gap:8px;break-inside:avoid}
 .htnote-calc-print pre{min-width:0;margin:0;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit}
@@ -510,7 +522,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     mirror.setAttribute("aria-hidden", "true");
     totalRow.className = "htnote-calc-total"; totalValue.dataset.testid = "calc-total";
     limit.className = "htnote-calc-error"; limit.setAttribute("role", "status");
-    input.wrap = "off";
+    input.wrap = "soft";
     // Textarea varsayılan metni taşınırken değiştirilmez; düzenlemeler yalnız value'dadır.
     input.before(layout); layout.append(input, results); layout.after(mirror); totalRow.append(totalLabel, totalValue); box.append(limit, totalRow);
     let calculation, rendered;

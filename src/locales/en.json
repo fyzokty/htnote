@@ -269,7 +269,9 @@
       "layout": "Layout",
       "toolbar": "Board cell tools",
       "announcement": "Column {{col}}, width {{span}}, row {{row}}",
-      "layoutHint": "Move with arrows, resize with Shift and horizontal arrows; exit with Enter or Escape."
+      "layoutHint": "Move with arrows, resize with Shift and horizontal arrows; exit with Enter or Escape.",
+      "move": "Move board cell",
+      "pointerHint": "Drag to move or resize; Escape cancels. Use the Layout button for keyboard controls."
     },
     "widgets": {
       "insert": "Insert widget",

@@ -41,7 +41,7 @@ export function TextareaWidgetView({ node, updateAttributes, editor, getPos, sel
       onChange={(event) => updateAttributes({ title: event.target.value, html: null })}
       onKeyDown={(event) => { history(event); if (event.key === "Enter") { event.preventDefault(); content.current?.focus(); } }} />
     <div className={kind === "calc" ? "htnote-calc-editor-lines" : undefined}>
-    <textarea ref={content} data-testid={`${kind}-content`} aria-label={t(`${labelKey}.content`)} rows={3} spellCheck={false} wrap={kind === "calc" ? "off" : undefined}
+    <textarea ref={content} data-testid={`${kind}-content`} aria-label={t(`${labelKey}.content`)} rows={3} spellCheck={false}
       value={value} onChange={(event) => updateAttributes({ content: event.target.value, html: null })}
       onScroll={(event) => { if (results.current) results.current.scrollTop = event.currentTarget.scrollTop; }}
       onKeyDown={(event) => {
