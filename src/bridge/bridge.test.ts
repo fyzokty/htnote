@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { serializeCopyFields } from "@/features/editor/copyFields";
 import { parseTemplate, serializeTemplate } from "@/features/editor/template";
 import { evaluateCalc, serializeCalc } from "@/features/editor/calc";
@@ -12,6 +12,82 @@ function copyButtonText(button: Element | null): string {
 }
 
 const messages = vi.fn();
+
+describe("draft source reveal bridge", () => {
+  let frame: HTMLIFrameElement;
+  let preview: Window & typeof globalThis;
+  const sent = vi.fn();
+  const draftPath = "/123e4567-e89b-12d3-a456-426614174000/__draft/1/index.html";
+  const content = '<main id="htnote-content"><p><em>Paragraph</em></p><div data-htnote-layout="board"><div data-htnote-cell="1 12 1"><div data-htnote-widget="calc"><span>Card</span><button>Copy</button><input><textarea>Text</textarea><label>Check</label></div></div></div></main>';
+
+  function load(path = draftPath) {
+    frame = document.createElement("iframe");
+    frame.src = new URL(path, location.href).href;
+    document.body.append(frame);
+    preview = frame.contentWindow! as Window & typeof globalThis;
+    preview.document.open();
+    preview.document.write(`<!doctype html><html><head></head><body>${content}</body></html>`);
+    preview.document.close();
+    preview.history.replaceState(null, "", path);
+    vi.spyOn(preview.parent, "postMessage").mockImplementation(sent);
+    preview.eval(source);
+    sent.mockClear();
+  }
+
+  function tap(selector: string, init: MouseEventInit = {}) {
+    const event = new preview.MouseEvent("click", { bubbles: true, cancelable: true, ...init });
+    preview.document.querySelector(selector)!.dispatchEvent(event);
+    return event;
+  }
+
+  afterEach(() => {
+    frame?.remove();
+    sent.mockClear();
+  });
+
+  it("targets the nested widget before its board and maps non-widget clicks to direct blocks", () => {
+    load();
+    tap("[data-htnote-widget] span");
+    expect(sent).toHaveBeenCalledExactlyOnceWith({ type: "HTNOTE_REVEAL_SOURCE", kind: "widget", index: 0, widget: "calc", path: draftPath }, "*");
+    sent.mockClear();
+    tap("em");
+    expect(sent).toHaveBeenCalledExactlyOnceWith({ type: "HTNOTE_REVEAL_SOURCE", kind: "block", index: 0, tag: "p", path: draftPath }, "*");
+    sent.mockClear();
+    tap("[data-htnote-cell]");
+    expect(sent).toHaveBeenCalledExactlyOnceWith({ type: "HTNOTE_REVEAL_SOURCE", kind: "block", index: 1, tag: "div", path: draftPath }, "*");
+  });
+
+  it("keeps interactive controls, modified clicks, prevented events and text selections unchanged", () => {
+    load();
+    const action = vi.fn();
+    preview.document.querySelector("button")!.addEventListener("click", action);
+    for (const selector of ["button", "input", "textarea", "label", "main", "body"]) tap(selector);
+    expect(action).toHaveBeenCalledOnce();
+    const widget = preview.document.querySelector("[data-htnote-widget]")!;
+    for (const markup of ['<a href="#local">Link</a>', '<select><option>Option</option></select>', '<summary>Summary</summary>', '<audio></audio>', '<video></video>', '<span contenteditable>Editable</span>', '<span role="button">Button</span>', '<span role="checkbox">Checkbox</span>', '<span tabindex="0">Focusable</span>']) {
+      const host = preview.document.createElement("div");
+      host.innerHTML = markup;
+      widget.append(host);
+      host.firstElementChild!.dispatchEvent(new preview.MouseEvent("click", { bubbles: true, cancelable: true }));
+    }
+    for (const init of [{ button: 1 }, { button: 2 }, { ctrlKey: true }, { shiftKey: true }, { altKey: true }, { metaKey: true }]) tap("[data-htnote-widget] span", init);
+    const target = preview.document.querySelector("[data-htnote-widget] span")!;
+    target.addEventListener("click", (event) => event.preventDefault(), { once: true });
+    tap("[data-htnote-widget] span");
+    const range = preview.document.createRange();
+    range.selectNodeContents(target);
+    preview.getSelection()!.addRange(range);
+    tap("[data-htnote-widget] span");
+    expect(sent).not.toHaveBeenCalled();
+  });
+
+  it("does not send source reveals outside draft paths", () => {
+    load("/123e4567-e89b-12d3-a456-426614174000/index.html");
+    tap("[data-htnote-widget] span");
+    tap("em");
+    expect(sent).not.toHaveBeenCalled();
+  });
+});
 let scrollbarShadow: ShadowRoot;
 
 function motionWidgets() {

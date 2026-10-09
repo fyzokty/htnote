@@ -1053,6 +1053,28 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     event.preventDefault();
   });
   const send = (type, payload = {}) => window.parent.postMessage({ type, ...payload }, "*");
+  if (pathname.includes("/__draft/")) {
+    const style = document.createElement("style");
+    style.textContent = '@media screen{:where([data-htnote-widget]:hover){outline:1px dashed var(--ht-accent,#4f46e5);outline-offset:3px}}';
+    document.head.append(style);
+    document.addEventListener("click", (event) => {
+      if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey
+        || event.defaultPrevented || window.getSelection()?.isCollapsed === false) return;
+      const target = event.target instanceof Element ? event.target : event.target?.parentElement;
+      if (!target || target.closest('a, button, input, textarea, select, option, label, summary, audio, video, [contenteditable], [role="button"], [role="checkbox"], [tabindex]')) return;
+      const widget = target.closest("[data-htnote-widget]");
+      if (widget) {
+        const index = Array.from(document.querySelectorAll("[data-htnote-widget]")).indexOf(widget);
+        send("HTNOTE_REVEAL_SOURCE", { kind: "widget", index, widget: widget.getAttribute("data-htnote-widget"), path: pathname });
+        return;
+      }
+      const main = target.closest("main#htnote-content");
+      if (!main || target === main) return;
+      let block = target;
+      while (block.parentElement !== main) block = block.parentElement;
+      send("HTNOTE_REVEAL_SOURCE", { kind: "block", index: Array.from(main.children).indexOf(block), tag: block.localName.toLowerCase(), path: pathname });
+    });
+  }
   const external = /^(https?:|mailto:)/i;
   const note = /^htnote:\/\/note\/([0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})\/?$/i;
 

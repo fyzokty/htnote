@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { parseBridgeMessage, registerFrame } from "@/features/viewer/bridgeHost";
+import { revealSource } from "./sourceReveal";
 import { ipc } from "@/lib/ipc";
 import { getNoteOrigin, NOTE_IFRAME_SANDBOX, noteUrl } from "@/lib/noteUrl";
 
@@ -80,6 +81,10 @@ export function LivePreview({ noteId, html, css, js }: LivePreviewProps) {
       const frame = frameRef.current?.contentWindow;
       if (!frame) return;
       const message = parseBridgeMessage(event, frame, getNoteOrigin());
+      if (message?.type === "HTNOTE_REVEAL_SOURCE" && frameSrc
+        && event.data?.path === new URL(frameSrc).pathname) {
+        revealSource(noteId, message.locator);
+      }
       // Aynı iframe yeni revizyonda yeniden kullanılır; eski belgeden kuyrukta kalan olaylar yok sayılır.
       if (message?.type === "HTNOTE_READY" && event.data?.noteId === noteId && frameSrc
         && event.data?.path === new URL(frameSrc).pathname) {

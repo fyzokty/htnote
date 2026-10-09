@@ -100,6 +100,7 @@
   | `HTNOTE_OPEN_EXTERNAL` | `{ url }` | `http(s):`/`mailto:` linki tıklandı → sistem tarayıcısında açılır |
   | `HTNOTE_OPEN_ASSET` | `{ relPath }` | Notun `assets/` eki → kayıtlı frame'in not kimliğiyle Rust'ta yol ve uzantı denetlenir, sistem uygulamasında açılır |
   | `HTNOTE_SHORTCUT` | `{ key, ctrl, shift, alt, meta }` | Uygulama kısayolu iframe odaktayken basıldı (D16) |
+  | `HTNOTE_REVEAL_SOURCE` | `{ kind, index, widget?, tag?, path }` | Yalnız canlı önizlemede tıklanan widget veya üst seviye bloğun HTML kaynağına atlar (D40) |
 - **host → iframe** mesajları:
   | type | payload | Anlam |
   |---|---|---|
@@ -352,3 +353,8 @@
 - **Karar (D10/D11):** Sürüm 1 biçimi `div.htnote-ipblock[data-htnote-widget="ipblock"][data-htnote-gw][data-htnote-prefix] > div.htnote-ipblock-title + pre.htnote-ipblock-list` olur. GW düz metin, prefix kanonik `24`–`30`, arka plan ortak isteğe bağlı preset'tir. Liste artan sırada, LF ile ayrılmış IPv4 adreslerini taşır; ağ, yayın ve GW hariçtir. Geçersiz/boş GW için liste boştur; hata editör/görüntülemede hesaplanır. Yalnız izinli öğe/öznitelikler, tam kapanışlar ve varsayılanlardan hesaplanan listeyle birebir eşleşme tanınır; sapmalar kayıpsız htmlBlock kalır, değişmemiş özgün HTML birebir korunur.
 - **Karar:** Saf `src/bridge/ipEngine.js` klasik script'i TS yan etki içe aktarımı/tip bildirimi ve Rust concat ile tek kaynaktır. IPv4 girdisi kırpılır; baştaki sıfırlı oktetler reddedilir. Yalnız /24–/30, en fazla 253 adres; ağ/yayın GW hata koduyla reddedilir. Atom node ortak başlık, arka plan, tutamaç ve öznitelik transaction/geçmiş/gezinme hattını kullanır; önizleme ilk beş adresi ve toplam sayıyı gösterir.
 - **Kural (D08/D09/D27):** Bridge motoru başlangıçta yerel referansa alıp global adı siler. GW/subnet girdileri geçicidir; sıfırlama kaydedilen değerlere döner, ortak pano yardımcısı güncel listeyi kopyalar, hatada liste boş ve kopyalama kapalıdır. Etiketler doğrulanmış host i18n mesajından gelir; yeni mesaj/izin yoktur. MutationObserver sonradan eklenen blokları geliştirir. Dar düzen kuralları yönetilen CSS'te de bulunur ve bridge'de :where dışında korunur. Yazdırma güncel GW/subnet ve tam listeyi gösterir, eylemleri gizler; bridgesiz HTML/ZIP kayıtlı listeyi okunur pre ve temel stillerle taşır.
+
+## D40 — Önizlemeden koda atlama
+- **Karar:** Kod modunda canlı önizleme tıklaması HTML sekmesini açar; imleç öğenin açılışına gider, editör odaklanır ve hedef ortalanır. Tüm kaynak aralığı yaklaşık 1,2 sn vurgulanır; D31 çözümlenmiş hareket azaltma ayarında vurgu statiktir, yazımda aralık eşlenir.
+- **Kural:** HTML sözdizim ağacı, belge sırasındaki widget indeksi ve türünü; widget dışındaysa `main#htnote-content` doğrudan element çocuğunun indeksi ve etiketini eşler. Pano içindeki widget önceliklidir; uyuşmazlıkta işlem yapılmaz. Etkileşimli kontroller, değiştiricili tıklama ve metin seçimi atlamayı tetiklemez.
+- **Güvenlik (D08/D09):** Bridge yalnız `/__draft/` yolunda mesaj/hover ipucu ekler; host iframe kaynağı, origin, geçerli locator ve güncel taslak yolunu doğrular. Görüntüleyici mesajı yok sayar; sandbox, origin ve IPC sınırları değişmez.
