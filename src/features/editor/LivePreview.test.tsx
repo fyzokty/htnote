@@ -2,11 +2,42 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { LivePreview } from "@/features/editor/LivePreview";
+import * as sourceReveal from "./sourceReveal";
 import { ipc } from "@/lib/ipc";
 import { initNoteOrigin, NOTE_IFRAME_SANDBOX } from "@/lib/noteUrl";
 
 const id = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const origin = "http://127.0.0.1:54321";
+
+it("reveals the source only for a trusted message from the current draft path", async () => {
+  vi.useFakeTimers();
+  initNoteOrigin(origin);
+  vi.spyOn(ipc, "setPreviewDraft").mockResolvedValueOnce(1).mockResolvedValueOnce(2);
+  vi.spyOn(ipc, "clearPreviewDraft").mockResolvedValue();
+  const reveal = vi.spyOn(sourceReveal, "revealSource").mockReturnValue(true);
+  const view = render(<LivePreview noteId={id} html="one" css="" js="" />);
+  await act(async () => { vi.advanceTimersByTime(300); });
+  const frame = screen.getByTitle("Canlı önizleme") as HTMLIFrameElement;
+  const oldPath = new URL(frame.src).pathname;
+  const data = { type: "HTNOTE_REVEAL_SOURCE", kind: "widget", index: 2, widget: "calc", path: oldPath };
+  fireEvent(window, new MessageEvent("message", { source: frame.contentWindow, origin, data }));
+  expect(reveal).toHaveBeenCalledExactlyOnceWith(id, { kind: "widget", index: 2, widget: "calc" });
+  reveal.mockClear();
+  view.rerender(<LivePreview noteId={id} html="two" css="" js="" />);
+  await act(async () => { vi.advanceTimersByTime(300); });
+  const path = new URL(frame.src).pathname;
+  expect(path).not.toBe(oldPath);
+  for (const invalid of [
+    { source: frame.contentWindow, origin, data },
+    { source: frame.contentWindow, origin: "https://evil.test", data: { ...data, path } },
+    { source: window, origin, data: { ...data, path } },
+    { source: frame.contentWindow, origin, data: { ...data, path, index: -1 } },
+    { source: frame.contentWindow, origin, data: { ...data, path: undefined } },
+  ]) fireEvent(window, new MessageEvent<unknown>("message", invalid));
+  expect(reveal).not.toHaveBeenCalled();
+  fireEvent(window, new MessageEvent("message", { source: frame.contentWindow, origin, data: { type: data.type, kind: "block", index: 0, tag: "p", path } }));
+  expect(reveal).toHaveBeenCalledExactlyOnceWith(id, { kind: "block", index: 0, tag: "p" });
+});
 
 afterEach(() => {
   vi.useRealTimers();

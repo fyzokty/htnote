@@ -1,4 +1,5 @@
 import i18n from "@/i18n";
+import { sourceWidgetTypes, type SourceLocator } from "@/features/editor/sourceReveal";
 
 import { notifyError } from "@/lib/errors";
 import { ipc } from "@/lib/ipc";
@@ -19,6 +20,7 @@ export type BridgeMessage =
   | { type: "HTNOTE_OPEN_EXTERNAL"; url: string }
   | { type: "HTNOTE_OPEN_ASSET"; relPath: string }
   | { type: "HTNOTE_SHORTCUT"; input: KeyInput }
+  | { type: "HTNOTE_REVEAL_SOURCE"; locator: SourceLocator }
   | { type: "HTNOTE_SCROLL"; scrollY: number };
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -100,6 +102,13 @@ export function parseBridgeMessage(event: MessageEvent, expectedWindow: Window, 
     case "HTNOTE_SCROLL":
       return typeof data.scrollY === "number" && Number.isFinite(data.scrollY) && data.scrollY >= 0
         ? { type: "HTNOTE_SCROLL", scrollY: data.scrollY } : null;
+    case "HTNOTE_REVEAL_SOURCE":
+      if (typeof data.index !== "number" || !Number.isInteger(data.index) || data.index < 0 || data.index > 9999) return null;
+      if (data.kind === "widget" && sourceWidgetTypes.some((widget) => widget === data.widget)) {
+        return { type: "HTNOTE_REVEAL_SOURCE", locator: { kind: "widget", index: data.index, widget: data.widget as typeof sourceWidgetTypes[number] } };
+      }
+      return data.kind === "block" && typeof data.tag === "string" && /^[a-z][a-z0-9-]{0,31}$/.test(data.tag)
+        ? { type: "HTNOTE_REVEAL_SOURCE", locator: { kind: "block", index: data.index, tag: data.tag } } : null;
     default:
       return null;
   }
@@ -216,6 +225,7 @@ export function handleBridgeMessage(event: MessageEvent) {
       break;
     }
     case "HTNOTE_SCROLL":
+    case "HTNOTE_REVEAL_SOURCE":
       break;
   }
 }

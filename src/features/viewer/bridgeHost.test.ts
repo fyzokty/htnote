@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { activateFrame, clearHighlight, createRateLimiter, installBridgeHost, parseBridgeMessage, registerFrame, requestHighlight, requestPrint, resetBridgeHostForTests } from "@/features/viewer/bridgeHost";
 import { initNoteOrigin } from "@/lib/noteUrl";
+import { registerSourceReveal, sourceWidgetTypes } from "@/features/editor/sourceReveal";
 import { ipc } from "@/lib/ipc";
 import { subscribeShortcut } from "@/lib/shortcuts/manager";
 import type { Settings } from "@/lib/types";
@@ -41,6 +42,29 @@ afterEach(() => {
 });
 
 describe("parseBridgeMessage", () => {
+  it("accepts validated source locators and rejects untrusted sources", () => {
+    for (const widget of sourceWidgetTypes) {
+      const data = { type: "HTNOTE_REVEAL_SOURCE", kind: "widget", index: 9999, widget, path: "/draft", extra: "ignored" };
+      expect(parseBridgeMessage(message(data), frame, NOTE_ORIGIN)).toEqual({
+        type: data.type, locator: { kind: "widget", index: 9999, widget },
+      });
+      expect(parseBridgeMessage(message(data, otherFrame), frame, NOTE_ORIGIN)).toBeNull();
+      expect(parseBridgeMessage(message(data, frame, "https://evil.test"), frame, NOTE_ORIGIN)).toBeNull();
+    }
+    for (const tag of ["p", "h2", "custom-element", "a".repeat(32)]) {
+      expect(parseBridgeMessage(message({ type: "HTNOTE_REVEAL_SOURCE", kind: "block", index: 0, tag }), frame, NOTE_ORIGIN))
+        .toEqual({ type: "HTNOTE_REVEAL_SOURCE", locator: { kind: "block", index: 0, tag } });
+    }
+  });
+
+  it.each([
+    { kind: "other", index: 0 }, { kind: "widget", index: 0 },
+    ...["board", "", 1, null, "constructor"].map((widget) => ({ kind: "widget", index: 0, widget })),
+    ...[-1, 10000, 0.5, NaN, Infinity, "0", null, undefined].map((index) => ({ kind: "widget", index, widget: "calc" })),
+    ...["", "DIV", "1div", "div span", "<div>", "a".repeat(33), null, 1].map((tag) => ({ kind: "block", index: 0, tag })),
+  ])("rejects an invalid source locator %j", (locator) => {
+    expect(parseBridgeMessage(message({ type: "HTNOTE_REVEAL_SOURCE", ...locator }), frame, NOTE_ORIGIN)).toBeNull();
+  });
   it.each([
     undefined, null, 1, {}, "", "assets/", "assets/../outside.pdf", "../assets/file.pdf",
     "assets/%2e%2e/outside.pdf", "assets/a/%2E%2E/file.pdf", "assets/%2F..%2Foutside.pdf",
@@ -93,6 +117,18 @@ describe("parseBridgeMessage", () => {
       .toEqual({ type: "HTNOTE_SCROLL", scrollY: 23 });
     expect(parseBridgeMessage(message({ type: "HTNOTE_SCROLL", scrollY: -1 }), frame, NOTE_ORIGIN)).toBeNull();
   });
+});
+
+it("ignores source reveal messages registered to a viewer frame", () => {
+  const reveal = vi.fn();
+  const unregister = registerSourceReveal(id, reveal);
+  const removeFrame = registerFrame(id, frame);
+  const uninstall = installBridgeHost();
+  window.dispatchEvent(message({ type: "HTNOTE_REVEAL_SOURCE", kind: "widget", index: 0, widget: "calc", path: `/${id}/index.html` }));
+  expect(reveal).not.toHaveBeenCalled();
+  uninstall();
+  removeFrame();
+  unregister();
 });
 
 it("opens attachments for their registered frame and shares the external open rate limit", async () => {

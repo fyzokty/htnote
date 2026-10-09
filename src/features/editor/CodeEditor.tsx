@@ -1,6 +1,6 @@
 import { codeDropPosition, createCodeDropCursor } from "./codeDrop";
 import { PopoverPresence } from "@/components/ui/PopoverPresence";
-import { useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { Compartment } from "@codemirror/state";
 import { keymap } from "@codemirror/view";
@@ -13,10 +13,12 @@ import { Button } from "@/components/ui/Button";
 import { IconButton } from "@/components/ui/IconButton";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { NotePicker } from "@/components/ui/NotePicker";
-import { codeChange, codeTheme, createCodeState, formatHtmlDocument, insertCodeDrop } from "@/features/editor/codeState";
+import { codeChange, codeTheme, createCodeState, formatHtmlDocument, insertCodeDrop, sourceHighlight } from "@/features/editor/codeState";
 import type { CodeChange, CodeTab } from "@/features/editor/codeState";
 import { codeTagFor, copyFilesSequentially, fileName, registerDropHandler, registerDropPreview, updateDropPreview } from "@/features/editor/fileDrop";
 import { codeNoteLink } from "@/features/editor/noteLinks";
+import { findSourceRange, registerSourceReveal } from "./sourceReveal";
+import { widgetMotionReduced } from "./widgets/widgetMotion";
 import { useThemeMode } from "@/hooks/useThemeMode";
 import { formatShortcut } from "@/lib/shortcuts/registry";
 import { ipc } from "@/lib/ipc";
@@ -139,7 +141,7 @@ export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = 
     }
   }, [mode]);
 
-  const switchTab = (tab: CodeTab) => {
+  const switchTab = useCallback((tab: CodeTab) => {
     if (tab === activeRef.current || !statesRef.current || !viewRef.current) return;
     // Sekme değişimi çizimden önce eski önizlemeyi kaldırır.
     updateDropPreview(null, null);
@@ -147,7 +149,39 @@ export function CodeEditor({ noteId = "", html, css, js, onChange, initialTab = 
     activeRef.current = tab;
     viewRef.current.setState(statesRef.current[tab]);
     setActiveTab(tab);
-  };
+  }, []);
+
+  useEffect(() => {
+    let timer: number | undefined;
+    const clearHighlight = () => {
+      const view = viewRef.current;
+      const states = statesRef.current;
+      if (!view || !states) return;
+      if (activeRef.current === "html") view.dispatch({ effects: sourceHighlight.of(null) });
+      else states.html = states.html.update({ effects: sourceHighlight.of(null) }).state;
+    };
+    const unregister = registerSourceReveal(noteId, (locator) => {
+      const view = viewRef.current;
+      const states = statesRef.current;
+      if (!view || !states) return;
+      const state = activeRef.current === "html" ? view.state : states.html;
+      const range = findSourceRange(state, locator);
+      if (!range) return;
+      switchTab("html");
+      if (timer !== undefined) window.clearTimeout(timer);
+      view.dispatch({
+        selection: { anchor: range.from },
+        effects: [EditorView.scrollIntoView(range.from, { y: "center" }), sourceHighlight.of({ ...range, reduced: widgetMotionReduced() })],
+      });
+      view.focus();
+      timer = window.setTimeout(clearHighlight, 1200);
+    });
+    return () => {
+      unregister();
+      if (timer !== undefined) window.clearTimeout(timer);
+      clearHighlight();
+    };
+  }, [noteId, switchTab]);
 
   const selectNote = (note: FlatNote) => {
     const view = viewRef.current;

@@ -1,8 +1,8 @@
-import { EditorState, Compartment } from "@codemirror/state";
+import { EditorState, Compartment, StateEffect, StateField } from "@codemirror/state";
 import type { Extension } from "@codemirror/state";
 import { HighlightStyle, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-import { EditorView } from "@codemirror/view";
+import { Decoration, EditorView, type DecorationSet } from "@codemirror/view";
 import { html } from "@codemirror/lang-html";
 import { css } from "@codemirror/lang-css";
 import { javascript } from "@codemirror/lang-javascript";
@@ -12,9 +12,40 @@ import { isolateHistory } from "@codemirror/commands";
 import type { ThemeMode } from "@/lib/theme";
 import { formatHtml } from "@/features/editor/formatHtml";
 import { prepareCodeDrop } from "./codeDrop";
+import type { SourceRange } from "./sourceReveal";
 
 export type CodeTab = "html" | "css" | "js";
 export type CodeChange = Partial<Record<CodeTab, string>>;
+
+export const sourceHighlight = StateEffect.define<(SourceRange & { reduced: boolean }) | null>();
+export const sourceHighlightField = StateField.define<DecorationSet>({
+  create: () => Decoration.none,
+  update(decorations, transaction) {
+    decorations = decorations.map(transaction.changes);
+    for (const effect of transaction.effects) {
+      if (!effect.is(sourceHighlight)) continue;
+      const range = effect.value;
+      decorations = range && range.from < range.to
+        ? Decoration.set([Decoration.mark({ class: `cm-source-reveal${range.reduced ? " cm-source-reveal-static" : ""}` }).range(range.from, range.to)])
+        : Decoration.none;
+    }
+    return decorations;
+  },
+  provide: (field) => EditorView.decorations.from(field),
+});
+
+const sourceHighlightTheme = EditorView.baseTheme({
+  ".cm-source-reveal": {
+    backgroundColor: "color-mix(in srgb, var(--app-accent) 24%, transparent)",
+    animation: "htnote-source-reveal 1200ms ease-out forwards",
+  },
+  ".cm-source-reveal-static": { animation: "none" },
+  "[data-reduced-motion=true] & .cm-source-reveal": { animation: "none" },
+  "@keyframes htnote-source-reveal": {
+    from: { backgroundColor: "color-mix(in srgb, var(--app-accent) 24%, transparent)" },
+    to: { backgroundColor: "transparent" },
+  },
+});
 
 export function codeChange(tab: CodeTab, doc: string): CodeChange {
   return { [tab]: doc };
@@ -41,7 +72,8 @@ export function createCodeState(tab: CodeTab, doc: string, theme: Compartment, m
       { tag: [tags.attributeName, tags.propertyName], color: "var(--app-code-css)" },
       { tag: [tags.string, tags.number, tags.bool], color: "var(--app-code-js)" },
       { tag: tags.comment, color: "var(--app-muted)", fontStyle: "italic" },
-    ])), EditorView.lineWrapping, EditorState.tabSize.of(2), indentUnit.of("  "), language, theme.of(codeTheme(mode)), ...extraExtensions],
+    ])), EditorView.lineWrapping, EditorState.tabSize.of(2), indentUnit.of("  "), language, theme.of(codeTheme(mode)),
+    ...(tab === "html" ? [sourceHighlightField, sourceHighlightTheme] : []), ...extraExtensions],
   });
 }
 
