@@ -2,6 +2,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { serializeCopyFields } from "@/features/editor/copyFields";
 import { parseTemplate, serializeTemplate } from "@/features/editor/template";
 import { evaluateCalc, serializeCalc } from "@/features/editor/calc";
+import { calculateIpBlock, serializeIpBlock } from "@/features/editor/ipBlock";
 import source from "./bridge.js?raw";
 import { writeNoteBackground } from "@/features/viewer/noteAppearance";
 
@@ -29,7 +30,7 @@ function click(href: string, type = "click") {
 
 describe("note bridge", () => {
   beforeAll(() => {
-    Object.assign(window, { HTNOTE_TEMPLATE_ENGINE: { parseTemplate }, HTNOTE_CALC_ENGINE: { evaluateCalc } });
+    Object.assign(window, { HTNOTE_TEMPLATE_ENGINE: { parseTemplate }, HTNOTE_CALC_ENGINE: { evaluateCalc }, HTNOTE_IP_ENGINE: { calculateIpBlock } });
     history.replaceState(null, "", "/123e4567-e89b-12d3-a456-426614174000/index.html");
     document.body.innerHTML = '<video controls></video><audio controls></audio>';
     vi.spyOn(window.parent, "postMessage").mockImplementation(messages);
@@ -62,6 +63,74 @@ describe("note bridge", () => {
     hostMessage({ type: "HTNOTE_THEME", labels: { copy: "Copy", copied: "Copied", copyFailed: "Copy failed", reset: "Reset", textboxType: "TEXT BOX" } });
     return document.querySelector("textarea")!;
   }
+
+  it("updates temporary IP defaults, reports errors, copies only valid lists and resets", async () => {
+    const saved = serializeIpBlock({ title: "VLAN <script>", gateway: "10.67.106.14", prefix: 28, html: null });
+    document.body.innerHTML = saved;
+    await vi.waitFor(() => expect(document.querySelector('[data-testid="ipblock-copy"]')).not.toBeNull());
+    hostMessage({ type: "HTNOTE_THEME", labels: { locale: "en", ipblockType: "IP BLOCK", ipblockGateway: "Gateway", ipblockPrefix: "Subnet", ipblockCopyList: "Copy list", ipblockSummary: "Block {{block}} · {{count}} addresses", ipblockInvalidIPv4: "Invalid IPv4", ipblockInvalidPrefix: "Invalid subnet", ipblockGatewayBoundary: "Network or broadcast", ipblockEmpty: "Usable addresses appear once a valid IP and subnet are entered.", reset: "Reset", copied: "Copied" } });
+    const input = document.querySelector<HTMLInputElement>('[data-testid="ipblock-gateway"]')!;
+    const prefix = document.querySelector<HTMLSelectElement>('[data-testid="ipblock-prefix"]')!;
+    const list = document.querySelector<HTMLElement>('[data-testid="ipblock-list"]')!;
+    const empty = document.querySelector<HTMLElement>('[data-testid="ipblock-empty"]')!;
+    const copy = document.querySelector<HTMLButtonElement>('[data-testid="ipblock-copy"]')!;
+    const reset = document.querySelector<HTMLButtonElement>('[data-testid="ipblock-reset"]')!;
+    const change = (value: string) => { input.value = value; input.dispatchEvent(new Event("input")); };
+    expect(list.textContent?.split("\n")).toHaveLength(13); expect(reset.disabled).toBe(true);
+    expect(list.hidden).toBe(false); expect(empty.hidden).toBe(true);
+    expect(document.querySelector('[data-testid="ipblock-summary"]')?.textContent).toBe("Block 10.67.106.0/28 · 13 addresses");
+    expect(document.querySelector(".htnote-ipblock-title")?.textContent).toBe("VLAN <script>");
+    expect(document.querySelector(".htnote-ipblock script")).toBeNull();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    prefix.value = "30"; prefix.dispatchEvent(new Event("change"));
+    expect(list.textContent).toBe("10.67.106.13"); expect(reset.disabled).toBe(false);
+    copy.click(); await vi.waitFor(() => expect(writeText).toHaveBeenCalledWith("10.67.106.13"));
+    expect(document.querySelector(".htnote-ipblock")?.getAttribute("data-htnote-prefix")).toBe("28");
+    change("10.67.106.12");
+    expect(input).toHaveAttribute("aria-invalid", "true"); expect(copy.disabled).toBe(true); expect(list.textContent).toBe("");
+    expect(list.hidden).toBe(true); expect(empty.hidden).toBe(false);
+    expect(empty.textContent).toBe("Usable addresses appear once a valid IP and subnet are entered.");
+    expect(document.getElementById(input.getAttribute("aria-describedby")!)?.textContent).toBe("Network or broadcast");
+    copy.click(); expect(writeText).toHaveBeenCalledTimes(1);
+    change("10.67.300.1"); expect(document.querySelector(".htnote-ipblock-error")?.textContent).toBe("Invalid IPv4");
+    expect(list.textContent).toBe(""); expect(copy.disabled).toBe(true);
+    expect(list.hidden).toBe(true); expect(empty.hidden).toBe(false);
+    prefix.value = ""; prefix.dispatchEvent(new Event("change")); change("10.67.106.14");
+    expect(document.querySelector(".htnote-ipblock-error")?.textContent).toBe("Invalid subnet");
+    expect(list.hidden).toBe(true); expect(empty.hidden).toBe(false);
+    reset.click(); expect(input.value).toBe("10.67.106.14"); expect(prefix.value).toBe("28");
+    expect(reset.disabled).toBe(true); expect(copy.disabled).toBe(false); expect(input).toHaveAttribute("aria-invalid", "false");
+    expect(input).not.toHaveAttribute("aria-describedby"); expect(list.textContent?.split("\n")).toHaveLength(13);
+    expect(list.hidden).toBe(false); expect(empty.hidden).toBe(true);
+    change("10.67.106.13"); window.dispatchEvent(new Event("beforeprint"));
+    expect(document.querySelector(".htnote-ipblock-print")?.textContent).toBe("Gateway: 10.67.106.13 · Subnet: /28");
+    expect(document.querySelector(".htnote-ipblock")?.getAttribute("data-htnote-gw")).toBe("10.67.106.14");
+    expect(window.HTNOTE_IP_ENGINE).toBeUndefined();
+    Object.assign(window, { HTNOTE_IP_ENGINE: { calculateIpBlock: () => { throw new Error("not script override"); } } });
+    change("10.67.106.14"); expect(list.textContent?.split("\n")).toHaveLength(13);
+    delete (window as unknown as { HTNOTE_IP_ENGINE?: unknown }).HTNOTE_IP_ENGINE;
+  });
+
+  it("validates IP labels, uses literal text and enhances later blocks only once", async () => {
+    document.body.innerHTML = serializeIpBlock({ title: "", gateway: "10.67.106.14", prefix: 30, html: null });
+    await vi.waitFor(() => expect(document.querySelector('[data-testid="ipblock-copy"]')).not.toBeNull());
+    hostMessage({ type: "HTNOTE_THEME", labels: { ipblockCopyList: "Safe copy", ipblockGateway: "Gateway", ipblockType: "IP BLOCK" } });
+    hostMessage({ type: "HTNOTE_THEME", labels: { ipblockCopyList: "x".repeat(201), ipblockGateway: 1, ipblockType: [] } });
+    expect(copyButtonText(document.querySelector('[data-testid="ipblock-copy"]'))).toBe("Safe copy");
+    expect(document.querySelector(".htnote-ipblock-fields label span")?.textContent).toBe("Gateway");
+    hostMessage({ type: "HTNOTE_THEME", labels: { ipblockCopyList: "Bad source" } }, null);
+    expect(copyButtonText(document.querySelector('[data-testid="ipblock-copy"]'))).toBe("Safe copy");
+    hostMessage({ type: "HTNOTE_THEME", labels: { ipblockGateway: "<script>literal</script>" } });
+    expect(document.querySelector(".htnote-ipblock-fields label span")?.textContent).toBe("<script>literal</script>");
+    expect(document.querySelector(".htnote-ipblock script")).toBeNull();
+    document.body.insertAdjacentHTML("beforeend", serializeIpBlock({ title: "Later", gateway: "255.255.255.254", prefix: 30, html: null }));
+    await vi.waitFor(() => expect(document.querySelectorAll('[data-testid="ipblock-copy"]')).toHaveLength(2));
+    document.querySelector(".htnote-ipblock")!.append(document.createElement("span"));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(document.querySelectorAll('[data-testid="ipblock-copy"]')).toHaveLength(2);
+    expect(Array.from(document.querySelectorAll('[data-testid="ipblock-list"]'), (item) => item.textContent)).toEqual(["10.67.106.13", "255.255.255.253"]);
+  });
 
   async function addCalc(content = "Kira = 18.500\nFatura = 2.340 + 870\nKDV = %20 * 4.000\n# comment\n5/0\ntoplam") {
     document.body.innerHTML = serializeCalc({ title: "Budget", content, html: null });

@@ -3,7 +3,7 @@ import { NodeSelection, TextSelection, type EditorState, type Transaction } from
 import { closeHistory } from "@tiptap/pm/history";
 import { MAX_BOARD_CELLS, resolveLayout, validCell, type CellLayout } from "./board";
 
-export const widgetBlocks = new Set(["textBox", "checklist", "copyfields", "template", "calc"]);
+export const widgetBlocks = new Set(["textBox", "checklist", "copyfields", "template", "calc", "ipblock"]);
 export interface BlockRange { from: number; to: number; node: Node; container: number; board: number | null }
 export type BlockTarget =
   | { kind: "between"; pos: number }

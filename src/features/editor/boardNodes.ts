@@ -22,7 +22,7 @@ declare module "@tiptap/core" {
   }
 }
 export const boardLayoutKey = new PluginKey<{ pos: number | null }>("boardLayout");
-const widgets = new Set(["textBox", "checklist", "copyfields", "template", "calc"]);
+const widgets = new Set(["textBox", "checklist", "copyfields", "template", "calc", "ipblock"]);
 
 export function activeBoard(state: CommandProps["state"]) {
   const { $from } = state.selection;
@@ -232,7 +232,7 @@ export const Board = TiptapNode.create({
         // Atom widget girdileri ProseMirror olaylarını durdurur; iki paylaşılan
         // dinleyici etkin hücreyi ve yerleşim kısayolunu bu girdilerde de korur.
         const focus = (event: FocusEvent) => {
-          if (!(event.target instanceof Element) || !event.target.matches("input,textarea")) return;
+          if (!(event.target instanceof Element) || !event.target.matches("input,textarea,select")) return;
           const cell = event.target.closest(".htnote-board-cell");
           if (!cell) return;
           const pos = view.posAtDOM(cell, 0);
@@ -240,7 +240,7 @@ export const Board = TiptapNode.create({
           view.dispatch(view.state.tr.setSelection(Selection.near(view.state.doc.resolve(pos))));
         };
         const keydown = (event: KeyboardEvent) => {
-          if (!(event.target instanceof Element) || !event.target.matches("input,textarea") || !activeBoard(view.state)) return;
+          if (!(event.target instanceof Element) || !event.target.matches("input,textarea,select") || !activeBoard(view.state)) return;
           const mod = getPlatform() === "mac" ? event.metaKey : event.ctrlKey;
           const shortcut = mod && event.altKey && !event.shiftKey && (event.code === "KeyL" || event.key.toLowerCase() === "l");
           const layout = boardLayoutKey.getState(view.state)?.pos !== null;
@@ -325,7 +325,7 @@ export const Board = TiptapNode.create({
 
 export const BoardCell = TiptapNode.create({
   name: "boardCell", isolating: true, defining: true,
-  content: "(paragraph | heading | bulletList | orderedList | blockquote | codeBlock | horizontalRule | table | htmlBlock | textBox | checklist | copyfields | template | calc | image | audio | video)+",
+  content: "(paragraph | heading | bulletList | orderedList | blockquote | codeBlock | horizontalRule | table | htmlBlock | textBox | checklist | copyfields | template | calc | ipblock | image | audio | video)+",
   addAttributes() { return { col: { default: 1, rendered: false }, span: { default: 12, rendered: false }, row: { default: 1, rendered: false } }; },
   parseHTML() { return [{ tag: "div.htnote-board-cell[data-htnote-cell]", getAttrs: (element) => parseCell(element.getAttribute("data-htnote-cell") ?? "") ?? false }]; },
   renderHTML({ node }) {

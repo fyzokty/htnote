@@ -25,7 +25,7 @@ export const BlockMovement = Extension.create({
         if (!view.editable || !event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
         // Atom girdilerinde imleç DOM'dadır; ProseMirror seçimi eski blokta kalabilir.
         let pos = view.state.selection.from;
-        if (event.target instanceof Element && event.target.closest("input,textarea")) {
+        if (event.target instanceof Element && event.target.closest("input,textarea,select")) {
           let dom = event.target as HTMLElement;
           while (dom.parentElement && dom.parentElement !== view.dom && !dom.parentElement.classList.contains("htnote-board-cell")) dom = dom.parentElement;
           pos = view.posAtDOM(dom, 0);
