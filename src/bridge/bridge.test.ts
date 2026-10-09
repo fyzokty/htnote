@@ -658,7 +658,7 @@ describe("note bridge", () => {
   });
 
   it("uses low-specificity theme defaults and the portable preset stylesheet", () => {
-    expect(document.getElementById("htnote-scrollbars")?.textContent).toContain(":where(html){background:var(--ht-note-bg,var(--ht-bg));color:var(--ht-text)");
+    expect(document.getElementById("htnote-scrollbars")?.textContent).toContain(":where(html){background:var(--ht-note-bg,var(--ht-bg));color:var(--ht-text);font-family:var(--ht-font,system-ui,-apple-system,sans-serif)");
     const saved = writeNoteBackground('<html><head></head><body><p>Note</p></body></html>', "sepia");
     const note = new DOMParser().parseFromString(saved, "text/html");
     expect(note.body.dataset.htBg).toBe("sepia");
