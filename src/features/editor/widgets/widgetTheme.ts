@@ -31,6 +31,9 @@ export const widgetBaseCss = `
 :where(.htnote-copyfields-row){display:grid;grid-template-columns:minmax(0,120px) minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border:1px solid var(--ht-widget-row-border,var(--ht-widget-divider,#e0e3ee));border-radius:8px;background:color-mix(in srgb,var(--ht-widget-surface,#ffffff) 65%,transparent)}
 :where(.htnote-copyfields-row dt){font-size:14px;font-weight:500;overflow-wrap:anywhere}
 :where(.htnote-copyfields-row dd){min-width:0;margin:0;padding:4px 8px;border:1px solid var(--ht-widget-divider,#e0e3ee);justify-self:start;max-width:100%;box-sizing:border-box;border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff);font:14px/1.6 "Cascadia Code","Cascadia Mono",Consolas,ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
+@media(max-width:480px){:where(.htnote-copyfields-row){grid-template-columns:minmax(0,1fr) auto}:where(.htnote-copyfields-row dt){grid-column:1/-1}}
+:where(.htnote-copyfields){container-type:inline-size;container-name:widget}
+@container widget (max-width:360px){:where(.htnote-copyfields-row){grid-template-columns:minmax(0,1fr) auto}:where(.htnote-copyfields-row dt){grid-column:1/-1}}
 
 :where(.htnote-template,.htnote-calc){container-type:inline-size;box-sizing:border-box;margin:1em 0;padding:20px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:16px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);box-shadow:var(--ht-widget-shadow,0 10px 25px -4px #4755690f,0 4px 10px -2px #6366f10a);font-family:var(--ht-font,system-ui,sans-serif)}
 :where(.htnote-template > .htnote-template-title,.htnote-calc > .htnote-calc-title){font:600 18px/1.4 var(--ht-font,system-ui,sans-serif);min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
