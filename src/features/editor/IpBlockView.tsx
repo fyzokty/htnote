@@ -31,7 +31,7 @@ export function IpBlockView({ node, updateAttributes, editor, getPos, selected }
     </WidgetHeader>
     <div className="htnote-ipblock-editor-fields">
       <label>{t("editor.ipBlock.gateway")}<input ref={gateway} data-testid="ipblock-gateway" value={String(node.attrs.gateway)}
-        placeholder={t("ipBlock.placeholder")} spellCheck={false} aria-invalid={!!result.error} aria-describedby={result.error ? `${id}-error` : `${id}-help`}
+        placeholder={t("ipBlock.placeholder")} spellCheck={false} aria-invalid={!!result.error && result.error !== "empty"} aria-describedby={result.error && result.error !== "empty" ? `${id}-error` : `${id}-help`}
         onChange={(event) => updateAttributes({ gateway: event.target.value, html: null })}
         onKeyDown={(event) => {
           if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.nativeEvent.isComposing) return;
@@ -50,7 +50,7 @@ export function IpBlockView({ node, updateAttributes, editor, getPos, selected }
     <div className="htnote-ipblock-editor-preview">
       <div className="htnote-ipblock-editor-preview-header"><span><Eye size={14} aria-hidden />{t("editor.ipBlock.preview")}</span>
         <span data-testid="ipblock-count">{t("ipBlock.count", { count: result.hosts.length, formattedCount: count })}</span></div>
-      {result.error ? <p id={`${id}-error`} className="htnote-ipblock-error" role="status">{t(`ipBlock.${result.error}`)}</p> : <>
+      {result.error === "empty" ? <p className="htnote-ipblock-empty">{t("ipBlock.empty")}</p> : result.error ? <p id={`${id}-error`} className="htnote-ipblock-error" role="status">{t(`ipBlock.${result.error}`)}</p> : <>
         <pre data-testid="ipblock-preview">{result.hosts.slice(0, 5).join("\n")}</pre>
         {result.hosts.length > 5 && <p>{t("editor.ipBlock.more", { count: result.hosts.length - 5 })}</p>}
       </>}

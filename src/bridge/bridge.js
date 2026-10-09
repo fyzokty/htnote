@@ -668,12 +668,13 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
       result = ipEngine.calculateIpBlock(gateway.value, Number(prefix.value));
       copy.disabled = !!result.error;
       reset.disabled = gateway.value === savedGateway && prefix.value === savedPrefix;
-      gateway.setAttribute("aria-invalid", String(!!result.error));
-      if (result.error) gateway.setAttribute("aria-describedby", error.id); else gateway.removeAttribute("aria-describedby");
+      const hasError = !!result.error && result.error !== "empty";
+      gateway.setAttribute("aria-invalid", String(hasError));
+      if (hasError) gateway.setAttribute("aria-describedby", error.id); else gateway.removeAttribute("aria-describedby");
       const errorKey = result.error === "gatewayBoundary" ? "ipblockGatewayBoundary" : result.error === "invalidPrefix" ? "ipblockInvalidPrefix" : "ipblockInvalidIPv4";
-      error.hidden = !result.error; summary.hidden = !!result.error;
+      error.hidden = !hasError; summary.hidden = !!result.error;
       list.hidden = !!result.error; empty.hidden = !result.error;
-      setText(error, result.error ? boxLabels[errorKey] || "" : "");
+      setText(error, hasError ? boxLabels[errorKey] || "" : "");
       setText(empty, result.error ? boxLabels.ipblockEmpty || "" : "");
       const count = new Intl.NumberFormat(boxLabels.locale === "en" ? "en" : "tr").format(result.hosts.length);
       const summaryText = (boxLabels.ipblockSummary || "").replace(/\{\{(block|count)\}\}/g, (_, key) => key === "block" ? `${result.network}/${prefix.value}` : count);

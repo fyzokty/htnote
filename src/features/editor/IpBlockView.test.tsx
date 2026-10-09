@@ -31,6 +31,12 @@ describe("IpBlockView", () => {
       expect(screen.getByTestId("ipblock-preview")).toHaveTextContent("10.67.106.13");
       await act(async () => { fireEvent.keyDown(prefix, { key: "z", ctrlKey: true }); }); expect(prefix.value).toBe("28");
       await act(async () => { fireEvent.keyDown(prefix, { key: "y", ctrlKey: true }); }); expect(prefix.value).toBe("30");
+      await act(async () => { fireEvent.change(gateway, { target: { value: "" } }); });
+      expect(gateway).toHaveAttribute("aria-invalid", "false");
+      expect(gateway.getAttribute("aria-describedby")).not.toContain("error");
+      expect(screen.getByText("Geçerli bir IP ve alt ağ girildiğinde kullanılabilir adresler listelenecektir.")).toBeInTheDocument();
+      expect(screen.queryByTestId("ipblock-preview")).toBeNull();
+      expect(screen.getByTestId("ipblock-count")).toHaveTextContent("0 adres");
       await act(async () => { fireEvent.change(gateway, { target: { value: "10.67.106.12" } }); });
       expect(gateway).toHaveAttribute("aria-invalid", "true");
       expect(document.getElementById(gateway.getAttribute("aria-describedby")!)).toHaveTextContent("Ağ geçidi bu blokta ağ veya yayın adresi olamaz");
