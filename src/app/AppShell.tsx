@@ -335,21 +335,24 @@ export function AppShell() {
               <TagsSection />
             </div>
             <SidebarFooter />
-            <div
-              role="separator"
-              aria-label={t("sidebar.resize")}
-              aria-orientation="vertical"
-              aria-valuemin={200}
-              aria-valuemax={480}
-              aria-valuenow={sidebarWidth}
-              onPointerDown={startResize}
-              onDoubleClick={compactSidebar}
-              onPointerMove={resize}
-              onPointerUp={finishResize}
-              onPointerCancel={finishResize}
-              className="absolute inset-y-0 right-0 z-10 w-2 cursor-col-resize touch-none hover:bg-app-accent/30"
-            />
           </aside>
+        )}
+        {sidebarPresence.expanded && (
+          <div
+            role="separator"
+            aria-label={t("sidebar.resize")}
+            aria-orientation="vertical"
+            aria-valuemin={200}
+            aria-valuemax={480}
+            aria-valuenow={sidebarWidth}
+            data-resizing={isResizing}
+            onPointerDown={startResize}
+            onDoubleClick={compactSidebar}
+            onPointerMove={resize}
+            onPointerUp={finishResize}
+            onPointerCancel={finishResize}
+            className="htnote-sidebar-resizer"
+          />
         )}
         <section className="htnote-workspace-card flex min-h-0 min-w-0 flex-1 overflow-hidden" aria-label={t("viewer.workspace")}>
           {settingsOpen && <SettingsView onShowShortcuts={openShortcuts} />}
