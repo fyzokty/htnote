@@ -17,6 +17,7 @@ import { RecoveryDialog } from "@/features/editor/RecoveryDialog";
 import { installExternalChangeListener } from "@/features/editor/externalChange";
 import type { RecoveryCandidate } from "@/features/editor/RecoveryDialog";
 import { deleteRecoveryDraft, selectRecoveryCandidates, useDraftAutosave } from "@/features/editor/recoveryDrafts";
+import { useAutoSave } from "@/features/editor/useAutoSave";
 import { extractContent } from "@/features/editor/contentRegion";
 import { getDropHandler, toCssPoint, updateDropPreview } from "@/features/editor/fileDrop";
 import { setDiscardRecoveryDraftHook } from "@/features/editor/unsavedGuard";
@@ -81,6 +82,7 @@ export function AppShell() {
   const settingsOpen = activeId === "special:settings";
   const openSearch = useUiStore((state) => state.openSearch);
   useDraftAutosave();
+  useAutoSave();
   const sidebarWidth = dragWidth ?? clampWidth(settings?.sidebarWidth ?? 260);
   const widthRef = useRef(sidebarWidth);
   const draggingRef = useRef(false);

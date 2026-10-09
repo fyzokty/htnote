@@ -12,7 +12,7 @@ import { TagsSection } from "./TagsSection";
 const defaults: Settings = {
   rootDir: null, lastExportDir: null, theme: "system", motion: "system", language: null, sidebarWidth: 260, sidebarVisible: true,
   tabSizing: "fixed", contentWidth: "comfortable", editorSplitRatio: 50, editorLivePreview: true,
-  backlinksExpanded: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false, tagColors: {},
+  autoSave: true, backlinksExpanded: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: false, tagColors: {},
 };
 
 afterEach(() => { useSettingsStore.setState({ settings: null }); resetSettingsQueueForTests(); vi.restoreAllMocks(); });

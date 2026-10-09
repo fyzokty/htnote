@@ -17,7 +17,7 @@ vi.mock("@/features/editor/unsavedGuard", () => ({ resolveUnsaved: vi.fn() }));
 const settings: Settings = {
   rootDir: "C:/Old", lastExportDir: null, theme: "system", motion: "system", language: null,
   sidebarWidth: 260, sidebarVisible: true, tabSizing: "fixed", contentWidth: "comfortable", editorSplitRatio: 50, editorLivePreview: true,
-  backlinksExpanded: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: true,
+  autoSave: true, backlinksExpanded: true, openTabs: [], activeTab: null, expandedFolders: [], onboardingDone: true,
 };
 
 beforeEach(() => {
@@ -31,6 +31,18 @@ beforeEach(() => {
 });
 
 describe("SettingsView", () => {
+  it("updates the auto save setting in both directions", async () => {
+    const update = vi.spyOn(ipc, "updateSettings").mockImplementation(async (patch) => ({ ...settings, ...patch }));
+    render(<SettingsView />);
+    const group = screen.getByRole("group", { name: "Otomatik kaydet" });
+    fireEvent.click(within(group).getByRole("button", { name: "Kapalı" }));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith({ autoSave: false }));
+    expect(useSettingsStore.getState().settings?.autoSave).toBe(false);
+    fireEvent.click(within(group).getByRole("button", { name: "Açık" }));
+    await waitFor(() => expect(update).toHaveBeenLastCalledWith({ autoSave: true }));
+    expect(useSettingsStore.getState().settings?.autoSave).toBe(true);
+  });
+
   it("changes animations through the segmented control", async () => {
     const update = vi.spyOn(ipc, "updateSettings").mockImplementation(async (patch) => ({ ...settings, ...patch }));
     render(<SettingsView />);

@@ -98,6 +98,8 @@ pub struct Settings {
     pub editor_split_ratio: u8,
     #[serde(default = "default_editor_live_preview")]
     pub editor_live_preview: bool,
+    #[serde(default = "default_auto_save")]
+    pub auto_save: bool,
     #[serde(default = "default_backlinks_expanded")]
     pub backlinks_expanded: bool,
     #[serde(default)]
@@ -125,6 +127,7 @@ impl Default for Settings {
             content_width: ContentWidth::default(),
             editor_split_ratio: default_editor_split_ratio(),
             editor_live_preview: default_editor_live_preview(),
+            auto_save: default_auto_save(),
             backlinks_expanded: default_backlinks_expanded(),
             open_tabs: Vec::new(),
             active_tab: None,
@@ -152,6 +155,7 @@ pub struct SettingsPatch {
     pub content_width: Option<ContentWidth>,
     pub editor_split_ratio: Option<u8>,
     pub editor_live_preview: Option<bool>,
+    pub auto_save: Option<bool>,
     pub backlinks_expanded: Option<bool>,
     pub open_tabs: Option<Vec<String>>,
     #[serde(default, deserialize_with = "nullable_field")]
@@ -177,6 +181,8 @@ fn default_editor_live_preview() -> bool {
 
 fn default_backlinks_expanded() -> bool { true }
 
+fn default_auto_save() -> bool { true }
+
 pub fn apply_patch(settings: &Settings, patch: SettingsPatch) -> Settings {
     Settings {
         tag_colors: patch.tag_colors.map(|colors| {
@@ -195,6 +201,7 @@ pub fn apply_patch(settings: &Settings, patch: SettingsPatch) -> Settings {
         content_width: patch.content_width.unwrap_or_else(|| settings.content_width.clone()),
         editor_split_ratio: patch.editor_split_ratio.unwrap_or(settings.editor_split_ratio).clamp(20, 80),
         editor_live_preview: patch.editor_live_preview.unwrap_or(settings.editor_live_preview),
+        auto_save: patch.auto_save.unwrap_or(settings.auto_save),
         backlinks_expanded: patch.backlinks_expanded.unwrap_or(settings.backlinks_expanded),
         open_tabs: patch.open_tabs.unwrap_or_else(|| settings.open_tabs.clone()),
         active_tab: patch.active_tab.unwrap_or_else(|| settings.active_tab.clone()),
@@ -330,6 +337,25 @@ fn probe_writable_dir(directory: &Path) -> Result<(), AppError> {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn auto_save_defaults_patches_and_persists() {
+        let mut legacy = serde_json::to_value(Settings::default()).unwrap();
+        legacy.as_object_mut().unwrap().remove("autoSave");
+        let settings: Settings = serde_json::from_value(legacy).unwrap();
+        assert!(settings.auto_save);
+        assert!(apply_patch(&settings, SettingsPatch::default()).auto_save);
+        let dir = tempdir().unwrap();
+        for enabled in [false, true] {
+            let patch = serde_json::from_value(serde_json::json!({ "autoSave": enabled })).unwrap();
+            let changed = apply_patch(&settings, patch);
+            assert_eq!(changed.auto_save, enabled);
+            assert_eq!(changed.editor_live_preview, settings.editor_live_preview);
+            save_settings_atomic(dir.path(), &changed).unwrap();
+            assert_eq!(load_settings(dir.path()).unwrap().auto_save, enabled);
+            assert_eq!(apply_patch(&changed, SettingsPatch::default()).auto_save, enabled);
+        }
+    }
 
     #[test]
     fn tag_colors_round_trip_and_legacy_defaults() {

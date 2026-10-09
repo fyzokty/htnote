@@ -398,6 +398,12 @@
     "chooseFirst": "Kaydetmeden önce dış değişiklik için bir seçim yapın."
   },
   "settings": {
+    "autoSave": "Otomatik kaydet",
+    "autoSaveHint": "Düzenlemeyi bıraktıktan kısa süre sonra not diske kaydedilir.",
+    "autoSaveOptions": {
+      "on": "Açık",
+      "off": "Kapalı"
+    },
     "motion": "Animasyonlar",
     "motionHint": "Sistem, işletim sisteminin animasyon efektleri ayarını izler.",
     "motionOptions": {
