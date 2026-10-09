@@ -317,6 +317,16 @@
       "title": "Hesap defteri başlığı",
       "content": "Hesap ifadeleri",
       "select": "Hesap defterini seç"
+    },
+    "ipBlock": {
+      "insert": "IP bloğu",
+      "select": "IP bloğunu seç",
+      "title": "Başlık",
+      "gateway": "Varsayılan ağ geçidi (GW)",
+      "prefix": "Varsayılan subnet",
+      "help": "Görünümde GW ve subnet değiştirilebilir; listede ağ, yayın ve GW adresleri yer almaz.",
+      "preview": "Önizleme",
+      "more": "… (+{{count}} adres daha)"
     }
   },
   "errors": {
@@ -548,7 +558,8 @@
     "checklist": "KONTROL LİSTESİ",
     "copyfields": "KOPYALANABİLİR ALANLAR",
     "template": "ŞABLON DOLDURUCU",
-    "calc": "HESAP DEFTERİ"
+    "calc": "HESAP DEFTERİ",
+    "ipblock": "IP BLOĞU"
   },
   "textBox": {
     "copy": "Kopyala",
@@ -576,5 +587,17 @@
     "error": "Hesaplanamadı",
     "limit": "En fazla 500 satır, satır başına 500 karakter ve 64 iç içe işlem kullanılabilir.",
     "reset": "Sıfırla"
+  },
+  "ipBlock": {
+    "gateway": "Ağ geçidi (GW)",
+    "prefix": "Subnet",
+    "placeholder": "xxx.xxx.xxx.xxx",
+    "copyList": "Listeyi kopyala",
+    "count": "{{formattedCount}} adres",
+    "summary": "Blok {{block}} · {{count}} adres (ağ, yayın ve GW hariç)",
+    "invalidIPv4": "Geçerli bir IPv4 adresi girin",
+    "invalidPrefix": "/24 ile /30 arasında bir subnet seçin",
+    "gatewayBoundary": "Ağ geçidi bu blokta ağ veya yayın adresi olamaz",
+    "empty": "Geçerli bir IP ve alt ağ girildiğinde kullanılabilir adresler listelenecektir."
   }
 }

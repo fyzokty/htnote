@@ -39,7 +39,7 @@ export function dispatchShortcut(id: ShortcutId): boolean {
 
 function isEditable(target: EventTarget | null): boolean {
   if (!(target instanceof Element)) return false;
-  return target.closest("input, textarea, [contenteditable]:not([contenteditable='false'])") !== null;
+  return target.closest("input, textarea, select, [contenteditable]:not([contenteditable='false'])") !== null;
 }
 
 export function installShortcutListener(target: Window = window): () => void {

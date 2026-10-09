@@ -3,8 +3,10 @@
   // Not script'leri sonradan global adları değiştirse de motorlar yerel kalır.
   const templateEngine = globalThis.HTNOTE_TEMPLATE_ENGINE;
   const calcEngine = globalThis.HTNOTE_CALC_ENGINE;
+  const ipEngine = globalThis.HTNOTE_IP_ENGINE;
   delete globalThis.HTNOTE_TEMPLATE_ENGINE;
   delete globalThis.HTNOTE_CALC_ENGINE;
+  delete globalThis.HTNOTE_IP_ENGINE;
 
   const { pathname, search } = location;
   const noteId = pathname.split("/")[1];
@@ -110,9 +112,9 @@
   const boxStyle = document.createElement("style");
   boxStyle.id = "htnote-textbox-base";
   boxStyle.textContent = `
-  :where(html){--ht-widget-surface:#ffffff;--ht-widget-text:#0d1c2e;--ht-widget-accent:#4648d4;--ht-widget-border:#7b8598;--ht-widget-divider:#e0e3ee;--ht-widget-muted:#464554;--ht-widget-field:#f8f9ff;--ht-widget-hover:#e6eeff;--ht-note-sepia:#faf3e5;--ht-note-mint:#eaf5ee;--ht-note-rose:#faedf1;--ht-note-sky:#edf4fc;--ht-note-lavender:#f2eefb;--ht-note-charcoal:#e9edf2;}
-  @media(prefers-color-scheme:dark){:where(html:not([data-ht-theme])){--ht-widget-shadow:0 10px 25px -4px #00000040,0 4px 10px -2px #00000026;--ht-widget-surface:#101623;--ht-widget-text:#f1f5f9;--ht-widget-accent:#a5a6ff;--ht-widget-border:#78849b;--ht-widget-divider:#303647;--ht-widget-muted:#a8b6cc;--ht-widget-field:#0d1220;--ht-widget-hover:#222c40;--ht-note-sepia:#302b23;--ht-note-mint:#23352b;--ht-note-rose:#35252d;--ht-note-sky:#243043;--ht-note-lavender:#2e2940;--ht-note-charcoal:#171d25;}}
-  :where(html[data-ht-theme="dark"]){--ht-widget-shadow:0 10px 25px -4px #00000040,0 4px 10px -2px #00000026;--ht-widget-surface:#101623;--ht-widget-text:#f1f5f9;--ht-widget-accent:#a5a6ff;--ht-widget-border:#78849b;--ht-widget-divider:#303647;--ht-widget-muted:#a8b6cc;--ht-widget-field:#0d1220;--ht-widget-hover:#222c40;--ht-note-sepia:#302b23;--ht-note-mint:#23352b;--ht-note-rose:#35252d;--ht-note-sky:#243043;--ht-note-lavender:#2e2940;--ht-note-charcoal:#171d25;}
+  :where(html){--ht-widget-surface:#ffffff;--ht-widget-text:#0d1c2e;--ht-widget-accent:#4648d4;--ht-widget-border:#7b8598;--ht-widget-divider:#e0e3ee;--ht-widget-muted:#464554;--ht-widget-field:#f8f9ff;--ht-widget-hover:#e6eeff;--ht-widget-danger:#ba1a1a;--ht-note-sepia:#faf3e5;--ht-note-mint:#eaf5ee;--ht-note-rose:#faedf1;--ht-note-sky:#edf4fc;--ht-note-lavender:#f2eefb;--ht-note-charcoal:#e9edf2;}
+  @media(prefers-color-scheme:dark){:where(html:not([data-ht-theme])){--ht-widget-shadow:0 10px 25px -4px #00000040,0 4px 10px -2px #00000026;--ht-widget-surface:#101623;--ht-widget-text:#f1f5f9;--ht-widget-accent:#a5a6ff;--ht-widget-border:#78849b;--ht-widget-divider:#303647;--ht-widget-muted:#a8b6cc;--ht-widget-field:#0d1220;--ht-widget-hover:#222c40;--ht-widget-danger:#fb929e;--ht-note-sepia:#302b23;--ht-note-mint:#23352b;--ht-note-rose:#35252d;--ht-note-sky:#243043;--ht-note-lavender:#2e2940;--ht-note-charcoal:#171d25;}}
+  :where(html[data-ht-theme="dark"]){--ht-widget-shadow:0 10px 25px -4px #00000040,0 4px 10px -2px #00000026;--ht-widget-surface:#101623;--ht-widget-text:#f1f5f9;--ht-widget-accent:#a5a6ff;--ht-widget-border:#78849b;--ht-widget-divider:#303647;--ht-widget-muted:#a8b6cc;--ht-widget-field:#0d1220;--ht-widget-hover:#222c40;--ht-widget-danger:#fb929e;--ht-note-sepia:#302b23;--ht-note-mint:#23352b;--ht-note-rose:#35252d;--ht-note-sky:#243043;--ht-note-lavender:#2e2940;--ht-note-charcoal:#171d25;}
 
 /* Dar ekranda taşınabilir inline grid yalnız burada ezilir; yazdırmada ızgara korunur. */
 :where(.htnote-board-cell){min-width:0}
@@ -183,6 +185,23 @@
   @media print{.htnote-template .htnote-widget-header,.htnote-template-title,.htnote-template-source,.htnote-template-fields,.htnote-template-preview-heading{display:none!important}.htnote-template-layout{display:block!important}.htnote-template-panel{border:0!important;padding:0!important;background:transparent!important}}
   ${printing ? ".htnote-template .htnote-widget-header,.htnote-template-title,.htnote-template-source,.htnote-template-fields,.htnote-template-preview-heading{display:none!important}.htnote-template-layout{display:block!important}.htnote-template-panel{border:0!important;padding:0!important;background:transparent!important}" : ""}
 
+
+:where(.htnote-ipblock){container-type:inline-size;container-name:widget;box-sizing:border-box;margin:1em 0;padding:20px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:16px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);box-shadow:var(--ht-widget-shadow,0 10px 25px -4px #4755690f,0 4px 10px -2px #6366f10a);font-family:var(--ht-font,system-ui,sans-serif)}
+:where(.htnote-ipblock-title){font:600 18px/1.4 var(--ht-font,system-ui,sans-serif);min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+:where(.htnote-ipblock-list){box-sizing:border-box;margin:12px 0 0;padding:12px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff);font:14px/1.6 "Cascadia Code","Cascadia Mono",Consolas,ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:16em;overflow:auto;user-select:text}
+:where(.htnote-ipblock-fields){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+:where(.htnote-ipblock-fields label){display:flex;flex-direction:column;gap:6px;min-width:0;font-size:14px;font-weight:500}
+:where(.htnote-ipblock-fields input,.htnote-ipblock-fields select){box-sizing:border-box;min-width:0;width:100%;padding:8px 12px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff);font:14px/1.6 "Cascadia Code","Cascadia Mono",Consolas,ui-monospace,SFMono-Regular,monospace}
+:where(.htnote-ipblock-fields input:focus-visible,.htnote-ipblock-fields select:focus-visible,.htnote-ipblock-list:focus-visible){outline:2px solid var(--ht-widget-accent,#4648d4);outline-offset:2px}
+:where(.htnote-ipblock-fields input[aria-invalid="true"]){border-color:var(--ht-widget-danger,#ba1a1a)}
+:where(.htnote-ipblock-error){color:var(--ht-widget-danger,#ba1a1a);font-size:13px;margin:8px 0}
+:where(.htnote-ipblock-summary){color:var(--ht-widget-muted,#586174);font-size:13px;margin:12px 0}
+:where(.htnote-ipblock-empty){box-sizing:border-box;margin:12px 0 0;padding:24px 16px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:8px;background:var(--ht-widget-field,#f8f9ff);color:var(--ht-widget-muted,#586174);font-size:13px;line-height:1.5;text-align:center}
+.htnote-ipblock-print{display:none}
+@container widget (max-width:360px){.htnote-ipblock-fields{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:480px){.htnote-ipblock-fields{grid-template-columns:minmax(0,1fr)}}
+@media print{.htnote-ipblock .htnote-widget-actions,.htnote-ipblock-fields,.htnote-ipblock-empty{display:none!important}.htnote-ipblock-print{display:block!important}.htnote-ipblock-list{max-height:none!important;overflow:visible!important}}
+  ${printing ? ".htnote-ipblock .htnote-widget-actions,.htnote-ipblock-fields,.htnote-ipblock-empty{display:none!important}.htnote-ipblock-print{display:block!important}.htnote-ipblock-list{max-height:none!important;overflow:visible!important}" : ""}
 :where(.htnote-calc){container-type:inline-size;container-name:widget;box-sizing:border-box;margin:1em 0;padding:20px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:16px;color:var(--ht-widget-text);background:var(--ht-widget-surface);box-shadow:var(--ht-widget-shadow,0 10px 25px -4px #4755690f,0 4px 10px -2px #6366f10a);font-family:var(--ht-font,system-ui,sans-serif)}
 :where(.htnote-calc-title){font:600 18px/1.4 var(--ht-font,system-ui,sans-serif);min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
 :where(.htnote-calc-lines){display:grid;grid-template-columns:minmax(0,1fr) 12ch;border:1px solid var(--ht-widget-border);border-radius:8px;background:var(--ht-widget-field);overflow:hidden}
@@ -606,9 +625,69 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     input.addEventListener("scroll", () => { results.scrollTop = input.scrollTop; });
     calcs.set(box, { update }); update();
   }
+  const ipBlocks = new WeakMap();
+  let ipBlockId = 0;
+  function enhanceIpBlock(box) {
+    if (ipBlocks.has(box)) return;
+    const list = box.querySelector(":scope > pre.htnote-ipblock-list");
+    if (!list || !box.hasAttribute("data-htnote-gw") || !box.hasAttribute("data-htnote-prefix")) return;
+    const savedGateway = box.dataset.htnoteGw, savedPrefix = box.dataset.htnotePrefix;
+    const actions = document.createElement("div"), reset = document.createElement("button"), copy = document.createElement("button");
+    actions.className = "htnote-widget-actions";
+    reset.type = copy.type = "button";
+    reset.dataset.testid = "ipblock-reset"; copy.dataset.testid = "ipblock-copy";
+    actions.append(reset, copy);
+    const updateReset = bindWidgetReset(reset, "reset");
+    const updateHeader = createWidgetHeader(box, "ipblockType", ["M9 2h6v6H9z", "M2 16h6v6H2z", "M16 16h6v6h-6z", "M12 8v4", "M5 16v-4h14v4"], actions);
+    const fields = document.createElement("div"), gatewayLabel = document.createElement("label"), prefixLabel = document.createElement("label");
+    const gatewayText = document.createElement("span"), prefixText = document.createElement("span");
+    const gateway = document.createElement("input"), prefix = document.createElement("select"), summary = document.createElement("p"), error = document.createElement("p"), printInputs = document.createElement("p"), empty = document.createElement("p");
+    let id;
+    do { id = `htnote-ipblock-${++ipBlockId}`; } while (document.getElementById(`${id}-error`));
+    fields.className = "htnote-ipblock-fields"; summary.className = "htnote-ipblock-summary";
+    error.className = "htnote-ipblock-error"; error.id = `${id}-error`; error.setAttribute("role", "status");
+    empty.className = "htnote-ipblock-empty"; empty.dataset.testid = "ipblock-empty";
+    gateway.type = "text"; gateway.spellcheck = false; gateway.value = savedGateway;
+    gateway.dataset.testid = "ipblock-gateway"; prefix.dataset.testid = "ipblock-prefix"; summary.dataset.testid = "ipblock-summary";
+    for (let value = 24; value <= 30; value++) {
+      const option = document.createElement("option"); option.value = String(value); option.textContent = `/${value}`; prefix.append(option);
+    }
+    prefix.value = savedPrefix;
+    gatewayLabel.append(gatewayText, gateway); prefixLabel.append(prefixText, prefix); fields.append(gatewayLabel, prefixLabel);
+    printInputs.className = "htnote-ipblock-print";
+    list.before(fields, error, summary, printInputs);
+    list.after(empty);
+    list.dataset.testid = "ipblock-list"; list.tabIndex = 0;
+    let result;
+    const updateCopy = bindWidgetCopy(copy, "ipblockCopyList", () => result.hosts.join("\n"), undefined, { canCopy: () => !!result && !result.error });
+    const setText = (element, value) => { if (element.textContent !== value) element.textContent = value; };
+    const update = () => {
+      updateHeader(); updateReset(); updateCopy();
+      setText(gatewayText, boxLabels.ipblockGateway || ""); setText(prefixText, boxLabels.ipblockPrefix || "");
+      gateway.placeholder = boxLabels.ipblockPlaceholder || "";
+      result = ipEngine.calculateIpBlock(gateway.value, Number(prefix.value));
+      copy.disabled = !!result.error;
+      reset.disabled = gateway.value === savedGateway && prefix.value === savedPrefix;
+      gateway.setAttribute("aria-invalid", String(!!result.error));
+      if (result.error) gateway.setAttribute("aria-describedby", error.id); else gateway.removeAttribute("aria-describedby");
+      const errorKey = result.error === "gatewayBoundary" ? "ipblockGatewayBoundary" : result.error === "invalidPrefix" ? "ipblockInvalidPrefix" : "ipblockInvalidIPv4";
+      error.hidden = !result.error; summary.hidden = !!result.error;
+      list.hidden = !!result.error; empty.hidden = !result.error;
+      setText(error, result.error ? boxLabels[errorKey] || "" : "");
+      setText(empty, result.error ? boxLabels.ipblockEmpty || "" : "");
+      const count = new Intl.NumberFormat(boxLabels.locale === "en" ? "en" : "tr").format(result.hosts.length);
+      const summaryText = (boxLabels.ipblockSummary || "").replace(/\{\{(block|count)\}\}/g, (_, key) => key === "block" ? `${result.network}/${prefix.value}` : count);
+      setText(summary, result.error ? "" : summaryText);
+      setText(list, result.hosts.join("\n"));
+      setText(printInputs, `${boxLabels.ipblockGateway || ""}: ${gateway.value} · ${boxLabels.ipblockPrefix || ""}: /${prefix.value}`);
+    };
+    gateway.addEventListener("input", update); prefix.addEventListener("change", update);
+    reset.addEventListener("click", () => { gateway.value = savedGateway; prefix.value = savedPrefix; update(); });
+    ipBlocks.set(box, { update }); update();
+  }
   function scanWidgets(node) {
     if (node.nodeType !== 1) return;
-    for (const [kind, enhance] of [["textbox", enhanceTextBox], ["checklist", enhanceChecklist], ["copyfields", enhanceCopyFields], ["template", enhanceTemplate], ["calc", enhanceCalc]]) {
+    for (const [kind, enhance] of [["textbox", enhanceTextBox], ["checklist", enhanceChecklist], ["copyfields", enhanceCopyFields], ["template", enhanceTemplate], ["calc", enhanceCalc], ["ipblock", enhanceIpBlock]]) {
       const selector = `[data-htnote-widget="${kind}"]`;
       if (node.matches(selector)) enhance(node);
       node.querySelectorAll(selector).forEach(enhance);
@@ -616,14 +695,14 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
   }
   function updateWidgets() {
     document.querySelectorAll('[data-htnote-widget]').forEach((box) => {
-      textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update(); calcs.get(box)?.update();
+      textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update(); calcs.get(box)?.update(); ipBlocks.get(box)?.update();
     });
   }
   scanWidgets(root);
   new MutationObserver((records) => records.forEach((record) => {
     record.addedNodes.forEach(scanWidgets);
     const box = record.target.nodeType === 1 ? record.target.closest('[data-htnote-widget]') : record.target.parentElement?.closest('[data-htnote-widget]');
-    if (box) { scanWidgets(box); textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update(); calcs.get(box)?.update(); }
+    if (box) { scanWidgets(box); textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update(); calcs.get(box)?.update(); ipBlocks.get(box)?.update(); }
   })).observe(root, { childList: true, subtree: true, characterData: true });
   window.addEventListener("beforeprint", updateWidgets);
   const audioPlayers = new WeakMap();
@@ -957,7 +1036,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     if (e.source !== window.parent || !e.data || typeof e.data !== "object") return;
     const { type, vars, mode, query, scrollY, token, contentWidth, audioLabels: labels, labels: widgetLabels } = e.data;
     if (type === "HTNOTE_THEME" && widgetLabels && typeof widgetLabels === "object" && !Array.isArray(widgetLabels)) {
-      for (const key of ["copy", "copied", "copyFailed", "reset", "textboxType", "checklistType", "checklistReset", "copyRemaining", "checklistProgress", "copyfieldsType", "copyAll", "copyRow", "copyfieldsRow", "templateType", "templateReset", "templatePreview", "calcType", "calcReset", "calcCopyTotal", "calcTotal", "calcContent", "calcError", "calcLimit"]) {
+      for (const key of ["copy", "copied", "copyFailed", "reset", "textboxType", "checklistType", "checklistReset", "copyRemaining", "checklistProgress", "copyfieldsType", "copyAll", "copyRow", "copyfieldsRow", "templateType", "templateReset", "templatePreview", "calcType", "calcReset", "calcCopyTotal", "calcTotal", "calcContent", "calcError", "calcLimit", "ipblockType", "ipblockCopyList", "ipblockGateway", "ipblockPrefix", "ipblockPlaceholder", "ipblockSummary", "ipblockInvalidIPv4", "ipblockInvalidPrefix", "ipblockGatewayBoundary", "ipblockEmpty"]) {
         if (typeof widgetLabels[key] === "string" && widgetLabels[key].length <= 200) boxLabels[key] = widgetLabels[key];
       }
       if (Object.prototype.hasOwnProperty.call(widgetLabels, "locale")) boxLabels.locale = widgetLabels.locale === "en" ? "en" : "tr";

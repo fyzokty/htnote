@@ -18,6 +18,58 @@ describe("widget flows", () => {
   beforeEach(async () => { ({ root, restore } = await useTempRoot()); });
   afterEach(async () => { await restore?.(); restore = undefined; });
 
+  it("saves an IP block, copies live addresses, validates the gateway and restores defaults", async () => {
+    const note = await createNote("IP block round trip");
+    await openNote(note.id); await editNote();
+    await (await visibleEditorTool('[data-testid="insert-widget"]')).click();
+    await $('[data-testid="insert-ipblock"]').click();
+    const title = await $('[data-testid="ipblock-title"]'); await title.waitForDisplayed();
+    await title.setValue("VLAN 106");
+    await $('[data-testid="ipblock-gateway"]').setValue("10.67.106.14");
+    await $('[data-testid="ipblock-prefix"]').selectByAttribute("value", "30");
+    assert.equal(await $('[data-testid="ipblock-count"]').getText(), "1 adres");
+    await $('[data-testid="ipblock-prefix"]').selectByAttribute("value", "28");
+    await browser.waitUntil(async () => await $('[data-testid="ipblock-count"]').getText() === "13 adres");
+    const html = await saveAndView(note.id, (value) => value.includes('data-htnote-gw="10.67.106.14"') && value.includes('data-htnote-prefix="28"'));
+    assert.match(html, /<pre class="htnote-ipblock-list">10\.67\.106\.1\n/);
+    assert.ok(!html.includes("htnote-ipblock-node"));
+    const exportedPath = join(root, "ipblock-export.html");
+    await invoke("export_single_html", { id: note.id, targetPath: exportedPath });
+    const exported = (await waitForFile(exportedPath)).toString();
+    assert.ok(exported.includes('<pre class="htnote-ipblock-list">10.67.106.1\n'));
+    assert.ok(!exported.includes("/__htnote/bridge.js"));
+    await withNoteFrame(note.id, async () => {
+      const gateway = await $('[data-testid="ipblock-gateway"]'), prefix = await $('[data-testid="ipblock-prefix"]');
+      const list = await $('[data-testid="ipblock-list"]'), copy = await $('[data-testid="ipblock-copy"]'), reset = await $('[data-testid="ipblock-reset"]');
+      await copy.waitForExist();
+      assert.equal((await list.getText()).split("\n").length, 13);
+      assert.equal(await reset.isEnabled(), false);
+      assert.equal(await $('[data-testid="ipblock-summary"]').getText(), "Blok 10.67.106.0/28 · 13 adres (ağ, yayın ve GW hariç)");
+      await prefix.selectByAttribute("value", "30");
+      await browser.waitUntil(async () => await list.getText() === "10.67.106.13");
+      await gateway.setValue("10.67.106.13");
+      await browser.waitUntil(async () => await list.getText() === "10.67.106.14");
+      await copy.click(); await browser.waitUntil(async () => /Kopyalandı|Copied/.test(await copy.getText()));
+      await browser.execute(() => { const probe = document.createElement("textarea"); probe.id = "ipblock-probe"; document.body.append(probe); });
+      const probe = await $('#ipblock-probe'); await probe.click(); await browser.keys(["Control", "v"]);
+      await browser.waitUntil(async () => await probe.getValue() === "10.67.106.14");
+      await browser.execute(() => document.getElementById("ipblock-probe")?.remove());
+      await gateway.setValue("10.67.106.12");
+      await browser.waitUntil(async () => !(await copy.isEnabled()));
+      assert.equal(await gateway.getAttribute("aria-invalid"), "true"); assert.equal(await list.getText(), "");
+      await reset.click();
+      assert.equal(await gateway.getValue(), "10.67.106.14"); assert.equal(await prefix.getValue(), "28");
+      assert.equal((await list.getText()).split("\n").length, 13); assert.equal(await reset.isEnabled(), false);
+      await gateway.setValue("10.67.106.13");
+    });
+    assert.equal((await invoke<{ html: string }>("read_note", { id: note.id })).html, html);
+    assert.equal((await waitForFile(join(root, note.relPath, "index.html"))).toString(), html);
+    await browser.refresh(); await openNote(note.id);
+    await withNoteFrame(note.id, async () => { assert.equal(await $('[data-testid="ipblock-gateway"]').getValue(), "10.67.106.14"); });
+    await editNote(); assert.equal(await $('[data-testid="ipblock-title"]').getValue(), "VLAN 106");
+    assert.equal(await $('[data-testid="ipblock-prefix"]').getValue(), "28"); await $('[data-testid="cancel-edit"]').click();
+  });
+
   it("creates a board at a block edge, moves a checklist into it and extracts a paragraph", async () => {
     const note = await createNote("Block pointer round trip");
     await openNote(note.id); await editNote();

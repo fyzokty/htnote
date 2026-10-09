@@ -33,7 +33,7 @@ function key(key: string, shiftKey = false, ctrlKey = false, altKey = false) {
 function separate() { editor.view.dispatch(closeHistory(editor.state.tr)); }
 
 describe("board editor commands", () => {
-  it.each(["textBox", "checklist", "copyfields", "template", "calc"])("deletes the paragraph after %s, selects the widget and restores it with one undo", (type) => {
+  it.each(["textBox", "checklist", "copyfields", "template", "calc", "ipblock"])("deletes the paragraph after %s, selects the widget and restores it with one undo", (type) => {
     setup(); editor.commands.insertBoard();
     const active = activeBoard(editor.state)!;
     editor.view.dispatch(editor.state.tr.replaceWith(active.cellPos + 1, active.cellPos + active.cell.nodeSize - 1,
@@ -77,7 +77,7 @@ describe("board editor commands", () => {
     expect(editor.state.doc.lastChild?.type.name).toBe("paragraph");
     expect(editor.state.selection).toBeInstanceOf(NodeSelection);
   });
-  it.each(["textBox", "checklist", "copyfields", "template", "calc"])("Enter after a final selected %s creates a paragraph in the same cell", (type) => {
+  it.each(["textBox", "checklist", "copyfields", "template", "calc", "ipblock"])("Enter after a final selected %s creates a paragraph in the same cell", (type) => {
     setup(); editor.commands.insertBoard();
     const active = activeBoard(editor.state)!;
     editor.view.dispatch(editor.state.tr.replaceWith(active.cellPos + 1, active.cellPos + active.cell.nodeSize - 1, editor.schema.nodes[type].create()));
@@ -97,7 +97,7 @@ describe("board editor commands", () => {
     editor.commands.undo(); expect(editor.getJSON()).toEqual(before);
     expect(editor.state.selection).toBeInstanceOf(TextSelection);
   });
-  it.each(["insertTextBox", "insertChecklist", "insertCopyFields", "insertTemplate", "insertCalc"] as const)("%s replaces an empty cell paragraph and inserts after a filled paragraph", (command) => {
+  it.each(["insertTextBox", "insertChecklist", "insertCopyFields", "insertTemplate", "insertCalc", "insertIpBlock"] as const)("%s replaces an empty cell paragraph and inserts after a filled paragraph", (command) => {
     setup(); editor.commands.insertBoard();
     editor.commands[command]();
     expect(activeBoard(editor.state)?.cell.childCount).toBe(1);

@@ -47,7 +47,7 @@ export function appearanceCss(): string {
 function hasStyledWidget(html: string): boolean {
   const tree = parse(html);
   function visit(node: DefaultTreeAdapterTypes.Node): boolean {
-    if ("tagName" in node && node.attrs.some(({ name, value }) => name === "data-htnote-widget" && ["copyfields", "template", "calc"].includes(value))) return true;
+    if ("tagName" in node && node.attrs.some(({ name, value }) => name === "data-htnote-widget" && ["copyfields", "template", "calc", "ipblock"].includes(value))) return true;
     if ("tagName" in node && node.attrs.some(({ name }) => name === "data-htnote-widget") &&
       node.attrs.some(({ name, value }) => name === "data-htnote-bg" && NOTE_BACKGROUNDS.includes(value as typeof NOTE_BACKGROUNDS[number]))) return true;
     return "childNodes" in node && node.childNodes.some(visit);

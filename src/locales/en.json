@@ -317,6 +317,16 @@
       "title": "Calculation title",
       "content": "Calculation expressions",
       "select": "Select calculation"
+    },
+    "ipBlock": {
+      "insert": "IP block",
+      "select": "Select IP block",
+      "title": "Title",
+      "gateway": "Default gateway (GW)",
+      "prefix": "Default subnet",
+      "help": "GW and subnet can be changed in the viewer; network, broadcast and GW addresses are excluded.",
+      "preview": "Preview",
+      "more": "… (+{{count}} more addresses)"
     }
   },
   "errors": {
@@ -548,7 +558,8 @@
     "checklist": "CHECKLIST",
     "copyfields": "COPY FIELDS",
     "template": "TEMPLATE",
-    "calc": "CALCULATION"
+    "calc": "CALCULATION",
+    "ipblock": "IP BLOCK"
   },
   "textBox": {
     "copy": "Copy",
@@ -576,5 +587,17 @@
     "error": "Could not calculate",
     "limit": "Use up to 500 lines, 500 characters per line and 64 nested operations.",
     "reset": "Reset"
+  },
+  "ipBlock": {
+    "gateway": "Gateway (GW)",
+    "prefix": "Subnet",
+    "placeholder": "xxx.xxx.xxx.xxx",
+    "copyList": "Copy list",
+    "count": "{{formattedCount}} addresses",
+    "summary": "Block {{block}} · {{count}} addresses (excluding network, broadcast and GW)",
+    "invalidIPv4": "Enter a valid IPv4 address",
+    "invalidPrefix": "Select a subnet between /24 and /30",
+    "gatewayBoundary": "The gateway cannot be the network or broadcast address in this block",
+    "empty": "Usable addresses appear once a valid IP and subnet are entered."
   }
 }

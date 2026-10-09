@@ -8,6 +8,7 @@ import { BlockMovement } from "./blockMovement";
 
 import { GlobalAttributes } from "@/features/editor/globalAttributesExtension";
 import { HtmlBlock } from "@/features/editor/htmlBlockNode";
+import { IpBlock } from "./ipBlockNode";
 import { CopyFields } from "./copyFieldsNode";
 import { Checklist } from "./checklistNode";
 import { Calc } from "./calcNode";
@@ -44,6 +45,7 @@ export function createVisualExtensions(placeholder: string, onEditInCode?: () =>
     TextBox,
     Checklist,
     CopyFields,
+    IpBlock,
     Template,
     Calc,
     NoteLinkDecorations,
