@@ -5,6 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 
 import { Board, BoardCell } from "./boardNodes";
 import { BlockMovement } from "./blockMovement";
+import { WidgetMotion } from "./widgets/widgetMotion";
 
 import { GlobalAttributes } from "@/features/editor/globalAttributesExtension";
 import { HtmlBlock } from "@/features/editor/htmlBlockNode";
@@ -36,6 +37,7 @@ export function createVisualExtensions(placeholder: string, onEditInCode?: () =>
     Board,
     BoardCell,
     BlockMovement,
+    WidgetMotion,
     Image.configure({ noteId }),
     Audio.configure({ noteId }),
     Video.configure({ noteId }),

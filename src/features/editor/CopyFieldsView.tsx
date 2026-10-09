@@ -7,12 +7,14 @@ import { singleLineWidgetText } from "./widgets/widgetFormat";
 import { leaveTextBox } from "./textBox";
 import { WidgetHeader } from "./widgets/WidgetHeader";
 import { SingleLineTextarea } from "./widgets/SingleLineTextarea";
+import { useWidgetRowMotion } from "./widgets/widgetMotion";
 
 export function CopyFieldsView({ node, updateAttributes, editor, getPos, selected }: NodeViewProps) {
   const { t } = useTranslation();
   const savedFields = node.attrs.fields as CopyField[];
   // Boş listenin yazım satırı yalnız görünümde kalır; özgün HTML değişmez.
   const fields = useMemo(() => savedFields.length ? savedFields : [{ label: "", value: "" }], [savedFields]);
+  const { ref: rowMotionRef, markAdded } = useWidgetRowMotion(fields);
   const inputs = useRef<(HTMLTextAreaElement | null)[]>([]);
   const title = useRef<HTMLInputElement>(null);
   const pendingFocus = useRef<number | null>(null);
@@ -26,7 +28,10 @@ export function CopyFieldsView({ node, updateAttributes, editor, getPos, selecte
     if (focus !== undefined) pendingFocus.current = focus;
     updateAttributes({ fields: next, html: null });
   };
-  const add = (index: number) => change([...fields.slice(0, index), { label: "", value: "" }, ...fields.slice(index)], index * 2);
+  const add = (index: number) => {
+    markAdded([index]);
+    change([...fields.slice(0, index), { label: "", value: "" }, ...fields.slice(index)], index * 2);
+  };
   const remove = (index: number, column = 0) => change(fields.filter((_, at) => at !== index), fields.length > 1 ? Math.max(0, index - 1) * 2 + column : -1);
   const history = (event: React.KeyboardEvent) => {
     if ((event.ctrlKey || event.metaKey) && ["z", "y"].includes(event.key.toLowerCase())) {
@@ -45,7 +50,7 @@ export function CopyFieldsView({ node, updateAttributes, editor, getPos, selecte
         onChange={(event) => updateAttributes({ title: event.target.value, html: null })}
         onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); if (fields.length) inputs.current[0]?.focus(); else add(0); } }} />
     </WidgetHeader>
-    <div className="htnote-copyfields-editor-fields">
+    <div ref={rowMotionRef} className="htnote-copyfields-editor-fields">
       {fields.map((field, index) => <div className="htnote-copyfields-editor-row" key={index}>
         {(["label", "value"] as const).map((column, at) => <SingleLineTextarea key={column} ref={(input) => { inputs.current[index * 2 + at] = input; }}
           className={`htnote-copyfields-editor-${column}`} data-testid={`copyfields-${column}`} spellCheck={false}
