@@ -76,7 +76,8 @@
     });
     function update() {
       const scroller = document.scrollingElement || root;
-      host.dataset.reducedMotion = String(root.style.getPropertyValue("--ht-reduced-motion").trim() === "1" || (!root.style.getPropertyValue("--ht-reduced-motion") && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches));
+      const reducedMotion = root.style.getPropertyValue("--ht-reduced-motion").trim() || (root.dataset.htReducedMotion === "true" ? "1" : root.dataset.htReducedMotion === "false" ? "0" : "");
+      host.dataset.reducedMotion = String(reducedMotion ? reducedMotion === "1" : !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches);
       tracks.forEach(({ track, thumb, vertical }) => {
         const viewport = vertical ? scroller.clientHeight : scroller.clientWidth;
         const content = vertical ? scroller.scrollHeight : scroller.scrollWidth;
@@ -188,7 +189,7 @@
 
 :where(.htnote-ipblock){container-type:inline-size;container-name:widget;box-sizing:border-box;margin:1em 0;padding:20px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:16px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);box-shadow:var(--ht-widget-shadow,0 10px 25px -4px #4755690f,0 4px 10px -2px #6366f10a);font-family:var(--ht-font,system-ui,sans-serif)}
 :where(.htnote-ipblock-title){font:600 18px/1.4 var(--ht-font,system-ui,sans-serif);min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
-:where(.htnote-ipblock-list){box-sizing:border-box;margin:12px 0 0;padding:12px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff);font:14px/1.6 "Cascadia Code","Cascadia Mono",Consolas,ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:16em;overflow:auto;user-select:text}
+:where(.htnote-ipblock-list,.htnote-ipblock-list-snapshot){box-sizing:border-box;margin:12px 0 0;padding:12px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff);font:14px/1.6 "Cascadia Code","Cascadia Mono",Consolas,ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap;overflow-wrap:anywhere;max-height:16em;overflow:auto;user-select:text}
 :where(.htnote-ipblock-fields){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
 :where(.htnote-ipblock-fields label){display:flex;flex-direction:column;gap:6px;min-width:0;font-size:14px;font-weight:500}
 :where(.htnote-ipblock-fields input,.htnote-ipblock-fields select){box-sizing:border-box;min-width:0;width:100%;height:36px;padding:0 12px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff);font:14px/normal "Cascadia Code","Cascadia Mono",Consolas,ui-monospace,SFMono-Regular,monospace}
@@ -196,7 +197,7 @@
 :where(.htnote-ipblock-fields input[aria-invalid="true"]){border-color:var(--ht-widget-danger,#ba1a1a)}
 :where(.htnote-ipblock-error){color:var(--ht-widget-danger,#ba1a1a);font-size:13px;margin:8px 0}
 :where(.htnote-ipblock-summary){color:var(--ht-widget-muted,#586174);font-size:13px;margin:12px 0}
-:where(.htnote-ipblock-empty){box-sizing:border-box;margin:12px 0 0;padding:24px 16px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:8px;background:var(--ht-widget-field,#f8f9ff);color:var(--ht-widget-muted,#586174);font-size:13px;line-height:1.5;text-align:center}
+:where(.htnote-ipblock-empty,.htnote-ipblock-empty-snapshot){box-sizing:border-box;margin:12px 0 0;padding:24px 16px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:8px;background:var(--ht-widget-field,#f8f9ff);color:var(--ht-widget-muted,#586174);font-size:13px;line-height:1.5;text-align:center}
 .htnote-ipblock-print{display:none}
 @container widget (max-width:360px){.htnote-ipblock-fields{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:480px){.htnote-ipblock-fields{grid-template-columns:minmax(0,1fr)}}
@@ -259,13 +260,82 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
   :where(.htnote-checklist-items input)::before{content:"";width:8px;height:4px;border-left:2px solid var(--ht-widget-surface);border-bottom:2px solid var(--ht-widget-surface);transform:translateY(-1px) rotate(-45deg);opacity:0}
   :where(.htnote-checklist-items input:checked)::before{opacity:1}
   @media print,(forced-colors:active){:where(.htnote-checklist-items input){appearance:auto}:where(.htnote-checklist-items input)::before{display:none}}
-  @media(prefers-reduced-motion:reduce){:where([data-htnote-widget] *){transition:none;animation:none}}
+  /* Hareket kuralları, sonradan gelen taşınabilir widget stilinden daha özgüldür. */
+  .htnote-textbox-input,.htnote-template-fields input,.htnote-calc-input,.htnote-calc-lines,.htnote-ipblock-fields input,.htnote-ipblock-fields select,.htnote-checklist-items input,.htnote-ipblock-list{
+    transition:background-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,border-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,box-shadow calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,outline-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out;
+  }
+  .htnote-textbox-input,.htnote-template-fields input,.htnote-ipblock-fields input,.htnote-ipblock-fields select,.htnote-checklist-items input,.htnote-ipblock-list{outline:2px solid transparent;outline-offset:2px}
+  .htnote-calc-input{outline:2px solid transparent;outline-offset:-2px}
+  .htnote-textbox-input:hover,.htnote-template-fields input:hover,.htnote-calc-lines:has(textarea:hover),.htnote-ipblock-fields input:hover,.htnote-ipblock-fields select:hover,.htnote-checklist-items input:not(:checked):hover{border-color:var(--ht-widget-accent);background-color:var(--ht-widget-hover)}
+  .htnote-calc-input:hover{background-color:var(--ht-widget-hover)}
+  .htnote-checklist-items input:checked:hover{box-shadow:0 0 0 3px color-mix(in srgb,var(--ht-widget-accent) 16%,transparent)}
+  .htnote-textbox-input:focus-visible,.htnote-template-fields input:focus-visible,.htnote-calc-input:focus-visible,.htnote-ipblock-fields input:focus-visible,.htnote-ipblock-fields select:focus-visible,.htnote-checklist-items input:focus-visible,.htnote-ipblock-list:focus-visible{outline-color:var(--ht-widget-accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--ht-widget-accent) 12%,transparent)}
+  .htnote-textbox-input:focus-visible,.htnote-template-fields input:focus-visible,.htnote-calc-lines:focus-within,.htnote-ipblock-fields input:focus-visible,.htnote-ipblock-fields select:focus-visible{border-color:var(--ht-widget-accent)}
+  .htnote-calc-input:focus-visible{box-shadow:inset 0 0 0 4px color-mix(in srgb,var(--ht-widget-accent) 12%,transparent)}
+  .htnote-ipblock-fields input[aria-invalid="true"]{border-color:var(--ht-widget-danger)}
+  .htnote-checklist-items label{transition:color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,text-decoration-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out}
+  .htnote-checklist-items input::before{transition:opacity calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out}
+  .htnote-widget-actions button,.htnote-copyfields-copy{transition:background-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,border-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,transform calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,opacity calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,outline-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,box-shadow calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out;outline:2px solid transparent;outline-offset:2px}
+  .htnote-widget-actions button:focus-visible,.htnote-copyfields-copy:focus-visible{outline-color:var(--ht-widget-accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--ht-widget-accent) 12%,transparent)}
+  .htnote-widget-actions button:disabled,.htnote-copyfields-copy:disabled{opacity:.45}
+  .htnote-copyfields-row{transition:background-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,border-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out}
+  .htnote-copyfields-row:hover,.htnote-copyfields-row:focus-within{background-color:var(--ht-widget-hover);--ht-widget-row-border:var(--ht-widget-accent);border-color:var(--ht-widget-row-border)}
+  .htnote-template-value,.htnote-template-placeholder{transition:color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,background-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,border-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out}
+  .htnote-ipblock-output{position:relative;margin-top:12px}
+  .htnote-ipblock-output > :is(.htnote-ipblock-list,.htnote-ipblock-empty,.htnote-ipblock-leaving){margin-top:0}
+  .htnote-ipblock-leaving{position:absolute;inset:0 0 auto;pointer-events:none;user-select:none}
+  [data-htnote-widget] [data-htnote-animate]{animation-duration:calc(160ms * (1 - var(--ht-reduced-motion,0)));animation-timing-function:ease-out}
+  [data-htnote-widget] [data-htnote-animate="pop"]{animation-name:ht-widget-pop;animation-duration:calc(180ms * (1 - var(--ht-reduced-motion,0)))}
+  [data-htnote-widget] [data-htnote-animate="fade"]{animation-name:ht-widget-fade}
+  [data-htnote-widget] [data-htnote-animate="reveal"]{animation-name:ht-widget-reveal}
+  [data-htnote-widget] [data-htnote-animate="enter"]{animation-name:ht-widget-enter;animation-timing-function:cubic-bezier(0.16,1,0.3,1)}
+  [data-htnote-widget] [data-htnote-animate="leave"]{animation-name:ht-widget-leave;animation-fill-mode:forwards}
+  [data-htnote-widget] [data-htnote-animate="highlight"]{animation-name:ht-widget-highlight;animation-duration:calc(150ms * (1 - var(--ht-reduced-motion,0)))}
+  @keyframes ht-widget-pop{0%{transform:scale(.85)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+  @keyframes ht-widget-fade{from{opacity:.65}to{opacity:1}}
+  @keyframes ht-widget-reveal{from{opacity:0}to{opacity:1}}
+  @keyframes ht-widget-enter{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes ht-widget-leave{from{opacity:1}to{opacity:0}}
+  @keyframes ht-widget-highlight{from{background-color:color-mix(in srgb,var(--ht-widget-accent) 20%,var(--ht-widget-field))}to{}}
+  html[data-ht-reduced-motion="true"] [data-htnote-widget] *,html[data-ht-reduced-motion="true"] [data-htnote-widget] *::before{transition:none!important;animation:none!important}
+  html[data-ht-reduced-motion="true"] .htnote-ipblock-leaving{display:none}
+  @media(prefers-reduced-motion:reduce){html:not([data-ht-reduced-motion]) [data-htnote-widget] *,html:not([data-ht-reduced-motion]) [data-htnote-widget] *::before{transition:none!important;animation:none!important}html:not([data-ht-reduced-motion]) .htnote-ipblock-leaving{display:none}}
+  @media print{[data-htnote-widget] *,[data-htnote-widget] *::before{transition:none!important;animation:none!important}.htnote-ipblock-leaving{display:none!important}}
+  ${printing ? '[data-htnote-widget] *,[data-htnote-widget] *::before{transition:none!important;animation:none!important}' : ""}
   @media print{.htnote-widget-actions,.htnote-copyfields-copy,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}.htnote-textbox-title{padding-right:0}.htnote-textbox{break-inside:auto}}
   ${printing ? ".htnote-widget-actions,.htnote-copyfields-copy,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}" : ""}
   `;
   document.head.append(boxStyle);
   const textBoxes = new WeakMap();
   let boxLabels = {};
+  const widgetAnimations = new WeakMap();
+  function widgetMotionEnabled() {
+    if (printing || window.matchMedia?.("print").matches) return false;
+    const reduced = root.style.getPropertyValue("--ht-reduced-motion").trim() || (root.dataset.htReducedMotion === "true" ? "1" : root.dataset.htReducedMotion === "false" ? "0" : "");
+    if (reduced) return reduced !== "1";
+    return !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  }
+  // Yalnız kullanıcı olaylarından çağrılır; gözlemci ve ilk geliştirme hareket üretmez.
+  function animateWidget(element, kind, onEnd) {
+    if (!widgetMotionEnabled()) { onEnd?.(); return; }
+    const previous = widgetAnimations.get(element);
+    clearTimeout(previous?.timer);
+    // Aynı öğede hızlı yazım animasyonu tekrar başlatır, DOM ve odak yerinde kalır.
+    if (previous && element.dataset.htnoteAnimate === kind) {
+      element.getAnimations?.().forEach((animation) => { if (animation.animationName?.startsWith("ht-widget-")) animation.currentTime = 0; });
+    } else element.dataset.htnoteAnimate = kind;
+    const finish = () => {
+      const state = widgetAnimations.get(element);
+      if (state?.finish !== finish) return;
+      clearTimeout(state.timer); widgetAnimations.delete(element);
+      delete element.dataset.htnoteAnimate;
+      onEnd?.();
+    };
+    widgetAnimations.set(element, { finish, timer: setTimeout(finish, 200) });
+  }
+  root.addEventListener("animationend", (event) => {
+    if (event.animationName?.startsWith("ht-widget-")) widgetAnimations.get(event.target)?.finish();
+  });
   // Tür satırı gelecekteki widget'larda da aynı DOM ve etiket güncellemesini paylaşır.
   function createWidgetIcon(iconPaths) {
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -398,7 +468,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
         input.style.height = `${Math.max(input.scrollHeight, 3 * (parseFloat(getComputedStyle(input).lineHeight) || 21))}px`;
       }
     };
-    reset.addEventListener("click", () => { input.value = input.defaultValue; update(); });
+    reset.addEventListener("click", () => { input.value = input.defaultValue; update(); animateWidget(input, "highlight"); });
     input.addEventListener("input", update);
     textBoxes.set(box, { update });
     box.append(mirror);
@@ -430,11 +500,15 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
       return !empty;
     });
     const updateCopy = bindWidgetCopy(copy, "copyRemaining", () => inputs().filter((input) => !input.checked).map((input) => input.parentElement.textContent.replace(/^ /, "")).join("\n"));
-    const update = () => {
+    let completed = false;
+    const update = (animate = false) => {
       updateHeader();
       const rows = inputs(), count = rows.filter((input) => input.checked).length;
       const value = `${count} / ${rows.length}`;
-      if (counter.textContent !== value) counter.textContent = value;
+      if (counter.textContent !== value) { counter.textContent = value; if (animate) animateWidget(counter, "fade"); }
+      const allDone = rows.length > 0 && count === rows.length;
+      if (animate && allDone && !completed) { animateWidget(summary, "highlight"); animateWidget(progress, "fade"); }
+      completed = allDone;
       progress.setAttribute("aria-valuemax", String(rows.length));
       progress.setAttribute("aria-valuenow", String(count));
       progress.setAttribute("aria-label", boxLabels.checklistProgress || "");
@@ -447,8 +521,14 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
       updateReset();
       updateCopy();
     };
-    reset.addEventListener("click", () => { inputs().forEach((input) => { input.checked = input.defaultChecked; }); update(); });
-    list.addEventListener("change", update);
+    reset.addEventListener("click", () => {
+      inputs().forEach((input) => { if (input.checked !== input.defaultChecked) { input.checked = input.defaultChecked; animateWidget(input.parentElement, "highlight"); } });
+      update(true);
+    });
+    list.addEventListener("change", (event) => {
+      if (!inputs().includes(event.target)) return;
+      animateWidget(event.target, "pop"); update(true);
+    });
     checklists.set(box, { update });
     update();
   }
@@ -522,24 +602,30 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     preview.className = "htnote-template-preview"; preview.dataset.testid = "template-preview";
     panel.append(heading, preview); layout.append(fields, panel); box.append(layout);
     source.hidden = true;
-    let parsed, savedSource, rendered;
+    let parsed, savedSource, rendered, previewTemplate;
     const inputs = new Map();
     const output = () => parsed.segments.map((segment) => "text" in segment ? segment.text : inputs.get(segment.key).value).join("");
     const updateCopy = bindWidgetCopy(copy, "copy", output);
-    const render = () => {
+    const render = (animate = false) => {
       reset.disabled = Array.from(inputs.values()).every((input) => input.value === input.defaultValue);
       // Gözlemci, aynı önizlemeyi yeniden kurup kendini tetiklememeli.
       const signature = JSON.stringify([parsed, Array.from(inputs.values(), (input) => input.value)]);
       if (signature === rendered) return;
       rendered = signature;
-      const nodes = parsed.segments.map((segment) => {
-        if ("text" in segment) return document.createTextNode(segment.text);
-        const input = inputs.get(segment.key), span = document.createElement("span");
-        span.className = input.value ? "htnote-template-value" : "htnote-template-placeholder";
-        span.textContent = input.value || parsed.variables.find((variable) => variable.key === segment.key).name;
-        return span;
+      if (previewTemplate !== parsed) {
+        previewTemplate = parsed;
+        preview.replaceChildren(...parsed.segments.map((segment) => "text" in segment ? document.createTextNode(segment.text) : document.createElement("span")));
+      }
+      parsed.segments.forEach((segment, index) => {
+        if ("text" in segment) return;
+        const input = inputs.get(segment.key), span = preview.childNodes[index];
+        const className = input.value ? "htnote-template-value" : "htnote-template-placeholder";
+        const value = input.value || parsed.variables.find((variable) => variable.key === segment.key).name;
+        const changed = span.textContent !== value || span.className !== className;
+        span.className = className;
+        if (span.textContent !== value) span.textContent = value;
+        if (animate && changed) animateWidget(span, "highlight");
       });
-      preview.replaceChildren(...nodes);
     };
     const update = () => {
       updateHeader(); updateCopy();
@@ -556,7 +642,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
           input.type = "text"; input.id = id; input.dataset.testid = "template-variable";
           input.value = variable.defaultValue; input.defaultValue = input.value;
           label.htmlFor = id; label.textContent = variable.name;
-          input.addEventListener("input", render);
+          input.addEventListener("input", () => render(true));
           inputs.set(variable.key, input); row.append(label, input); fields.append(row);
         });
         if (parsed.variables.length) { actions.prepend(reset); fields.hidden = false; }
@@ -564,7 +650,10 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
       }
       render();
     };
-    reset.addEventListener("click", () => { inputs.forEach((input) => { input.value = input.defaultValue; }); render(); });
+    reset.addEventListener("click", () => {
+      inputs.forEach((input) => { if (input.value !== input.defaultValue) { input.value = input.defaultValue; animateWidget(input, "highlight"); } });
+      render(true);
+    });
     templates.set(box, { update });
     update();
   }
@@ -591,7 +680,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     input.before(layout); layout.append(input, results); layout.after(mirror); totalRow.append(totalLabel, totalValue); box.append(limit, totalRow);
     let calculation, rendered;
     const updateCopy = bindWidgetCopy(copy, "calcCopyTotal", () => calculation.formattedTotal);
-    const update = () => {
+    const update = (animate = false) => {
       updateHeader(); updateCopy();
       updateReset();
       if (totalLabel.textContent !== (boxLabels.calcTotal || "")) totalLabel.textContent = boxLabels.calcTotal || "";
@@ -601,16 +690,27 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
       if (signature === rendered) return;
       rendered = signature;
       calculation = calcEngine.evaluateCalc(input.value, boxLabels.locale);
-      results.replaceChildren(...calculation.lines.map((line) => {
-        const cell = document.createElement("div"); cell.dataset.testid = "calc-result"; cell.textContent = line.formatted;
+      const previousCells = Array.from(results.children), changedCells = [];
+      const cells = calculation.lines.map((line, index) => {
+        const cell = previousCells[index] || document.createElement("div");
+        const changed = cell.textContent !== line.formatted;
+        cell.dataset.testid = "calc-result";
+        if (changed) cell.textContent = line.formatted;
+        cell.className = line.status === "error" ? "htnote-calc-error" : "";
         if (line.status === "error") {
-          cell.className = "htnote-calc-error";
           cell.title = boxLabels.calcError || ""; cell.setAttribute("aria-label", boxLabels.calcError || "");
+        } else {
+          cell.removeAttribute("title"); cell.removeAttribute("aria-label");
         }
+        if (changed) changedCells.push(cell);
         return cell;
-      }));
-      totalValue.textContent = calculation.formattedTotal;
+      });
+      if (previousCells.length !== cells.length) results.replaceChildren(...cells);
+      if (animate) changedCells.forEach((cell) => animateWidget(cell, "fade"));
+      if (totalValue.textContent !== calculation.formattedTotal) { totalValue.textContent = calculation.formattedTotal; if (animate) animateWidget(totalValue, "fade"); }
+      const showLimit = calculation.limited && (limit.hidden || limit.textContent !== (boxLabels.calcLimit || ""));
       limit.hidden = !calculation.limited; limit.textContent = calculation.limited ? boxLabels.calcLimit || "" : "";
+      if (animate && showLimit) animateWidget(limit, "enter");
       mirror.replaceChildren(...(calculation.limited ? [input.value] : input.value.split(/\r\n|[\r\n]/)).map((expression, index) => {
         const row = document.createElement("div"), source = document.createElement("pre"), result = document.createElement("span");
         source.textContent = expression || "\u00a0";
@@ -620,8 +720,8 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
       input.style.height = "auto";
       input.style.height = `${Math.max(input.scrollHeight, 3 * (parseFloat(getComputedStyle(input).lineHeight) || 21) + 16)}px`;
     };
-    reset.addEventListener("click", () => { input.value = input.defaultValue; update(); });
-    input.addEventListener("input", update);
+    reset.addEventListener("click", () => { input.value = input.defaultValue; update(true); animateWidget(input, "highlight"); });
+    input.addEventListener("input", () => update(true));
     input.addEventListener("scroll", () => { results.scrollTop = input.scrollTop; });
     calcs.set(box, { update }); update();
   }
@@ -656,34 +756,62 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     gatewayLabel.append(gatewayText, gateway); prefixLabel.append(prefixText, prefix); fields.append(gatewayLabel, prefixLabel);
     printInputs.className = "htnote-ipblock-print";
     list.before(fields, error, summary, printInputs);
-    list.after(empty);
+    const output = document.createElement("div"); output.className = "htnote-ipblock-output";
+    list.before(output); output.append(list, empty);
     list.dataset.testid = "ipblock-list"; list.tabIndex = 0;
-    let result;
+    let result, leaving;
     const updateCopy = bindWidgetCopy(copy, "ipblockCopyList", () => result.hosts.join("\n"), undefined, { canCopy: () => !!result && !result.error });
     const setText = (element, value) => { if (element.textContent !== value) element.textContent = value; };
-    const update = () => {
+    const update = (animate = false) => {
       updateHeader(); updateReset(); updateCopy();
       setText(gatewayText, boxLabels.ipblockGateway || ""); setText(prefixText, boxLabels.ipblockPrefix || "");
       gateway.placeholder = boxLabels.ipblockPlaceholder || "";
+      const previous = result;
       result = ipEngine.calculateIpBlock(gateway.value, Number(prefix.value));
+      const switched = previous && !!previous.error !== !!result.error;
+      if (animate && switched && widgetMotionEnabled()) {
+        leaving?.remove();
+        const outgoing = previous.error ? empty : list;
+        const snapshot = document.createElement(previous.error ? "p" : "pre");
+        snapshot.className = `htnote-ipblock-${previous.error ? "empty" : "list"}-snapshot htnote-ipblock-leaving`;
+        snapshot.setAttribute("aria-hidden", "true"); snapshot.textContent = outgoing.textContent;
+        output.append(snapshot); snapshot.scrollTop = outgoing.scrollTop;
+        leaving = snapshot;
+        animateWidget(snapshot, "leave", () => snapshot.remove());
+      }
       copy.disabled = !!result.error;
       reset.disabled = gateway.value === savedGateway && prefix.value === savedPrefix;
       const hasError = !!result.error && result.error !== "empty";
       gateway.setAttribute("aria-invalid", String(hasError));
       if (hasError) gateway.setAttribute("aria-describedby", error.id); else gateway.removeAttribute("aria-describedby");
       const errorKey = result.error === "gatewayBoundary" ? "ipblockGatewayBoundary" : result.error === "invalidPrefix" ? "ipblockInvalidPrefix" : "ipblockInvalidIPv4";
+      const errorText = hasError ? boxLabels[errorKey] || "" : "";
+      const showError = hasError && (error.hidden || error.textContent !== errorText);
       error.hidden = !hasError; summary.hidden = !!result.error;
       list.hidden = !!result.error; empty.hidden = !result.error;
-      setText(error, hasError ? boxLabels[errorKey] || "" : "");
+      setText(error, errorText);
+      if (animate && showError) animateWidget(error, "enter");
       setText(empty, result.error ? boxLabels.ipblockEmpty || "" : "");
       const count = new Intl.NumberFormat(boxLabels.locale === "en" ? "en" : "tr").format(result.hosts.length);
       const summaryText = (boxLabels.ipblockSummary || "").replace(/\{\{(block|count)\}\}/g, (_, key) => key === "block" ? `${result.network}/${prefix.value}` : count);
+      const summaryChanged = summary.textContent !== (result.error ? "" : summaryText);
+      const listChanged = list.textContent !== result.hosts.join("\n");
       setText(summary, result.error ? "" : summaryText);
       setText(list, result.hosts.join("\n"));
+      if (animate) {
+        if (switched) animateWidget(result.error ? empty : list, "reveal");
+        else if (listChanged && !result.error) animateWidget(list, "fade");
+        if (summaryChanged && !result.error) animateWidget(summary, "fade");
+      }
       setText(printInputs, `${boxLabels.ipblockGateway || ""}: ${gateway.value} · ${boxLabels.ipblockPrefix || ""}: /${prefix.value}`);
     };
-    gateway.addEventListener("input", update); prefix.addEventListener("change", update);
-    reset.addEventListener("click", () => { gateway.value = savedGateway; prefix.value = savedPrefix; update(); });
+    gateway.addEventListener("input", () => update(true)); prefix.addEventListener("change", () => update(true));
+    reset.addEventListener("click", () => {
+      const gatewayChanged = gateway.value !== savedGateway, prefixChanged = prefix.value !== savedPrefix;
+      gateway.value = savedGateway; prefix.value = savedPrefix; update(true);
+      if (gatewayChanged) animateWidget(gateway, "highlight");
+      if (prefixChanged) animateWidget(prefix, "highlight");
+    });
     ipBlocks.set(box, { update }); update();
   }
   function scanWidgets(node) {
@@ -700,11 +828,16 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     });
   }
   scanWidgets(root);
-  new MutationObserver((records) => records.forEach((record) => {
-    record.addedNodes.forEach(scanWidgets);
-    const box = record.target.nodeType === 1 ? record.target.closest('[data-htnote-widget]') : record.target.parentElement?.closest('[data-htnote-widget]');
-    if (box) { scanWidgets(box); textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update(); calcs.get(box)?.update(); ipBlocks.get(box)?.update(); }
-  })).observe(root, { childList: true, subtree: true, characterData: true });
+  new MutationObserver((records) => {
+    // Aynı widget'ın çok sayıda sonuç/değer değişimi tek geliştirmede birleştirilir.
+    const boxes = new Set();
+    records.forEach((record) => {
+      record.addedNodes.forEach(scanWidgets);
+      const box = record.target.nodeType === 1 ? record.target.closest('[data-htnote-widget]') : record.target.parentElement?.closest('[data-htnote-widget]');
+      if (box) boxes.add(box);
+    });
+    boxes.forEach((box) => { scanWidgets(box); textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update(); calcs.get(box)?.update(); ipBlocks.get(box)?.update(); });
+  }).observe(root, { childList: true, subtree: true, characterData: true });
   window.addEventListener("beforeprint", updateWidgets);
   const audioPlayers = new WeakMap();
   let audioLabels = {};
@@ -1052,6 +1185,12 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     if (type === "HTNOTE_THEME" && !printing) {
       if (vars && typeof vars === "object") {
         for (const [k, v] of Object.entries(vars)) if (/^--ht-[\w-]+$/.test(k) && typeof v === "string") root.style.setProperty(k, v);
+      }
+      const reducedMotion = root.style.getPropertyValue("--ht-reduced-motion").trim();
+      if (reducedMotion) {
+        root.dataset.htReducedMotion = reducedMotion === "1" ? "true" : "false";
+      } else if (vars && Object.prototype.hasOwnProperty.call(vars, "--ht-reduced-motion")) {
+        delete root.dataset.htReducedMotion;
       }
       if (typeof mode === "string") root.dataset.htTheme = mode;
     } else if (type === "HTNOTE_CONTENT_WIDTH" && !printing) {
