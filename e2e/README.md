@@ -116,14 +116,13 @@ new runtime triggers [runner image issue 14738](https://github.com/actions/runne
 causing sessions to fail with `DevToolsActivePort file doesn't exist`.
 The varying vertical coordinate differences in CI may come from measuring a
 target while an entry animation or transition is still moving it; a coordinate
-mismatch alone does not establish a WebDriver bug. The E2E driver environment
-appends `--force-prefers-reduced-motion` to
-`WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`, preserving any existing arguments.
-`tauri-driver`, EdgeDriver and the application inherit this setting. The session
-hook asserts `matchMedia('(prefers-reduced-motion: reduce)').matches === true`.
-The screenshot configuration inherits both the argument and the assertion.
-Only these test launches force reduced motion; production animation behavior
-and the Tauri application configuration are unchanged.
+mismatch alone does not establish a WebDriver bug. On Windows, the E2E capability
+passes `--force-prefers-reduced-motion` to WebView2 via
+`tauri:options.webviewOptions.additionalBrowserArguments`. The session hook asserts
+`matchMedia('(prefers-reduced-motion: reduce)').matches === true`. The screenshot
+configuration inherits both the capability and the assertion. Only these test
+launches force reduced motion; production animation behavior and the Tauri
+application configuration are unchanged.
 
 Driver output is also saved to `e2e/logs/tauri-driver.log`. CI prints the driver
 and WebView2 versions, launches the debug app directly with temporary root and
