@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
 
-import { pointerMoveTo } from "../helpers/pointer";
+import { pointerClickAt, pointerMoveTo } from "../helpers/pointer";
 
 import { visibleEditorTool, createNote, editNote, flatten, invoke, openNote, saveAndView, saveShortcut, tree, typeInVisualEditor, useTempRoot, waitForFile, withNoteFrame } from "../helpers/flows";
 
@@ -310,12 +310,34 @@ describe("editing flows", () => {
       await $('[role="tooltip"]').waitForDisplayed();
       // Outside pointerdown closes the panel, including a hovered tooltip whose
       // anchor can become inert without receiving mouseleave or blur.
-      await $('.htnote-visual-editor .tiptap').click();
+      const editor = await $('.htnote-visual-editor .tiptap');
+      const outsidePoint = await browser.execute(() => {
+        const editorEl = document.querySelector(".htnote-visual-editor .tiptap");
+        const panelEl = document.querySelector('.htnote-toolbar-overflow[data-open="true"]');
+        if (!editorEl || !panelEl) throw new Error("Editor or overflow panel not found");
+        const eRect = editorEl.getBoundingClientRect();
+        const pRect = panelEl.getBoundingClientRect();
+        const candidates = [
+          { x: Math.round(eRect.left + 16), y: Math.round(eRect.bottom - 16) },
+          { x: Math.round(eRect.right - 16), y: Math.round(eRect.bottom - 16) },
+          { x: Math.round(eRect.left + 16), y: Math.round(eRect.top + 16) },
+          { x: Math.round(eRect.right - 16), y: Math.round(eRect.top + 16) },
+        ];
+        const inside = (pt: { x: number; y: number }, r: DOMRect) =>
+          pt.x >= r.left && pt.x <= r.right && pt.y >= r.top && pt.y <= r.bottom;
+        const inViewport = (pt: { x: number; y: number }) =>
+          pt.x >= 0 && pt.x <= window.innerWidth && pt.y >= 0 && pt.y <= window.innerHeight;
+        for (const pt of candidates) {
+          if (inside(pt, eRect) && !inside(pt, pRect) && inViewport(pt)) return pt;
+        }
+        throw new Error("Could not find an editor point outside the overflow panel");
+      });
+      await pointerClickAt(editor, outsidePoint.x, outsidePoint.y);
       await browser.waitUntil(async () => await overflow.getAttribute("aria-expanded") === "false");
       await browser.waitUntil(async () => await browser.execute(() => document.querySelectorAll('[role="tooltip"]').length) === 0);
       await overflow.click();
       await overflow.click();
-      await pointerMoveTo(await $('.htnote-visual-editor .tiptap'));
+      await pointerMoveTo(editor, outsidePoint);
       // Include the hover delay to detect a pending timer resurrecting a tip.
       await browser.executeAsync((done) => setTimeout(done, 450));
       assert.equal(await browser.execute(() => document.querySelectorAll('[role="tooltip"]').length), 0);

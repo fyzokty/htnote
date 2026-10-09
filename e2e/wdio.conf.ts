@@ -36,8 +36,15 @@ export const config = {
   capabilities: [{
     "tauri:options": {
       application: resolve("src-tauri", "target", "debug", process.platform === "win32" ? "htnote.exe" : "htnote"),
-      ...(process.platform === "win32" && process.env.HTNOTE_E2E_BROWSER_LANGUAGE ? {
-        webviewOptions: { additionalBrowserArguments: [`--lang=${process.env.HTNOTE_E2E_BROWSER_LANGUAGE}`] },
+      ...(process.platform === "win32" ? {
+        webviewOptions: {
+          additionalBrowserArguments: [
+            "--force-prefers-reduced-motion",
+            ...(process.env.HTNOTE_E2E_BROWSER_LANGUAGE
+              ? [`--lang=${process.env.HTNOTE_E2E_BROWSER_LANGUAGE}`]
+              : []),
+          ],
+        },
       } : {}),
     },
   }],
@@ -101,12 +108,11 @@ export const config = {
     driverLog = createWriteStream(join(logDirectory, "tauri-driver.log"));
     console.info(`Starting tauri-driver ${driverArgs.join(" ")}`);
     driver = spawn("tauri-driver", driverArgs, {
-      // tauri-driver and its EdgeDriver/app children inherit this E2E-only setting.
+      // tauri-driver ve alt süreçleri bu E2E ayarlarını devralır.
+      // Dışarıdan verilen WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS process.env üzerinden korunur;
+      // WebView2 hareket azaltma bayrağı ise capabilities webviewOptions ile iletilir.
       env: {
         ...process.env,
-        ...(process.platform === "win32" ? {
-          WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: `${process.env.WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS ?? ""} --force-prefers-reduced-motion`.trim(),
-        } : {}),
         HTNOTE_ROOT_OVERRIDE: root,
         HTNOTE_CONFIG_DIR_OVERRIDE: configDir,
         HTNOTE_EXTERNAL_OPEN_LOG: externalLog,
