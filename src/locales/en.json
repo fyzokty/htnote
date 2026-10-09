@@ -398,6 +398,12 @@
     "chooseFirst": "Choose how to handle the external change before saving."
   },
   "settings": {
+    "autoSave": "Auto save",
+    "autoSaveHint": "The note is saved to disk shortly after you stop editing.",
+    "autoSaveOptions": {
+      "on": "On",
+      "off": "Off"
+    },
     "motion": "Animations",
     "motionHint": "System follows the operating system animation effects setting.",
     "motionOptions": {

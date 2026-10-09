@@ -59,6 +59,11 @@ export function SettingsView({ onShowShortcuts }: { onShowShortcuts?: () => void
             <Button type="button" disabled={!root} onClick={() => void ipc.revealInExplorer(root).catch(notifyError)} >{t("settings.showInFolder")}</Button>
           </div>
           <p className="mt-4 flex items-center gap-2 text-xs text-app-muted"><Info className="size-4 shrink-0 text-app-warning" aria-hidden />{t("settings.notesStay")}</p>
+          <div className="htnote-settings-row"><div><span>{t("settings.autoSave")}</span><p className="text-xs text-app-muted">{t("settings.autoSaveHint")}</p></div>
+            <SegmentedControl label={t("settings.autoSave")} value={settings?.autoSave === false ? "off" : "on"}
+              options={(["on", "off"] as const).map((value) => ({ value, label: t(`settings.autoSaveOptions.${value}`), disabled: !settings }))}
+              onChange={(value) => void update({ autoSave: value === "on" }).catch(notifyError)} />
+          </div>
         </section>
         <section aria-labelledby="settings-appearance" className="htnote-settings-card">
           <div className="htnote-settings-card-header"><span className="htnote-settings-icon" data-tone="success"><Palette className="size-5" aria-hidden /></span><div><h3 id="settings-appearance" className="text-xl font-semibold">{t("settings.appearance")}</h3><p className="text-xs text-app-muted">{t("settings.appearanceHint")}</p></div></div>

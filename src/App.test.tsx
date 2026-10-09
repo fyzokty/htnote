@@ -14,7 +14,7 @@ const defaults: Settings = {
   rootDir: null, lastExportDir: null,
   theme: "system", motion: "system",
   language: "tr",
-  sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true, backlinksExpanded: true,
+  sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true, autoSave: true, backlinksExpanded: true,
   sidebarVisible: true, tabSizing: "fixed", contentWidth: "comfortable",
   openTabs: [],
   activeTab: null,

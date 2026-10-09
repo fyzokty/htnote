@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next";
 import { FloatingBoardToolbar } from "./FloatingBoardToolbar";
 
 import { EditorToolbar } from "@/features/editor/EditorToolbar";
+import { notifyAutoSaveChange } from "@/features/editor/autoSave";
 import { NotePicker } from "@/components/ui/NotePicker";
 import { classifyClipboard, decodeDataUrl, pasteFileName, rewriteDataUrlImages, shouldWarnExternalImages } from "@/features/editor/clipboardPaste";
 import { createVisualExtensions } from "@/features/editor/extensions";
@@ -133,6 +134,8 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
     },
     onUpdate: () => {
       pending.current = true;
+      // Serileştirme beklerken de otomatik kayıt son gerçek değişikliği izler.
+      notifyAutoSaveChange(noteId);
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(flush, 150);
     },

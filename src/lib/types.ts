@@ -23,6 +23,7 @@ export interface Settings {
   contentWidth: ContentWidth;
   editorSplitRatio: number;
   editorLivePreview: boolean;
+  autoSave: boolean;
   backlinksExpanded: boolean;
   openTabs: string[];
   activeTab: string | null;

@@ -56,6 +56,9 @@ export async function saveTab(noteId: string): Promise<boolean> {
           const note = useTreeStore.getState().findNoteById(noteId);
           useTabsStore.getState().markRemoved(noteId, note?.title ?? null, note?.relPath.split("/").slice(0, -1).join("/") ?? "");
         } else {
+          // Disk yeniden okunamasa da çakışma çözülene kadar kayıt engellenir.
+          // Banner seçimleri güncel disk içeriğini tekrar okuyarak çözüm üretir.
+          useTabsStore.getState().markConflict(noteId, doc.base.contentHash);
           notifySaveError(readError);
         }
       }

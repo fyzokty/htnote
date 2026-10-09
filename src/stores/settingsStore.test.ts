@@ -11,7 +11,7 @@ const defaults: Settings = {
   sidebarWidth: 260, editorSplitRatio: 50, editorLivePreview: true,
   sidebarVisible: true, tabSizing: "fixed",
   contentWidth: "comfortable",
-  backlinksExpanded: true,
+  autoSave: true, backlinksExpanded: true,
   openTabs: [],
   activeTab: null,
   expandedFolders: [],

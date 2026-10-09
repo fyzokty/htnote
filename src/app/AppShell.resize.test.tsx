@@ -28,7 +28,7 @@ const baseSettings: Settings = {
   contentWidth: "comfortable",
   editorSplitRatio: 50,
   editorLivePreview: true,
-  backlinksExpanded: true,
+  autoSave: true, backlinksExpanded: true,
   openTabs: [],
   activeTab: null,
   expandedFolders: [],
