@@ -157,7 +157,8 @@
   :where(.htnote-copyfields-copy svg){width:15px;height:15px;flex-shrink:0}
   :where(.htnote-copyfields-copy:focus-visible){outline:2px solid var(--ht-widget-accent);outline-offset:2px}
   :where(.htnote-copyfields-copy[data-feedback="copied"]){color:var(--ht-widget-accent)}
-  @media(max-width:480px){:where(.htnote-copyfields-row){grid-template-columns:minmax(0,1fr) auto}:where(.htnote-copyfields-row dt){grid-column:1/-1}}
+  /* Eski not stilleri bridge'den sonra gelir; dar düzen kuralları :where dışına alınarak özgüllükle korunur. */
+  @media(max-width:480px){.htnote-copyfields-row{grid-template-columns:minmax(0,1fr) auto}.htnote-copyfields-row>dt{grid-column:1/-1}}
 
 :where(.htnote-template){container-type:inline-size;box-sizing:border-box;margin:1em 0;padding:20px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:16px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);box-shadow:var(--ht-widget-shadow,0 10px 25px -4px #4755690f,0 4px 10px -2px #6366f10a);font-family:var(--ht-font,system-ui,sans-serif)}
 :where(.htnote-template-title){font:600 18px/1.4 var(--ht-font,system-ui,sans-serif);min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
@@ -201,8 +202,9 @@
   :where(.htnote-calc-input){white-space:pre-wrap;overflow-wrap:anywhere;overflow-x:hidden;field-sizing:content;height:auto!important}
   :where(.htnote-calc-results){border-left:0;border-top:1px solid var(--ht-widget-divider)}
   :where(.htnote-calc-results>div){height:auto;min-height:21px;white-space:pre-wrap;overflow-wrap:anywhere}
-  :where(.htnote-copyfields-row){grid-template-columns:minmax(0,1fr) auto}
-  :where(.htnote-copyfields-row dt){grid-column:1/-1}
+  /* Eski not stilleri bridge'den sonra gelir; dar düzen kuralları :where dışına alınarak özgüllükle korunur. */
+  .htnote-copyfields-row{grid-template-columns:minmax(0,1fr) auto}
+  .htnote-copyfields-row>dt{grid-column:1/-1}
 }
 .htnote-calc-print{display:none;font:13px/21px ui-monospace,SFMono-Regular,Consolas,monospace}
 .htnote-calc-print>div{display:grid;grid-template-columns:minmax(0,1fr) 12ch;gap:8px;break-inside:avoid}
