@@ -11,8 +11,9 @@
     return [24, 16, 8, 0].map((shift) => Math.floor(value / 2 ** shift) % 256).join(".");
   }
   function calculateIpBlock(gateway, prefix) {
-    const address = parseIPv4(gateway);
     const fail = (error) => ({ error, network: null, broadcast: null, hosts: [] });
+    if (typeof gateway !== "string" || !gateway.trim()) return fail("empty");
+    const address = parseIPv4(gateway);
     if (address === null) return fail("invalidIPv4");
     if (!Number.isInteger(prefix) || prefix < 24 || prefix > 30) return fail("invalidPrefix");
     const size = 2 ** (32 - prefix), network = Math.floor(address / size) * size, broadcast = network + size - 1;

@@ -19,7 +19,11 @@ describe("IPv4 block engine", () => {
     expect(result.error).toBeNull(); expect(result.hosts).toHaveLength(2 ** (32 - prefix) - 3);
     expect(result.broadcast).toBe("255.255.255.255");
   });
-  it.each(["", "1.2.3", "1.2.3.4.5", "01.2.3.4", "1.02.3.4", "1.2.3.256", "-1.2.3.4", "+1.2.3.4", "1.2.3.4/28", "1. 2.3.4", "1e1.2.3.4", "0x1.2.3.4", "１.2.3.4"])("rejects malformed IPv4 %s", (gateway) => {
+  it.each(["", "   ", "\t\n"])("returns empty error for blank gateway %j", (gateway) => {
+    expect(parseIPv4(gateway)).toBeNull();
+    expect(calculateIpBlock(gateway, 28)).toEqual({ error: "empty", network: null, broadcast: null, hosts: [] });
+  });
+  it.each(["1.2.3", "1.2.3.4.5", "01.2.3.4", "1.02.3.4", "1.2.3.256", "-1.2.3.4", "+1.2.3.4", "1.2.3.4/28", "1. 2.3.4", "1e1.2.3.4", "0x1.2.3.4", "１.2.3.4"])("rejects malformed IPv4 %s", (gateway) => {
     expect(parseIPv4(gateway)).toBeNull();
     expect(calculateIpBlock(gateway, 28)).toEqual({ error: "invalidIPv4", network: null, broadcast: null, hosts: [] });
   });
