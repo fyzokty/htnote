@@ -143,6 +143,8 @@ describe("AppShell sidebar resizing", () => {
     const aside = screen.getByRole("complementary", { name: "Kenar çubuğu" });
     vi.spyOn(aside, "getBoundingClientRect").mockReturnValue({ left: 8 } as DOMRect);
     const separator = screen.getByRole("separator", { name: "Kenar çubuğunu yeniden boyutlandır" });
+    expect(aside.contains(separator)).toBe(false);
+    expect(separator.parentElement).toBe(aside.parentElement);
     fireEvent.pointerDown(separator, { pointerId: 1, clientX: 268 });
     fireEvent.pointerMove(separator, { pointerId: 1, clientX: 308 });
 
@@ -158,10 +160,12 @@ describe("AppShell sidebar resizing", () => {
       fireEvent.click(screen.getByRole("button", { name: "Kenar çubuğunu gizle" }));
     });
     expect(screen.queryByRole("complementary", { name: "Kenar çubuğu" })).toBeNull();
+    expect(screen.queryByRole("separator", { name: "Kenar çubuğunu yeniden boyutlandır" })).toBeNull();
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Kenar çubuğunu göster" }));
     });
     expect(screen.getByRole("complementary", { name: "Kenar çubuğu" })).toBeInTheDocument();
+    expect(screen.getByRole("separator", { name: "Kenar çubuğunu yeniden boyutlandır" })).toBeInTheDocument();
   });
 });
 
