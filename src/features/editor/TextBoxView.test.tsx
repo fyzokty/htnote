@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { VisualEditor } from "./VisualEditor";
 import type { VisualEditorHandle } from "./VisualEditor";
 import { serializeTextBox } from "./textBox";
+import { widgetMotionKey } from "./widgets/widgetMotion";
 import { useEditSession } from "./useEditSession";
 import { resetTabsStoreForTests, useTabsStore } from "@/stores/tabsStore";
 
@@ -38,6 +39,7 @@ describe("TextBoxView", () => {
     try {
       const surface = screen.getByRole("textbox", { name: "Not içeriği" }) as HTMLElement & { editor: Editor };
       const editor = surface.editor;
+      expect(widgetMotionKey.getState(editor.state)!.find()).toHaveLength(0);
       const title = screen.getByTestId("textbox-title");
       const content = screen.getByTestId("textbox-content") as HTMLTextAreaElement;
       fireEvent.change(title, { target: { value: "New title" } });
@@ -71,6 +73,7 @@ describe("TextBoxView", () => {
       expect(screen.getByTestId("insert-textbox")).toHaveFocus();
       fireEvent.keyDown(screen.getByTestId("insert-textbox"), { key: "Enter" });
       expect(editor.state.doc.content.content.filter((node) => node.type.name === "textBox")).toHaveLength(2);
+      expect(widgetMotionKey.getState(editor.state)!.find()).toHaveLength(1);
       fireEvent.keyDown(screen.getAllByRole("button", { name: "Metin kutusunu seç" })[0], { key: "Enter" });
       expect(editor.state.selection.from).toBe(0);
       expect(editor.state.selection.to).toBe(editor.state.doc.firstChild!.nodeSize);

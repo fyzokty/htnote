@@ -5,6 +5,7 @@ import { Network, Info, Eye } from "lucide-react";
 import { calculateIpBlock, IP_PREFIXES } from "./ipBlock";
 import { leaveTextBox, textBoxBoundary } from "./textBox";
 import { WidgetHeader } from "./widgets/WidgetHeader";
+import { useWidgetFeedback } from "./widgets/widgetMotion";
 
 export function IpBlockView({ node, updateAttributes, editor, getPos, selected }: NodeViewProps) {
   const { t, i18n } = useTranslation();
@@ -13,6 +14,7 @@ export function IpBlockView({ node, updateAttributes, editor, getPos, selected }
   const prefix = useRef<HTMLSelectElement>(null);
   const result = calculateIpBlock(String(node.attrs.gateway), Number(node.attrs.prefix));
   const count = new Intl.NumberFormat(i18n.resolvedLanguage).format(result.hosts.length);
+  const { ref: previewRef, markChanged: markPreviewChanged } = useWidgetFeedback<HTMLDivElement>(JSON.stringify([result.error, result.hosts]));
   const history = (event: React.KeyboardEvent) => {
     if ((event.ctrlKey || event.metaKey) && ["z", "y"].includes(event.key.toLowerCase())) {
       event.preventDefault();
@@ -32,7 +34,7 @@ export function IpBlockView({ node, updateAttributes, editor, getPos, selected }
     <div className="htnote-ipblock-editor-fields">
       <label>{t("editor.ipBlock.gateway")}<input ref={gateway} data-testid="ipblock-gateway" value={String(node.attrs.gateway)}
         placeholder={t("ipBlock.placeholder")} spellCheck={false} aria-invalid={!!result.error && result.error !== "empty"} aria-describedby={result.error && result.error !== "empty" ? `${id}-error` : `${id}-help`}
-        onChange={(event) => updateAttributes({ gateway: event.target.value, html: null })}
+        onChange={(event) => { markPreviewChanged(); updateAttributes({ gateway: event.target.value, html: null }); }}
         onKeyDown={(event) => {
           if (event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.nativeEvent.isComposing) return;
           if (event.key === "Enter") { event.preventDefault(); prefix.current?.focus(); return; }
@@ -42,12 +44,12 @@ export function IpBlockView({ node, updateAttributes, editor, getPos, selected }
           if (direction && position !== undefined) { event.preventDefault(); leaveTextBox(editor, position, node.nodeSize, direction); }
         }} /></label>
       <label>{t("editor.ipBlock.prefix")}<select ref={prefix} data-testid="ipblock-prefix" value={Number(node.attrs.prefix)}
-        onChange={(event) => updateAttributes({ prefix: Number(event.target.value), html: null })}>
+        onChange={(event) => { markPreviewChanged(); updateAttributes({ prefix: Number(event.target.value), html: null }); }}>
         {IP_PREFIXES.map((value) => <option key={value} value={value}>{`/${value}`}</option>)}
       </select></label>
     </div>
     <p id={`${id}-help`} className="htnote-ipblock-editor-help"><Info size={14} aria-hidden />{t("editor.ipBlock.help")}</p>
-    <div className="htnote-ipblock-editor-preview">
+    <div ref={previewRef} className="htnote-ipblock-editor-preview">
       <div className="htnote-ipblock-editor-preview-header"><span><Eye size={14} aria-hidden />{t("editor.ipBlock.preview")}</span>
         <span data-testid="ipblock-count">{t("ipBlock.count", { count: result.hosts.length, formattedCount: count })}</span></div>
       {result.error === "empty" ? <p className="htnote-ipblock-empty">{t("ipBlock.empty")}</p> : result.error ? <p id={`${id}-error`} className="htnote-ipblock-error" role="status">{t(`ipBlock.${result.error}`)}</p> : <>

@@ -827,7 +827,7 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 [data-widget-background="sky"] { border-color: color-mix(in srgb, var(--app-note-sky) 75%, var(--app-muted)); }
 [data-widget-background="lavender"] { border-color: color-mix(in srgb, var(--app-note-lavender) 75%, var(--app-muted)); }
 [data-widget-background="charcoal"] { border-color: color-mix(in srgb, var(--app-note-charcoal) 75%, var(--app-muted)); }
-:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) { transition: border-color 150ms ease-out, box-shadow 150ms ease-out; }
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) { transition: background-color var(--app-popover-open-ms) ease-out, border-color var(--app-popover-open-ms) ease-out, box-shadow 150ms ease-out; }
 :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor).is-selected {
   outline: none;
   border-color: var(--app-accent);
@@ -845,10 +845,13 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor).is-selected :is(input, textarea):focus::selection {
   background: color-mix(in srgb, var(--app-accent) 24%, transparent);
 }
-:root[data-reduced-motion="true"] :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) { transition: none; }
+:root[data-reduced-motion="true"] :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor),
+:root[data-reduced-motion="true"] :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) *,
+:root[data-reduced-motion="true"] .htnote-widget-handle { transition: none; animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor),
-  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) *, .htnote-widget-handle { transition: none; animation: none; }
+  :root:not([data-reduced-motion]) :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor),
+  :root:not([data-reduced-motion]) :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) *,
+  :root:not([data-reduced-motion]) .htnote-widget-handle { transition: none; animation: none; }
 }
 @media print {
   :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor).is-selected {
@@ -944,3 +947,41 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 @container widget (max-width:360px) { .htnote-ipblock-editor-fields { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width:480px) { .htnote-ipblock-editor-fields { grid-template-columns: minmax(0, 1fr); } }
 @media print { .htnote-ipblock-editor .htnote-widget-tools { display: none; } }
+
+/* Hareket sınıfları yalnız editör görünümüne aittir; not HTML'ine yazılmaz. */
+.htnote-widget-enter { animation: htnote-widget-enter var(--app-popover-open-ms) var(--app-motion-enter); }
+.htnote-widget-pop { animation: htnote-widget-pop var(--app-popover-open-ms) var(--app-motion-enter); }
+.htnote-widget-feedback { animation: htnote-widget-feedback var(--app-popover-open-ms) var(--app-motion-enter); }
+@keyframes htnote-widget-enter { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes htnote-widget-pop { from { transform: scale(.88); } 55% { transform: scale(1.08); } to { transform: none; } }
+@keyframes htnote-widget-feedback { from { opacity: .55; } to { opacity: 1; } }
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) :is(input, textarea, select) {
+  outline-color: transparent;
+  transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, outline-color 150ms ease-out, box-shadow 150ms ease-out;
+}
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) :is(input:not([type=checkbox]), textarea, select):hover { background-color: var(--app-hover); }
+.htnote-checklist-editor-row input[type=checkbox]::before { transition: opacity 150ms ease-out; }
+.htnote-widget-background-swatch { transition: background-color var(--app-popover-open-ms) ease-out, border-color var(--app-popover-open-ms) ease-out; }
+.htnote-widget-handle:hover { transform: scale(1.03); }
+.htnote-widget-handle:active { transform: scale(.97); cursor: grabbing; }
+.htnote-checklist-remove, .htnote-copyfields-remove { transform: translateX(2px) scale(.97); }
+:is(.htnote-checklist-editor-row, .htnote-copyfields-editor-row):is(:hover, :focus-within) :is(.htnote-checklist-remove, .htnote-copyfields-remove):not(:active) { transform: none; }
+.htnote-calc-editor-results > div, .htnote-ipblock-editor-preview { transition: color 150ms ease-out, border-color 150ms ease-out, background-color 150ms ease-out; }
+:root[data-reduced-motion="true"] :is(.htnote-widget-enter, .htnote-widget-pop, .htnote-widget-feedback),
+:root[data-reduced-motion="true"] .htnote-popover-motion[role=menu],
+:root[data-reduced-motion="true"] .htnote-color-popover.htnote-popover-motion,
+:root[data-reduced-motion="true"] :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) *,
+:root[data-reduced-motion="true"] .htnote-checklist-editor-row input[type=checkbox]::before { animation: none !important; transition: none !important; }
+@media (prefers-reduced-motion: reduce) {
+  :root:not([data-reduced-motion]) :is(.htnote-widget-enter, .htnote-widget-pop, .htnote-widget-feedback),
+  :root:not([data-reduced-motion]) .htnote-popover-motion[role=menu],
+  :root:not([data-reduced-motion]) .htnote-color-popover.htnote-popover-motion,
+  :root:not([data-reduced-motion]) :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) *,
+  :root:not([data-reduced-motion]) .htnote-checklist-editor-row input[type=checkbox]::before { animation: none !important; transition: none !important; }
+}
+@media print {
+  .htnote-widget-enter, .htnote-widget-pop, .htnote-widget-feedback,
+  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor),
+  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) *,
+  .htnote-checklist-editor-row input[type=checkbox]::before { animation: none !important; transition: none !important; }
+}

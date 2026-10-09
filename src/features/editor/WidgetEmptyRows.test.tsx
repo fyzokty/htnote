@@ -1,4 +1,5 @@
 import type { Editor } from "@tiptap/core";
+import { closeHistory } from "@tiptap/pm/history";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { VisualEditor } from "./VisualEditor";
@@ -15,6 +16,29 @@ const widgets = [
 ];
 
 describe("widget empty rows", () => {
+  it.each(widgets)("keeps $kind row removal immediate, undoable and serializable", async ({ kind, field, empty, rows }) => {
+    const { unmount } = render(<VisualEditor initialInner={empty} onChange={vi.fn()} />);
+    const editor = (screen.getByRole("textbox", { name: "Not içeriği" }) as HTMLElement & { editor: Editor }).editor;
+    const fields = () => screen.getAllByTestId(field) as HTMLTextAreaElement[];
+    try {
+      await act(async () => { fireEvent.change(fields()[0], { target: { value: "Kept" } }); });
+      await act(async () => { fireEvent.keyDown(fields()[0], { key: "Enter" }); });
+      await act(async () => { fireEvent.change(fields()[1], { target: { value: "Removed" } }); });
+      const saved = serializeVisualHtml(editor.getHTML());
+      act(() => { editor.view.dispatch(closeHistory(editor.state.tr)); });
+      await act(async () => { fireEvent.click(screen.getByRole("button", { name: kind === "checklist" ? "Madde 2 sil" : "Alan 2 sil" })); });
+      expect(fields()).toHaveLength(1);
+      expect(screen.getAllByTestId(kind === "copyfields" ? "copyfields-label" : field)[0]).toHaveFocus();
+      const widget = classifyTopLevel(serializeVisualHtml(editor.getHTML())).find((block) => block.kind === kind)!;
+      expect(rows(widget.html)).toBe(1);
+      await act(async () => { editor.commands.undo(); });
+      expect(fields()).toHaveLength(2);
+      expect(fields()[1].value).toBe("Removed");
+      expect(serializeVisualHtml(editor.getHTML())).toBe(saved);
+      await act(async () => { editor.commands.redo(); });
+      expect(fields()).toHaveLength(1);
+    } finally { unmount(); }
+  });
   it.each(widgets)("keeps $kind writing rows visible and reopens saved empty lists with one usable row", async ({ kind, field, empty, rows }) => {
     const original = empty.replace(`data-htnote-widget="${kind}"`, `data-htnote-widget='${kind}'`);
     const open = (source: string) => render(<VisualEditor initialInner={source} onChange={vi.fn()} />);
