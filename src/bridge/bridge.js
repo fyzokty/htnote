@@ -111,68 +111,61 @@
   boxStyle.id = "htnote-textbox-base";
   boxStyle.textContent = `
   :where(html){--ht-widget-surface:#ffffff;--ht-widget-text:#0d1c2e;--ht-widget-accent:#4648d4;--ht-widget-border:#7b8598;--ht-widget-divider:#e0e3ee;--ht-widget-muted:#464554;--ht-widget-field:#f8f9ff;--ht-widget-hover:#e6eeff;--ht-note-sepia:#faf3e5;--ht-note-mint:#eaf5ee;--ht-note-rose:#faedf1;--ht-note-sky:#edf4fc;--ht-note-lavender:#f2eefb;--ht-note-charcoal:#e9edf2;}
-  @media(prefers-color-scheme:dark){:where(html:not([data-ht-theme])){--ht-widget-surface:#101623;--ht-widget-text:#f1f5f9;--ht-widget-accent:#a5a6ff;--ht-widget-border:#78849b;--ht-widget-divider:#303647;--ht-widget-muted:#a8b6cc;--ht-widget-field:#0d1220;--ht-widget-hover:#222c40;--ht-note-sepia:#302b23;--ht-note-mint:#23352b;--ht-note-rose:#35252d;--ht-note-sky:#243043;--ht-note-lavender:#2e2940;--ht-note-charcoal:#171d25;}}
-  :where(html[data-ht-theme="dark"]){--ht-widget-surface:#101623;--ht-widget-text:#f1f5f9;--ht-widget-accent:#a5a6ff;--ht-widget-border:#78849b;--ht-widget-divider:#303647;--ht-widget-muted:#a8b6cc;--ht-widget-field:#0d1220;--ht-widget-hover:#222c40;--ht-note-sepia:#302b23;--ht-note-mint:#23352b;--ht-note-rose:#35252d;--ht-note-sky:#243043;--ht-note-lavender:#2e2940;--ht-note-charcoal:#171d25;}
+  @media(prefers-color-scheme:dark){:where(html:not([data-ht-theme])){--ht-widget-shadow:0 10px 25px -4px #00000040,0 4px 10px -2px #00000026;--ht-widget-surface:#101623;--ht-widget-text:#f1f5f9;--ht-widget-accent:#a5a6ff;--ht-widget-border:#78849b;--ht-widget-divider:#303647;--ht-widget-muted:#a8b6cc;--ht-widget-field:#0d1220;--ht-widget-hover:#222c40;--ht-note-sepia:#302b23;--ht-note-mint:#23352b;--ht-note-rose:#35252d;--ht-note-sky:#243043;--ht-note-lavender:#2e2940;--ht-note-charcoal:#171d25;}}
+  :where(html[data-ht-theme="dark"]){--ht-widget-shadow:0 10px 25px -4px #00000040,0 4px 10px -2px #00000026;--ht-widget-surface:#101623;--ht-widget-text:#f1f5f9;--ht-widget-accent:#a5a6ff;--ht-widget-border:#78849b;--ht-widget-divider:#303647;--ht-widget-muted:#a8b6cc;--ht-widget-field:#0d1220;--ht-widget-hover:#222c40;--ht-note-sepia:#302b23;--ht-note-mint:#23352b;--ht-note-rose:#35252d;--ht-note-sky:#243043;--ht-note-lavender:#2e2940;--ht-note-charcoal:#171d25;}
 
 /* Dar ekranda taşınabilir inline grid yalnız burada ezilir; yazdırmada ızgara korunur. */
 :where(.htnote-board-cell){min-width:0}
 :where(.htnote-board-cell > :first-child){margin-top:0}
 :where(.htnote-board-cell > :last-child){margin-bottom:0}
 @media screen and (max-width:560px){:where(.htnote-board){display:block!important}:where(.htnote-board-cell + .htnote-board-cell){margin-top:16px}}
-:where(.htnote-textbox){position:relative;box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:12px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff)}
+:where(.htnote-textbox){position:relative;box-sizing:border-box;margin:1em 0;padding:20px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:16px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);box-shadow:var(--ht-widget-shadow,0 10px 25px -4px #4755690f,0 4px 10px -2px #6366f10a);font-family:var(--ht-font,system-ui,sans-serif)}
 :where(.htnote-textbox-input){box-sizing:border-box;width:100%;padding:8px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff)}
-:where(.htnote-textbox-title){font-weight:700;min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
-:where(.htnote-textbox-input){display:block;min-height:4.8em;field-sizing:content;resize:vertical;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;overflow-y:hidden}
+:where(.htnote-textbox-title){font:600 18px/1.4 var(--ht-font,system-ui,sans-serif);min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+:where(.htnote-textbox-input){display:block;min-height:4.8em;field-sizing:content;resize:vertical;font:15px/1.6 var(--ht-font,system-ui,sans-serif);overflow-y:hidden}
 :where(.htnote-textbox-input:focus-visible){outline:2px solid var(--ht-widget-accent,#4648d4);outline-offset:2px}
 
-  :where([data-htnote-widget][data-htnote-bg="sepia"]){background:var(--ht-note-sepia);}
-  :where([data-htnote-widget][data-htnote-bg="mint"]){background:var(--ht-note-mint);}
-  :where([data-htnote-widget][data-htnote-bg="rose"]){background:var(--ht-note-rose);}
-  :where([data-htnote-widget][data-htnote-bg="sky"]){background:var(--ht-note-sky);}
-  :where([data-htnote-widget][data-htnote-bg="lavender"]){background:var(--ht-note-lavender);}
-  :where([data-htnote-widget][data-htnote-bg="charcoal"]){background:var(--ht-note-charcoal);}
-  :where(.htnote-widget-header){display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:8px;font-family:var(--ht-font,system-ui,sans-serif)}
-  :where(.htnote-widget-type){display:inline-flex;align-items:center;gap:6px;min-width:0;color:var(--ht-widget-muted,#464554);font-size:11px;font-weight:700;letter-spacing:.04em}
+  :where(.htnote-widget-header){display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;padding-bottom:12px;margin-bottom:12px;border-bottom:1px solid var(--ht-widget-divider);font-family:var(--ht-font,system-ui,sans-serif)}
+  :where(.htnote-widget-heading){display:flex;flex-direction:column;gap:6px;min-width:0;flex:1}
+  :where(.htnote-widget-heading > div){margin:0}
+  :where(.htnote-widget-type){display:inline-flex;align-items:center;gap:6px;min-width:0;color:var(--ht-widget-muted,#464554);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
   :where(.htnote-widget-type svg){width:14px;height:14px;flex-shrink:0;color:var(--ht-widget-accent,#4648d4)}
   :where(.htnote-widget-actions){display:flex;flex-shrink:0;flex-wrap:wrap;gap:4px;font:12px/1.4 var(--ht-font,system-ui,sans-serif)}
-  .htnote-widget-actions button{border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;padding:4px 8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);cursor:pointer}
-  .htnote-widget-actions button:hover{background:var(--ht-widget-hover,#e6eeff)}
-  .htnote-widget-actions button:disabled{opacity:.45;cursor:default}
-  .htnote-widget-actions button:focus-visible{outline:2px solid var(--ht-widget-accent,#4648d4);outline-offset:2px}
-  .htnote-widget-actions button[data-feedback="copied"]{color:var(--ht-widget-accent,#4648d4)}
-:where(.htnote-checklist){box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border);border-radius:12px;color:var(--ht-widget-text);background:var(--ht-widget-surface)}
-:where(.htnote-checklist-title){font-weight:700;min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+  :where(.htnote-widget-actions button){border:1px solid color-mix(in srgb,var(--ht-widget-divider,#e0e3ee) 85%,var(--ht-widget-muted,#464554));border-radius:8px;padding:6px 8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);cursor:pointer}
+  :where(.htnote-widget-actions button:focus-visible){outline:2px solid var(--ht-widget-accent,#4648d4);outline-offset:2px}
+  :where(.htnote-widget-actions button[data-feedback="copied"]){color:var(--ht-widget-accent,#4648d4)}
+:where(.htnote-checklist){box-sizing:border-box;margin:1em 0;padding:20px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:16px;color:var(--ht-widget-text);background:var(--ht-widget-surface);box-shadow:var(--ht-widget-shadow,0 10px 25px -4px #4755690f,0 4px 10px -2px #6366f10a);font-family:var(--ht-font,system-ui,sans-serif)}
+:where(.htnote-checklist-title){font:600 18px/1.4 var(--ht-font,system-ui,sans-serif);min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
 :where(.htnote-checklist-items){list-style:none;margin:0;padding:0}
 :where(.htnote-checklist-items li){padding:10px 0;border-top:1px solid var(--ht-widget-divider);overflow-wrap:anywhere}
-:where(.htnote-checklist-items label){cursor:pointer}
-:where(.htnote-checklist-items input){appearance:auto;width:16px;height:16px;vertical-align:middle;accent-color:var(--ht-widget-accent)}
+:where(.htnote-checklist-items label){cursor:pointer;font-size:15px;transition:color calc(180ms * (1 - var(--ht-reduced-motion,0))) ease-out,text-decoration-color calc(180ms * (1 - var(--ht-reduced-motion,0))) ease-out;text-decoration:line-through;text-decoration-color:transparent}
+:where(.htnote-checklist-items input){appearance:auto;width:16px;height:16px;vertical-align:middle;border-radius:4px;accent-color:var(--ht-widget-accent)}
 :where(.htnote-checklist-items input:focus-visible){outline:2px solid var(--ht-widget-accent);outline-offset:2px}
-  :where(.htnote-checklist-summary){padding:8px 0 14px;border-top:1px solid var(--ht-widget-divider);color:var(--ht-widget-accent);font-size:12px}
+  :where(.htnote-checklist-summary){padding:0 0 14px;color:var(--ht-widget-accent);font-size:12px}
   :where(.htnote-checklist-summary > span){display:block;text-align:right;margin-bottom:6px}
-  :where(.htnote-checklist-progress){height:5px;border:1px solid var(--ht-widget-border);border-radius:8px;background:var(--ht-widget-field);overflow:hidden}
-  :where(.htnote-checklist-progress > div){height:100%;background:var(--ht-widget-accent)}
-  :where(.htnote-checklist-done){color:var(--ht-widget-muted);text-decoration:line-through}
+  :where(.htnote-checklist-progress){height:6px;border:0;border-radius:999px;background:var(--ht-widget-divider);overflow:hidden}
+  :where(.htnote-checklist-progress > div){height:100%;border-radius:inherit;background:var(--ht-widget-accent);transition:width calc(300ms * (1 - var(--ht-reduced-motion,0))) ease-out}
+  :where(.htnote-checklist-done){color:color-mix(in srgb,var(--ht-widget-muted) 75%,transparent);text-decoration-color:currentColor}
 
-:where(.htnote-copyfields){box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:12px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff)}
-:where(.htnote-copyfields-title){font-weight:700;min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+:where(.htnote-copyfields){box-sizing:border-box;margin:1em 0;padding:20px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:16px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);box-shadow:var(--ht-widget-shadow,0 10px 25px -4px #4755690f,0 4px 10px -2px #6366f10a);font-family:var(--ht-font,system-ui,sans-serif)}
+:where(.htnote-copyfields-title){font:600 18px/1.4 var(--ht-font,system-ui,sans-serif);min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
 :where(.htnote-copyfields-list){margin:0;padding:0}
-:where(.htnote-copyfields-row){display:grid;grid-template-columns:minmax(0,1fr) minmax(0,4fr) auto;align-items:center;gap:8px;padding:8px 0;border-top:1px solid var(--ht-widget-divider,#e0e3ee)}
-:where(.htnote-copyfields-row dt){font-weight:700;overflow-wrap:anywhere}
-:where(.htnote-copyfields-row dd){min-width:0;margin:0;padding:8px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff);font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
-  .htnote-copyfields-copy{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--ht-widget-border);border-radius:8px;padding:6px;color:var(--ht-widget-text);background:var(--ht-widget-surface);cursor:pointer}
-  .htnote-copyfields-copy svg{width:15px;height:15px;flex-shrink:0}
-  .htnote-copyfields-copy:hover{background:var(--ht-widget-hover)}
-  .htnote-copyfields-copy:focus-visible{outline:2px solid var(--ht-widget-accent);outline-offset:2px}
-  .htnote-copyfields-copy[data-feedback="copied"]{color:var(--ht-widget-accent)}
+:where(.htnote-copyfields-row){display:grid;grid-template-columns:minmax(0,120px) minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border:1px solid var(--ht-widget-row-border,var(--ht-widget-divider,#e0e3ee));border-radius:8px;background:color-mix(in srgb,var(--ht-widget-surface,#ffffff) 65%,transparent)}
+:where(.htnote-copyfields-row dt){font-size:14px;font-weight:500;overflow-wrap:anywhere}
+:where(.htnote-copyfields-row dd){min-width:0;margin:0;padding:4px 8px;border:1px solid var(--ht-widget-divider,#e0e3ee);justify-self:start;max-width:100%;box-sizing:border-box;border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff);font:14px/1.6 "Cascadia Code","Cascadia Mono",Consolas,ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
+  :where(.htnote-copyfields-copy){display:inline-flex;align-items:center;gap:6px;border:1px solid color-mix(in srgb,var(--ht-widget-divider) 85%,var(--ht-widget-muted));border-radius:8px;padding:6px;color:var(--ht-widget-text);background:var(--ht-widget-surface);cursor:pointer}
+  :where(.htnote-copyfields-copy svg){width:15px;height:15px;flex-shrink:0}
+  :where(.htnote-copyfields-copy:focus-visible){outline:2px solid var(--ht-widget-accent);outline-offset:2px}
+  :where(.htnote-copyfields-copy[data-feedback="copied"]){color:var(--ht-widget-accent)}
   @media(max-width:480px){:where(.htnote-copyfields-row){grid-template-columns:minmax(0,1fr) auto}:where(.htnote-copyfields-row dt){grid-column:1/-1}}
 
-:where(.htnote-template){container-type:inline-size;box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:12px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff)}
-:where(.htnote-template-title){font-weight:700;min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+:where(.htnote-template){container-type:inline-size;box-sizing:border-box;margin:1em 0;padding:20px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:16px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);box-shadow:var(--ht-widget-shadow,0 10px 25px -4px #4755690f,0 4px 10px -2px #6366f10a);font-family:var(--ht-font,system-ui,sans-serif)}
+:where(.htnote-template-title){font:600 18px/1.4 var(--ht-font,system-ui,sans-serif);min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
 :where(.htnote-template-source){display:block;box-sizing:border-box;width:100%;min-height:4.8em;padding:8px;border:1px solid var(--ht-widget-border,#7b8598);border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff);field-sizing:content;resize:vertical;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
 :where(.htnote-template-source:focus-visible){outline:2px solid var(--ht-widget-accent,#4648d4);outline-offset:2px}
 
   .htnote-template-source[hidden],.htnote-template-fields[hidden]{display:none!important}
-  :where(.htnote-template-layout){display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:16px;padding-top:16px;border-top:1px solid var(--ht-widget-divider)}
+  :where(.htnote-template-layout){display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:16px}
   :where(.htnote-template-layout:has(.htnote-template-fields[hidden])){grid-template-columns:minmax(0,1fr)}
   :where(.htnote-template-fields){display:flex;flex-direction:column;gap:12px;min-width:0}
   :where(.htnote-template-fields label){display:block;margin-bottom:4px;color:var(--ht-widget-muted);font:12px/1.4 var(--ht-font,system-ui,sans-serif);overflow-wrap:anywhere}
@@ -183,21 +176,21 @@
   :where(.htnote-template-preview){white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace}
   :where(.htnote-template-value){border-radius:4px;color:var(--ht-widget-accent);background:color-mix(in srgb,var(--ht-widget-accent) 15%,transparent);box-decoration-break:clone;padding:1px 3px}
   :where(.htnote-template-placeholder){border:1px dashed var(--ht-widget-border);border-radius:4px;color:var(--ht-widget-muted);padding:1px 3px}
-  .htnote-widget-actions .htnote-template-copy{color:var(--ht-widget-accent);background:color-mix(in srgb,var(--ht-widget-accent) 12%,var(--ht-widget-surface))}
+  :where(.htnote-widget-actions .htnote-template-copy){border-color:color-mix(in srgb,var(--ht-widget-accent) 30%,var(--ht-widget-divider));color:var(--ht-widget-accent);background:color-mix(in srgb,var(--ht-widget-accent) 12%,var(--ht-widget-surface))}
   @container(max-width:600px){:where(.htnote-template-layout){grid-template-columns:minmax(0,1fr)}}
   @media(max-width:600px){:where(.htnote-template-layout){grid-template-columns:minmax(0,1fr)}}
   @media print{.htnote-template .htnote-widget-header,.htnote-template-title,.htnote-template-source,.htnote-template-fields,.htnote-template-preview-heading{display:none!important}.htnote-template-layout{display:block!important}.htnote-template-panel{border:0!important;padding:0!important;background:transparent!important}}
   ${printing ? ".htnote-template .htnote-widget-header,.htnote-template-title,.htnote-template-source,.htnote-template-fields,.htnote-template-preview-heading{display:none!important}.htnote-template-layout{display:block!important}.htnote-template-panel{border:0!important;padding:0!important;background:transparent!important}" : ""}
 
-:where(.htnote-calc){container-type:inline-size;container-name:widget;box-sizing:border-box;margin:1em 0;padding:12px;border:1px solid var(--ht-widget-border);border-radius:12px;color:var(--ht-widget-text);background:var(--ht-widget-surface)}
-:where(.htnote-calc-title){font-weight:700;min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
+:where(.htnote-calc){container-type:inline-size;container-name:widget;box-sizing:border-box;margin:1em 0;padding:20px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:16px;color:var(--ht-widget-text);background:var(--ht-widget-surface);box-shadow:var(--ht-widget-shadow,0 10px 25px -4px #4755690f,0 4px 10px -2px #6366f10a);font-family:var(--ht-font,system-ui,sans-serif)}
+:where(.htnote-calc-title){font:600 18px/1.4 var(--ht-font,system-ui,sans-serif);min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
 :where(.htnote-calc-lines){display:grid;grid-template-columns:minmax(0,1fr) 12ch;border:1px solid var(--ht-widget-border);border-radius:8px;background:var(--ht-widget-field);overflow:hidden}
 :where(.htnote-calc-input){display:block;box-sizing:border-box;width:100%;min-width:0;min-height:4.8em;padding:8px;border:0;border-radius:0;color:var(--ht-widget-text);background:var(--ht-widget-field);field-sizing:fixed;resize:none;white-space:pre;overflow-x:auto;font:13px/21px ui-monospace,SFMono-Regular,Consolas,monospace}
 :where(.htnote-calc-input:focus-visible){outline:2px solid var(--ht-widget-accent);outline-offset:-2px}
 :where(.htnote-calc-results){padding:8px;border-left:1px solid var(--ht-widget-divider);overflow:hidden;text-align:right;font:13px/21px ui-monospace,SFMono-Regular,Consolas,monospace}
 :where(.htnote-calc-results>div){height:21px;white-space:nowrap}
 :where(.htnote-calc-error){color:var(--ht-widget-muted)}
-:where(.htnote-calc-total){display:flex;justify-content:space-between;gap:12px;margin-top:12px;padding-top:12px;border-top:1px solid var(--ht-widget-divider)}
+:where(.htnote-calc-total){display:flex;justify-content:space-between;gap:12px;margin-top:16px;padding:12px;border:1px solid color-mix(in srgb,var(--ht-widget-accent) 30%,var(--ht-widget-divider));border-radius:8px;background:color-mix(in srgb,var(--ht-widget-accent) 8%,var(--ht-widget-surface))}
 :where(.htnote-calc-total strong:last-child){color:var(--ht-widget-accent);font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
 :where([data-htnote-widget]){min-width:0;max-width:100%;overflow-wrap:anywhere}
 :where(.htnote-textbox-input,.htnote-template-source){min-width:0}
@@ -217,7 +210,35 @@
 .htnote-calc-print span{text-align:right;white-space:pre-wrap;overflow-wrap:anywhere}
 @media print{.htnote-calc-lines{display:none!important}.htnote-calc-print{display:block!important}}
 ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{display:block!important}" : ""}
-  .htnote-textbox-print{display:none;white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.6 ui-monospace,SFMono-Regular,Consolas,monospace;margin:0}
+  :where(.htnote-textbox-print){display:none;white-space:pre-wrap;overflow-wrap:anywhere;font:15px/1.6 var(--ht-font,system-ui,sans-serif);margin:0}
+  :where(.htnote-widget-actions button,.htnote-copyfields-copy){position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;min-height:30px;font:12px/1.4 var(--ht-font,system-ui,sans-serif);transition:background-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,border-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,transform calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out}
+  :where(.htnote-widget-actions button:not(:disabled):hover,.htnote-copyfields-copy:not(:disabled):hover){background:var(--ht-widget-hover);border-color:var(--ht-widget-accent);color:var(--ht-widget-accent)}
+  :where(.htnote-widget-actions button:not(:disabled):active,.htnote-copyfields-copy:not(:disabled):active){transform:scale(.97)}
+  :where(.htnote-widget-actions button:disabled,.htnote-copyfields-copy:disabled){opacity:.5;cursor:default}
+  :where(.htnote-widget-actions button > svg){width:15px;height:15px;flex-shrink:0}
+  :where(.htnote-copyfields-copy > .htnote-widget-label){display:none}
+  :where(.htnote-widget-copy-icons){display:grid;width:15px;height:15px;flex-shrink:0}
+  :where(.htnote-widget-copy-icons svg){grid-area:1/1;width:15px;height:15px;transition:opacity calc(180ms * (1 - var(--ht-reduced-motion,0))) ease-out,transform calc(180ms * (1 - var(--ht-reduced-motion,0))) ease-out}
+  :where(.htnote-widget-copy-icons svg:last-child){opacity:0;transform:scale(.8)}
+  :where([data-feedback="copied"] > .htnote-widget-copy-icons svg:first-child){opacity:0;transform:scale(.8)}
+  :where([data-feedback="copied"] > .htnote-widget-copy-icons svg:last-child){opacity:1;transform:scale(1)}
+  :where(.htnote-widget-feedback){position:absolute;z-index:1;right:calc(100% + 6px);top:50%;display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border:1px solid var(--ht-widget-divider);border-radius:999px;background:var(--ht-widget-surface);color:var(--ht-widget-accent);white-space:nowrap;pointer-events:none;opacity:0;transform:translate(4px,-50%) scale(.96);transition:opacity calc(180ms * (1 - var(--ht-reduced-motion,0))) ease-out,transform calc(180ms * (1 - var(--ht-reduced-motion,0))) ease-out}
+  :where(.htnote-widget-feedback svg){width:13px;height:13px;flex-shrink:0}
+  :where([data-feedback="copied"] > .htnote-widget-feedback,[data-feedback="copyFailed"] > .htnote-widget-feedback){opacity:1;transform:translate(0,-50%) scale(1)}
+  :where(.htnote-copyfields-row){transition:border-color calc(180ms * (1 - var(--ht-reduced-motion,0))) ease-out}
+  :where(.htnote-copyfields-row:has([data-feedback="copied"])){--ht-widget-row-border:var(--ht-widget-accent)}
+  :where([data-htnote-widget][data-htnote-bg="sepia"]){background:var(--ht-note-sepia);border-color:color-mix(in srgb,var(--ht-note-sepia) 75%,var(--ht-widget-muted));}
+  :where([data-htnote-widget][data-htnote-bg="mint"]){background:var(--ht-note-mint);border-color:color-mix(in srgb,var(--ht-note-mint) 75%,var(--ht-widget-muted));}
+  :where([data-htnote-widget][data-htnote-bg="rose"]){background:var(--ht-note-rose);border-color:color-mix(in srgb,var(--ht-note-rose) 75%,var(--ht-widget-muted));}
+  :where([data-htnote-widget][data-htnote-bg="sky"]){background:var(--ht-note-sky);border-color:color-mix(in srgb,var(--ht-note-sky) 75%,var(--ht-widget-muted));}
+  :where([data-htnote-widget][data-htnote-bg="lavender"]){background:var(--ht-note-lavender);border-color:color-mix(in srgb,var(--ht-note-lavender) 75%,var(--ht-widget-muted));}
+  :where([data-htnote-widget][data-htnote-bg="charcoal"]){background:var(--ht-note-charcoal);border-color:color-mix(in srgb,var(--ht-note-charcoal) 75%,var(--ht-widget-muted));}
+  :where(.htnote-checklist-items input){appearance:none;display:inline-grid;place-content:center;box-sizing:border-box;cursor:pointer;border:1px solid var(--ht-widget-border);background:var(--ht-widget-field)}
+  :where(.htnote-checklist-items input:checked){background:var(--ht-widget-accent);border-color:var(--ht-widget-accent)}
+  :where(.htnote-checklist-items input)::before{content:"";width:8px;height:4px;border-left:2px solid var(--ht-widget-surface);border-bottom:2px solid var(--ht-widget-surface);transform:translateY(-1px) rotate(-45deg);opacity:0}
+  :where(.htnote-checklist-items input:checked)::before{opacity:1}
+  @media print,(forced-colors:active){:where(.htnote-checklist-items input){appearance:auto}:where(.htnote-checklist-items input)::before{display:none}}
+  @media(prefers-reduced-motion:reduce){:where([data-htnote-widget] *){transition:none;animation:none}}
   @media print{.htnote-widget-actions,.htnote-copyfields-copy,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}.htnote-textbox-title{padding-right:0}.htnote-textbox{break-inside:auto}}
   ${printing ? ".htnote-widget-actions,.htnote-copyfields-copy,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}" : ""}
   `;
@@ -236,13 +257,17 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     return svg;
   }
   function createWidgetHeader(box, labelKey, iconPaths, actions) {
-    const header = document.createElement("div"), type = document.createElement("span"), label = document.createElement("span");
+    const header = document.createElement("div"), type = document.createElement("span"), label = document.createElement("span"), heading = document.createElement("div");
     header.className = "htnote-widget-header";
     header.dataset.htnoteWidgetHeader = "true";
     type.className = "htnote-widget-type";
     const svg = createWidgetIcon(iconPaths);
     type.append(svg, label);
-    header.append(type, actions);
+    heading.className = "htnote-widget-heading";
+    const title = box.querySelector(`:scope > .htnote-${box.dataset.htnoteWidget}-title`);
+    heading.append(type);
+    if (title) heading.append(title);
+    header.append(heading, actions);
     box.prepend(header);
     return () => {
       const text = boxLabels[labelKey] || "";
@@ -280,22 +305,45 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     }
     return copied;
   }
+  function bindWidgetReset(button, labelKey) {
+    const label = document.createElement("span");
+    button.append(createWidgetIcon(["M3 11a9 9 0 1 1 2.5 6.2", "M3 4v7h7"]), label);
+    return () => { const text = boxLabels[labelKey] || ""; if (label.textContent !== text) label.textContent = text; };
+  }
   function bindWidgetCopy(button, labelKey, getValue, sourceInput, options = {}) {
-    let feedback = labelKey, timer;
+    let feedback = labelKey, timer, fadeTimer;
+    const label = document.createElement("span"), icons = document.createElement("span"), pill = document.createElement("span"), pillLabel = document.createElement("span"), status = document.createElement("span");
+    label.className = "htnote-widget-label"; label.setAttribute("aria-hidden", "true");
+    icons.className = "htnote-widget-copy-icons";
+    icons.append(createWidgetIcon(["M9 9h12v12H9z", "M5 15H3V3h12v2"]), createWidgetIcon(["m5 12 4 4L19 6"]));
+    pill.className = "htnote-widget-feedback"; pill.setAttribute("aria-hidden", "true");
+    pill.append(createWidgetIcon(["m5 12 4 4L19 6"]), pillLabel);
+    status.className = "htnote-widget-status";
+    status.style.cssText = "position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap";
+    button.append(icons, label, pill, status);
     const update = () => {
-      const label = boxLabels[feedback] || "";
-      if (options.render) options.render(feedback, label);
-      else if (button.textContent !== label) button.textContent = label;
+      const baseLabel = labelKey === "copyRow" ? "" : boxLabels[labelKey] || "";
+      if (label.textContent !== baseLabel) label.textContent = baseLabel;
+      if (labelKey !== "copyRow") button.setAttribute("aria-label", baseLabel);
+      const text = feedback === labelKey ? "" : boxLabels[feedback] || "";
+      if (status.textContent !== text) status.textContent = text;
+      // Görsel metin çıkış geçişinde kalır; canlı bölge 1,5 saniyede temizlenir.
+      if (text && pillLabel.textContent !== text) pillLabel.textContent = text;
+      if (text) pill.firstElementChild.style.display = feedback === "copyFailed" ? "none" : "";
       button.dataset.feedback = feedback;
     };
     button.setAttribute("aria-live", "polite");
+    button.setAttribute("aria-atomic", "true");
     button.addEventListener("mousedown", (event) => event.preventDefault());
     const copy = async () => {
       if (options.canCopy && !options.canCopy()) return;
       const copied = await copyWidgetText(getValue(), sourceInput);
       feedback = copied ? "copied" : "copyFailed";
-      clearTimeout(timer); update();
-      timer = setTimeout(() => { feedback = labelKey; update(); }, 1500);
+      clearTimeout(timer); clearTimeout(fadeTimer); update();
+      timer = setTimeout(() => {
+        feedback = labelKey; update();
+        fadeTimer = setTimeout(() => { if (pillLabel.textContent) pillLabel.textContent = ""; }, 180);
+      }, 1500);
     };
     button.addEventListener("click", copy);
     options.doubleClickTarget?.addEventListener("dblclick", copy);
@@ -311,6 +359,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     copy.type = reset.type = "button";
     copy.dataset.testid = "textbox-copy"; reset.dataset.testid = "textbox-reset";
     actions.append(copy, reset);
+    const updateReset = bindWidgetReset(reset, "reset");
     const updateHeader = createWidgetHeader(box, "textboxType", ["M5 4h14", "M12 4v16", "M8 20h8"], actions);
     const mirror = document.createElement("pre");
     mirror.className = "htnote-textbox-print";
@@ -319,7 +368,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     const update = () => {
       updateHeader();
       updateCopy();
-      if (reset.textContent !== (boxLabels.reset || "")) reset.textContent = boxLabels.reset || "";
+      updateReset();
       reset.disabled = input.value === input.defaultValue;
       // Aynı metin gözlemci döngüsü oluşturmasın.
       if (mirror.textContent !== input.value) mirror.textContent = input.value;
@@ -345,6 +394,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     reset.type = copy.type = "button";
     reset.dataset.testid = "checklist-reset"; copy.dataset.testid = "checklist-copy";
     actions.append(reset, copy);
+    const updateReset = bindWidgetReset(reset, "checklistReset");
     const updateHeader = createWidgetHeader(box, "checklistType", ["m3 5 2 2 4-4", "M13 6h8", "m3 12 2 2 4-4", "M13 13h8", "M5 20h.01", "M13 20h8"], actions);
     const summary = document.createElement("div"), counter = document.createElement("span"), progress = document.createElement("div"), fill = document.createElement("div");
     summary.className = "htnote-checklist-summary";
@@ -373,7 +423,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
         input.parentElement.classList.toggle("htnote-checklist-done", input.checked);
       });
       reset.disabled = rows.every((input) => input.checked === input.defaultChecked);
-      if (reset.textContent !== (boxLabels.checklistReset || "")) reset.textContent = boxLabels.checklistReset || "";
+      updateReset();
       updateCopy();
     };
     reset.addEventListener("click", () => { inputs().forEach((input) => { input.checked = input.defaultChecked; }); update(); });
@@ -408,21 +458,12 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
           return;
         }
         if (!bindings.has(row)) {
-          const button = document.createElement("button"), status = document.createElement("span");
-          const icon = createWidgetIcon(["M9 9h12v12H9z", "M5 15H3V3h12v2"]);
+          const button = document.createElement("button");
           button.type = "button"; button.className = "htnote-copyfields-copy"; button.dataset.testid = "copyfields-copy-row";
-          button.append(icon, status); row.append(button);
-          let previousFeedback, previousLabel;
+          row.append(button);
           const updateRow = bindWidgetCopy(button, "copyRow", () => value.textContent, null, {
             doubleClickTarget: value,
             canCopy: () => !!value.textContent.trim(),
-            render: (feedback, text) => {
-              if (previousFeedback === feedback && previousLabel === text) return;
-              previousFeedback = feedback; previousLabel = text;
-              // Geçici durum yalnız eylemde görünür; kayıtlı dt/dd metnine dokunulmaz.
-              icon.replaceChildren(...createWidgetIcon(feedback === "copied" ? ["m5 12 4 4L19 6"] : ["M9 9h12v12H9z", "M5 15H3V3h12v2"]).childNodes);
-              status.textContent = feedback === "copyRow" ? "" : text;
-            },
           });
           bindings.set(row, { button, update: updateRow });
         }
@@ -451,6 +492,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     copy.dataset.testid = "template-copy"; reset.dataset.testid = "template-reset";
     copy.className = "htnote-template-copy";
     actions.append(copy);
+    const updateReset = bindWidgetReset(reset, "templateReset");
     const updateHeader = createWidgetHeader(box, "templateType", ["M14 2H6v20h12V6z", "M14 2v6h4", "M8 13h8", "M8 17h8"], actions);
     const layout = document.createElement("div"), fields = document.createElement("div"), panel = document.createElement("div");
     const heading = document.createElement("span"), preview = document.createElement("div");
@@ -480,7 +522,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     };
     const update = () => {
       updateHeader(); updateCopy();
-      if (reset.textContent !== (boxLabels.templateReset || "")) reset.textContent = boxLabels.templateReset || "";
+      updateReset();
       if (heading.textContent !== (boxLabels.templatePreview || "")) heading.textContent = boxLabels.templatePreview || "";
       if (savedSource !== source.defaultValue) {
         savedSource = source.defaultValue;
@@ -515,6 +557,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     copy.type = reset.type = "button";
     copy.dataset.testid = "calc-copy"; reset.dataset.testid = "calc-reset";
     actions.append(copy, reset);
+    const updateReset = bindWidgetReset(reset, "calcReset");
     const updateHeader = createWidgetHeader(box, "calcType", ["M6 2h12v20H6z", "M9 6h6", "M9 10h.01", "M15 10h.01", "M9 14h.01", "M15 14v4", "M9 18h.01"], actions);
     const layout = document.createElement("div"), results = document.createElement("div"), mirror = document.createElement("div");
     const totalRow = document.createElement("div"), totalLabel = document.createElement("strong"), totalValue = document.createElement("strong"), limit = document.createElement("p");
@@ -529,7 +572,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     const updateCopy = bindWidgetCopy(copy, "calcCopyTotal", () => calculation.formattedTotal);
     const update = () => {
       updateHeader(); updateCopy();
-      if (reset.textContent !== (boxLabels.calcReset || "")) reset.textContent = boxLabels.calcReset || "";
+      updateReset();
       if (totalLabel.textContent !== (boxLabels.calcTotal || "")) totalLabel.textContent = boxLabels.calcTotal || "";
       input.setAttribute("aria-label", boxLabels.calcContent || "");
       reset.disabled = input.value === input.defaultValue;

@@ -35,14 +35,16 @@ export function ChecklistView({ node, updateAttributes, editor, getPos, selected
     }
   };
   return <NodeViewWrapper className={`htnote-checklist-editor${selected ? " is-selected" : ""}`} contentEditable={false}
+    data-widget-background={node.attrs.background || undefined}
     style={{ background: node.attrs.background ? `var(--app-note-${node.attrs.background})` : undefined }} onKeyDown={history}>
     <WidgetHeader icon={<ListChecks size={14} />} label={t("widgetTypes.checklist")} background={node.attrs.background}
       onBackgroundChange={(background) => updateAttributes({ background })} selectLabel={t("editor.checklist.select")}
-      onSelect={() => { const position = getPos(); if (position !== undefined) editor.chain().focus().setNodeSelection(position).run(); }} />
-    <input ref={title} className="htnote-checklist-editor-title" data-testid="checklist-title" aria-label={t("editor.checklist.title")}
-      placeholder={t("editor.checklist.title")} value={String(node.attrs.title)} spellCheck={false}
-      onChange={(event) => updateAttributes({ title: event.target.value, html: null })}
-      onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); if (items.length) fields.current[0]?.focus(); else add(0); } }} />
+      onSelect={() => { const position = getPos(); if (position !== undefined) editor.chain().focus().setNodeSelection(position).run(); }}>
+      <input ref={title} className="htnote-checklist-editor-title" data-testid="checklist-title" aria-label={t("editor.checklist.title")}
+        placeholder={t("editor.checklist.title")} value={String(node.attrs.title)} spellCheck={false}
+        onChange={(event) => updateAttributes({ title: event.target.value, html: null })}
+        onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); if (items.length) fields.current[0]?.focus(); else add(0); } }} />
+    </WidgetHeader>
     <div className="htnote-checklist-editor-items">
       {items.map((item, index) => <div className="htnote-checklist-editor-row" key={index}>
         <input type="checkbox" aria-label={t("editor.checklist.checked", { index: index + 1 })} checked={item.checked}

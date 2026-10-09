@@ -35,14 +35,16 @@ export function CopyFieldsView({ node, updateAttributes, editor, getPos, selecte
     }
   };
   return <NodeViewWrapper className={`htnote-copyfields-editor${selected ? " is-selected" : ""}`} contentEditable={false}
+    data-widget-background={node.attrs.background || undefined}
     style={{ background: node.attrs.background ? `var(--app-note-${node.attrs.background})` : undefined }} onKeyDown={history}>
     <WidgetHeader icon={<ClipboardList size={14} />} label={t("widgetTypes.copyfields")} background={node.attrs.background}
       onBackgroundChange={(background) => updateAttributes({ background })} selectLabel={t("editor.copyFields.select")}
-      onSelect={() => { const position = getPos(); if (position !== undefined) editor.chain().focus().setNodeSelection(position).run(); }} />
-    <input ref={title} className="htnote-copyfields-editor-title" data-testid="copyfields-title" aria-label={t("editor.copyFields.title")}
-      placeholder={t("editor.copyFields.title")} value={String(node.attrs.title)} spellCheck={false}
-      onChange={(event) => updateAttributes({ title: event.target.value, html: null })}
-      onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); if (fields.length) inputs.current[0]?.focus(); else add(0); } }} />
+      onSelect={() => { const position = getPos(); if (position !== undefined) editor.chain().focus().setNodeSelection(position).run(); }}>
+      <input ref={title} className="htnote-copyfields-editor-title" data-testid="copyfields-title" aria-label={t("editor.copyFields.title")}
+        placeholder={t("editor.copyFields.title")} value={String(node.attrs.title)} spellCheck={false}
+        onChange={(event) => updateAttributes({ title: event.target.value, html: null })}
+        onKeyDown={(event) => { if (event.key === "Enter" && !event.nativeEvent.isComposing) { event.preventDefault(); if (fields.length) inputs.current[0]?.focus(); else add(0); } }} />
+    </WidgetHeader>
     <div className="htnote-copyfields-editor-fields">
       {fields.map((field, index) => <div className="htnote-copyfields-editor-row" key={index}>
         {(["label", "value"] as const).map((column, at) => <SingleLineTextarea key={column} ref={(input) => { inputs.current[index * 2 + at] = input; }}

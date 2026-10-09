@@ -5,6 +5,11 @@ import { evaluateCalc, serializeCalc } from "@/features/editor/calc";
 import source from "./bridge.js?raw";
 import { writeNoteBackground } from "@/features/viewer/noteAppearance";
 
+// Sabit eylem etiketi ve geçici canlı geri bildirim ayrı DOM öğelerindedir.
+function copyButtonText(button: Element | null): string {
+  return button?.querySelector(".htnote-widget-status")?.textContent || button?.querySelector(".htnote-widget-label")?.textContent || "";
+}
+
 const messages = vi.fn();
 let scrollbarShadow: ShadowRoot;
 
@@ -115,7 +120,7 @@ describe("note bridge", () => {
     expect(document.querySelector('[data-testid="calc-total"]')?.textContent).toBe("2,345");
     hostMessage({ type: "HTNOTE_THEME", labels: { locale: "invalid", calcTotal: 2, calcCopyTotal: "x".repeat(201), calcError: [] } });
     expect(document.querySelector('[data-testid="calc-total"]')?.textContent).toBe("2,345");
-    expect(document.querySelector('[data-testid="calc-copy"]')?.textContent).toBe("Copy sum");
+    expect(copyButtonText(document.querySelector('[data-testid="calc-copy"]'))).toBe("Copy sum");
     input.value = "18.500"; input.dispatchEvent(new Event("input"));
     expect(document.querySelector('[data-testid="calc-total"]')?.textContent).toBe("18.500");
     expect(input.defaultValue).toBe("1,234");
@@ -189,7 +194,7 @@ describe("note bridge", () => {
     try {
       const copy = document.querySelector<HTMLButtonElement>('[data-testid="template-copy"]')!;
       copy.click();
-      await vi.waitFor(() => expect(copy.textContent).toBe("Copy failed"));
+      await vi.waitFor(() => expect(copyButtonText(copy)).toBe("Copy failed"));
       expect(execCommand).toHaveBeenCalledWith("copy"); expect(fields[0]).toHaveFocus();
       expect([fields[0].selectionStart, fields[0].selectionEnd]).toEqual([1, 3]);
       expect(document.querySelectorAll("textarea")).toHaveLength(1);
@@ -248,18 +253,21 @@ describe("note bridge", () => {
     try {
       buttons[0].click(); await Promise.resolve(); await Promise.resolve();
       expect(writeText).toHaveBeenLastCalledWith("server.example");
-      expect(buttons[0].textContent).toBe("Copied");
+      expect(copyButtonText(buttons[0])).toBe("Copied");
+      expect(buttons[0]).toHaveAttribute("aria-live", "polite");
+      expect(buttons[0].querySelector(".htnote-widget-status")).toHaveTextContent("Copied");
       expect(buttons[0].getAttribute("aria-label")).toBe("Copy: Host <&>");
       values[1].dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
       await Promise.resolve(); await Promise.resolve();
       expect(writeText).toHaveBeenLastCalledWith("  unlabeled");
-      expect(buttons[1].textContent).toBe("Copied");
+      expect(copyButtonText(buttons[1])).toBe("Copied");
       document.querySelector<HTMLButtonElement>('[data-testid="copyfields-copy-all"]')!.click();
       await Promise.resolve(); await Promise.resolve();
       expect(writeText).toHaveBeenLastCalledWith("Host <&>: server.example\n  unlabeled");
       vi.advanceTimersByTime(1500);
-      expect(buttons[0].textContent).toBe("");
-      expect(document.querySelector('[data-testid="copyfields-copy-all"]')?.textContent).toBe("Copy all");
+      expect(copyButtonText(buttons[0])).toBe("");
+      expect(buttons[0].querySelector(".htnote-widget-status")).toBeEmptyDOMElement();
+      expect(copyButtonText(document.querySelector('[data-testid="copyfields-copy-all"]'))).toBe("Copy all");
       expect(values.map((value) => value.textContent)).toEqual(before);
       expect(document.querySelector('dl input')).toBeNull();
       expect(messages).not.toHaveBeenCalled();
@@ -278,7 +286,7 @@ describe("note bridge", () => {
     Object.defineProperty(document, "execCommand", { configurable: true, value: execCommand });
     try {
       buttons[0].click();
-      await vi.waitFor(() => expect(buttons[0].textContent).toBe(success ? "Copied" : "Copy failed"));
+      await vi.waitFor(() => expect(copyButtonText(buttons[0])).toBe(success ? "Copied" : "Copy failed"));
       expect(execCommand).toHaveBeenCalledWith("copy"); expect(buttons[0]).toHaveFocus();
       expect(window.getSelection()?.toString()).toBe("server.example");
       expect(document.querySelector('textarea')).toBeNull();
@@ -318,7 +326,7 @@ describe("note bridge", () => {
     hostMessage({ type: "HTNOTE_THEME", labels: { copyfieldsType: "Untrusted", copyAll: "Untrusted", copyRow: "Untrusted", copyfieldsRow: "Untrusted" } }, null);
     hostMessage({ type: "HTNOTE_THEME", labels: { copyfieldsType: 4, copyAll: "x".repeat(201), copyRow: null, copyfieldsRow: [] } });
     expect(document.querySelector('.htnote-widget-type')?.textContent).toBe("COPY FIELDS");
-    expect(document.querySelector('[data-testid="copyfields-copy-all"]')?.textContent).toBe("Copy all");
+    expect(copyButtonText(document.querySelector('[data-testid="copyfields-copy-all"]'))).toBe("Copy all");
     const safe = '<img src=x onerror="alert(1)">';
     hostMessage({ type: "HTNOTE_THEME", labels: { copyfieldsType: safe, copyAll: safe } });
     expect(document.querySelector('.htnote-widget-type')?.textContent).toBe(safe);
@@ -379,9 +387,9 @@ describe("note bridge", () => {
     try {
       const copy = document.querySelector<HTMLButtonElement>('[data-testid="checklist-copy"]')!;
       copy.click();
-      await vi.waitFor(() => expect(copy.textContent).toBe("Copied"));
+      await vi.waitFor(() => expect(copyButtonText(copy)).toBe("Copied"));
       expect(writeText).toHaveBeenLastCalledWith("Second\n Third");
-      await vi.waitFor(() => expect(copy.textContent).toBe("Copy remaining"), { timeout: 2200 });
+      await vi.waitFor(() => expect(copyButtonText(copy)).toBe("Copy remaining"), { timeout: 2200 });
       inputs[0].click(); inputs[1].click(); inputs[2].click();
       copy.click();
       await vi.waitFor(() => expect(writeText).toHaveBeenLastCalledWith("First <&>"));
@@ -438,7 +446,7 @@ describe("note bridge", () => {
     try {
       const copy = document.querySelector<HTMLButtonElement>('[data-testid="checklist-copy"]')!;
       copy.click();
-      await vi.waitFor(() => expect(copy.textContent).toBe(success ? "Copied" : "Copy failed"));
+      await vi.waitFor(() => expect(copyButtonText(copy)).toBe(success ? "Copied" : "Copy failed"));
       expect(document.activeElement).toBe(field);
       expect([field.selectionStart, field.selectionEnd, field.selectionDirection]).toEqual([2, 6, "backward"]);
       expect(window.getSelection()?.toString()).toBe(selectedText);
@@ -457,7 +465,7 @@ describe("note bridge", () => {
     hostMessage({ type: "HTNOTE_THEME", labels: { checklistType: "Untrusted", copyRemaining: "Untrusted" } }, null);
     hostMessage({ type: "HTNOTE_THEME", labels: { checklistType: 4, copyRemaining: "x".repeat(201) } });
     expect(document.querySelector('.htnote-widget-type')?.textContent).toBe("CHECKLIST");
-    expect(document.querySelector('[data-testid="checklist-copy"]')?.textContent).toBe("Copy remaining");
+    expect(copyButtonText(document.querySelector('[data-testid="checklist-copy"]'))).toBe("Copy remaining");
     const safe = "<img onerror=x()>";
     hostMessage({ type: "HTNOTE_THEME", labels: { checklistType: safe, copyRemaining: safe, checklistProgress: "x".repeat(200) } });
     expect(document.querySelector('.htnote-widget-type')?.textContent).toBe(safe);
@@ -505,7 +513,7 @@ describe("note bridge", () => {
     expect(document.querySelectorAll("[data-htnote-widget-header]")).toHaveLength(1);
     expect(document.querySelectorAll('[data-testid="textbox-copy"]')).toHaveLength(1);
     hostMessage({ type: "HTNOTE_THEME", labels: { copy: 4, reset: "x".repeat(201) } });
-    expect(document.querySelector('[data-testid="textbox-copy"]')?.textContent).toBe("Copy");
+    expect(copyButtonText(document.querySelector('[data-testid="textbox-copy"]'))).toBe("Copy");
     expect(reset.textContent).toBe("Reset");
   });
 
@@ -542,9 +550,9 @@ describe("note bridge", () => {
     input.value = "Current text";
     const copy = document.querySelector<HTMLButtonElement>('[data-testid="textbox-copy"]')!;
     copy.click();
-    await vi.waitFor(() => expect(copy.textContent).toBe("Copied"));
+    await vi.waitFor(() => expect(copyButtonText(copy)).toBe("Copied"));
     expect(writeText).toHaveBeenCalledWith("Current text");
-    await vi.waitFor(() => expect(copy.textContent).toBe("Copy"), { timeout: 2200 });
+    await vi.waitFor(() => expect(copyButtonText(copy)).toBe("Copy"), { timeout: 2200 });
     delete (navigator as { clipboard?: unknown }).clipboard;
   });
 
@@ -561,7 +569,7 @@ describe("note bridge", () => {
     input.focus(); input.setSelectionRange(2, 4, "backward");
     const copy = document.querySelector<HTMLButtonElement>('[data-testid="textbox-copy"]')!;
     copy.click();
-    await vi.waitFor(() => expect(copy.textContent).toBe(success ? "Copied" : "Copy failed"));
+    await vi.waitFor(() => expect(copyButtonText(copy)).toBe(success ? "Copied" : "Copy failed"));
     expect(copyCommand).toHaveBeenCalledWith("copy");
     expect(document.activeElement).toBe(input);
     expect([input.selectionStart, input.selectionEnd, input.selectionDirection]).toEqual([2, 4, "backward"]);
