@@ -14,6 +14,21 @@ function copyButtonText(button: Element | null): string {
 const messages = vi.fn();
 let scrollbarShadow: ShadowRoot;
 
+function motionWidgets() {
+  return '<div class="htnote-textbox" data-htnote-widget="textbox"><div class="htnote-textbox-title"></div><textarea class="htnote-textbox-input">Saved</textarea></div>' +
+    '<div class="htnote-checklist" data-htnote-widget="checklist"><div class="htnote-checklist-title"></div><ul class="htnote-checklist-items"><li><label><input type="checkbox"> First</label></li></ul></div>' +
+    serializeCopyFields({ title: "Fields", fields: [{ label: "Name", value: "Saved" }], html: null }) +
+    serializeTemplate({ title: "Template", content: "{{Name|Saved}}", html: null }) +
+    serializeCalc({ title: "Calc", content: "1+2", html: null }) +
+    serializeIpBlock({ title: "IP", gateway: "10.0.0.1", prefix: 30, html: null });
+}
+
+function endWidgetAnimation(element: Element, name: string) {
+  const event = new Event("animationend", { bubbles: true });
+  Object.defineProperty(event, "animationName", { value: `ht-widget-${name}` });
+  element.dispatchEvent(event);
+}
+
 function hostMessage(data: object, sourceWindow: MessageEventSource | null = window.parent) {
   window.dispatchEvent(new MessageEvent("message", { data, source: sourceWindow }));
 }
@@ -32,7 +47,7 @@ describe("note bridge", () => {
   beforeAll(() => {
     Object.assign(window, { HTNOTE_TEMPLATE_ENGINE: { parseTemplate }, HTNOTE_CALC_ENGINE: { evaluateCalc }, HTNOTE_IP_ENGINE: { calculateIpBlock } });
     history.replaceState(null, "", "/123e4567-e89b-12d3-a456-426614174000/index.html");
-    document.body.innerHTML = '<video controls></video><audio controls></audio>';
+    document.body.innerHTML = '<video controls></video><audio controls></audio>' + motionWidgets();
     vi.spyOn(window.parent, "postMessage").mockImplementation(messages);
     const attach = Element.prototype.attachShadow;
     const spy = vi.spyOn(Element.prototype, "attachShadow").mockImplementation(function (this: Element, options) {
@@ -42,6 +57,8 @@ describe("note bridge", () => {
     });
     window.eval(source);
     spy.mockRestore();
+    expect(document.querySelectorAll("[data-htnote-widget]")).toHaveLength(6);
+    expect(document.querySelector("[data-htnote-animate]")).toBeNull();
     expect(document.querySelector("video")).toHaveAttribute("controlslist", "nodownload");
     expect(document.querySelector("audio")?.hidden).toBe(true);
     expect(document.querySelector(".ht-audio-player")?.shadowRoot).not.toBeNull();
@@ -63,6 +80,160 @@ describe("note bridge", () => {
     hostMessage({ type: "HTNOTE_THEME", labels: { copy: "Copy", copied: "Copied", copyFailed: "Copy failed", reset: "Reset", textboxType: "TEXT BOX" } });
     return document.querySelector("textarea")!;
   }
+
+  it("enhances later widgets and applies host or source updates without starting user animations", async () => {
+    document.body.innerHTML = motionWidgets();
+    await vi.waitFor(() => expect(document.querySelectorAll(".htnote-widget-header")).toHaveLength(6));
+    expect(document.querySelector("[data-htnote-animate]")).toBeNull();
+    hostMessage({ type: "HTNOTE_THEME", labels: { locale: "en", calcTotal: "Total", ipblockSummary: "{{block}} / {{count}}" } });
+    const input = document.querySelector<HTMLTextAreaElement>(".htnote-calc-input")!;
+    input.defaultValue = "4+5";
+    await vi.waitFor(() => expect(document.querySelector('[data-testid="calc-total"]')?.textContent).toBe("9"));
+    expect(document.querySelector("[data-htnote-animate]")).toBeNull();
+  });
+
+  it("starts checklist feedback only for user changes and completes once per transition", async () => {
+    const inputs = await addChecklist();
+    const summary = document.querySelector(".htnote-checklist-summary")!;
+    inputs[1].click(); inputs[2].click();
+    expect(inputs[2]).toHaveAttribute("data-htnote-animate");
+    expect(summary).toHaveAttribute("data-htnote-animate");
+    endWidgetAnimation(summary, "highlight");
+    expect(summary).not.toHaveAttribute("data-htnote-animate");
+    inputs[2].dispatchEvent(new Event("change", { bubbles: true }));
+    hostMessage({ type: "HTNOTE_THEME", labels: { checklistProgress: "Progress" } });
+    expect(summary).not.toHaveAttribute("data-htnote-animate");
+    inputs[2].click(); inputs[2].click();
+    expect(summary).toHaveAttribute("data-htnote-animate");
+    expect(inputs.map((input) => input.defaultChecked)).toEqual([true, false, false]);
+  });
+
+  it("keeps template controls and preview nodes during repeated input and highlights restored values", async () => {
+    const [input] = await addTemplate("{{Name|Saved}} / {{Name|Saved}}");
+    const values = Array.from(document.querySelectorAll(".htnote-template-value"));
+    input.focus(); input.value = "Changed"; input.setSelectionRange(3, 3);
+    input.dispatchEvent(new Event("input"));
+    input.value = "Changed again"; input.setSelectionRange(3, 3); input.dispatchEvent(new Event("input"));
+    expect(Array.from(document.querySelectorAll(".htnote-template-value"))).toEqual(values);
+    expect(values.every((value) => value.hasAttribute("data-htnote-animate"))).toBe(true);
+    expect(document.activeElement).toBe(input); expect(input.selectionStart).toBe(3);
+    document.querySelector<HTMLButtonElement>('[data-testid="template-reset"]')!.click();
+    expect(input.value).toBe("Saved"); expect(input.defaultValue).toBe("Saved");
+    expect(input).toHaveAttribute("data-htnote-animate");
+  });
+
+  it("preserves calculation result nodes and animates only changed output", async () => {
+    const input = await addCalc("1+2\n4");
+    const [changed, unchanged] = Array.from(document.querySelectorAll('[data-testid="calc-result"]'));
+    input.focus(); input.value = "1+3\n4"; input.setSelectionRange(3, 3); input.dispatchEvent(new Event("input"));
+    expect(Array.from(document.querySelectorAll('[data-testid="calc-result"]'))).toEqual([changed, unchanged]);
+    expect(changed.textContent).toBe("4"); expect(changed).toHaveAttribute("data-htnote-animate");
+    expect(unchanged).not.toHaveAttribute("data-htnote-animate");
+    expect(document.querySelector('[data-testid="calc-total"]')).toHaveAttribute("data-htnote-animate");
+    expect(document.activeElement).toBe(input); expect(input.selectionStart).toBe(3);
+    document.querySelector<HTMLButtonElement>('[data-testid="calc-reset"]')!.click();
+    expect(input.value).toBe("1+2\n4"); expect(input).toHaveAttribute("data-htnote-animate");
+  });
+
+  it("keeps IP output semantic state immediate and removes inaccessible transition snapshots", async () => {
+    document.body.innerHTML = serializeIpBlock({ title: "IP", gateway: "10.0.0.1", prefix: 30, html: null });
+    await vi.waitFor(() => expect(document.querySelector('[data-testid="ipblock-copy"]')).not.toBeNull());
+    hostMessage({ type: "HTNOTE_THEME", labels: { ipblockInvalidIPv4: "Invalid", ipblockEmpty: "Empty" } });
+    const input = document.querySelector<HTMLInputElement>('[data-testid="ipblock-gateway"]')!;
+    const list = document.querySelector<HTMLElement>('[data-testid="ipblock-list"]')!;
+    const empty = document.querySelector<HTMLElement>('[data-testid="ipblock-empty"]')!;
+    input.focus(); input.value = "invalid"; input.dispatchEvent(new Event("input"));
+    const snapshot = document.querySelector(".htnote-ipblock-leaving")!;
+    expect(snapshot.textContent).toBe("10.0.0.2"); expect(snapshot).toHaveAttribute("aria-hidden", "true");
+    expect(snapshot).not.toHaveAttribute("tabindex"); expect(snapshot).not.toHaveAttribute("data-testid");
+    expect(list.hidden).toBe(true); expect(list.textContent).toBe(""); expect(empty.hidden).toBe(false);
+    expect(document.querySelector(".htnote-ipblock-error")).toHaveAttribute("data-htnote-animate");
+    expect(document.querySelector('[data-testid="ipblock-copy"]')).toBeDisabled();
+    expect(document.activeElement).toBe(input);
+    endWidgetAnimation(snapshot, "leave"); expect(snapshot.isConnected).toBe(false);
+    document.querySelector<HTMLButtonElement>('[data-testid="ipblock-reset"]')!.click();
+    expect(input.value).toBe("10.0.0.1"); expect(input).toHaveAttribute("data-htnote-animate");
+    expect(list.hidden).toBe(false); expect(empty.hidden).toBe(true);
+    expect(document.querySelectorAll(".htnote-ipblock-leaving")).toHaveLength(1);
+  });
+
+  it.each(["app", "system", "print"])("keeps all widget actions functional without animation when %s motion is disabled", async (mode) => {
+    document.body.innerHTML = motionWidgets();
+    await vi.waitFor(() => expect(document.querySelectorAll(".htnote-widget-header")).toHaveLength(6));
+    if (mode === "app") document.documentElement.style.setProperty("--ht-reduced-motion", "1");
+    else vi.stubGlobal("matchMedia", (query: string) => ({ matches: query === (mode === "system" ? "(prefers-reduced-motion: reduce)" : "print") }));
+    try {
+      for (const selector of [".htnote-textbox-input", ".htnote-template-fields input", ".htnote-calc-input", '[data-testid="ipblock-gateway"]']) {
+        const input = document.querySelector<HTMLInputElement | HTMLTextAreaElement>(selector)!;
+        input.value = "5"; input.dispatchEvent(new Event("input"));
+      }
+      document.querySelector<HTMLInputElement>('.htnote-checklist-items input')!.click();
+      document.querySelectorAll<HTMLButtonElement>('[data-testid$="-reset"]').forEach((button) => button.click());
+      expect(document.querySelector<HTMLInputElement>('[data-testid="ipblock-gateway"]')!.value).toBe("10.0.0.1");
+      expect(document.querySelector<HTMLTextAreaElement>(".htnote-calc-input")!.value).toBe("1+2");
+      expect(document.querySelector("[data-htnote-animate]")).toBeNull();
+      expect(document.querySelector(".htnote-ipblock-leaving")).toBeNull();
+    } finally {
+      document.documentElement.style.removeProperty("--ht-reduced-motion"); vi.unstubAllGlobals();
+    }
+  });
+
+  it("prioritizes application reduced-motion preference over system media preference", async () => {
+    document.body.innerHTML = motionWidgets();
+    await vi.waitFor(() => expect(document.querySelectorAll(".htnote-widget-header")).toHaveLength(6));
+    const checkbox = document.querySelector<HTMLInputElement>(".htnote-checklist-items input")!;
+
+    const css = document.getElementById("htnote-textbox-base")!.textContent!;
+    expect(css).toContain('html[data-ht-reduced-motion="true"] [data-htnote-widget] *');
+    expect(css).toContain('@media(prefers-reduced-motion:reduce){html:not([data-ht-reduced-motion]) [data-htnote-widget] *');
+
+    const clearAnimations = () => {
+      document.querySelectorAll("[data-htnote-animate]").forEach((el) => {
+        endWidgetAnimation(el, el.getAttribute("data-htnote-animate") || "");
+        delete (el as HTMLElement).dataset.htnoteAnimate;
+      });
+    };
+
+    try {
+      // 1) --ht-reduced-motion "0" ve sistem azaltma açıkken kullanıcı eyleminde animasyon işareti eklenir
+      vi.stubGlobal("matchMedia", (query: string) => ({ matches: query === "(prefers-reduced-motion: reduce)" }));
+      hostMessage({ type: "HTNOTE_THEME", vars: { "--ht-reduced-motion": "0" } });
+      expect(document.documentElement.dataset.htReducedMotion).toBe("false");
+      checkbox.click();
+      expect(checkbox).toHaveAttribute("data-htnote-animate");
+      clearAnimations();
+      expect(document.querySelector("[data-htnote-animate]")).toBeNull();
+
+      // 2) --ht-reduced-motion "1" iken eklenmez
+      hostMessage({ type: "HTNOTE_THEME", vars: { "--ht-reduced-motion": "1" } });
+      expect(document.documentElement.dataset.htReducedMotion).toBe("true");
+      checkbox.click();
+      expect(checkbox).not.toHaveAttribute("data-htnote-animate");
+      expect(document.querySelector("[data-htnote-animate]")).toBeNull();
+
+      // 3) Değişken yokken sistem tercihine uyar:
+      document.documentElement.style.removeProperty("--ht-reduced-motion");
+      delete document.documentElement.dataset.htReducedMotion;
+      document.documentElement.removeAttribute("data-ht-reduced-motion");
+
+      // 3a) sistem azaltma açıkken eklenmez
+      checkbox.click();
+      expect(checkbox).not.toHaveAttribute("data-htnote-animate");
+      expect(document.querySelector("[data-htnote-animate]")).toBeNull();
+
+      // 3b) sistem azaltma kapalıyken eklenir
+      vi.stubGlobal("matchMedia", () => ({ matches: false }));
+      checkbox.click();
+      expect(checkbox).toHaveAttribute("data-htnote-animate");
+      clearAnimations();
+      expect(document.querySelector("[data-htnote-animate]")).toBeNull();
+    } finally {
+      document.documentElement.style.removeProperty("--ht-reduced-motion");
+      delete document.documentElement.dataset.htReducedMotion;
+      document.documentElement.removeAttribute("data-ht-reduced-motion");
+      vi.unstubAllGlobals();
+    }
+  });
 
   it("updates temporary IP defaults, reports errors, copies only valid lists and resets", async () => {
     const saved = serializeIpBlock({ title: "VLAN <script>", gateway: "10.67.106.14", prefix: 28, html: null });
