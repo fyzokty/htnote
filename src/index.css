@@ -745,7 +745,6 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 
 /* Metin kutusu alanları atom node içinde yerel form kontrolleridir. */
 :is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor) { position: relative; margin: 16px 0; padding: 20px; border: 1px solid var(--app-card-border); border-radius: var(--app-radius-card); background: var(--app-card); color: var(--app-text); box-shadow: var(--app-shadow-card); font-family: var(--font-sans); }
-:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor).is-selected { outline: 2px solid var(--app-focus); outline-offset: 2px; }
 :is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor) input, :is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor) textarea { display: block; box-sizing: border-box; width: 100%; color: var(--app-text); border-radius: 8px; padding: 8px; }
 :is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor) input { font-weight: 600; margin-bottom: 0; border: 0; background: transparent; }
 :is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor) input:hover { background: var(--app-hover); }
@@ -760,7 +759,6 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 .htnote-widget-handle { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; box-sizing: border-box; cursor: grab; color: var(--app-muted); }
 .htnote-widget-background-swatch { display: inline-block; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--app-widget-border); }
 .htnote-checklist-editor { position: relative; margin: 16px 0; padding: 20px; border: 1px solid var(--app-card-border); border-radius: var(--app-radius-card); background: var(--app-card); color: var(--app-text); box-shadow: var(--app-shadow-card); font-family: var(--font-sans); }
-.htnote-checklist-editor.is-selected { outline: 2px solid var(--app-focus); outline-offset: 2px; }
 .htnote-checklist-editor-title { box-sizing: border-box; width: 100%; padding: 8px; margin-bottom: 0; border: 0; border-radius: 8px; background: transparent; font-weight: 600; color: var(--app-text); }
 .htnote-checklist-editor-title:hover { background: var(--app-hover); }
 .htnote-checklist-editor-items { padding: 0; }
@@ -783,7 +781,6 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 @media print { .htnote-checklist-editor button, .htnote-checklist-editor .htnote-widget-tools { display: none; } }
 
 .htnote-copyfields-editor { position: relative; margin: 16px 0; padding: 20px; border: 1px solid var(--app-card-border); border-radius: var(--app-radius-card); background: var(--app-card); color: var(--app-text); box-shadow: var(--app-shadow-card); font-family: var(--font-sans); }
-.htnote-copyfields-editor.is-selected { outline: 2px solid var(--app-focus); outline-offset: 2px; }
 .htnote-copyfields-editor-title { box-sizing: border-box; width: 100%; padding: 8px; margin-bottom: 0; border: 0; border-radius: 8px; background: transparent; font-weight: 600; color: var(--app-text); }
 .htnote-copyfields-editor-title:hover { background: var(--app-hover); }
 .htnote-copyfields-editor-fields { padding: 0; }
@@ -828,8 +825,46 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 [data-widget-background="sky"] { border-color: color-mix(in srgb, var(--app-note-sky) 75%, var(--app-muted)); }
 [data-widget-background="lavender"] { border-color: color-mix(in srgb, var(--app-note-lavender) 75%, var(--app-muted)); }
 [data-widget-background="charcoal"] { border-color: color-mix(in srgb, var(--app-note-charcoal) 75%, var(--app-muted)); }
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor) { transition: border-color 150ms ease-out, box-shadow 150ms ease-out; }
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor).is-selected {
+  outline: none;
+  border-color: var(--app-accent);
+  box-shadow: 0 0 0 1px var(--app-accent), 0 0 0 4px color-mix(in srgb, var(--app-accent) 24%, transparent), var(--app-shadow-card);
+}
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor).is-selected .htnote-widget-handle {
+  background: var(--app-accent);
+  color: var(--app-accent-text);
+  border-color: var(--app-accent);
+}
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor).is-selected::selection,
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor).is-selected ::selection {
+  background: transparent;
+}
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor).is-selected :is(input, textarea):focus::selection {
+  background: color-mix(in srgb, var(--app-accent) 24%, transparent);
+}
+:root[data-reduced-motion="true"] :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor) { transition: none; }
 @media (prefers-reduced-motion: reduce) {
+  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor),
   :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor) *, .htnote-widget-handle { transition: none; animation: none; }
+}
+@media print {
+  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor).is-selected {
+    border-color: var(--app-card-border);
+    box-shadow: none;
+    outline: none;
+  }
+  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor).is-selected .htnote-widget-handle {
+    background: var(--app-card);
+    color: var(--app-muted);
+    border-color: var(--app-border);
+  }
+  [data-widget-background="sepia"].is-selected { border-color: color-mix(in srgb, var(--app-note-sepia) 75%, var(--app-muted)); }
+  [data-widget-background="mint"].is-selected { border-color: color-mix(in srgb, var(--app-note-mint) 75%, var(--app-muted)); }
+  [data-widget-background="rose"].is-selected { border-color: color-mix(in srgb, var(--app-note-rose) 75%, var(--app-muted)); }
+  [data-widget-background="sky"].is-selected { border-color: color-mix(in srgb, var(--app-note-sky) 75%, var(--app-muted)); }
+  [data-widget-background="lavender"].is-selected { border-color: color-mix(in srgb, var(--app-note-lavender) 75%, var(--app-muted)); }
+  [data-widget-background="charcoal"].is-selected { border-color: color-mix(in srgb, var(--app-note-charcoal) 75%, var(--app-muted)); }
 }
 
 /* Pano ölçüsü editör alanına bağlıdır; kayıtlı yerleşim değişmez. */
