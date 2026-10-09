@@ -4,6 +4,13 @@ import { describe, expect, it, vi } from "vitest";
 import { ContextMenu } from "@/components/ui/ContextMenu";
 
 describe("ContextMenu", () => {
+  it("renders outside a backdrop-filter container", () => {
+    const { container } = render(<div style={{ backdropFilter: "blur(12px)" }}><ContextMenu x={0} y={0} trigger={null} onClose={vi.fn()} items={[{ id: "one", label: "One", onSelect: vi.fn() }]} /></div>);
+    const menu = screen.getByRole("menu");
+    expect(menu.parentElement).toBe(document.body);
+    expect(container.firstElementChild).not.toContainElement(menu);
+  });
+
   it("skips disabled items and activates the focused item", () => {
     const select = vi.fn();
     const close = vi.fn();

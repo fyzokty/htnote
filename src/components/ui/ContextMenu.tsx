@@ -1,5 +1,6 @@
 import { useDialogActive } from "./useDialogPresence";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 import { Button } from "@/components/ui/Button";
 export interface ContextMenuItem {
@@ -42,11 +43,11 @@ export function ContextMenu({ items, x, y, trigger, onClose }: Props) {
     return () => { document.removeEventListener("pointerdown", outside); trigger?.focus(); };
   }, [onClose, trigger, active]);
   function activate(item: ContextMenuItem) { if (active && !item.disabled) { item.onSelect(); onClose(); } }
-  return <div ref={menu} role="menu" inert={!active} aria-hidden={!active || undefined} data-closing={!active} data-side={position.top < y ? "up" : "down"} className="htnote-popover-motion htnote-popover-surface select-none fixed z-50 min-w-48 p-1 text-sm text-app-text shadow-lg" style={position} onKeyDown={(event) => {
+  return createPortal(<div ref={menu} role="menu" inert={!active} aria-hidden={!active || undefined} data-closing={!active} data-side={position.top < y ? "up" : "down"} className="htnote-popover-motion htnote-popover-surface select-none fixed z-50 min-w-48 p-1 text-sm text-app-text shadow-lg" style={position} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => event.stopPropagation()} onKeyDown={(event) => {
+    event.stopPropagation();
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); onClose(); return; }
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
-      event.stopPropagation();
       if (enabled.length === 0) return;
       const current = Number((event.target as HTMLElement).dataset.index);
       const at = enabled.indexOf(current);
@@ -59,5 +60,5 @@ export function ContextMenu({ items, x, y, trigger, onClose }: Props) {
     }} className={`flex w-full items-center justify-between gap-5 rounded px-3 py-1.5 text-left hover:bg-app-subtle focus:bg-app-subtle focus-visible:outline-2 focus-visible:outline-app-focus disabled:opacity-50 ${item.danger ? "text-app-danger" : ""}`}>
       {item.icon ? <span className="flex items-center gap-2"><span className="shrink-0" aria-hidden>{item.icon}</span>{item.label}</span> : item.label}{item.shortcut && <kbd className="htnote-kbd">{item.shortcut}</kbd>}
     </Button></div>)}
-  </div>;
+  </div>, document.body);
 }
