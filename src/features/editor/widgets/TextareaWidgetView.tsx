@@ -25,15 +25,17 @@ export function TextareaWidgetView({ node, updateAttributes, editor, getPos, sel
     }
   };
   return <NodeViewWrapper className={`htnote-${kind}-editor${selected ? " is-selected" : ""}`} contentEditable={false}
+    data-widget-background={node.attrs.background || undefined}
     style={{ background: node.attrs.background ? `var(--app-note-${node.attrs.background})` : undefined }}>
     <WidgetHeader icon={kind === "calc" ? <Calculator size={14} /> : kind === "template" ? <FileText size={14} /> : <TextCursorInput size={14} />} label={t(`widgetTypes.${kind}`)}
       background={node.attrs.background} onBackgroundChange={(background) => updateAttributes({ background })}
       selectLabel={t(`${labelKey}.select`)}
-      onSelect={() => { const position = getPos(); if (position !== undefined) editor.chain().focus().setNodeSelection(position).run(); }} />
-    <input data-testid={`${kind}-title`} aria-label={t(`${labelKey}.title`)} placeholder={t(`${labelKey}.title`)}
-      value={String(node.attrs.title)} spellCheck={false}
-      onChange={(event) => updateAttributes({ title: event.target.value, html: null })}
-      onKeyDown={(event) => { history(event); if (event.key === "Enter") { event.preventDefault(); content.current?.focus(); } }} />
+      onSelect={() => { const position = getPos(); if (position !== undefined) editor.chain().focus().setNodeSelection(position).run(); }}>
+      <input data-testid={`${kind}-title`} aria-label={t(`${labelKey}.title`)} placeholder={t(`${labelKey}.title`)}
+        value={String(node.attrs.title)} spellCheck={false}
+        onChange={(event) => updateAttributes({ title: event.target.value, html: null })}
+        onKeyDown={(event) => { history(event); if (event.key === "Enter") { event.preventDefault(); content.current?.focus(); } }} />
+    </WidgetHeader>
     <div className={kind === "calc" ? "htnote-calc-editor-lines" : undefined}>
     <textarea ref={content} data-testid={`${kind}-content`} aria-label={t(`${labelKey}.content`)} rows={3} spellCheck={false}
       value={value} onChange={(event) => updateAttributes({ content: event.target.value, html: null })}

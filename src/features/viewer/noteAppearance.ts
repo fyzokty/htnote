@@ -41,7 +41,7 @@ export function appearanceCss(): string {
   return `:where(html){${palette("light")}}\n@media(prefers-color-scheme:dark){:where(html:not([data-ht-theme])){${palette("dark")}}}\n:where(html[data-ht-theme="dark"]){${palette("dark")}}\n` +
     NOTE_BACKGROUNDS.map((preset) => `:where(html:has(body[data-ht-bg="${preset}"])){--ht-note-bg:var(--ht-note-${preset});}\n:where(body[data-ht-bg="${preset}"]){--ht-bg:var(--ht-note-${preset});}`).join("\n") +
     '\n:where(html:has(body[data-ht-bg])){background:var(--ht-note-bg,var(--ht-bg));}\n:where(body[data-ht-bg]){background:var(--ht-bg);color:var(--ht-text);}' + widgetBaseCss +
-    NOTE_BACKGROUNDS.map((preset) => `\n:where([data-htnote-widget][data-htnote-bg="${preset}"]){background:var(--ht-note-${preset});}`).join("");
+    NOTE_BACKGROUNDS.map((preset) => `\n:where([data-htnote-widget][data-htnote-bg="${preset}"]){background:var(--ht-note-${preset});border-color:color-mix(in srgb,var(--ht-note-${preset}) 75%,var(--ht-widget-muted));}`).join("");
 }
 
 function hasStyledWidget(html: string): boolean {
