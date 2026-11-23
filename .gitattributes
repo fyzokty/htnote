@@ -9,4 +9,5 @@
 *.icns binary
 *.mp3 binary
 *.mp4 binary
+*.webm binary
 *.woff2 binary

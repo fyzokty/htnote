@@ -136,6 +136,12 @@ export async function withNoteFrame<T>(id: string, run: () => Promise<T>, diagno
   }
 }
 
+export async function setFrameValue(element: WebdriverIO.Element, value: string): Promise<void> {
+  // WebView2 158, odaksız OOPIF'teki sendKeys'i reddeder; gerçek tıklama alanı odaklar.
+  await element.click();
+  await element.setValue(value);
+}
+
 export async function waitForFile(path: string, predicate: (bytes: Buffer) => boolean = (bytes) => bytes.length > 0): Promise<Buffer> {
   let bytes = Buffer.alloc(0);
   await browser.waitUntil(async () => {

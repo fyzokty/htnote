@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { createNote, editNote, openNote, saveAndView, useTempRoot, visibleEditorContentControl, visibleEditorTool, waitForFile, withNoteFrame, invoke } from "../helpers/flows";
+import { createNote, editNote, openNote, saveAndView, setFrameValue, useTempRoot, visibleEditorContentControl, visibleEditorTool, waitForFile, withNoteFrame, invoke } from "../helpers/flows";
 import { pointerClickAt, pointerDrag, pointerMoveTo, waitForPointerStable } from "../helpers/pointer";
 
 describe("widget flows", () => {
@@ -82,20 +82,20 @@ describe("widget flows", () => {
       assert.equal(await $('[data-testid="ipblock-summary"]').getText(), "Blok 10.67.106.0/28 · 13 adres (ağ, yayın ve GW hariç)");
       await prefix.selectByAttribute("value", "30");
       await browser.waitUntil(async () => await list.getText() === "10.67.106.13");
-      await gateway.setValue("10.67.106.13");
+      await setFrameValue(gateway, "10.67.106.13");
       await browser.waitUntil(async () => await list.getText() === "10.67.106.14");
       await copy.click(); await browser.waitUntil(async () => /Kopyalandı|Copied/.test(await copy.getText()));
       await browser.execute(() => { const probe = document.createElement("textarea"); probe.id = "ipblock-probe"; document.body.append(probe); });
       const probe = await $('#ipblock-probe'); await probe.click(); await browser.keys(["Control", "v"]);
       await browser.waitUntil(async () => await probe.getValue() === "10.67.106.14");
       await browser.execute(() => document.getElementById("ipblock-probe")?.remove());
-      await gateway.setValue("10.67.106.12");
+      await setFrameValue(gateway, "10.67.106.12");
       await browser.waitUntil(async () => !(await copy.isEnabled()));
       assert.equal(await gateway.getAttribute("aria-invalid"), "true"); assert.equal(await list.getText(), "");
       await reset.click();
       assert.equal(await gateway.getValue(), "10.67.106.14"); assert.equal(await prefix.getValue(), "28");
       assert.equal((await list.getText()).split("\n").length, 13); assert.equal(await reset.isEnabled(), false);
-      await gateway.setValue("10.67.106.13");
+      await setFrameValue(gateway, "10.67.106.13");
     });
     assert.equal((await invoke<{ html: string }>("read_note", { id: note.id })).html, html);
     assert.equal((await waitForFile(join(root, note.relPath, "index.html"))).toString(), html);
@@ -267,7 +267,7 @@ describe("widget flows", () => {
       assert.equal(await reset.isEnabled(), false);
       assert.equal(await $('[data-testid="calc-total"]').getText(), "22.510");
       assert.equal(await browser.execute(() => 'HTNOTE_CALC_ENGINE' in window || 'HTNOTE_TEMPLATE_ENGINE' in window), false);
-      await input.setValue("0,1 + 0,2\n100 + %20");
+      await setFrameValue(input, "0,1 + 0,2\n100 + %20");
       assert.equal(await $('[data-testid="calc-total"]').getText(), "120,3");
       await copy.click(); await browser.waitUntil(async () => /Kopyalandı|Copied/.test(await copy.getText()));
       await browser.execute(() => { const probe = document.createElement("textarea"); probe.id = "calc-probe"; document.body.append(probe); });
@@ -277,7 +277,7 @@ describe("widget flows", () => {
       await reset.click(); assert.equal(await input.getValue(), source);
       assert.equal(await $('[data-testid="calc-total"]').getText(), "22.510");
       assert.equal(await reset.isEnabled(), false);
-      await input.setValue("999");
+      await setFrameValue(input, "999");
     });
     assert.equal((await invoke<{ html: string }>("read_note", { id: note.id })).html, html);
     assert.equal((await waitForFile(join(root, note.relPath, "index.html"))).toString(), html);
@@ -312,7 +312,7 @@ describe("widget flows", () => {
       assert.equal(fields.length, 2); assert.equal(await fields[0].getValue(), "Ahmet");
       assert.equal(await reset.isEnabled(), false);
       assert.equal(await $('.htnote-template-source').isDisplayed(), false);
-      await fields[0].setValue("Live <&>");
+      await setFrameValue(fields[0], "Live <&>");
       const preview = await $('[data-testid="template-preview"]');
       assert.ok((await preview.getText()).includes("Sayın Live <&>, Live <&>"));
       await copy.click(); await browser.waitUntil(async () => /Kopyalandı|Copied/.test(await copy.getText()));
@@ -320,12 +320,12 @@ describe("widget flows", () => {
       const probe = await $('#template-probe'); await probe.click(); await browser.keys(["Control", "v"]);
       await browser.waitUntil(async () => await probe.getValue() === "Sayın Live <&>, Live <&>\nNo: \n<&>");
       await browser.execute(() => document.getElementById("template-probe")?.remove());
-      await fields[1].setValue("42");
+      await setFrameValue(fields[1], "42");
       assert.ok((await preview.getText()).includes("No: 42"));
       await reset.click();
       assert.equal(await fields[0].getValue(), "Ahmet"); assert.equal(await fields[1].getValue(), "");
       assert.equal(await reset.isEnabled(), false);
-      await fields[0].setValue("Unsaved viewer mutation");
+      await setFrameValue(fields[0], "Unsaved viewer mutation");
     });
     assert.equal((await invoke<{ html: string }>("read_note", { id: note.id })).html, html);
     assert.equal((await waitForFile(join(root, note.relPath, "index.html"))).toString(), html);
@@ -379,7 +379,7 @@ describe("widget flows", () => {
       await browser.execute(() => { const field = document.createElement("textarea"); field.id = "copyfields-probe"; document.body.append(field); });
       const probe = await $('#copyfields-probe');
       const verifyClipboard = async (expected: string) => {
-        await probe.setValue(""); await probe.click(); await browser.keys(["Control", "v"]);
+        await setFrameValue(probe, ""); await probe.click(); await browser.keys(["Control", "v"]);
         await browser.waitUntil(async () => await probe.getValue() === expected);
       };
       const buttons = await $$('[data-testid="copyfields-copy-row"]');
@@ -538,7 +538,7 @@ describe("widget flows", () => {
       const reset = await $('[data-testid="textbox-reset"]');
       await reset.waitForExist();
       assert.equal(await reset.isEnabled(), false);
-      await field.setValue(live);
+      await setFrameValue(field, live);
       assert.equal(await reset.isEnabled(), true);
       // Yalnız ölçüm: gerçek tarayıcı API'lerinin sonuçlarını kaydet, davranışı değiştirme.
       await browser.execute(() => {
@@ -568,13 +568,13 @@ describe("widget flows", () => {
       await reset.click();
       assert.equal(await field.getValue(), saved);
       assert.equal(await reset.isEnabled(), false);
-      await field.setValue("");
+      await setFrameValue(field, "");
       await field.click();
       await browser.keys(["Control", "v"]);
       await browser.waitUntil(async () => await field.getValue() === live, { timeoutMsg: "Actual clipboard paste did not match the live textarea content" });
       await reset.click();
       assert.equal(await field.getValue(), saved);
-      await field.setValue("Unsaved viewer mutation");
+      await setFrameValue(field, "Unsaved viewer mutation");
     });
     assert.equal((await invoke<{ html: string }>("read_note", { id: note.id })).html, html);
     await browser.refresh();

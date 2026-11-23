@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import type { Editor } from "@tiptap/core";
 import type { MediaClickDebug } from "../../src/features/editor/mediaSelection";
@@ -8,31 +8,9 @@ import { pointerClickAt, waitForPointerStable } from "../helpers/pointer";
 
 import { createNote, editNote, invoke, openNote, saveShortcut, useTempRoot, withNoteFrame } from "../helpers/flows";
 
-// WebView2'nin desteklediği codec ile küçük, gerçek bir video üretir; harici araç gerekmez.
+// WebView2 158'in VP8 kodlayıcısı boş çıktı verdiği için platformdan bağımsız sabit fixture kullanılır.
 async function videoBytes(): Promise<number[]> {
-  const result = await browser.executeAsync((done) => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 64;
-    canvas.height = 48;
-    const context = canvas.getContext("2d")!;
-    const stream = canvas.captureStream(10);
-    const chunks: Blob[] = [];
-    const recorder = new MediaRecorder(stream, { mimeType: "video/webm;codecs=vp8" });
-    recorder.ondataavailable = (event) => chunks.push(event.data);
-    recorder.onstop = () => {
-      stream.getTracks().forEach((track) => track.stop());
-      void new Blob(chunks).arrayBuffer().then((buffer) => done(Array.from(new Uint8Array(buffer))));
-    };
-    recorder.start();
-    let frame = 0;
-    const timer = setInterval(() => {
-      context.fillStyle = frame % 2 ? "#4f46e5" : "#6366f1";
-      context.fillRect(0, 0, canvas.width, canvas.height);
-      frame += 1;
-      if (frame === 10) { clearInterval(timer); recorder.stop(); }
-    }, 100);
-  });
-  return result as number[];
+  return Array.from(await readFile(resolve("e2e", "fixtures", "media", "preview.webm")));
 }
 
 function audioBytes(): number[] {
