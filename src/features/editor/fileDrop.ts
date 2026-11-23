@@ -6,6 +6,22 @@ export type DropHandler = (paths: string[], point: DropPoint) => Promise<void>;
 
 const handlers = new Map<string, DropHandler>();
 const previews = new Map<string, (point: DropPoint | null) => void>();
+const elementHandlers = new WeakMap<Element, { noteId: string; handler: (paths: string[]) => Promise<void> }>();
+
+export function registerElementDropHandler(element: Element, noteId: string, handler: (paths: string[]) => Promise<void>): () => void {
+  elementHandlers.set(element, { noteId, handler });
+  return () => { elementHandlers.delete(element); };
+}
+
+export function dropOnElement(noteId: string, paths: string[], point: DropPoint): Promise<void> | null {
+  let element = document.elementFromPoint?.(point.x, point.y);
+  while (element) {
+    const target = elementHandlers.get(element);
+    if (target?.noteId === noteId) return target.handler(paths);
+    element = element.parentElement;
+  }
+  return null;
+}
 
 export function registerDropPreview(noteId: string, preview: (point: DropPoint | null) => void, editor: DropEditor = "visual"): () => void {
   const key = `${noteId}:${editor}`;

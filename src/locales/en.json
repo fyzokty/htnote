@@ -318,6 +318,23 @@
       "content": "Calculation expressions",
       "select": "Select calculation"
     },
+    "steps": {
+      "insert": "Step-by-step guide",
+      "select": "Select step-by-step guide",
+      "title": "Guide title",
+      "heading": "Step {{index}} heading",
+      "text": "Step {{index}} description",
+      "up": "Move step {{index}} up",
+      "down": "Move step {{index}} down",
+      "remove": "Delete step {{index}}",
+      "code": "Code / command",
+      "removeCode": "Remove code",
+      "replaceImage": "Replace",
+      "removeImage": "Remove image",
+      "addCode": "+ Add code",
+      "addImage": "+ Add image",
+      "add": "Add step"
+    },
     "ipBlock": {
       "insert": "IP block",
       "select": "Select IP block",
@@ -559,6 +576,7 @@
     "copyfields": "COPY FIELDS",
     "template": "TEMPLATE",
     "calc": "CALCULATION",
+    "steps": "STEP-BY-STEP GUIDE",
     "ipblock": "IP BLOCK"
   },
   "textBox": {
@@ -587,6 +605,14 @@
     "error": "Could not calculate",
     "limit": "Use up to 500 lines, 500 characters per line and 64 nested operations.",
     "reset": "Reset"
+  },
+  "steps": {
+    "counter": "{{count}}/{{total}} steps",
+    "progress": "Step progress",
+    "toggle": "Step {{index}} completed",
+    "zoom": "Enlarge image",
+    "close": "Close",
+    "dialog": "Enlarged image"
   },
   "ipBlock": {
     "gateway": "Gateway (GW)",

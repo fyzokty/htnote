@@ -10,6 +10,15 @@ export function widgetThemeDeclarations(mode: "light" | "dark", tokens: CSSStyle
 
 // Bridge olmayan HTML çıktısında da alanlar kendi güvenli açık tema yedeklerini taşır.
 export const widgetBaseCss = `
+:where(.htnote-steps){container-type:inline-size;container-name:widget;box-sizing:border-box;min-width:0;max-width:100%;margin:1em 0;padding:20px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:16px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);box-shadow:var(--ht-widget-shadow,0 10px 25px -4px #4755690f,0 4px 10px -2px #6366f10a);font-family:var(--ht-font,system-ui,sans-serif);overflow-wrap:anywhere}
+:where(.htnote-steps-title){font:600 18px/1.4 var(--ht-font,system-ui,sans-serif);min-height:1lh;margin-bottom:8px;white-space:pre-wrap}
+:where(.htnote-steps-list){margin:0;padding-left:28px}
+:where(.htnote-steps-item){position:relative;min-width:0;padding:12px 0;font:15px/1.6 var(--ht-font,system-ui,sans-serif)}
+:where(.htnote-steps-heading){font-weight:600;white-space:pre-wrap}
+:where(.htnote-steps-text){white-space:pre-wrap}
+:where(.htnote-steps-code){box-sizing:border-box;margin:12px 0 0;padding:12px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:8px;background:var(--ht-widget-field,#f8f9ff);font:14px/1.6 "Cascadia Code","Cascadia Mono",Consolas,ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
+:where(.htnote-steps-image){display:block;box-sizing:border-box;width:100%;max-width:100%;height:auto;margin-top:12px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:12px}
+
 @media(prefers-color-scheme:dark){:where(html:not([data-ht-theme])){--ht-widget-shadow:0 10px 25px -4px #00000040,0 4px 10px -2px #00000026}}
 :where(html[data-ht-theme="dark"]){--ht-widget-shadow:0 10px 25px -4px #00000040,0 4px 10px -2px #00000026}
 :where(.htnote-textbox){position:relative;box-sizing:border-box;margin:1em 0;padding:20px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:16px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);box-shadow:var(--ht-widget-shadow,0 10px 25px -4px #4755690f,0 4px 10px -2px #6366f10a);font-family:var(--ht-font,system-ui,sans-serif)}

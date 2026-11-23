@@ -318,6 +318,23 @@
       "content": "Hesap ifadeleri",
       "select": "Hesap defterini seç"
     },
+    "steps": {
+      "insert": "Adım adım rehber",
+      "select": "Adım adım rehberi seç",
+      "title": "Rehber başlığı",
+      "heading": "Adım {{index}} başlığı",
+      "text": "Adım {{index}} açıklaması",
+      "up": "Adım {{index}} yukarı taşı",
+      "down": "Adım {{index}} aşağı taşı",
+      "remove": "Adım {{index}} sil",
+      "code": "Kod / komut",
+      "removeCode": "Kodu kaldır",
+      "replaceImage": "Değiştir",
+      "removeImage": "Resmi kaldır",
+      "addCode": "+ Kod ekle",
+      "addImage": "+ Resim ekle",
+      "add": "Adım ekle"
+    },
     "ipBlock": {
       "insert": "IP bloğu",
       "select": "IP bloğunu seç",
@@ -559,6 +576,7 @@
     "copyfields": "KOPYALANABİLİR ALANLAR",
     "template": "ŞABLON DOLDURUCU",
     "calc": "HESAP DEFTERİ",
+    "steps": "ADIM ADIM REHBER",
     "ipblock": "IP BLOĞU"
   },
   "textBox": {
@@ -587,6 +605,14 @@
     "error": "Hesaplanamadı",
     "limit": "En fazla 500 satır, satır başına 500 karakter ve 64 iç içe işlem kullanılabilir.",
     "reset": "Sıfırla"
+  },
+  "steps": {
+    "counter": "{{count}}/{{total}} adım",
+    "progress": "Adım ilerlemesi",
+    "toggle": "Adım {{index}} tamamlandı",
+    "zoom": "Resmi büyüt",
+    "close": "Kapat",
+    "dialog": "Büyütülmüş resim"
   },
   "ipBlock": {
     "gateway": "Ağ geçidi (GW)",

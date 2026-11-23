@@ -137,6 +137,15 @@
   :where(.htnote-widget-actions button){border:1px solid color-mix(in srgb,var(--ht-widget-divider,#e0e3ee) 85%,var(--ht-widget-muted,#464554));border-radius:8px;padding:6px 8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);cursor:pointer}
   :where(.htnote-widget-actions button:focus-visible){outline:2px solid var(--ht-widget-accent,#4648d4);outline-offset:2px}
   :where(.htnote-widget-actions button[data-feedback="copied"]){color:var(--ht-widget-accent,#4648d4)}
+
+:where(.htnote-steps){container-type:inline-size;container-name:widget;box-sizing:border-box;min-width:0;max-width:100%;margin:1em 0;padding:20px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:16px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-surface,#ffffff);box-shadow:var(--ht-widget-shadow,0 10px 25px -4px #4755690f,0 4px 10px -2px #6366f10a);font-family:var(--ht-font,system-ui,sans-serif);overflow-wrap:anywhere}
+:where(.htnote-steps-title){font:600 18px/1.4 var(--ht-font,system-ui,sans-serif);min-height:1lh;margin-bottom:8px;white-space:pre-wrap}
+:where(.htnote-steps-list){margin:0;padding-left:28px}
+:where(.htnote-steps-item){position:relative;min-width:0;padding:12px 0;font:15px/1.6 var(--ht-font,system-ui,sans-serif)}
+:where(.htnote-steps-heading){font-weight:600;white-space:pre-wrap}
+:where(.htnote-steps-text){white-space:pre-wrap}
+:where(.htnote-steps-code){box-sizing:border-box;margin:12px 0 0;padding:12px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:8px;background:var(--ht-widget-field,#f8f9ff);font:14px/1.6 "Cascadia Code","Cascadia Mono",Consolas,ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
+:where(.htnote-steps-image){display:block;box-sizing:border-box;width:100%;max-width:100%;height:auto;margin-top:12px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:12px}
 :where(.htnote-checklist){box-sizing:border-box;margin:1em 0;padding:20px;border:1px solid var(--ht-widget-divider,#e0e3ee);border-radius:16px;color:var(--ht-widget-text);background:var(--ht-widget-surface);box-shadow:var(--ht-widget-shadow,0 10px 25px -4px #4755690f,0 4px 10px -2px #6366f10a);font-family:var(--ht-font,system-ui,sans-serif)}
 :where(.htnote-checklist-title){font:600 18px/1.4 var(--ht-font,system-ui,sans-serif);min-height:1lh;margin-bottom:8px;white-space:pre-wrap;overflow-wrap:anywhere}
 :where(.htnote-checklist-items){list-style:none;margin:0;padding:0}
@@ -156,10 +165,10 @@
 :where(.htnote-copyfields-row){display:grid;grid-template-columns:minmax(0,120px) minmax(0,1fr) auto;align-items:center;gap:8px;padding:8px 12px;margin-bottom:8px;border:1px solid var(--ht-widget-row-border,var(--ht-widget-divider,#e0e3ee));border-radius:8px;background:color-mix(in srgb,var(--ht-widget-surface,#ffffff) 65%,transparent)}
 :where(.htnote-copyfields-row dt){font-size:14px;font-weight:500;overflow-wrap:anywhere}
 :where(.htnote-copyfields-row dd){min-width:0;margin:0;padding:4px 8px;border:1px solid var(--ht-widget-divider,#e0e3ee);justify-self:start;max-width:100%;box-sizing:border-box;border-radius:8px;color:var(--ht-widget-text,#0d1c2e);background:var(--ht-widget-field,#f8f9ff);font:14px/1.6 "Cascadia Code","Cascadia Mono",Consolas,ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text}
-  :where(.htnote-copyfields-copy){display:inline-flex;align-items:center;gap:6px;border:1px solid color-mix(in srgb,var(--ht-widget-divider) 85%,var(--ht-widget-muted));border-radius:8px;padding:6px;color:var(--ht-widget-text);background:var(--ht-widget-surface);cursor:pointer}
-  :where(.htnote-copyfields-copy svg){width:15px;height:15px;flex-shrink:0}
-  :where(.htnote-copyfields-copy:focus-visible){outline:2px solid var(--ht-widget-accent);outline-offset:2px}
-  :where(.htnote-copyfields-copy[data-feedback="copied"]){color:var(--ht-widget-accent)}
+  :where(:is(.htnote-copyfields-copy,.htnote-steps-copy)){display:inline-flex;align-items:center;gap:6px;border:1px solid color-mix(in srgb,var(--ht-widget-divider) 85%,var(--ht-widget-muted));border-radius:8px;padding:6px;color:var(--ht-widget-text);background:var(--ht-widget-surface);cursor:pointer}
+  :where(:is(.htnote-copyfields-copy,.htnote-steps-copy) svg){width:15px;height:15px;flex-shrink:0}
+  :where(:is(.htnote-copyfields-copy,.htnote-steps-copy):focus-visible){outline:2px solid var(--ht-widget-accent);outline-offset:2px}
+  :where(:is(.htnote-copyfields-copy,.htnote-steps-copy)[data-feedback="copied"]){color:var(--ht-widget-accent)}
   /* Eski not stilleri bridge'den sonra gelir; dar düzen kuralları :where dışına alınarak özgüllükle korunur. */
   @media(max-width:480px){.htnote-copyfields-row{grid-template-columns:minmax(0,1fr) auto}.htnote-copyfields-row>dt{grid-column:1/-1}}
 
@@ -233,12 +242,12 @@
 @media print{.htnote-calc-lines{display:none!important}.htnote-calc-print{display:block!important}}
 ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{display:block!important}" : ""}
   :where(.htnote-textbox-print){display:none;white-space:pre-wrap;overflow-wrap:anywhere;font:15px/1.6 var(--ht-font,system-ui,sans-serif);margin:0}
-  :where(.htnote-widget-actions button,.htnote-copyfields-copy){position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;min-height:30px;font:12px/1.4 var(--ht-font,system-ui,sans-serif);transition:background-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,border-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,transform calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out}
-  :where(.htnote-widget-actions button:not(:disabled):hover,.htnote-copyfields-copy:not(:disabled):hover){background:var(--ht-widget-hover);border-color:var(--ht-widget-accent);color:var(--ht-widget-accent)}
-  :where(.htnote-widget-actions button:not(:disabled):active,.htnote-copyfields-copy:not(:disabled):active){transform:scale(.97)}
-  :where(.htnote-widget-actions button:disabled,.htnote-copyfields-copy:disabled){opacity:.5;cursor:default}
+  :where(.htnote-widget-actions button,:is(.htnote-copyfields-copy,.htnote-steps-copy)){position:relative;display:inline-flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box;min-height:30px;font:12px/1.4 var(--ht-font,system-ui,sans-serif);transition:background-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,border-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,transform calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out}
+  :where(.htnote-widget-actions button:not(:disabled):hover,:is(.htnote-copyfields-copy,.htnote-steps-copy):not(:disabled):hover){background:var(--ht-widget-hover);border-color:var(--ht-widget-accent);color:var(--ht-widget-accent)}
+  :where(.htnote-widget-actions button:not(:disabled):active,:is(.htnote-copyfields-copy,.htnote-steps-copy):not(:disabled):active){transform:scale(.97)}
+  :where(.htnote-widget-actions button:disabled,:is(.htnote-copyfields-copy,.htnote-steps-copy):disabled){opacity:.5;cursor:default}
   :where(.htnote-widget-actions button > svg){width:15px;height:15px;flex-shrink:0}
-  :where(.htnote-copyfields-copy > .htnote-widget-label){display:none}
+  :where(:is(.htnote-copyfields-copy,.htnote-steps-copy) > .htnote-widget-label){display:none}
   :where(.htnote-widget-copy-icons){display:grid;width:15px;height:15px;flex-shrink:0}
   :where(.htnote-widget-copy-icons svg){grid-area:1/1;width:15px;height:15px;transition:opacity calc(180ms * (1 - var(--ht-reduced-motion,0))) ease-out,transform calc(180ms * (1 - var(--ht-reduced-motion,0))) ease-out}
   :where(.htnote-widget-copy-icons svg:last-child){opacity:0;transform:scale(.8)}
@@ -275,9 +284,9 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
   .htnote-ipblock-fields input[aria-invalid="true"]{border-color:var(--ht-widget-danger)}
   .htnote-checklist-items label{transition:color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,text-decoration-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out}
   .htnote-checklist-items input::before{transition:opacity calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out}
-  .htnote-widget-actions button,.htnote-copyfields-copy{transition:background-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,border-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,transform calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,opacity calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,outline-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,box-shadow calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out;outline:2px solid transparent;outline-offset:2px}
-  .htnote-widget-actions button:focus-visible,.htnote-copyfields-copy:focus-visible{outline-color:var(--ht-widget-accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--ht-widget-accent) 12%,transparent)}
-  .htnote-widget-actions button:disabled,.htnote-copyfields-copy:disabled{opacity:.45}
+  .htnote-widget-actions button,:is(.htnote-copyfields-copy,.htnote-steps-copy){transition:background-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,border-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,transform calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,opacity calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,outline-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,box-shadow calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out;outline:2px solid transparent;outline-offset:2px}
+  .htnote-widget-actions button:focus-visible,:is(.htnote-copyfields-copy,.htnote-steps-copy):focus-visible{outline-color:var(--ht-widget-accent);box-shadow:0 0 0 4px color-mix(in srgb,var(--ht-widget-accent) 12%,transparent)}
+  .htnote-widget-actions button:disabled,:is(.htnote-copyfields-copy,.htnote-steps-copy):disabled{opacity:.45}
   .htnote-copyfields-row{transition:background-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,border-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out}
   .htnote-copyfields-row:hover,.htnote-copyfields-row:focus-within{background-color:var(--ht-widget-hover);--ht-widget-row-border:var(--ht-widget-accent);border-color:var(--ht-widget-row-border)}
   .htnote-template-value,.htnote-template-placeholder{transition:color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,background-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out,border-color calc(150ms * (1 - var(--ht-reduced-motion,0))) ease-out}
@@ -293,6 +302,34 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
   [data-htnote-widget] [data-htnote-animate="highlight"]{animation-name:ht-widget-highlight;animation-duration:calc(150ms * (1 - var(--ht-reduced-motion,0)))}
   @keyframes ht-widget-pop{0%{transform:scale(.85)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
   @keyframes ht-widget-fade{from{opacity:.65}to{opacity:1}}
+
+  .htnote-steps-summary{min-width:100px;color:var(--ht-widget-muted);font-size:12px;text-align:right}
+  .htnote-steps-progress{height:6px;border-radius:999px;background:var(--ht-widget-divider);overflow:hidden;margin-top:6px}
+  .htnote-steps-progress>div{height:100%;background:var(--ht-widget-accent);border-radius:inherit;transition:width calc(300ms * (1 - var(--ht-reduced-motion,0))) ease-out}
+  .htnote-steps-list:has(.htnote-steps-toggle){list-style:none;padding:0}
+  .htnote-steps-list:has(.htnote-steps-toggle)>.htnote-steps-item{padding:12px 0 20px 44px}
+  .htnote-steps-item:has(.htnote-steps-toggle):not(:last-child)::before{content:"";position:absolute;left:15px;top:48px;bottom:0;border-left:1px solid var(--ht-widget-divider)}
+  .htnote-steps-toggle{position:absolute;left:0;top:12px;width:32px;height:32px;border:1px solid var(--ht-widget-border);border-radius:50%;background:var(--ht-widget-surface);color:var(--ht-widget-accent);cursor:pointer;font:600 14px/1 var(--ht-font,system-ui,sans-serif)}
+  .htnote-steps-toggle[aria-pressed="true"]{color:var(--ht-widget-surface);border-color:var(--ht-widget-accent);background:var(--ht-widget-accent)}
+  .htnote-steps-done>.htnote-steps-heading,.htnote-steps-done>.htnote-steps-text{color:var(--ht-widget-muted);opacity:.7}
+  .htnote-steps-image[role="button"]{cursor:zoom-in}
+  .htnote-steps-code-shell{position:relative;margin-top:12px}
+  .htnote-steps-code-shell>.htnote-steps-code{margin-top:0;padding-right:48px}
+  .htnote-steps-copy{position:absolute;top:8px;right:8px}
+  .htnote-steps-toggle:focus-visible,.htnote-steps-image:focus-visible,.htnote-steps-overlay button:focus-visible{outline:2px solid var(--ht-widget-accent);outline-offset:3px}
+  .htnote-steps-overlay{position:fixed;inset:0;z-index:2147483646;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:64px 24px 24px;background:rgb(9 12 20 / 86%);color:#f1f3fa;overflow:auto}
+  .htnote-steps-overlay figure{margin:0;max-width:100%;text-align:center;min-height:0}
+  .htnote-steps-overlay img{display:block;max-width:100%;max-height:calc(100vh - 160px);object-fit:contain;margin:auto;border-radius:12px}
+  .htnote-steps-overlay figcaption{margin-top:12px;overflow-wrap:anywhere;white-space:pre-wrap}
+  .htnote-steps-overlay button{position:absolute;right:24px;top:16px;display:grid;place-items:center;width:40px;height:40px;padding:0;cursor:pointer;border:1px solid #f1f3fa;border-radius:50%;color:#f1f3fa;background:rgb(9 12 20 / 72%)}
+  .htnote-steps-overlay button:hover{background:#303647}
+  .htnote-steps-overlay button:focus-visible{outline:2px solid #f1f3fa;outline-offset:3px}
+  html[data-ht-reduced-motion="true"] .htnote-steps-overlay{animation:none!important}
+  @media(prefers-reduced-motion:reduce){html:not([data-ht-reduced-motion]) .htnote-steps-overlay{animation:none!important}}
+  @container widget (max-width:360px){.htnote-steps>.htnote-widget-header{flex-wrap:wrap}.htnote-steps-list:has(.htnote-steps-toggle)>.htnote-steps-item{padding-left:38px}}
+  @media(max-width:480px){.htnote-steps>.htnote-widget-header{flex-wrap:wrap}.htnote-steps-list:has(.htnote-steps-toggle)>.htnote-steps-item{padding-left:38px}}
+  @media print{.htnote-steps-toggle,.htnote-steps-copy,.htnote-steps-overlay{display:none!important}.htnote-steps-list:has(.htnote-steps-toggle){list-style:decimal;padding-left:28px}.htnote-steps-list:has(.htnote-steps-toggle)>.htnote-steps-item{padding-left:0}.htnote-steps-item::before{display:none!important}.htnote-steps-done>.htnote-steps-heading,.htnote-steps-done>.htnote-steps-text{opacity:1;color:inherit}.htnote-steps-image{display:block!important}.htnote-steps-code{max-height:none;overflow:visible}}
+  ${printing ? '.htnote-steps-toggle,.htnote-steps-copy,.htnote-steps-overlay{display:none!important}.htnote-steps-list:has(.htnote-steps-toggle){list-style:decimal;padding-left:28px}.htnote-steps-list:has(.htnote-steps-toggle)>.htnote-steps-item{padding-left:0}.htnote-steps-item::before{display:none!important}' : ""}
   @keyframes ht-widget-reveal{from{opacity:0}to{opacity:1}}
   @keyframes ht-widget-enter{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
   @keyframes ht-widget-leave{from{opacity:1}to{opacity:0}}
@@ -302,8 +339,8 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
   @media(prefers-reduced-motion:reduce){html:not([data-ht-reduced-motion]) [data-htnote-widget] *,html:not([data-ht-reduced-motion]) [data-htnote-widget] *::before{transition:none!important;animation:none!important}html:not([data-ht-reduced-motion]) .htnote-ipblock-leaving{display:none}}
   @media print{[data-htnote-widget] *,[data-htnote-widget] *::before{transition:none!important;animation:none!important}.htnote-ipblock-leaving{display:none!important}}
   ${printing ? '[data-htnote-widget] *,[data-htnote-widget] *::before{transition:none!important;animation:none!important}' : ""}
-  @media print{.htnote-widget-actions,.htnote-copyfields-copy,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}.htnote-textbox-title{padding-right:0}.htnote-textbox{break-inside:auto}}
-  ${printing ? ".htnote-widget-actions,.htnote-copyfields-copy,.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}" : ""}
+  @media print{.htnote-widget-actions,:is(.htnote-copyfields-copy,.htnote-steps-copy),.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}.htnote-textbox-title{padding-right:0}.htnote-textbox{break-inside:auto}}
+  ${printing ? ".htnote-widget-actions,:is(.htnote-copyfields-copy,.htnote-steps-copy),.htnote-textbox-input{display:none!important}.htnote-textbox-print{display:block!important}" : ""}
   `;
   document.head.append(boxStyle);
   const textBoxes = new WeakMap();
@@ -814,9 +851,123 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     });
     ipBlocks.set(box, { update }); update();
   }
+  const steps = new WeakMap();
+  let closeStepImage;
+  function openStepImage(image) {
+    closeStepImage?.();
+    const overlay = document.createElement("div"), figure = document.createElement("figure"), large = document.createElement("img"), caption = document.createElement("figcaption"), close = document.createElement("button");
+    overlay.className = "htnote-steps-overlay";
+    overlay.dataset.testid = "steps-overlay";
+    overlay.setAttribute("role", "dialog"); overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", boxLabels.stepsDialog || "");
+    large.src = image.src; large.alt = image.alt;
+    caption.textContent = image.alt;
+    close.type = "button"; close.dataset.testid = "steps-close";
+    close.setAttribute("aria-label", boxLabels.stepsClose || "");
+    const closeIcon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    closeIcon.setAttribute("viewBox", "0 0 24 24");
+    closeIcon.setAttribute("width", "20");
+    closeIcon.setAttribute("height", "20");
+    closeIcon.setAttribute("aria-hidden", "true");
+    closeIcon.setAttribute("focusable", "false");
+    const closePath = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    closePath.setAttribute("d", "M18 6 6 18M6 6l12 12");
+    closePath.setAttribute("fill", "none");
+    closePath.setAttribute("stroke", "currentColor");
+    closePath.setAttribute("stroke-width", "2");
+    closePath.setAttribute("stroke-linecap", "round");
+    closeIcon.append(closePath);
+    close.append(closeIcon);
+    figure.append(large, caption); overlay.append(figure, close);
+    const previousOverflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    const siblings = Array.from(document.body.children).map((element) => [element, element.inert]);
+    siblings.forEach(([element]) => { element.inert = true; });
+    const closeOverlay = () => {
+      overlay.remove(); root.style.overflow = previousOverflow;
+      siblings.forEach(([element, inert]) => { element.inert = inert; });
+      document.removeEventListener("keydown", keydown, true);
+      document.removeEventListener("focusin", focus, true);
+      closeStepImage = undefined;
+      if (image.isConnected) image.focus({ preventScroll: true });
+    };
+    const keydown = (event) => {
+      if (event.key === "Escape") { event.preventDefault(); event.stopImmediatePropagation(); closeOverlay(); }
+      else if (event.key === "Tab") { event.preventDefault(); event.stopImmediatePropagation(); close.focus(); }
+    };
+    const focus = (event) => { if (!overlay.contains(event.target)) close.focus(); };
+    close.addEventListener("click", closeOverlay);
+    overlay.addEventListener("click", (event) => { if (event.target === overlay) closeOverlay(); });
+    document.addEventListener("keydown", keydown, true);
+    document.addEventListener("focusin", focus, true);
+    closeStepImage = closeOverlay;
+    document.body.append(overlay); close.focus();
+    animateWidget(overlay, "reveal");
+  }
+  function enhanceSteps(box) {
+    if (steps.has(box)) return;
+    const list = box.querySelector(":scope > ol.htnote-steps-list");
+    if (!list) return;
+    const actions = document.createElement("div"), summary = document.createElement("div"), counter = document.createElement("span"), progress = document.createElement("div"), fill = document.createElement("div"), reset = document.createElement("button");
+    actions.className = "htnote-widget-actions"; summary.className = "htnote-steps-summary";
+    counter.dataset.testid = "steps-counter";
+    progress.className = "htnote-steps-progress"; progress.setAttribute("role", "progressbar"); progress.setAttribute("aria-valuemin", "0");
+    progress.append(fill); summary.append(counter, progress);
+    reset.type = "button"; reset.dataset.testid = "steps-reset";
+    actions.append(summary, reset);
+    const updateReset = bindWidgetReset(reset, "reset");
+    const updateHeader = createWidgetHeader(box, "stepsType", ["M10 6h11", "M10 12h11", "M10 18h11", "M4 4h1v4", "M4 11c2-2 3 1 0 3h2", "M4 17h2l-1 1 1 1-2 1"], actions);
+    const bindings = new WeakMap(), imageBindings = new WeakMap(), codeBindings = new WeakMap();
+    const rows = () => Array.from(list.querySelectorAll(":scope > li.htnote-steps-item"));
+    const setText = (element, value) => { if (element.textContent !== value) element.textContent = value; };
+    const update = () => {
+      updateHeader(); updateReset();
+      const items = rows();
+      items.forEach((row, index) => {
+        if (!bindings.has(row)) {
+          const toggle = document.createElement("button");
+          toggle.type = "button"; toggle.className = "htnote-steps-toggle"; toggle.dataset.testid = "steps-toggle";
+          const binding = { toggle, done: false };
+          bindings.set(row, binding); row.prepend(toggle);
+          toggle.addEventListener("click", () => { binding.done = !binding.done; update(); animateWidget(toggle, "pop"); });
+        }
+        const binding = bindings.get(row);
+        setText(binding.toggle, binding.done ? "✓" : String(index + 1));
+        binding.toggle.setAttribute("aria-pressed", String(binding.done));
+        binding.toggle.setAttribute("aria-label", (boxLabels.stepsToggle || "").replace("{{index}}", String(index + 1)));
+        row.classList.toggle("htnote-steps-done", binding.done);
+        row.querySelectorAll("pre.htnote-steps-code").forEach((code) => {
+          if (!codeBindings.has(code)) {
+            const copy = document.createElement("button"), shell = document.createElement("div");
+            copy.type = "button"; copy.className = "htnote-steps-copy"; copy.dataset.testid = "steps-copy";
+            shell.className = "htnote-steps-code-shell";
+            code.before(shell); shell.append(code, copy);
+            codeBindings.set(code, bindWidgetCopy(copy, "copy", () => code.textContent));
+          }
+          codeBindings.get(code)();
+        });
+        row.querySelectorAll(":scope > img.htnote-steps-image").forEach((image) => {
+          if (!imageBindings.has(image)) {
+            imageBindings.set(image, true);
+            image.tabIndex = 0; image.setAttribute("role", "button");
+            image.addEventListener("click", (event) => { event.preventDefault(); event.stopPropagation(); openStepImage(image); });
+            image.addEventListener("keydown", (event) => { if (["Enter", " "].includes(event.key)) { event.preventDefault(); openStepImage(image); } });
+          }
+          image.setAttribute("aria-label", image.alt ? `${boxLabels.stepsZoom || ""}: ${image.alt}` : boxLabels.stepsZoom || "");
+        });
+      });
+      const count = items.filter((row) => bindings.get(row).done).length;
+      setText(counter, (boxLabels.stepsCounter || "").replace(/\{\{(count|total)\}\}/g, (_, key) => String(key === "count" ? count : items.length)));
+      progress.setAttribute("aria-valuemax", String(items.length)); progress.setAttribute("aria-valuenow", String(count)); progress.setAttribute("aria-label", boxLabels.stepsProgress || "");
+      fill.style.width = `${items.length ? count / items.length * 100 : 0}%`;
+      reset.disabled = count === 0;
+    };
+    reset.addEventListener("click", () => { rows().forEach((row) => { bindings.get(row).done = false; }); update(); });
+    steps.set(box, { update }); update();
+  }
   function scanWidgets(node) {
     if (node.nodeType !== 1) return;
-    for (const [kind, enhance] of [["textbox", enhanceTextBox], ["checklist", enhanceChecklist], ["copyfields", enhanceCopyFields], ["template", enhanceTemplate], ["calc", enhanceCalc], ["ipblock", enhanceIpBlock]]) {
+    for (const [kind, enhance] of [["textbox", enhanceTextBox], ["checklist", enhanceChecklist], ["copyfields", enhanceCopyFields], ["template", enhanceTemplate], ["calc", enhanceCalc], ["ipblock", enhanceIpBlock], ["steps", enhanceSteps]]) {
       const selector = `[data-htnote-widget="${kind}"]`;
       if (node.matches(selector)) enhance(node);
       node.querySelectorAll(selector).forEach(enhance);
@@ -824,7 +975,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
   }
   function updateWidgets() {
     document.querySelectorAll('[data-htnote-widget]').forEach((box) => {
-      textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update(); calcs.get(box)?.update(); ipBlocks.get(box)?.update();
+      textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update(); calcs.get(box)?.update(); ipBlocks.get(box)?.update(); steps.get(box)?.update();
     });
   }
   scanWidgets(root);
@@ -836,7 +987,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
       const box = record.target.nodeType === 1 ? record.target.closest('[data-htnote-widget]') : record.target.parentElement?.closest('[data-htnote-widget]');
       if (box) boxes.add(box);
     });
-    boxes.forEach((box) => { scanWidgets(box); textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update(); calcs.get(box)?.update(); ipBlocks.get(box)?.update(); });
+    boxes.forEach((box) => { scanWidgets(box); textBoxes.get(box)?.update(); checklists.get(box)?.update(); copyFields.get(box)?.update(); templates.get(box)?.update(); calcs.get(box)?.update(); ipBlocks.get(box)?.update(); steps.get(box)?.update(); });
   }).observe(root, { childList: true, subtree: true, characterData: true });
   window.addEventListener("beforeprint", updateWidgets);
   const audioPlayers = new WeakMap();
@@ -1096,6 +1247,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
   };
 
   document.addEventListener("keydown", (e) => {
+    if (closeStepImage && ["Tab", "Escape"].includes(e.key)) return;
     const { ctrlKey: c, metaKey: m, altKey: a, shiftKey: s, key: k, code } = e;
     if (!(c || m || a || s || k === "Escape")) return;
     const mod = /Mac/i.test(navigator.platform) ? m && !c : c && !m;
@@ -1192,7 +1344,7 @@ ${printing ? ".htnote-calc-lines{display:none!important}.htnote-calc-print{displ
     if (e.source !== window.parent || !e.data || typeof e.data !== "object") return;
     const { type, vars, mode, query, scrollY, token, contentWidth, audioLabels: labels, labels: widgetLabels } = e.data;
     if (type === "HTNOTE_THEME" && widgetLabels && typeof widgetLabels === "object" && !Array.isArray(widgetLabels)) {
-      for (const key of ["copy", "copied", "copyFailed", "reset", "textboxType", "checklistType", "checklistReset", "copyRemaining", "checklistProgress", "copyfieldsType", "copyAll", "copyRow", "copyfieldsRow", "templateType", "templateReset", "templatePreview", "calcType", "calcReset", "calcCopyTotal", "calcTotal", "calcContent", "calcError", "calcLimit", "ipblockType", "ipblockCopyList", "ipblockGateway", "ipblockPrefix", "ipblockPlaceholder", "ipblockSummary", "ipblockInvalidIPv4", "ipblockInvalidPrefix", "ipblockGatewayBoundary", "ipblockEmpty"]) {
+      for (const key of ["copy", "copied", "copyFailed", "reset", "textboxType", "checklistType", "checklistReset", "copyRemaining", "checklistProgress", "copyfieldsType", "copyAll", "copyRow", "copyfieldsRow", "templateType", "templateReset", "templatePreview", "calcType", "calcReset", "calcCopyTotal", "calcTotal", "calcContent", "calcError", "calcLimit", "ipblockType", "ipblockCopyList", "ipblockGateway", "ipblockPrefix", "ipblockPlaceholder", "ipblockSummary", "ipblockInvalidIPv4", "ipblockInvalidPrefix", "ipblockGatewayBoundary", "ipblockEmpty", "stepsType", "stepsCounter", "stepsProgress", "stepsToggle", "stepsZoom", "stepsClose", "stepsDialog"]) {
         if (typeof widgetLabels[key] === "string" && widgetLabels[key].length <= 200) boxLabels[key] = widgetLabels[key];
       }
       if (Object.prototype.hasOwnProperty.call(widgetLabels, "locale")) boxLabels.locale = widgetLabels.locale === "en" ? "en" : "tr";

@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Editor } from "@tiptap/core";
-import { Network, PanelsTopLeft, Calculator, Blocks, FileText, TextCursorInput, ListChecks, ClipboardList } from "lucide-react";
+import { ListOrdered, Network, PanelsTopLeft, Calculator, Blocks, FileText, TextCursorInput, ListChecks, ClipboardList } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/Button";
 import { ContextMenu } from "@/components/ui/ContextMenu";
@@ -16,6 +16,7 @@ const widgets = [
   { id: "template", label: "editor.template.insert", icon: FileText, insert: (editor: Editor) => editor.chain().focus().insertTemplate().run() },
   { id: "calc", label: "editor.calc.insert", icon: Calculator, insert: (editor: Editor) => editor.chain().focus().insertCalc().run() },
   { id: "ipblock", label: "editor.ipBlock.insert", icon: Network, insert: (editor: Editor) => editor.chain().focus().insertIpBlock().run() },
+  { id: "steps", label: "editor.steps.insert", icon: ListOrdered, insert: (editor: Editor) => editor.chain().focus().insertSteps().run() },
 ] as const;
 
 export function InsertWidgetMenu({ editor }: { editor: Editor }) {

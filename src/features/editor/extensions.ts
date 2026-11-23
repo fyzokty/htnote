@@ -9,6 +9,7 @@ import { WidgetMotion } from "./widgets/widgetMotion";
 
 import { GlobalAttributes } from "@/features/editor/globalAttributesExtension";
 import { HtmlBlock } from "@/features/editor/htmlBlockNode";
+import { Steps } from "./stepsNode";
 import { IpBlock } from "./ipBlockNode";
 import { CopyFields } from "./copyFieldsNode";
 import { Checklist } from "./checklistNode";
@@ -48,6 +49,7 @@ export function createVisualExtensions(placeholder: string, onEditInCode?: () =>
     Checklist,
     CopyFields,
     IpBlock,
+    Steps.configure({ noteId }),
     Template,
     Calc,
     NoteLinkDecorations,

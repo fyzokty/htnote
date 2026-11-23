@@ -746,13 +746,13 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 .htnote-toolbar-measure { position: absolute; visibility: hidden; pointer-events: none; width: max-content; }
 
 /* Metin kutusu alanları atom node içinde yerel form kontrolleridir. */
-:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) { position: relative; margin: 16px 0; padding: 20px; border: 1px solid var(--app-card-border); border-radius: var(--app-radius-card); background: var(--app-card); color: var(--app-text); box-shadow: var(--app-shadow-card); font-family: var(--font-sans); }
-:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) input, :is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) textarea { display: block; box-sizing: border-box; width: 100%; color: var(--app-text); border-radius: 8px; padding: 8px; }
-:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) input { font-weight: 600; margin-bottom: 0; border: 0; background: transparent; }
-:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) input:hover { background: var(--app-hover); }
-:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) textarea { background: var(--app-widget-field); border: 1px solid var(--app-widget-border); }
-:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) textarea { field-sizing: content; min-height: 4.8em; resize: vertical; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; }
-:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) input:focus-visible, :is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) textarea:focus-visible, .htnote-widget-handle:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
+:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) { position: relative; margin: 16px 0; padding: 20px; border: 1px solid var(--app-card-border); border-radius: var(--app-radius-card); background: var(--app-card); color: var(--app-text); box-shadow: var(--app-shadow-card); font-family: var(--font-sans); }
+:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) input, :is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) textarea { display: block; box-sizing: border-box; width: 100%; color: var(--app-text); border-radius: 8px; padding: 8px; }
+:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) input { font-weight: 600; margin-bottom: 0; border: 0; background: transparent; }
+:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) input:hover { background: var(--app-hover); }
+:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) textarea { background: var(--app-widget-field); border: 1px solid var(--app-widget-border); }
+:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) textarea { field-sizing: content; min-height: 4.8em; resize: vertical; font: 13px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace; }
+:is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) input:focus-visible, :is(.htnote-textbox-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) textarea:focus-visible, .htnote-widget-handle:focus-visible { outline: 2px solid var(--app-accent); outline-offset: 2px; }
 .htnote-widget-header { display: flex; align-items: center; gap: 8px; padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--app-widget-divider); }
 .htnote-widget-header > input { flex: 1; min-width: 0; width: 0; margin: 0; font: 600 18px/1.4 var(--font-sans); }
 .htnote-widget-type { display: inline-flex; flex-shrink: 0; color: var(--app-accent); }
@@ -827,39 +827,39 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 [data-widget-background="sky"] { border-color: color-mix(in srgb, var(--app-note-sky) 75%, var(--app-muted)); }
 [data-widget-background="lavender"] { border-color: color-mix(in srgb, var(--app-note-lavender) 75%, var(--app-muted)); }
 [data-widget-background="charcoal"] { border-color: color-mix(in srgb, var(--app-note-charcoal) 75%, var(--app-muted)); }
-:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) { transition: background-color var(--app-popover-open-ms) ease-out, border-color var(--app-popover-open-ms) ease-out, box-shadow 150ms ease-out; }
-:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor).is-selected {
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) { transition: background-color var(--app-popover-open-ms) ease-out, border-color var(--app-popover-open-ms) ease-out, box-shadow 150ms ease-out; }
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor).is-selected {
   outline: none;
   border-color: var(--app-accent);
   box-shadow: 0 0 0 1px var(--app-accent), 0 0 0 4px color-mix(in srgb, var(--app-accent) 24%, transparent), var(--app-shadow-card);
 }
-:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor).is-selected .htnote-widget-handle {
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor).is-selected .htnote-widget-handle {
   background: var(--app-accent);
   color: var(--app-accent-text);
   border-color: var(--app-accent);
 }
-:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor).is-selected::selection,
-:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor).is-selected ::selection {
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor).is-selected::selection,
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor).is-selected ::selection {
   background: transparent;
 }
-:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor).is-selected :is(input, textarea):focus::selection {
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor).is-selected :is(input, textarea):focus::selection {
   background: color-mix(in srgb, var(--app-accent) 24%, transparent);
 }
-:root[data-reduced-motion="true"] :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor),
-:root[data-reduced-motion="true"] :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) *,
+:root[data-reduced-motion="true"] :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor),
+:root[data-reduced-motion="true"] :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) *,
 :root[data-reduced-motion="true"] .htnote-widget-handle { transition: none; animation: none; }
 @media (prefers-reduced-motion: reduce) {
-  :root:not([data-reduced-motion]) :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor),
-  :root:not([data-reduced-motion]) :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) *,
+  :root:not([data-reduced-motion]) :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor),
+  :root:not([data-reduced-motion]) :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) *,
   :root:not([data-reduced-motion]) .htnote-widget-handle { transition: none; animation: none; }
 }
 @media print {
-  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor).is-selected {
+  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor).is-selected {
     border-color: var(--app-card-border);
     box-shadow: none;
     outline: none;
   }
-  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor).is-selected .htnote-widget-handle {
+  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor).is-selected .htnote-widget-handle {
     background: var(--app-card);
     color: var(--app-muted);
     border-color: var(--app-border);
@@ -911,7 +911,7 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 .htnote-block-hint { position: fixed; z-index: 43; pointer-events: none; width: 120px; box-sizing: border-box; padding: 4px 6px; border-radius: 4px; font-size: 12px; background: var(--app-accent); color: var(--app-accent-text); }
 
 /* Dar hücrelerde alanlar widget'ın genişliğine uyar; kayıt biçimi değişmez. */
-:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) { min-width: 0; max-width: 100%; box-sizing: border-box; container-type: inline-size; container-name: widget; overflow-wrap: anywhere; }
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) { min-width: 0; max-width: 100%; box-sizing: border-box; container-type: inline-size; container-name: widget; overflow-wrap: anywhere; }
 .htnote-widget-header { flex-wrap: nowrap; }
 .htnote-widget-type { overflow-wrap: anywhere; }
 .htnote-template-editor-info > p { min-width: 0; }
@@ -955,11 +955,11 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 @keyframes htnote-widget-enter { from { opacity: 0; transform: translateY(6px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes htnote-widget-pop { from { transform: scale(.88); } 55% { transform: scale(1.08); } to { transform: none; } }
 @keyframes htnote-widget-feedback { from { opacity: .55; } to { opacity: 1; } }
-:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) :is(input, textarea, select) {
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) :is(input, textarea, select) {
   outline-color: transparent;
   transition: background-color 150ms ease-out, border-color 150ms ease-out, color 150ms ease-out, outline-color 150ms ease-out, box-shadow 150ms ease-out;
 }
-:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) :is(input:not([type=checkbox]), textarea, select):hover { background-color: var(--app-hover); }
+:is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) :is(input:not([type=checkbox]), textarea, select):hover { background-color: var(--app-hover); }
 .htnote-checklist-editor-row input[type=checkbox]::before { transition: opacity 150ms ease-out; }
 .htnote-widget-background-swatch { transition: background-color var(--app-popover-open-ms) ease-out, border-color var(--app-popover-open-ms) ease-out; }
 .htnote-widget-handle:hover { transform: scale(1.03); }
@@ -970,18 +970,45 @@ button.htnote-colored-tag[aria-pressed="true"] { background: color-mix(in srgb, 
 :root[data-reduced-motion="true"] :is(.htnote-widget-enter, .htnote-widget-pop, .htnote-widget-feedback),
 :root[data-reduced-motion="true"] .htnote-popover-motion[role=menu],
 :root[data-reduced-motion="true"] .htnote-color-popover.htnote-popover-motion,
-:root[data-reduced-motion="true"] :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) *,
+:root[data-reduced-motion="true"] :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) *,
 :root[data-reduced-motion="true"] .htnote-checklist-editor-row input[type=checkbox]::before { animation: none !important; transition: none !important; }
 @media (prefers-reduced-motion: reduce) {
   :root:not([data-reduced-motion]) :is(.htnote-widget-enter, .htnote-widget-pop, .htnote-widget-feedback),
   :root:not([data-reduced-motion]) .htnote-popover-motion[role=menu],
   :root:not([data-reduced-motion]) .htnote-color-popover.htnote-popover-motion,
-  :root:not([data-reduced-motion]) :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) *,
+  :root:not([data-reduced-motion]) :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) *,
   :root:not([data-reduced-motion]) .htnote-checklist-editor-row input[type=checkbox]::before { animation: none !important; transition: none !important; }
 }
 @media print {
   .htnote-widget-enter, .htnote-widget-pop, .htnote-widget-feedback,
-  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor),
-  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor) *,
+  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor),
+  :is(.htnote-textbox-editor, .htnote-checklist-editor, .htnote-copyfields-editor, .htnote-template-editor, .htnote-calc-editor, .htnote-ipblock-editor, .htnote-steps-editor) *,
   .htnote-checklist-editor-row input[type=checkbox]::before { animation: none !important; transition: none !important; }
 }
+
+.htnote-steps-editor-items { display: flex; flex-direction: column; gap: 12px; }
+.htnote-steps-editor-item { min-width: 0; padding: 16px; border: 1px solid var(--app-widget-divider); border-radius: 12px; background: var(--app-widget-field); }
+.htnote-steps-editor-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 10px; }
+.htnote-steps-editor-number { display: grid; place-items: center; flex-shrink: 0; width: 28px; height: 28px; border: 1px solid var(--app-widget-border); border-radius: 50%; color: var(--app-accent); }
+.htnote-steps-editor-row > textarea { flex: 1; font-weight: 600; }
+.htnote-steps-editor-actions, .htnote-steps-editor-additions { display: flex; flex-wrap: wrap; gap: 6px; }
+.htnote-steps-editor :is(textarea, .htnote-steps-editor-image input) { box-sizing: border-box; width: 100%; min-width: 0; padding: 8px 12px; color: var(--app-text); background: var(--app-card); border: 1px solid var(--app-widget-border); border-radius: 8px; font: 15px/1.6 var(--font-sans); }
+.htnote-steps-editor textarea { display: block; field-sizing: content; resize: vertical; overflow-y: hidden; }
+.htnote-steps-editor [data-step-heading] { border-color: transparent; background: transparent; resize: none; min-height: 32px; padding: 2px 4px; }
+.htnote-steps-editor :is(button, input, textarea):focus-visible { outline: 2px solid var(--app-focus); outline-offset: 2px; }
+.htnote-steps-editor button:disabled { opacity: .4; cursor: default; }
+.htnote-steps-editor-actions button, .htnote-steps-editor-additions button, .htnote-steps-editor-add, .htnote-steps-editor-code button, .htnote-steps-editor-image button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--app-widget-border); border-radius: 8px; background: var(--app-card); color: var(--app-muted); font: inherit; cursor: pointer; }
+.htnote-steps-editor-code button, .htnote-steps-editor-image button { min-height: 30px; font: 13px/1.4 var(--font-sans); }
+.htnote-steps-editor button:not(:disabled):hover { color: var(--app-accent); background: var(--app-hover); }
+.htnote-steps-editor-additions, .htnote-steps-editor-add { margin-top: 12px; }
+.htnote-steps-editor-additions button { border-style: dashed; font-size: 13px; }
+.htnote-steps-editor-code { margin-top: 12px; }
+.htnote-steps-editor-code > div { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; color: var(--app-muted); font-size: 13px; }
+.htnote-steps-editor .htnote-steps-editor-code textarea { font-family: "Cascadia Code", "Cascadia Mono", Consolas, ui-monospace, SFMono-Regular, monospace; }
+.htnote-steps-editor-image { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 12px; padding: 12px; margin-top: 12px; border: 1px solid var(--app-widget-divider); border-radius: 8px; }
+.htnote-steps-editor-image img { max-width: 120px; max-height: 100px; height: auto; border-radius: 8px; }
+.htnote-steps-editor-image > div { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 8px; min-width: min(140px,100%); }
+.htnote-steps-editor-image label { display: flex; flex: 1 0 100%; flex-direction: column; gap: 6px; margin-bottom: 0; color: var(--app-muted); font-size: 13px; }
+@container widget (max-width:360px) { .htnote-steps-editor-row { flex-wrap: wrap; }.htnote-steps-editor-actions { margin-left: auto; }.htnote-steps-editor-item { padding: 12px; } }
+@media (max-width:480px) { .htnote-steps-editor-row { flex-wrap: wrap; }.htnote-steps-editor-actions { margin-left: auto; } }
+@media print { .htnote-steps-editor button { display: none; } }

@@ -15,7 +15,7 @@ export function readWidgetRoot(html: string): WidgetElement | null {
 export function exactWidgetElement(node: Child | undefined, tag: string, attrs: Record<string, string>): node is WidgetElement {
   if (!node || !("tagName" in node) || node.tagName !== tag || node.namespaceURI !== "http://www.w3.org/1999/xhtml") return false;
   const location = node.sourceCodeLocation;
-  return !!location?.startTag && (tag === "input" || !!location.endTag) &&
+  return !!location?.startTag && (["input", "img"].includes(tag) || !!location.endTag) &&
     node.attrs.length === Object.keys(attrs).length && node.attrs.every(({ name, value }) => attrs[name] === value);
 }
 
