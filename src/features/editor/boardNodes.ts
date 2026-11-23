@@ -22,7 +22,7 @@ declare module "@tiptap/core" {
   }
 }
 export const boardLayoutKey = new PluginKey<{ pos: number | null }>("boardLayout");
-const widgets = new Set(["textBox", "checklist", "copyfields", "template", "calc", "ipblock"]);
+const widgets = new Set(["textBox", "checklist", "copyfields", "template", "calc", "ipblock", "steps"]);
 
 export function activeBoard(state: CommandProps["state"]) {
   const { $from } = state.selection;
@@ -325,7 +325,7 @@ export const Board = TiptapNode.create({
 
 export const BoardCell = TiptapNode.create({
   name: "boardCell", isolating: true, defining: true,
-  content: "(paragraph | heading | bulletList | orderedList | blockquote | codeBlock | horizontalRule | table | htmlBlock | textBox | checklist | copyfields | template | calc | ipblock | image | audio | video)+",
+  content: "(paragraph | heading | bulletList | orderedList | blockquote | codeBlock | horizontalRule | table | htmlBlock | textBox | checklist | copyfields | template | calc | ipblock | steps | image | audio | video)+",
   addAttributes() { return { col: { default: 1, rendered: false }, span: { default: 12, rendered: false }, row: { default: 1, rendered: false } }; },
   parseHTML() { return [{ tag: "div.htnote-board-cell[data-htnote-cell]", getAttrs: (element) => parseCell(element.getAttribute("data-htnote-cell") ?? "") ?? false }]; },
   renderHTML({ node }) {

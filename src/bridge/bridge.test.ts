@@ -3,6 +3,7 @@ import { serializeCopyFields } from "@/features/editor/copyFields";
 import { parseTemplate, serializeTemplate } from "@/features/editor/template";
 import { evaluateCalc, serializeCalc } from "@/features/editor/calc";
 import { calculateIpBlock, serializeIpBlock } from "@/features/editor/ipBlock";
+import { emptyStep, serializeSteps } from "@/features/editor/steps";
 import source from "./bridge.js?raw";
 import { writeNoteBackground } from "@/features/viewer/noteAppearance";
 
@@ -148,6 +149,74 @@ describe("note bridge", () => {
     document.documentElement.removeAttribute("data-ht-theme");
     messages.mockClear();
     vi.spyOn(window.parent, "postMessage").mockImplementation(messages);
+  });
+
+  async function addSteps() {
+    document.body.innerHTML = serializeSteps({ title: "Guide", html: null, items: [
+      { ...emptyStep(), heading: "First", code: "\ncommand <&>\r\nend", image: { src: "assets/test.png", alt: "Caption <&>" } },
+      { ...emptyStep(), heading: "Second", text: "Details" },
+    ] });
+    await vi.waitFor(() => expect(document.querySelector('[data-testid="steps-toggle"]')).not.toBeNull());
+    hostMessage({ type: "HTNOTE_THEME", labels: { stepsType: "STEPS", stepsCounter: "{{count}}/{{total}} steps", stepsProgress: "Progress", stepsToggle: "Step {{index}} done", stepsZoom: "Enlarge", stepsClose: "Close", stepsDialog: "Image", reset: "Reset", copy: "Copy", copied: "Copied" } });
+  }
+
+  it("toggles temporary steps, counts, resets and copies the exact saved code", async () => {
+    await addSteps();
+    const code = document.querySelector("pre")!, original = code.textContent;
+    const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-testid="steps-toggle"]'));
+    const reset = document.querySelector<HTMLButtonElement>('[data-testid="steps-reset"]')!;
+    expect(reset.disabled).toBe(true);
+    buttons[0].click(); expect(buttons[0]).toHaveAttribute("aria-pressed", "true");
+    expect(document.querySelector('[data-testid="steps-counter"]')?.textContent).toBe("1/2 steps");
+    expect(document.querySelector('[role="progressbar"]')).toHaveAttribute("aria-valuenow", "1");
+    buttons[1].click(); expect(document.querySelector('[data-testid="steps-counter"]')?.textContent).toBe("2/2 steps");
+    reset.click(); expect(buttons.every((button) => button.getAttribute("aria-pressed") === "false")).toBe(true);
+    expect(document.querySelector('[data-testid="steps-counter"]')?.textContent).toBe("0/2 steps");
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    try {
+      const copy = document.querySelector<HTMLButtonElement>('[data-testid="steps-copy"]')!;
+      copy.click(); await vi.waitFor(() => expect(copyButtonText(copy)).toBe("Copied"));
+      expect(writeText).toHaveBeenCalledWith("\ncommand <&>\r\nend"); expect(code.textContent).toBe(original);
+      vi.useFakeTimers(); copy.click(); await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(1500); expect(copyButtonText(copy)).toBe("Copy");
+      expect(messages).not.toHaveBeenCalled();
+    } finally { vi.useRealTimers(); delete (navigator as { clipboard?: unknown }).clipboard; }
+  });
+
+  it("opens the image dialog with keyboard, traps focus and closes by Esc, backdrop or close button", async () => {
+    await addSteps();
+    const image = document.querySelector<HTMLImageElement>(".htnote-steps-image")!;
+    const open = () => { image.focus(); image.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true })); };
+    const dialog = () => document.querySelector<HTMLElement>('[data-testid="steps-overlay"]')!;
+    const close = () => document.querySelector<HTMLButtonElement>('[data-testid="steps-close"][aria-label="Close"]')!;
+    open(); expect(dialog()).toHaveAttribute("role", "dialog"); expect(dialog()).toHaveAttribute("aria-modal", "true"); expect(close()).toHaveFocus();
+    expect(dialog().querySelector("figcaption")?.textContent).toBe("Caption <&>");
+    close().dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true })); expect(close()).toHaveFocus();
+    close().dispatchEvent(new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true })); expect(close()).toHaveFocus();
+    close().dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true })); expect(dialog()).toBeNull(); expect(image).toHaveFocus();
+    image.click(); dialog().click(); expect(dialog()).toBeNull(); expect(image).toHaveFocus();
+    open(); close().click(); expect(dialog()).toBeNull(); expect(image).toHaveFocus();
+    expect(document.documentElement.style.overflow).not.toBe("hidden");
+    expect(messages).not.toHaveBeenCalled();
+  });
+
+  it("validates steps labels as literal strings and enhances added rows and widgets once", async () => {
+    await addSteps();
+    const label = document.querySelector(".htnote-widget-type")!;
+    hostMessage({ type: "HTNOTE_THEME", labels: { stepsType: "<img src=x>", stepsToggle: 42, stepsCounter: "x".repeat(201), stepsClose: [] } });
+    expect(label.textContent).toBe("<img src=x>"); expect(label.querySelector("img")).toBeNull();
+    expect(document.querySelector('[data-testid="steps-toggle"]')).toHaveAttribute("aria-label", "Step 1 done");
+    expect(document.querySelector('[data-testid="steps-counter"]')?.textContent).toBe("0/2 steps");
+    hostMessage({ type: "HTNOTE_THEME", labels: { stepsType: null } }); expect(label.textContent).toBe("<img src=x>");
+    const list = document.querySelector(".htnote-steps-list")!;
+    const row = document.createElement("li"); row.className = "htnote-steps-item";
+    const heading = document.createElement("div"); heading.className = "htnote-steps-heading"; heading.textContent = "Later"; row.append(heading); list.append(row);
+    await vi.waitFor(() => expect(document.querySelectorAll('[data-testid="steps-toggle"]')).toHaveLength(3));
+    expect(document.querySelector('[data-testid="steps-counter"]')?.textContent).toBe("0/3 steps");
+    window.dispatchEvent(new Event("beforeprint"));
+    expect(document.querySelectorAll('[data-htnote-widget-header]')).toHaveLength(1);
+    expect(document.querySelectorAll('[data-testid="steps-copy"]')).toHaveLength(1);
   });
 
   async function addTextBox() {

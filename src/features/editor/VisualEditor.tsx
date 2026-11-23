@@ -12,7 +12,7 @@ import { notifyAutoSaveChange } from "@/features/editor/autoSave";
 import { NotePicker } from "@/components/ui/NotePicker";
 import { classifyClipboard, decodeDataUrl, pasteFileName, rewriteDataUrlImages, shouldWarnExternalImages } from "@/features/editor/clipboardPaste";
 import { createVisualExtensions } from "@/features/editor/extensions";
-import { copyFilesSequentially, fileName, mediaFor, registerDropHandler, registerDropPreview } from "@/features/editor/fileDrop";
+import { copyFilesSequentially, dropOnElement, fileName, mediaFor, registerDropHandler, registerDropPreview } from "@/features/editor/fileDrop";
 import { createNativeDropCursor, dropPosition } from "@/features/editor/dropCursor";
 import type { InsertMediaOptions } from "@/features/editor/mediaNodes";
 import { escapeHtml, noteLinkHref } from "@/features/editor/noteLinks";
@@ -183,6 +183,8 @@ export const VisualEditor = forwardRef<VisualEditorHandle, VisualEditorProps>(fu
     const unregisterPreview = registerDropPreview(noteId, (point) => cursor.update(point));
     const unregisterDrop = registerDropHandler(noteId, "visual", async (paths, point) => {
       cursor.update(null);
+      const elementDrop = dropOnElement(noteId, paths, point);
+      if (elementDrop) { await elementDrop; return; }
       const target = dropPosition(editor.view, point);
       if (target === null) return;
       // Kopyalama sırasında yapılan düzenlemelerde hedef konumu belgeyle birlikte taşı.

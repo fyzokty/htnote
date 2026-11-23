@@ -23,6 +23,7 @@ export const BlockMovement = Extension.create({
     } } }, view: (view) => {
       const keydown = (event: KeyboardEvent) => {
         if (!view.editable || !event.altKey || !event.shiftKey || event.ctrlKey || event.metaKey || !["ArrowUp", "ArrowDown"].includes(event.key)) return;
+        if (event.target instanceof Element && event.target.closest(".htnote-steps-editor")) return;
         // Atom girdilerinde imleç DOM'dadır; ProseMirror seçimi eski blokta kalabilir.
         let pos = view.state.selection.from;
         if (event.target instanceof Element && event.target.closest("input,textarea,select")) {

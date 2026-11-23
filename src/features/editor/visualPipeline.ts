@@ -7,6 +7,7 @@ import type { ExtractResult } from "@/features/editor/contentRegion";
 import { formatHtml } from "@/features/editor/formatHtml";
 import { readCopyFields, serializeCopyFields, type CopyFieldsAttributes } from "./copyFields";
 import { readChecklist, serializeChecklist, type ChecklistAttributes } from "./checklist";
+import { readSteps, serializeSteps, type StepsAttributes } from "./steps";
 import { readIpBlock, serializeIpBlock, type IpBlockAttributes } from "./ipBlock";
 import { readCalc, serializeCalc, type CalcAttributes } from "./calc";
 import { readTemplate, serializeTemplate, type TemplateAttributes } from "./template";
@@ -47,7 +48,8 @@ function escapeAttribute(value: string): string {
 export function wrapRawBlocks(inner: string, inCell = false): string {
   const blocks = classifyTopLevel(inner);
   return blocks.map(({ kind, html }) => kind === "board"
-    ? serializeBoard(readBoard(html)!.map((cell) => ({ ...cell, html: wrapRawBlocks(cell.html, true) }))) : kind === "ipblock"
+    ? serializeBoard(readBoard(html)!.map((cell) => ({ ...cell, html: wrapRawBlocks(cell.html, true) }))) : kind === "steps"
+    ? `<htnote-steps-node data-steps="${escapeAttribute(JSON.stringify(readSteps(html)))}"></htnote-steps-node>` : kind === "ipblock"
     ? `<htnote-ipblock-node data-ipblock="${escapeAttribute(JSON.stringify(readIpBlock(html)))}"></htnote-ipblock-node>` : kind === "calc"
     ? `<htnote-calc-node data-calc="${escapeAttribute(JSON.stringify(readCalc(html)))}"></htnote-calc-node>` : kind === "template"
     ? `<htnote-template-node data-template="${escapeAttribute(JSON.stringify(readTemplate(html)))}"></htnote-template-node>` : kind === "copyfields"
@@ -57,7 +59,7 @@ export function wrapRawBlocks(inner: string, inCell = false): string {
     // JSON kaçışları satır sonlarının HTML ayrıştırıcısında normalize edilmesini önler.
     kind === "raw" || !supportedByVisualEditor(html)
       ? `<htnote-raw data-html="${escapeAttribute(JSON.stringify(html))}"></htnote-raw>` : html,
-  ).join("") + (!inCell && ["board", "textBox", "checklist", "copyfields", "template", "calc", "ipblock"].includes(blocks[blocks.length - 1]?.kind) ? "<p></p>" : "");
+  ).join("") + (!inCell && ["board", "textBox", "checklist", "copyfields", "template", "calc", "ipblock", "steps"].includes(blocks[blocks.length - 1]?.kind) ? "<p></p>" : "");
 }
 
 export function unwrapRawBlocks(editorHtml: string): string {
@@ -67,6 +69,14 @@ export function unwrapRawBlocks(editorHtml: string): string {
   function visit(node: DefaultTreeAdapterTypes.Node): void {
     if ("tagName" in node) {
       const element = node as Element;
+      if (element.tagName === "htnote-steps-node") {
+        const location = element.sourceCodeLocation;
+        const data = element.attrs.find((attr) => attr.name === "data-steps")?.value;
+        if (location && data) {
+          replacements.push({ start: location.startOffset, end: location.endOffset, html: serializeSteps(JSON.parse(data) as StepsAttributes) });
+          return;
+        }
+      }
       if (element.tagName === "htnote-ipblock-node") {
         const location = element.sourceCodeLocation;
         const data = element.attrs.find((attr) => attr.name === "data-ipblock")?.value;

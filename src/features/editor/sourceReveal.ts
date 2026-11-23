@@ -2,7 +2,7 @@ import { ensureSyntaxTree, syntaxTree } from "@codemirror/language";
 import type { EditorState } from "@codemirror/state";
 import type { SyntaxNode } from "@lezer/common";
 
-export const sourceWidgetTypes = ["textbox", "checklist", "copyfields", "template", "calc", "ipblock"] as const;
+export const sourceWidgetTypes = ["textbox", "checklist", "copyfields", "template", "calc", "ipblock", "steps"] as const;
 export type SourceLocator =
   | { kind: "widget"; index: number; widget: typeof sourceWidgetTypes[number] }
   | { kind: "block"; index: number; tag: string };

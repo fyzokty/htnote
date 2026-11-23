@@ -6,7 +6,7 @@ import { ColorPicker } from "@/components/ui/ColorPicker";
 import { useEffect, useRef, useState } from "react";
 import type { Editor } from "@tiptap/react";
 import { useTranslation } from "react-i18next";
-import { open } from "@tauri-apps/plugin-dialog";
+import { IMAGE_EXTENSIONS, pickMediaPaths } from "./mediaPicker";
 import {
   Baseline, Bold, Italic, Underline, Strikethrough, List, ListOrdered, Quote, Code2,
   Table2, Minus, Link2, Link2Off, Rows3, Columns3, Trash2, ImagePlus, Music, Video, Code, Undo2, Redo2,
@@ -74,12 +74,7 @@ export function EditorToolbar({ editor, noteId = "", onLinkNote }: EditorToolbar
   const addMedia = async (filter: { name: string; extensions: string[] }) => {
     const { from, to } = editor.state.selection;
     try {
-      const selected = await open({
-        multiple: true,
-        filters: [filter],
-      });
-      if (!selected) return;
-      const paths = Array.isArray(selected) ? selected : [selected];
+      const paths = await pickMediaPaths(filter);
       const copied = await copyFilesSequentially(paths, (path) => ipc.copyAsset(noteId, path),
         (path) => useUiStore.getState().pushToast({ kind: "error", messageKey: "editor.dropCopyFailed", params: { name: fileName(path) } }));
       if (editor.isDestroyed || !copied.length) return;
@@ -138,7 +133,7 @@ export function EditorToolbar({ editor, noteId = "", onLinkNote }: EditorToolbar
           {action(t("editor.horizontalRule"), <Minus size={16} />, () => editor.chain().focus().setHorizontalRule().run())}
         </div>,
         <div key="4" className="htnote-editor-group" role="group" aria-label={t("editor.groups.media")}>
-          {action(t("editor.addImage"), <ImagePlus size={16} />, () => { void addMedia({ name: t("editor.mediaImages"), extensions: ["png", "jpg", "jpeg", "gif", "webp", "svg", "avif"] }); })}
+          {action(t("editor.addImage"), <ImagePlus size={16} />, () => { void addMedia({ name: t("editor.mediaImages"), extensions: IMAGE_EXTENSIONS }); })}
           {action(t("editor.addAudio"), <Music size={16} />, () => { void addMedia({ name: t("editor.mediaAudio"), extensions: ["mp3", "wav", "ogg", "m4a"] }); })}
           {action(t("editor.addVideo"), <Video size={16} />, () => { void addMedia({ name: t("editor.mediaVideo"), extensions: ["mp4", "webm"] }); })}
         </div>,

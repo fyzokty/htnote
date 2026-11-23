@@ -18,6 +18,41 @@ describe("widget flows", () => {
   beforeEach(async () => { ({ root, restore } = await useTempRoot()); });
   afterEach(async () => { await restore?.(); restore = undefined; });
 
+  it("saves a two-step guide, toggles progress, resets and copies code without changing saved HTML", async () => {
+    const note = await createNote("Steps round trip");
+    await openNote(note.id); await editNote();
+    await (await visibleEditorTool('[data-testid="insert-widget"]')).click();
+    await $('[data-testid="insert-steps"]').click();
+    await (await visibleEditorContentControl('[data-testid="steps-title"]')).setValue("Printer setup");
+    await (await visibleEditorContentControl('[data-testid="steps-heading"]')).setValue("Connect printer");
+    await (await visibleEditorContentControl('[data-testid="steps-text"]')).setValue("Connect the network cable.");
+    await (await visibleEditorContentControl('[data-testid="steps-add-code"]')).click();
+    await (await visibleEditorContentControl('[data-testid="steps-code"]')).setValue('Add-Printer -Name "Office"');
+    await (await visibleEditorContentControl('[data-testid="steps-add"]')).click();
+    await (await visibleEditorContentControl('.htnote-steps-editor-item:nth-child(2) [data-testid="steps-heading"]')).setValue("Print test page");
+    await (await visibleEditorContentControl('.htnote-steps-editor-item:nth-child(2) [data-testid="steps-text"]')).setValue("Check the output.");
+    const html = await saveAndView(note.id, (value) => value.includes("Print test page") && value.includes('class="htnote-steps-code"'));
+    assert.equal((html.match(/class="htnote-steps-item"/g) ?? []).length, 2);
+    assert.ok(!html.includes("htnote-steps-node"));
+    await withNoteFrame(note.id, async () => {
+      const counter = await $('[data-testid="steps-counter"]'), reset = await $('[data-testid="steps-reset"]');
+      await counter.waitForExist(); assert.equal(await counter.getText(), "0/2 adım");
+      const toggle = await $('[data-testid="steps-toggle"]'); await toggle.click();
+      await browser.waitUntil(async () => await counter.getText() === "1/2 adım");
+      assert.equal(await toggle.getAttribute("aria-pressed"), "true");
+      await reset.click(); assert.equal(await counter.getText(), "0/2 adım");
+      assert.equal(await toggle.getAttribute("aria-pressed"), "false");
+      const copy = await $('[data-testid="steps-copy"]'); await copy.click();
+      await browser.waitUntil(async () => (await copy.getText()).includes("Kopyalandı"));
+      await browser.execute(() => { const probe = document.createElement("textarea"); probe.id = "steps-probe"; document.body.append(probe); });
+      const probe = await $('#steps-probe'); await probe.click(); await browser.keys(["Control", "v"]);
+      await browser.waitUntil(async () => await probe.getValue() === 'Add-Printer -Name "Office"');
+      await browser.execute(() => document.getElementById("steps-probe")?.remove());
+    });
+    assert.equal((await invoke<{ html: string }>("read_note", { id: note.id })).html, html);
+    assert.equal((await waitForFile(join(root, note.relPath, "index.html"))).toString(), html);
+  });
+
   it("saves an IP block, copies live addresses, validates the gateway and restores defaults", async () => {
     const note = await createNote("IP block round trip");
     await openNote(note.id); await editNote();
